@@ -4,6 +4,9 @@ import Foundation
 /// decompressing anything. Supports ZIP64, the Info-ZIP Unicode path and extended-timestamp fields.
 /// Mac metadata (`__MACOSX/…` AppleDouble members, which libarchive folds into the files they describe)
 /// is hidden, as in Finder.
+///
+/// This is the only ZIP reader: archive browsing, Extract All and the search option
+/// "Zipped (compressed) folders" all list archives through it.
 public enum ZipDirectory {
     public enum ReadError: Error, LocalizedError, Equatable {
         case notZip, truncated, tooManyEntries
@@ -20,7 +23,15 @@ public enum ZipDirectory {
     /// Upper bound on listed entries, so a hostile directory can't exhaust memory.
     public static let maxEntries = 2_000_000
 
-    public static func read(_ url: URL) throws -> [ArchiveEntry] {
+    /// Directory bytes read when a `limit` is given: enough for the limit at typical name lengths.
+    static let limitedDirectoryBytes = 64 << 20
+
+    /// Whether the name says ZIP (a cheap test before opening the file).
+    public static func hasZipName(_ url: URL) -> Bool { ArchiveFormat.detect(url) == .zip }
+
+    /// Lists the archive's members. With `limit`, returns at most that many entries (reading a bounded
+    /// prefix of the directory) instead of failing on huge archives; search only needs a sample.
+    public static func read(_ url: URL, limit: Int? = nil) throws -> [ArchiveEntry] {
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
         let fileSize = try handle.seekToEnd()
@@ -28,20 +39,22 @@ public enum ZipDirectory {
         let tailLength = min(fileSize, 65_557)
         try handle.seek(toOffset: fileSize - tailLength)
         let tail = try handle.read(upToCount: Int(tailLength)) ?? Data()
-        let (offset, size, count) = try locateDirectory(tail: tail, tailStart: fileSize - tailLength) { start, length in
+        let (offset, size, count) = try locateDirectory(tail: tail, limited: limit != nil) { start, length in
             try handle.seek(toOffset: start)
             return try handle.read(upToCount: length) ?? Data()
         }
-        if count == 0 { return [] }
-        guard offset + size <= fileSize, size < 1 << 31 else { throw ReadError.truncated }
+        if count == 0 || limit == 0 { return [] }
+        guard offset + size <= fileSize else { throw ReadError.truncated }
+        let wanted = limit == nil ? size : min(size, UInt64(limitedDirectoryBytes))
+        guard wanted < 1 << 31 else { throw ReadError.truncated }
         try handle.seek(toOffset: offset)
-        let directory = try handle.read(upToCount: Int(size)) ?? Data()
-        guard directory.count == Int(size) else { throw ReadError.truncated }
-        return try parseDirectory(directory, expected: count)
+        let directory = try handle.read(upToCount: Int(wanted)) ?? Data()
+        guard directory.count == Int(wanted) else { throw ReadError.truncated }
+        return try parseDirectory(directory, expected: count, limit: limit)
     }
 
     /// Finds the central directory from the end-of-central-directory record (and its ZIP64 variant).
-    static func locateDirectory(tail: Data, tailStart: UInt64,
+    static func locateDirectory(tail: Data, limited: Bool = false,
                                 read: (UInt64, Int) throws -> Data) throws -> (offset: UInt64, size: UInt64, count: UInt64) {
         let bytes = [UInt8](tail)
         guard bytes.count >= 22 else { throw ReadError.notZip }
@@ -66,12 +79,12 @@ public enum ZipDirectory {
             size = le64(record, 40)
             offset = le64(record, 48)
         }
-        _ = tailStart
-        guard count <= UInt64(maxEntries) else { throw ReadError.tooManyEntries }
+        guard limited || count <= UInt64(maxEntries) else { throw ReadError.tooManyEntries }
         return (offset, size, count)
     }
 
-    static func parseDirectory(_ data: Data, expected: UInt64) throws -> [ArchiveEntry] {
+    static func parseDirectory(_ data: Data, expected: UInt64, limit: Int? = nil) throws -> [ArchiveEntry] {
+        let cap = min(limit ?? maxEntries, maxEntries)
         let b = [UInt8](data)
         var entries: [ArchiveEntry] = []
         entries.reserveCapacity(Int(min(expected, 100_000)))
@@ -90,7 +103,10 @@ public enum ZipDirectory {
             let nameStart = p + 46
             let extraStart = nameStart + nameLength
             let next = extraStart + extraLength + commentLength
-            guard next <= b.count else { throw ReadError.truncated }
+            if next > b.count {
+                if limit != nil { break }   // a limited read stops at the end of the prefix it read
+                throw ReadError.truncated
+            }
             let nameBytes = Array(b[nameStart..<extraStart])
             var name = decodeName(nameBytes, utf8Flag: flags & 0x0800 != 0)
             var modified: Date? = dosDateTime(date: dosDate, time: dosTime)
@@ -137,7 +153,10 @@ public enum ZipDirectory {
                                             compressedSize: kind == .file ? Int64(clamping: compressed) : nil,
                                             modified: modified, isEncrypted: flags & 1 != 0))
             }
-            guard entries.count <= maxEntries else { throw ReadError.tooManyEntries }
+            if entries.count >= cap {
+                if limit != nil { break }
+                guard entries.count <= maxEntries else { throw ReadError.tooManyEntries }
+            }
             p = next
         }
         return entries

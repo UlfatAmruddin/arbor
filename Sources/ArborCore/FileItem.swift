@@ -47,7 +47,7 @@ public struct FileItem: Hashable, Sendable, Identifiable {
 
     public static let resourceKeys: [URLResourceKey] = [
         .nameKey, .isDirectoryKey, .isPackageKey, .isHiddenKey, .isSymbolicLinkKey,
-        .fileSizeKey, .contentModificationDateKey, .localizedTypeDescriptionKey,
+        .fileSizeKey, .contentModificationDateKey, .localizedTypeDescriptionKey, .typeIdentifierKey,
     ]
 
     /// Reads metadata for an existing item. Returns nil if the item vanished.
@@ -57,12 +57,14 @@ public struct FileItem: Hashable, Sendable, Identifiable {
         let isSymlink = values.isSymbolicLink ?? false
         var isDirectory = values.isDirectory ?? false
         var isPackage = values.isPackage ?? false
+        var targetType: String?
         if isSymlink {
             // Treat a link to a folder as a folder so it can be opened, without following it during listing.
             let target = url.resolvingSymlinksInPath()
-            if let targetValues = try? target.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey]) {
+            if let targetValues = try? target.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey, .localizedTypeDescriptionKey]) {
                 isDirectory = targetValues.isDirectory ?? false
                 isPackage = targetValues.isPackage ?? false
+                targetType = targetValues.localizedTypeDescription
             }
         }
         let isFolder = isDirectory && !isPackage
@@ -75,7 +77,8 @@ public struct FileItem: Hashable, Sendable, Identifiable {
             isSymbolicLink: isSymlink,
             size: isFolder ? nil : values.fileSize.map(Int64.init),
             modified: values.contentModificationDate,
-            typeDescription: values.localizedTypeDescription ?? (isFolder ? "Folder" : "Document")
+            typeDescription: ExplorerTypeName.name(localized: values.localizedTypeDescription, typeIdentifier: values.typeIdentifier,
+                                                   isFolder: isFolder, isSymbolicLink: isSymlink, targetDescription: targetType)
         )
     }
 }

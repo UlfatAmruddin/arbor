@@ -2,7 +2,8 @@ import AppKit
 import ArborCore
 
 /// Explorer address bar (FE-003, FE-004, FE-005): location icon, breadcrumb segments separated by
-/// ">" chevrons that list subfolders, a "«" menu for collapsed ancestors, and Refresh at the right end.
+/// ">" chevrons that list subfolders and a "«" menu for collapsed ancestors. Refresh sits left of the
+/// bar in the navigation row (Windows 11); it calls `onRefresh`, which features may wrap.
 /// Click empty space or press ⌘L to type a path; Return resolves, Escape restores.
 final class AddressBar: NSView, NSTextFieldDelegate {
     var onNavigate: ((Location) -> Void)?
@@ -11,7 +12,10 @@ final class AddressBar: NSView, NSTextFieldDelegate {
 
     private let iconView = NSImageView()
     private let field = NSTextField()
-    let refreshButton = ChromeButton(symbol: "arrow.clockwise", tooltip: "Refresh (⌘R or F5)")
+    /// "▾" at the right end: recent locations (Windows 11 address bar).
+    let recentButton = ChromeButton(symbol: "chevron.down", tooltip: "Recent locations")
+    /// Supplies the recent-locations list; the button hides while nil.
+    static var recentLocations: (() -> [Location])?
     private let overflowButton = ChromeButton(symbol: "chevron.left.2", tooltip: "Show the rest of the path")
     private let rootChevron = ChromeButton(symbol: "chevron.right", tooltip: "Show places")
     private var segmentButtons: [ChromeButton] = []
@@ -59,15 +63,16 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         field.setAccessibilityLabel(L10n.tr("Address"))
         addSubview(field)
 
-        for button in [refreshButton, overflowButton, rootChevron] {
+        for button in [overflowButton, rootChevron, recentButton] {
             button.translatesAutoresizingMaskIntoConstraints = true
             addSubview(button)
         }
-        refreshButton.symbolSize = 12
-        refreshButton.fixedWidth = 30
-        refreshButton.fixedHeight = 26
-        refreshButton.onClick = { [weak self] _ in self?.onRefresh?() }
-        refreshButton.setAccessibilityLabel(L10n.tr("Refresh"))
+        recentButton.symbolSize = 9
+        recentButton.fixedWidth = 26
+        recentButton.fixedHeight = 24
+        recentButton.symbolTint = Theme.secondaryText
+        recentButton.setAccessibilityLabel(L10n.tr("Recent locations"))
+        recentButton.onPress = { [weak self] button in self?.showRecentMenu(button) }
         overflowButton.symbolSize = 9
         overflowButton.fixedWidth = 22
         overflowButton.fixedHeight = 24
@@ -126,10 +131,13 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         super.layout()
         let h = bounds.height
         iconView.frame = NSRect(x: 8, y: (h - 16) / 2, width: 16, height: 16)
-        refreshButton.frame = NSRect(x: bounds.width - 32, y: (h - 26) / 2, width: 30, height: 26)
-        field.frame = NSRect(x: 30, y: (h - 20) / 2, width: max(0, bounds.width - 30 - 36), height: 20)
+        let showsRecent = Self.recentLocations != nil
+        recentButton.isHidden = !showsRecent
+        recentButton.frame = NSRect(x: bounds.width - 30, y: (h - 24) / 2, width: 26, height: 24)
+        let end = showsRecent ? recentButton.frame.minX - 2 : bounds.width - 6
+        field.frame = NSRect(x: 30, y: (h - 20) / 2, width: max(0, end - 30), height: 20)
         let hidden = isEditingPath
-        let right = refreshButton.frame.minX - 4
+        let right = end
         var x: CGFloat = 28
         // Decide how many leading segments collapse into «.
         let widths = segmentButtons.map { $0.intrinsicContentSize.width + 18 }
@@ -176,10 +184,10 @@ final class AddressBar: NSView, NSTextFieldDelegate {
 
     // MARK: Menus
 
-    private func showMenu(_ children: [CrumbChild], current: Location?, from button: ChromeButton) {
+    private func showMenu(_ children: [CrumbChild], current: Location?, from button: ChromeButton, emptyText: String = L10n.tr("No folders")) {
         let menu = NSMenu()
         if children.isEmpty {
-            let empty = NSMenuItem(title: L10n.tr("No folders"), action: nil, keyEquivalent: "")
+            let empty = NSMenuItem(title: emptyText, action: nil, keyEquivalent: "")
             empty.isEnabled = false
             menu.addItem(empty)
         }
@@ -194,6 +202,20 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         button.symbolName = "chevron.down"
         button.popUp(menu)
         button.symbolName = original
+    }
+
+    private func showRecentMenu(_ button: ChromeButton) {
+        let recent = recentMenuEntries
+        showMenu(recent, current: location, from: button, emptyText: L10n.tr("No recent locations"))
+    }
+
+    /// The recent-locations menu entries (also for scripted checks).
+    var recentMenuEntries: [CrumbChild] {
+        (Self.recentLocations?() ?? []).map { place in
+            let provider = LocationRegistry.provider(for: place)
+            return CrumbChild(title: place.folderURL?.path ?? provider.title(for: place), location: place,
+                              icon: provider.icon(for: place, size: 16))
+        }
     }
 
     private func showOverflowMenu(_ button: ChromeButton) {

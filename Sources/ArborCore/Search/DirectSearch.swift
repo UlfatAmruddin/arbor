@@ -226,7 +226,7 @@ public final class DirectSearch: @unchecked Sendable {
             if match.truth == .unknown, let content {
                 if case .text = content.outcome {} else { unchecked += 1 }
             }
-            if configuration.searchArchives, !isDirectory, SearchZipDirectory.isZip(url) {
+            if configuration.searchArchives, !isDirectory, ZipDirectory.hasZipName(url) {
                 switch archiveMatch(url, folderPath: folderPath + "/" + name) {
                 case .matched(let entryReasons):
                     if match.truth != .yes { match = .yes(entryReasons) } else { match.reasons.formUnion(entryReasons) }
@@ -271,19 +271,25 @@ public final class DirectSearch: @unchecked Sendable {
 
     private enum ArchiveResult { case matched(Set<SearchReason>), noMatch, unreadable }
 
+    /// Entries tested per archive.
+    static let archiveEntryLimit = 20_000
+
     /// Tests the entries of a zip archive.
     private func archiveMatch(_ url: URL, folderPath: String) -> ArchiveResult {
-        guard let entries = try? SearchZipDirectory.entries(of: url) else { return .unreadable }
+        guard let entries = try? ZipDirectory.read(url, limit: Self.archiveEntryLimit) else { return .unreadable }
         var reasons: Set<SearchReason> = []
-        for entry in entries.prefix(20_000) {
-            let name = (entry.path as NSString).lastPathComponent
-            let parent = (entry.path as NSString).deletingLastPathComponent
+        for entry in entries {
+            // Unsafe names (absolute, "..") are never shown by archive browsing either.
+            guard let path = entry.path else { continue }
+            let isFolder = entry.kind == .directory
+            let name = (path as NSString).lastPathComponent
+            let parent = (path as NSString).deletingLastPathComponent
             let candidate = SearchCandidate(name: name, folderPath: parent.isEmpty ? folderPath : folderPath + "/" + parent,
-                                            isFolder: entry.isFolder, size: entry.isFolder ? nil : entry.size,
+                                            isFolder: isFolder, size: isFolder ? nil : (entry.size ?? 0),
                                             modified: entry.modified, created: nil, typeIdentifier: nil,
                                             typeDescription: nil, tags: [], authors: nil, contentContains: nil)
             if evaluator.evaluate(candidate).truth == .yes {
-                reasons.insert(.archiveEntry(entry.path))
+                reasons.insert(.archiveEntry(path))
                 if reasons.count >= 3 { break }
             }
         }

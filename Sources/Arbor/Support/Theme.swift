@@ -67,8 +67,13 @@ enum Theme {
 
     static let tabStripHeight: CGFloat = 40
     static let tabHeight: CGFloat = 32
-    static let tabMinWidth: CGFloat = 96
+    /// Equal-width tabs between these bounds (WinUI TabView's defaults: 100 and 240 epx); past the
+    /// minimum the strip scrolls with arrow buttons.
+    static let tabMinWidth: CGFloat = 100
     static let tabMaxWidth: CGFloat = 240
+    static let tabScrollButtonWidth: CGFloat = 28
+    /// How far outside the tab row a dragged tab may go before it tears off.
+    static let tabTearOffSlack: CGFloat = 24
     static let tabCornerRadius: CGFloat = 8
     /// Space left for the window's close/minimize/zoom buttons.
     static let trafficLightInset: CGFloat = 80
@@ -82,6 +87,8 @@ enum Theme {
     static let navPaneWidth: CGFloat = 230
     /// Rows grow with View ▸ Text size so larger text is never clipped (FE-050).
     static func rowHeight(compact: Bool) -> CGFloat { listRowHeight(compact ? 24 : 28) }
+    /// Back, Forward, Up and Refresh in the navigation row.
+    static let navButtonWidth: CGFloat = 34
 
     // MARK: Helpers
 

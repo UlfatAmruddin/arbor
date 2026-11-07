@@ -114,6 +114,10 @@ final class CommandBarView: ThemeBackgroundView {
 
     /// Updates enabled/toggled states and inserts contextual commands that are available now.
     func update(_ context: CommandContext) {
+        // "New ▾" greys out where nothing can be created (This Mac, Trash, archives), like Explorer.
+        newButton.isEnabled = CommandRegistry.shared.entries(in: .newMenu).contains {
+            $0.command.isAvailable(context) && $0.command.isEnabled(context)
+        }
         for (command, button) in primary + trailing + contextual {
             button.isEnabled = command.isAvailable(context) && command.isEnabled(context)
             button.isToggled = command.state(context) == .on

@@ -266,10 +266,10 @@ enum ArchiveFeature {
         let layout = DetailsLayout(
             id: "archive.zip",
             order: ["name", "type", "archive.compressedSize", "archive.passwordProtected", "size", "archive.ratio", "dateModified"],
-            widths: ["name": 280, "type": 150],
+            widths: ["name": 220, "type": 130],
             extras: [
                 DetailsColumnSpec(id: "archive.compressedSize", title: "Compressed size", width: 120, alignment: .right,
-                                  cell: text("archive.compressedSize", .right) { entry($0)?.compressedSize.map(StatusText.bytes) ?? "" }),
+                                  cell: text("archive.compressedSize", .right) { entry($0)?.compressedSize.map(ExplorerSize.detailsColumn) ?? "" }),
                 DetailsColumnSpec(id: "archive.passwordProtected", title: "Password protected", width: 130,
                                   cell: text("archive.passwordProtected", .left) { entry($0).map { $0.isEncrypted ? "Yes" : "No" } ?? "" }),
                 DetailsColumnSpec(id: "archive.ratio", title: "Ratio", width: 70, alignment: .right,

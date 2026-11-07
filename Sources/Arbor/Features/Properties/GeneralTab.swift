@@ -23,7 +23,9 @@ struct GeneralInfo {
         let v = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .contentAccessDateKey,
                                                   .contentTypeKey, .localizedTypeDescriptionKey])
         info.contentType = v?.contentType
-        let kind = v?.localizedTypeDescription ?? entry.item.typeDescription
+        let kind = entry.item.isSymbolicLink ? entry.item.typeDescription
+            : ExplorerTypeName.name(localized: v?.localizedTypeDescription ?? entry.item.typeDescription,
+                                    typeIdentifier: v?.contentType?.identifier, isFolder: entry.item.isFolder)
         let ext = entry.item.isFolder ? "" : url.pathExtension
         info.typeText = ext.isEmpty ? kind : "\(kind) (.\(ext))"
         info.location = url.deletingLastPathComponent().path

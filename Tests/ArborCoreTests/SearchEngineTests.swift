@@ -157,12 +157,15 @@ struct SearchReaderTests {
         try fx.file("src/inner/deep report.md", "b")
         let zip = fx.url("bundle.zip")
         try runDitto(source: fx.url("src"), zip: zip)
-        let entries = try SearchZipDirectory.entries(of: zip)
-        let paths = Set(entries.filter { !$0.isFolder }.map(\.path))
+        // Search lists archives with the same reader as archive browsing.
+        let entries = try ZipDirectory.read(zip, limit: 20_000)
+        let paths = Set(entries.filter { $0.kind == .file }.compactMap(\.path))
         #expect(paths == ["src/top.txt", "src/inner/deep report.md"])
         #expect(entries.first { $0.path == "src/top.txt" }?.size == 1)
+        #expect(try ZipDirectory.read(zip, limit: 1).count == 1)
+        #expect(ZipDirectory.hasZipName(zip) && !ZipDirectory.hasZipName(fx.url("src/top.txt")))
         let notZip = try fx.file("fake.zip", "hello")
-        #expect(throws: SearchZipDirectory.ReadError.notZip) { try SearchZipDirectory.entries(of: notZip) }
+        #expect(throws: ZipDirectory.ReadError.notZip) { try ZipDirectory.read(notZip, limit: 10) }
     }
 }
 

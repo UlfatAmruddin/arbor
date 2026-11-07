@@ -201,7 +201,9 @@ enum Shortcuts {
         }
         return NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
             base.draw(in: rect)
-            drawArrowBadge(in: NSRect(x: 0, y: 0, width: max(7, size * 0.5), height: max(7, size * 0.5)))
+            // Half the icon at list sizes; a smaller corner badge on large icons, as in Explorer.
+            let side = size <= 24 ? max(7, size * 0.5) : min(64, max(12, round(size * 0.3)))
+            drawArrowBadge(in: NSRect(x: 0, y: 0, width: side, height: side))
             return true
         }
     }

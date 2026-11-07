@@ -590,9 +590,9 @@ struct TransferFailureTests {
         let src = try fx.file("a.txt")
         let busy = TransferFailure.classify(errno: EBUSY, source: src, destination: nil, stage: .copying)
         #expect(busy.kind == .inUse && busy.title == "File In Use" && busy.hint == "Close the file and try again.")
-        let full = TransferFailure.classify(errno: ENOSPC, source: src, destination: fx.url("d/a.txt"), stage: .copying, bytesNeeded: 5_000_000)
+        let full = TransferFailure.classify(errno: ENOSPC, source: src, destination: fx.url("d/a.txt"), stage: .copying, bytesNeeded: 5 << 20)
         #expect(full.kind == .diskFull)
-        #expect(full.message(verb: "copy", volumeName: "USB").contains("5 MB is needed to copy these items"))
+        #expect(full.message(verb: "copy", volumeName: "USB").contains("5.00 MB is needed to copy these items"))
         let gone = TransferFailure.classify(errno: ENOENT, source: fx.url("missing"), destination: nil, stage: .copying)
         #expect(gone.kind == .notFound && gone.title == "Item Not Found")
         let other = TransferFailure.classify(errno: EIO, source: src, destination: nil, stage: .copying)
@@ -744,7 +744,7 @@ struct TransferRateTests {
         #expect(TransferRateEstimator.describeRemaining(3600) == "About 1 hour")
         #expect(TransferRateEstimator.describeRemaining(3900) == "About 1 hour and 5 minutes")
         #expect(TransferRateEstimator.describeRemaining(3 * 86400) == "About 3 days")
-        #expect(TransferRateEstimator.describeSpeed(45_200_000) == "45.2 MB/s")
+        #expect(TransferRateEstimator.describeSpeed(45.25 * 1024 * 1024) == "45.2 MB/s")   // 1024-based, like Explorer
     }
 
     @Test func progressFractionPrefersBytes() {

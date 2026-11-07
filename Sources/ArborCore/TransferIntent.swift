@@ -41,8 +41,10 @@ public enum StatusText {
         return n == 1 ? L10n.tr("1 item") : L10n.format("%@ items", number)
     }
 
+    /// Explorer's adaptive size (1024-based, three significant digits): status bar, tiles, tooltips, dialogs.
+    /// The Details view's Size column uses `ExplorerSize.detailsColumn` instead.
     public static func bytes(_ n: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: n, countStyle: .file)
+        ExplorerSize.adaptive(n)
     }
 
     /// "12 items", "3 of 120 items match “rep”", plus "   2 selected · 4.1 MB".

@@ -256,6 +256,10 @@ final class CommandRegistry {
 
     var all: [ExplorerCommand] { registrationOrder.compactMap { commands[$0] } }
 
+    /// Per-slot section order (section name → rank) where a surface orders sections differently from
+    /// the shared ranks, e.g. Explorer's background menu starts with View / Sort by / Group by.
+    var sectionRanks: [CommandSlot: [String: Int]] = [:]
+
     /// Commands placed in a slot, ordered by section then order (then registration order).
     func entries(in slot: CommandSlot) -> [(command: ExplorerCommand, placement: CommandPlacement)] {
         var result: [(ExplorerCommand, CommandPlacement, Int)] = []
@@ -263,7 +267,10 @@ final class CommandRegistry {
             guard let command = commands[id] else { continue }
             for placement in command.placements where placement.slot == slot { result.append((command, placement, index)) }
         }
+        let ranks = sectionRanks[slot] ?? [:]
+        func rank(_ s: MenuSection) -> Int { ranks[s.name] ?? s.rank }
         result.sort {
+            if $0.1.section != $1.1.section, rank($0.1.section) != rank($1.1.section) { return rank($0.1.section) < rank($1.1.section) }
             if $0.1.section != $1.1.section { return $0.1.section < $1.1.section }
             if $0.1.order != $1.1.order { return $0.1.order < $1.1.order }
             return $0.2 < $1.2
@@ -310,7 +317,7 @@ final class CommandMenuItem: NSMenuItem {
     init(command: ExplorerCommand, context: CommandContext?) {
         commandID = command.id
         frozenContext = context
-        super.init(title: context.map { command.title(in: $0) } ?? command.title, action: nil, keyEquivalent: "")
+        super.init(title: context.map { CommandDispatcher.menuTitle(command, context: $0) } ?? command.title, action: nil, keyEquivalent: "")
     }
 
     required init(coder: NSCoder) { fatalError() }
@@ -320,6 +327,14 @@ final class CommandMenuItem: NSMenuItem {
 /// command menu item, except responder-chain items (`menuAction`), which go through the window.
 final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
     static let shared = CommandDispatcher()
+
+    /// Adjusts a command's title in menus (not buttons), e.g. Explorer's sentence case in context menus.
+    static var menuTitleHook: ((ExplorerCommand, String, CommandContext) -> String)?
+
+    static func menuTitle(_ command: ExplorerCommand, context: CommandContext) -> String {
+        let title = command.title(in: context)
+        return menuTitleHook?(command, title, context) ?? title
+    }
 
     /// Context for the menu bar: the frontmost browser window's active tab.
     func liveContext(surface: CommandSurface, sender: Any? = nil) -> CommandContext {
@@ -390,7 +405,7 @@ final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
 
     /// Shared by the dispatcher and the window's responder-chain validation.
     func validate(_ command: ExplorerCommand, item: NSMenuItem, context: CommandContext) -> Bool {
-        item.title = command.title(in: context)
+        item.title = CommandDispatcher.menuTitle(command, context: context)
         item.state = command.state(context)
         if command.yieldsToTextInput, context.window?.isEditingText == true { return false }
         return command.isAvailable(context) && command.isEnabled(context)

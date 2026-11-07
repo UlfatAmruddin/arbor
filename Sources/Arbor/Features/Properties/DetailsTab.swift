@@ -117,7 +117,9 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
         let security = try? ItemSecurity.read(url)
         var rows: [MetadataRow] = [
             MetadataRow(group: "File", label: "Name", value: url.lastPathComponent),
-            MetadataRow(group: "File", label: "Item type", value: v?.localizedTypeDescription ?? item.typeDescription),
+            MetadataRow(group: "File", label: "Item type", value: item.isSymbolicLink ? item.typeDescription
+                        : ExplorerTypeName.name(localized: v?.localizedTypeDescription ?? item.typeDescription, typeIdentifier: nil,
+                                                isFolder: item.isFolder)),
             MetadataRow(group: "File", label: "Folder path", value: url.deletingLastPathComponent().path),
         ]
         if let d = v?.creationDate { rows.append(MetadataRow(group: "File", label: "Date created", value: PropertyFormat.shortDate(d))) }

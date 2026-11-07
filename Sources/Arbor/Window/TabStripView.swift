@@ -8,6 +8,19 @@ protocol TabStripDelegate: AnyObject {
     func tabStripMove(from: Int, to: Int)
     func tabStripDetach(_ index: Int)
     func tabStripMenu(for index: Int) -> NSMenu?
+    /// A tab was dragged out of the strip and released at a screen point: merge it into the window
+    /// whose tab row is there, or tear it off into a new window (FE-020).
+    func tabStripTearOff(_ index: Int, at screenPoint: NSPoint, grabOffset: NSPoint)
+    /// The only tab is being dragged: the window moves with it and may merge into another window.
+    func tabStripDragWindow(with event: NSEvent)
+    /// While a tab is dragged outside its strip: show where it would land (nil clears).
+    func tabStripDragHover(at screenPoint: NSPoint?)
+}
+
+extension TabStripDelegate {
+    func tabStripTearOff(_ index: Int, at screenPoint: NSPoint, grabOffset: NSPoint) { tabStripDetach(index) }
+    func tabStripDragWindow(with event: NSEvent) {}
+    func tabStripDragHover(at screenPoint: NSPoint?) {}
 }
 
 struct TabStripItem: Equatable {
@@ -25,11 +38,17 @@ final class TabStripView: NSView {
     private(set) var items: [TabStripItem] = []
     private(set) var selectedIndex = 0
     private var tabViews: [TabItemView] = []
-    private let scroll = NSScrollView()
+    private let scroll = TabScrollView()
     private let document = FlippedView()
     let plusButton = ChromeButton(symbol: "plus", tooltip: "New tab (⌘T)")
+    /// Overflow arrows, shown only when the tabs don't fit at their minimum width (WinUI TabView style).
+    let scrollLeftButton = ChromeButton(symbol: "chevron.left", tooltip: "Scroll tab list backward")
+    let scrollRightButton = ChromeButton(symbol: "chevron.right", tooltip: "Scroll tab list forward")
+    /// Insertion marker while another window's tab hovers over this strip.
+    private let dropMarker = ThemeBackgroundView(Theme.accent)
     /// The tab being dragged keeps its own frame during the drag.
     fileprivate var draggingIndex: Int?
+    private(set) var isOverflowing = false
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -37,6 +56,20 @@ final class TabStripView: NSView {
         setAccessibilityElement(true)
         setAccessibilityRole(.tabGroup)
         setAccessibilityLabel(L10n.tr("Tabs"))
+        for (button, step) in [(scrollLeftButton, -1), (scrollRightButton, 1)] {
+            button.symbolSize = 10
+            button.fixedWidth = Theme.tabScrollButtonWidth
+            button.fixedHeight = 28
+            button.translatesAutoresizingMaskIntoConstraints = true
+            button.isHidden = true
+            button.onClick = { [weak self] _ in self?.scrollTabs(by: step) }
+            addSubview(button)
+        }
+        dropMarker.translatesAutoresizingMaskIntoConstraints = true
+        dropMarker.isHidden = true
+        scroll.contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(self, selector: #selector(scrolled), name: NSView.boundsDidChangeNotification,
+                                               object: scroll.contentView)
         scroll.drawsBackground = false
         scroll.automaticallyAdjustsContentInsets = false
         scroll.hasHorizontalScroller = false
@@ -52,7 +85,55 @@ final class TabStripView: NSView {
         plusButton.onClick = { [weak self] _ in self?.delegate?.tabStripNewTab() }
         plusButton.setAccessibilityLabel(L10n.tr("New tab"))
         addSubview(plusButton)
+        addSubview(dropMarker)
         registerForDraggedTypes([.fileURL])
+    }
+
+    // MARK: Overflow scrolling
+
+    /// Scrolls the tab list by whole tabs (overflow arrows).
+    func scrollTabs(by tabs: Int) {
+        let clip = scroll.contentView
+        let maxX = max(0, document.frame.width - clip.bounds.width)
+        let x = min(max(0, clip.bounds.minX + CGFloat(tabs) * tabWidth), maxX)
+        clip.scroll(to: NSPoint(x: x, y: 0))
+        scroll.reflectScrolledClipView(clip)
+        updateScrollButtons()
+    }
+
+    @objc private func scrolled() { updateScrollButtons() }
+
+    private func updateScrollButtons() {
+        let clip = scroll.contentView
+        let maxX = max(0, document.frame.width - clip.bounds.width)
+        // The tabs' outer "feet" may stay clipped; only whole hidden tab bodies count.
+        scrollLeftButton.isEnabled = clip.bounds.minX > Self.feet + 0.5
+        scrollRightButton.isEnabled = clip.bounds.minX < maxX - Self.feet - 0.5
+    }
+
+    /// The slot a tab dropped at `screenPoint` would take (merging from another window).
+    func insertionSlot(atScreen screenPoint: NSPoint) -> Int {
+        guard let window else { return items.count }
+        let local = document.convert(window.convertPoint(fromScreen: screenPoint), from: nil)
+        let x = RightToLeft.isActive(self) ? document.bounds.width - local.x : local.x   // FE-204
+        return min(max(Int(((x - Self.feet) / max(tabWidth, 1)).rounded()), 0), items.count)
+    }
+
+    /// Shows (or hides, with nil) the insertion marker before slot `index`.
+    func showDropMarker(at index: Int?) {
+        guard let index else { dropMarker.isHidden = true; return }
+        let slotX = Self.feet + CGFloat(index) * tabWidth
+        let x = document.convert(NSPoint(x: RightToLeft.isActive(self) ? document.bounds.width - slotX : slotX, y: 0), to: self).x
+        let top = bounds.height - Theme.tabHeight
+        dropMarker.color = Theme.accent
+        dropMarker.frame = NSRect(x: x - 1, y: top + 6, width: 2, height: Theme.tabHeight - 12)
+        dropMarker.isHidden = false
+    }
+
+    /// The tab row in screen coordinates (where a dragged tab merges).
+    var screenFrame: NSRect? {
+        guard let window else { return nil }
+        return window.convertToScreen(convert(bounds, to: nil))
     }
 
     // MARK: Spring-loaded tabs (FE-108): a file drag resting on a tab switches to it. Tabs aren't drop targets.
@@ -128,22 +209,48 @@ final class TabStripView: NSView {
         (window as? BrowserWindow)?.layoutTrafficLights()
         let width = tabWidth
         let total = width * CGFloat(items.count)
-        let available = max(0, bounds.width - leadingInset - 8 - plusButton.fixedWidth! - 4)
+        var available = max(0, bounds.width - leadingInset - 8 - plusButton.fixedWidth! - 4)
+        isOverflowing = total > available + 0.5
+        let arrow = Theme.tabScrollButtonWidth
+        if isOverflowing { available = max(0, available - arrow * 2) }
         let visible = min(total, available)
         let top = bounds.height - Theme.tabHeight
-        scroll.frame = NSRect(x: leadingInset - Self.feet, y: top, width: visible + Self.feet * 2, height: Theme.tabHeight)
+        let buttonY = top + (Theme.tabHeight - 28) / 2 - 1
+        let start = leadingInset + (isOverflowing ? arrow : 0)
+        scroll.frame = NSRect(x: start - Self.feet, y: top, width: visible + Self.feet * 2, height: Theme.tabHeight)
         document.frame = NSRect(x: 0, y: 0, width: total + Self.feet * 2, height: Theme.tabHeight)
         for (i, view) in tabViews.enumerated() where i != draggingIndex {
             view.frame = NSRect(x: CGFloat(i) * width, y: 0, width: width + Self.feet * 2, height: Theme.tabHeight)
         }
-        plusButton.frame = NSRect(x: scroll.frame.maxX - Self.feet + 2, y: top + (Theme.tabHeight - 28) / 2 - 1,
-                                  width: plusButton.fixedWidth!, height: 28)
-        RightToLeft.mirror(self, [scroll, plusButton], contents: document, [tabViews])   // FE-204
+        scrollLeftButton.isHidden = !isOverflowing
+        scrollRightButton.isHidden = !isOverflowing
+        scrollLeftButton.frame = NSRect(x: leadingInset, y: buttonY, width: arrow, height: 28)
+        scrollRightButton.frame = NSRect(x: scroll.frame.maxX - Self.feet, y: buttonY, width: arrow, height: 28)
+        let plusX = (isOverflowing ? scrollRightButton.frame.maxX : scroll.frame.maxX - Self.feet) + 2
+        plusButton.frame = NSRect(x: plusX, y: buttonY, width: plusButton.fixedWidth!, height: 28)
+        RightToLeft.mirror(self, [scroll, plusButton, scrollLeftButton, scrollRightButton], contents: document, [tabViews])   // FE-204
+        if RightToLeft.isActive(self) {
+            // The arrows keep pointing at the side they scroll toward: swap them back after mirroring.
+            let left = scrollLeftButton.frame
+            scrollLeftButton.frame = scrollRightButton.frame
+            scrollRightButton.frame = left
+        }
+        updateScrollButtons()
     }
 
     private func scrollToSelected() {
         guard tabViews.indices.contains(selectedIndex) else { return }
-        document.scrollToVisible(tabViews[selectedIndex].frame)
+        document.scrollToVisible(tabViews[selectedIndex].frame.insetBy(dx: Self.feet, dy: 0))
+        updateScrollButtons()
+    }
+
+    /// Visible tab range and overflow state, for scripted checks.
+    var debugOverflow: String {
+        let clip = scroll.contentView.bounds
+        let first = Int((clip.minX / max(tabWidth, 1)).rounded())
+        let last = min(items.count, Int(((clip.maxX - Self.feet * 2) / max(tabWidth, 1)).rounded()))
+        return "overflow=\(isOverflowing) tabWidth=\(Int(tabWidth)) visible=\(first + 1)-\(last) of \(items.count)"
+            + " back=\(scrollLeftButton.isEnabled) forward=\(scrollRightButton.isEnabled)"
     }
 
     /// Converts a document x position to the slot index a dragged tab would land in.
@@ -297,28 +404,63 @@ final class TabItemView: NSView {
     override func mouseEntered(with event: NSEvent) { isHovered = true }
     override func mouseExited(with event: NSEvent) { isHovered = false }
 
-    /// Press selects (like Explorer); dragging reorders; dragging well below the strip moves the tab to a new window.
+    /// Press selects (like Explorer); dragging along the strip reorders; dragging out of the tab row tears the
+    /// tab off into a new window, or merges it into the window whose tab row it is dropped on (FE-020).
+    /// The only tab of a window drags the window itself (and can merge the same way).
     override func mouseDown(with event: NSEvent) {
         guard let strip, let window else { return }
         strip.delegate?.tabStripSelect(index)
+        if strip.items.count == 1 {
+            strip.delegate?.tabStripDragWindow(with: event)
+            return
+        }
         let start = event.locationInWindow
         let startX = frame.minX
+        let grab = convert(event.locationInWindow, from: nil)
         var dragging = false
         var lastX = startX
         var detached = false
+        var ghost: TabDragGhost?
         while let next = window.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {
             let dx = next.locationInWindow.x - start.x
-            let dy = next.locationInWindow.y - start.y
             if next.type == .leftMouseUp { break }
-            if !dragging, abs(dx) > 5 { dragging = true; strip.draggingIndex = index; superview?.addSubview(self) }
+            if !dragging, abs(dx) > 5 || abs(next.locationInWindow.y - start.y) > 5 {
+                dragging = true; strip.draggingIndex = index; superview?.addSubview(self)
+            }
             if dragging {
                 let maxX = max(0, (superview?.bounds.width ?? 0) - frame.width)
                 lastX = min(max(startX + dx, 0), maxX)
                 setFrameOrigin(NSPoint(x: lastX, y: frame.minY))
             }
-            detached = abs(dy) > 60
+            // Out of the tab row (with a little slack): the tab follows the pointer as a floating image.
+            let inStrip = strip.convert(next.locationInWindow, from: nil)
+            detached = dragging && (inStrip.y < -Theme.tabTearOffSlack || inStrip.y > strip.bounds.height + Theme.tabTearOffSlack
+                                    || inStrip.x < -Theme.tabTearOffSlack || inStrip.x > strip.bounds.width + Theme.tabTearOffSlack)
+            let screen = NSEvent.mouseLocation
+            if detached {
+                if ghost == nil { ghost = TabDragGhost(snapshotOf: self, grab: grab) }
+                ghost?.move(to: screen)
+                isHidden = true
+                strip.delegate?.tabStripDragHover(at: screen)
+            } else if ghost != nil {
+                ghost?.close()
+                ghost = nil
+                isHidden = false
+                strip.delegate?.tabStripDragHover(at: nil)
+            }
         }
-        if dragging || detached { strip.finishDrag(of: self, at: lastX, detachedFromStrip: detached) }
+        ghost?.close()
+        isHidden = false
+        strip.delegate?.tabStripDragHover(at: nil)
+        guard dragging else { return }
+        if detached {
+            strip.draggingIndex = nil
+            strip.needsLayout = true
+            let offset = NSPoint(x: grab.x - TabStripView.feet, y: grab.y)
+            strip.delegate?.tabStripTearOff(index, at: NSEvent.mouseLocation, grabOffset: offset)
+            return
+        }
+        strip.finishDrag(of: self, at: lastX, detachedFromStrip: false)
     }
 
     override func otherMouseUp(with event: NSEvent) {

@@ -181,6 +181,33 @@ struct TestZip {
         #expect(listing.entries.isEmpty && listing.warning == nil)
     }
 
+    @Test func limitedReadStopsEarlyInOrder() throws {
+        let fx = try Fixture()
+        var zip = TestZip()
+        for i in 1...30 { zip.file("f\(i).txt") }
+        zip.file("__MACOSX/._f1.txt")
+        try zip.write(to: fx.url("many.zip"))
+        let all = try ZipDirectory.read(fx.url("many.zip"))
+        #expect(all.count == 30)
+        let some = try ZipDirectory.read(fx.url("many.zip"), limit: 5)
+        #expect(some.map(\.rawPath) == ["f1.txt", "f2.txt", "f3.txt", "f4.txt", "f5.txt"])
+        #expect(try ZipDirectory.read(fx.url("many.zip"), limit: 0).isEmpty)
+        #expect(try ZipDirectory.read(fx.url("many.zip"), limit: 1000).count == 30)
+    }
+
+    @Test func limitedReadToleratesAPartialDirectoryPrefix() throws {
+        var zip = TestZip()
+        for i in 1...3 { zip.file("member-\(i).txt") }
+        let data = zip.build()
+        // Central directory = everything between the last local data and the 22-byte EOCD.
+        let eocd = data.count - 22
+        let size = Int(data[eocd + 12]) | Int(data[eocd + 13]) << 8
+        let directory = data.subdata(in: (eocd - size)..<(eocd - 10))   // cut the last entry short
+        #expect(throws: ZipDirectory.ReadError.truncated) { try ZipDirectory.parseDirectory(directory, expected: 3) }
+        let partial = try ZipDirectory.parseDirectory(directory, expected: 3, limit: 10)
+        #expect(partial.map(\.rawPath) == ["member-1.txt", "member-2.txt"])
+    }
+
     @Test func rejectsNonZip() throws {
         let fx = try Fixture()
         try fx.file("x.zip", String(repeating: "not a zip ", count: 10))

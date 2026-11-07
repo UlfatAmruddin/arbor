@@ -78,11 +78,8 @@ public struct TransferRateEstimator: Sendable {
         return "About \(Int((Double(hours) / 24).rounded())) days"
     }
 
-    /// "45.2 MB/s", "812 KB/s".
+    /// "45.2 MB/s", "812 KB/s": Explorer's adaptive 1024-based units with three significant digits.
     public static func describeSpeed(_ bytesPerSecond: Double) -> String {
-        let f = ByteCountFormatter()
-        f.countStyle = .file
-        f.allowsNonnumericFormatting = false
-        return f.string(fromByteCount: Int64(bytesPerSecond.rounded())) + "/s"
+        ExplorerSize.adaptive(Int64(bytesPerSecond.rounded())) + "/s"
     }
 }

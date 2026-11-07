@@ -236,7 +236,7 @@ public enum ColumnValues {
             if column == .year { return String(Int(n)) }
             return integer.string(from: NSNumber(value: n)) ?? "\(n)"
         case .date(let d): return dateFormatter.string(from: d)
-        case .bytes(let b): return StatusText.bytes(b)
+        case .bytes(let b): return ExplorerSize.detailsColumn(b)   // Details size columns: always KB
         case .duration(let s): return durationText(s)
         case .bitRate(let b): return "\(Int((b / 1000).rounded()))kbps"
         case .dimensions(let w, let h): return "\(w) x \(h)"

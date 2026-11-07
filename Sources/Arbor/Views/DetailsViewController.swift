@@ -465,7 +465,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         switch id {
         case "dateModified": cell.label.stringValue = item.modified.map(dateFormatter.string(from:)) ?? ""
         case "type": cell.label.stringValue = item.typeDescription
-        case "size": cell.label.stringValue = item.size.map(StatusText.bytes) ?? ""
+        case "size": cell.label.stringValue = item.isFolder ? "" : item.size.map(ExplorerSize.detailsColumn) ?? ""
         default: fillMetadataCell(cell, item: item, column: ColumnID(id))
         }
         cell.alphaValue = dimmed ? 0.5 : 1

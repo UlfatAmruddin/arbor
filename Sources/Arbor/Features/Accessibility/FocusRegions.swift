@@ -25,6 +25,8 @@ enum FocusRegions {
         if view.isDescendant(of: c.tabStrip) { return .tabs }
         if view.isDescendant(of: c.addressBar) { return .address }
         if view.isDescendant(of: c.searchBox) { return .search }
+        // Back, Forward, Up and Refresh share the address bar's row (and region).
+        if view.isDescendant(of: c.navBar) { return .address }
         if view.isDescendant(of: c.commandBar) { return .commandBar }
         if view.isDescendant(of: c.navPane.view) { return .navigationPane }
         if view.isDescendant(of: c.sidePane) { return .sidePane }
@@ -70,6 +72,25 @@ enum FocusRegions {
     /// Tab / Shift+Tab: the next stop inside a page or pane with several (Home sections, Details pane
     /// fields), else the next region.
     static func tab(_ c: BrowserWindowController, forward: Bool) {
+        // The navigation row: Back · Forward · Up · Refresh (one toolbar stop) · address field · ▾.
+        if let view = focusedView(in: c.window), region(of: view, in: c) == .address {
+            let buttons = navigationButtons(in: c)
+            if let button = view as? ChromeButton, buttons.contains(where: { $0 === button }) {
+                if button === c.addressBar.recentButton {
+                    if !forward { c.focusAddressBar(); return }
+                } else if forward {
+                    c.focusAddressBar()
+                    return
+                }
+            } else if !forward, let first = buttons.first(where: { $0 !== c.addressBar.recentButton }) {
+                makeFocused(first, in: c.window)
+                return
+            } else if forward, let recent = buttons.first(where: { $0 === c.addressBar.recentButton }) {
+                c.addressBar.endEditing()
+                makeFocused(recent, in: c.window)
+                return
+            }
+        }
         if let view = focusedView(in: c.window), let region = region(of: view, in: c),
            region == .items || region == .sidePane,
            let container = region == .items ? contentView(of: c) : c.sidePane {
@@ -133,6 +154,13 @@ enum FocusRegions {
 
     static func tabViews(in c: BrowserWindowController) -> [TabItemView] {
         descendants(of: c.tabStrip, as: TabItemView.self).sorted { $0.index < $1.index }
+    }
+
+    /// The navigation row's buttons in Windows 11 order (enabled ones): Back, Forward, Up, Refresh, then the
+    /// address bar's recent-locations ▾.
+    static func navigationButtons(in c: BrowserWindowController) -> [ChromeButton] {
+        [c.navBar.back, c.navBar.forward, c.navBar.up, c.navBar.refresh, c.addressBar.recentButton]
+            .filter { !$0.isHiddenOrHasHiddenAncestor && $0.isEnabled }
     }
 
     /// Command bar buttons in visual order (visible and enabled).
@@ -212,6 +240,14 @@ enum FocusRegions {
             let stops = commandButtons(in: c)
             guard let index = stops.firstIndex(where: { $0 === view }) else { return false }
             let target = step == Int.min ? 0 : (step == Int.max ? stops.count - 1 : (index + step + stops.count) % stops.count)
+            makeFocused(stops[target], in: c.window)
+            return true
+        case .address:
+            // Arrows move between Back, Forward, Up and Refresh; the path field keeps its own arrows.
+            let stops = navigationButtons(in: c).filter { $0 !== c.addressBar.recentButton }
+            guard let index = stops.firstIndex(where: { $0 === view }) else { return false }
+            let target = step == Int.min ? 0 : (step == Int.max ? stops.count - 1 : min(max(index + step, 0), stops.count - 1))
+            if target == index { NSSound.beep(); return true }
             makeFocused(stops[target], in: c.window)
             return true
         default:

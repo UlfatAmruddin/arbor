@@ -103,8 +103,9 @@ enum DetailsColumns {
             for spec in layout.extras where column(spec.id, in: table) == nil {
                 let c = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(spec.id))
                 c.title = spec.title
-                c.headerCell.alignment = spec.alignment
-                c.headerCell.attributedStringValue = DetailsColumns.headerTitle(spec.title, alignment: spec.alignment)
+                // Explorer headers are always left-aligned; `alignment` applies to the values.
+                c.headerCell.alignment = .left
+                c.headerCell.attributedStringValue = DetailsColumns.headerTitle(spec.title, alignment: .left)
                 c.width = spec.width
                 c.minWidth = spec.minWidth
                 c.maxWidth = 2000

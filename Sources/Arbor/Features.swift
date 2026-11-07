@@ -40,7 +40,7 @@ enum Features {
 
         AccessibilityFeature.register()   // slot: accessibility
 
-        // slot: (spare 1)
+        VisualParityFeature.register()   // slot: visual parity and window chrome
 
         // slot: (spare 2)
     }

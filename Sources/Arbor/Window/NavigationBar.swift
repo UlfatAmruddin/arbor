@@ -118,21 +118,25 @@ final class NavigationBar: ThemeBackgroundView {
     let back = ChromeButton(symbol: "arrow.left", tooltip: "Back (⌘[ or Delete)")
     let forward = ChromeButton(symbol: "arrow.right", tooltip: "Forward (⌘])")
     let up = ChromeButton(symbol: "arrow.up", tooltip: "Up to the parent folder (⌘↑)")
+    /// Windows 11 puts Refresh left of the address bar, after Up (reference §1.2, DEC-022).
+    let refresh = ChromeButton(symbol: "arrow.clockwise", tooltip: "Refresh (⌘R or F5)")
     let address = AddressBar()
     let search = SearchBox()
 
     init() {
         super.init(Theme.toolbarBackground)
         setAccessibilityElement(false)
-        for (button, label) in [(back, L10n.tr("Back")), (forward, L10n.tr("Forward")), (up, L10n.tr("Up"))] {
-            button.fixedWidth = 34
+        for (button, label) in [(back, L10n.tr("Back")), (forward, L10n.tr("Forward")), (up, L10n.tr("Up")), (refresh, L10n.tr("Refresh"))] {
+            button.fixedWidth = Theme.navButtonWidth
             button.symbolSize = 14
             button.setAccessibilityLabel(label)
         }
-        let stack = NSStackView(views: [back, forward, up, address, search])
+        refresh.symbolSize = 13
+        refresh.onClick = { [weak self] _ in self?.address.onRefresh?() }
+        let stack = NSStackView(views: [back, forward, up, refresh, address, search])
         stack.orientation = .horizontal
         stack.spacing = 2
-        stack.setCustomSpacing(10, after: up)
+        stack.setCustomSpacing(8, after: refresh)
         stack.setCustomSpacing(8, after: address)
         stack.edgeInsets = NSEdgeInsets(top: 0, left: 10, bottom: 0, right: 12)
         stack.translatesAutoresizingMaskIntoConstraints = false

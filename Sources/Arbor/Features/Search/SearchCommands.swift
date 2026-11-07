@@ -150,7 +150,7 @@ enum SearchCommands {
             indexed, .separator(),
             optionItem("File contents", .contents, "Also match words inside files: text files directly, other documents through the Spotlight index."),
             optionItem("System files", .systemFiles, "Include hidden items and the contents of apps and other packages."),
-            optionItem("Zipped (compressed) files", .zipped, "Look inside .zip archives; a match shows the archive."),
+            optionItem("Zipped (compressed) folders", .zipped, "Look inside .zip archives; a match shows the archive."),
         ]))
 
         items.append(.separator())

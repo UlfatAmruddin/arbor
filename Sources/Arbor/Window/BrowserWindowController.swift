@@ -338,12 +338,28 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
 
     /// Moves a tab, with its history, into a new window.
     func moveTabToNewWindow(at index: Int) {
-        guard tabs.count > 1, let tab = tab(at: index) else { return }
+        guard tabs.count > 1, let tab = takeTab(at: index) else { return }
+        (NSApp.delegate as? AppDelegate)?.openWindow(tabs: [tab])
+    }
+
+    /// Removes a tab, keeping its history and view state, so another window can adopt it (tear-off and
+    /// merge, FE-020). Taking the last tab closes this window.
+    func takeTab(at index: Int) -> TabState? {
+        guard let tab = tab(at: index), tabs.indices.contains(index) else { return nil }
         if tab === activeTab { captureViewState(tab) }
         tab.isActive = false
         tab.page = nil
+        // A load in flight would report back to this window; the adopting window reloads instead.
+        tab.pendingLoad?.cancel()
+        tab.pendingLoad = nil
+        tab.loadToken = UUID()
         let wasActive = index == activeIndex
         tabs.remove(at: index)
+        if tabs.isEmpty {
+            watchToken = nil
+            window?.close()
+            return tab
+        }
         if wasActive {
             activeIndex = min(index, tabs.count - 1)
             watchToken = nil
@@ -352,7 +368,16 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
             activeIndex -= 1
         }
         reloadTabStrip()
-        (NSApp.delegate as? AppDelegate)?.openWindow(tabs: [tab])
+        return tab
+    }
+
+    /// Inserts a tab taken from another window at `index` and switches to it.
+    func adoptTab(_ tab: TabState, at index: Int) {
+        let slot = min(max(index, 0), tabs.count)
+        tabs.insert(tab, at: slot)
+        if slot <= activeIndex, tabs.count > 1 { activeIndex += 1 }
+        switchTo(slot, initialSelection: tab.selectedNames)
+        reloadTabStrip()
     }
 
     func selectNextTab(_ step: Int) {
@@ -719,6 +744,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         navBar.back.isEnabled = tab.history.canGoBack
         navBar.forward.isEnabled = tab.history.canGoForward
         navBar.up.isEnabled = shown.parent() != nil
+        updateNavigationTooltips(tab: tab, shown: shown)
         let ctx = context(surface: .commandBar, sender: nil)
         commandBar.update(ctx)
         statusBar.update(ctx)
