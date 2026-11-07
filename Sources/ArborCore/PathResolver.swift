@@ -1,0 +1,123 @@
+import Foundation
+
+public enum PathResolution: Equatable, Sendable {
+    case folder(URL)
+    /// An existing file: show its folder and select it.
+    case file(URL)
+    /// A server address to hand to the system's connect flow.
+    case network(URL)
+}
+
+public enum PathResolutionError: Error, Equatable, LocalizedError {
+    case empty
+    case windowsDriveLetter(String)
+    case notFound(String)
+    case unsupportedScheme(String)
+    case invalidAddress(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .empty:
+            return "Type a folder path."
+        case .windowsDriveLetter(let input):
+            return "“\(input)” is a Windows drive path. Macs don't use drive letters; other disks appear under /Volumes."
+        case .notFound(let path):
+            return "Can't find “\(path)”. Check the spelling and try again."
+        case .unsupportedScheme(let input):
+            return "“\(input)” isn't a supported address. Use a folder path, a file:// URL, or a server address such as smb://server/share."
+        case .invalidAddress(let input):
+            return "“\(input)” isn't a valid address."
+        }
+    }
+}
+
+/// Resolves text typed into the address bar (FE-005, FE-013, FE-014).
+/// Never executes the text: there is no shell evaluation of any kind.
+public struct PathResolver: Sendable {
+    /// Returns nil if nothing exists at the path, otherwise whether it is a directory.
+    public typealias Probe = @Sendable (String) -> Bool?
+
+    public static let liveProbe: Probe = { path in
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) ? isDirectory.boolValue : nil
+    }
+
+    public static let networkSchemes: Set<String> = ["smb", "afp", "nfs", "cifs"]
+
+    public var homeDirectory: URL
+    public var probe: Probe
+
+    public init(homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser, probe: @escaping Probe = PathResolver.liveProbe) {
+        self.homeDirectory = homeDirectory
+        self.probe = probe
+    }
+
+    public func resolve(_ raw: String, relativeTo current: URL?) -> Result<PathResolution, PathResolutionError> {
+        var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.count >= 2, let first = text.first, first == "\"" || first == "'", text.last == first {
+            text = String(text.dropFirst().dropLast()).trimmingCharacters(in: .whitespaces)
+        }
+        guard !text.isEmpty else { return .failure(.empty) }
+
+        // Windows UNC path: \\server\share\folder → smb://server/share/folder; \\server alone → smb://server
+        if text.hasPrefix("\\\\") {
+            let parts = text.split(separator: "\\").map(String.init)
+            guard parts.count >= 1, !parts[0].contains("/"), !parts[0].contains(" ") else { return .failure(.invalidAddress(text)) }
+            var components = URLComponents()
+            components.scheme = "smb"
+            components.host = parts[0]
+            components.path = parts.count == 1 ? "" : "/" + parts.dropFirst().joined(separator: "/")
+            guard let url = components.url else { return .failure(.invalidAddress(text)) }
+            return .success(.network(url))
+        }
+
+        if Self.isWindowsDrivePath(text) { return .failure(.windowsDriveLetter(text)) }
+
+        var path: String
+        if text.lowercased().hasPrefix("file://") {
+            var rest = String(text.dropFirst("file://".count))
+            if rest.lowercased().hasPrefix("localhost/") { rest = String(rest.dropFirst("localhost".count)) }
+            path = rest.removingPercentEncoding ?? rest
+            guard path.hasPrefix("/") else { return .failure(.invalidAddress(text)) }
+        } else if let scheme = Self.scheme(of: text) {
+            guard Self.networkSchemes.contains(scheme.lowercased()) else { return .failure(.unsupportedScheme(text)) }
+            guard let url = URL(string: text) ?? URL(string: text.addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed) ?? "") else {
+                return .failure(.invalidAddress(text))
+            }
+            return .success(.network(url))
+        } else if text == "~" {
+            path = homeDirectory.path
+        } else if text.hasPrefix("~/") {
+            path = homeDirectory.appendingPathComponent(String(text.dropFirst(2))).path
+        } else if text.hasPrefix("~") {
+            let expanded = (text as NSString).expandingTildeInPath
+            guard !expanded.hasPrefix("~") else { return .failure(.notFound(text)) }
+            path = expanded
+        } else if text.hasPrefix("/") {
+            path = text
+        } else {
+            path = (current ?? homeDirectory).appendingPathComponent(text).path
+        }
+
+        let url = URL(fileURLWithPath: path).standardizedFileURL
+        switch probe(url.path) {
+        case .some(true): return .success(.folder(url))
+        case .some(false): return .success(.file(url))
+        case .none: return .failure(.notFound(url.path))
+        }
+    }
+
+    static func isWindowsDrivePath(_ text: String) -> Bool {
+        let chars = Array(text)
+        guard chars.count >= 2, chars[0].isASCII, chars[0].isLetter, chars[1] == ":" else { return false }
+        return chars.count == 2 || chars[2] == "\\" || chars[2] == "/"
+    }
+
+    static func scheme(of text: String) -> String? {
+        guard let range = text.range(of: "://") else { return nil }
+        let scheme = text[text.startIndex..<range.lowerBound]
+        guard let first = scheme.first, first.isLetter,
+              scheme.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "+" || $0 == "-" || $0 == "." }) else { return nil }
+        return String(scheme)
+    }
+}

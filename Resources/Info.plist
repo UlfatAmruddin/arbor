@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key><string>Arbor</string>
+	<key>CFBundleDisplayName</key><string>Arbor</string>
+	<key>CFBundleIdentifier</key><string>io.github.arbor-files.Arbor</string>
+	<key>CFBundleExecutable</key><string>Arbor</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>0.1.0</string>
+	<key>CFBundleVersion</key><string>1</string>
+	<key>CFBundleIconFile</key><string>AppIcon</string>
+	<key>LSMinimumSystemVersion</key><string>14.0</string>
+	<key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
+	<key>NSPrincipalClass</key><string>NSApplication</string>
+	<key>NSHighResolutionCapable</key><true/>
+	<key>NSSupportsAutomaticTermination</key><false/>
+	<key>NSHumanReadableCopyright</key><string>© 2026 Arbor contributors. MIT License.</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key><string>Folder</string>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>None</string>
+			<key>LSItemContentTypes</key><array><string>public.folder</string></array>
+		</dict>
+	</array>
+	<key>NSDesktopFolderUsageDescription</key><string>Arbor shows the files in your Desktop folder when you open it.</string>
+	<key>NSDocumentsFolderUsageDescription</key><string>Arbor shows the files in your Documents folder when you open it.</string>
+	<key>NSDownloadsFolderUsageDescription</key><string>Arbor shows the files in your Downloads folder when you open it.</string>
+	<key>NSRemovableVolumesUsageDescription</key><string>Arbor shows the files on removable drives when you open them.</string>
+	<key>NSNetworkVolumesUsageDescription</key><string>Arbor shows the files on network shares when you open them.</string>
+	<key>NSLocalNetworkUsageDescription</key><string>Arbor looks for computers and file servers on your network to show them in Network, and connects to the shared folders you open.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_smb._tcp</string>
+		<string>_afpovertcp._tcp</string>
+		<string>_airport._tcp</string>
+	</array>
+</dict>
+</plist>
