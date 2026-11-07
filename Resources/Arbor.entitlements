@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements for Developer ID builds, signed with the hardened runtime (scripts/sign-and-notarize.sh).
+
+  Intentionally empty:
+  - Arbor is not sandboxed (DEC-004): a file manager needs to reach any folder the user opens, so
+    there is no com.apple.security.app-sandbox, and with it none of the sandbox-only keys such as
+    com.apple.security.network.client. Unsandboxed apps can mount SMB shares, browse Bonjour and
+    run helper tools (/usr/bin/smbutil, bsdtar, mdutil) without any entitlement.
+  - No hardened-runtime exceptions are needed: no JIT, no unsigned executable memory, no
+    DYLD_* environment variables, no plug-ins from other teams, and no Apple Events to other apps.
+  Privacy prompts (Desktop, Documents, Downloads, removable and network volumes, local network)
+  come from the usage descriptions in Info.plist, not from entitlements.
+  Add a key here only with a comment saying which feature needs it.
+-->
+<plist version="1.0">
+<dict/>
+</plist>

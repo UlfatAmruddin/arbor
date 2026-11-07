@@ -1,0 +1,84 @@
+# Pushing a tag such as v0.2.0 builds the universal app, makes the disk image, signs and notarizes
+# it when the signing secrets are set, and attaches it to a draft GitHub Release.
+# See docs/RELEASING.md for the secrets and the full checklist.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write   # create the release
+
+jobs:
+  release:
+    runs-on: macos-26   # Xcode 26 toolchain, the same Swift the project is developed with
+    timeout-minutes: 90
+    env:
+      HAS_CERTIFICATE: ${{ secrets.DEVELOPER_ID_CERTIFICATE_P12 != '' }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0   # full history: the build number is the commit count
+
+      - name: Check that the tag matches VERSION
+        run: |
+          expected="v$(tr -d '[:space:]' < VERSION)"
+          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match VERSION ($expected)"
+            exit 1
+          fi
+
+      - name: Unit tests
+        run: scripts/test.sh
+
+      - name: Build universal app
+        run: scripts/build-app.sh release --universal
+
+      - name: Import Developer ID certificate
+        if: env.HAS_CERTIFICATE == 'true'
+        env:
+          CERTIFICATE_P12: ${{ secrets.DEVELOPER_ID_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password="$(uuidgen)"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          printf '%s' "$CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain"
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+
+      - name: Sign, package and notarize
+        env:
+          DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: scripts/sign-and-notarize.sh
+
+      - name: Checksum
+        run: |
+          cd build
+          shasum -a 256 Arbor-*.dmg | tee "Arbor-${GITHUB_REF_NAME#v}.dmg.sha256"
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [ "$HAS_CERTIFICATE" = "true" ]; then
+            note="Signed with a Developer ID and notarized by Apple."
+          else
+            note="This build is not signed with a Developer ID. The first time you open it, right-click Arbor and choose Open, or use System Settings > Privacy & Security > Open Anyway."
+          fi
+          gh release create "$GITHUB_REF_NAME" \
+            "build/Arbor-$version.dmg" "build/Arbor-$version.dmg.sha256" \
+            --draft --title "Arbor $version" --generate-notes --notes "$note"
+
+      - name: Remove signing keychain
+        if: always() && env.HAS_CERTIFICATE == 'true'
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true

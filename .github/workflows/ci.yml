@@ -1,0 +1,47 @@
+# Builds and tests every push and pull request, and keeps the unsigned disk image as an artifact.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26   # Xcode 26 toolchain, the same Swift the project is developed with
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0   # full history: the build number is the commit count
+
+      - name: Show toolchain
+        run: swift --version
+
+      - name: Debug build (must have no warnings)
+        run: |
+          scripts/build-app.sh debug 2>&1 | tee debug-build.log
+          if grep -E "warning:" debug-build.log; then
+            echo "::error::The build has warnings"
+            exit 1
+          fi
+
+      - name: Unit tests
+        run: scripts/test.sh
+
+      - name: Universal app and disk image
+        run: scripts/make-dmg.sh --universal
+
+      - name: Upload disk image
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: Arbor-unsigned-${{ github.sha }}
+          path: build/Arbor-*.dmg
+          if-no-files-found: error
+          retention-days: 14

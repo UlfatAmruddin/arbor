@@ -53,20 +53,37 @@ Finder is capable, but many people find its organization and readability hard: n
 
 On a Mac keyboard, F2 and F5 may need **fn** unless "Use F1, F2, etc. keys as standard function keys" is turned on in System Settings → Keyboard.
 
-## Install and run
+## Install
 
-Arbor needs **macOS 14 Sonoma or later**. There's no signed download yet, so for now you build it yourself. It takes about a minute and needs only Apple's free Command Line Tools:
+Arbor needs **macOS 14 Sonoma or later** and runs natively on both Apple silicon and Intel Macs.
+
+### Download
+
+1. Download `Arbor-<version>.dmg` from the [latest release](https://github.com/ulfatamruddin/arbor/releases/latest).
+2. Open it and drag **Arbor** onto the **Applications** folder.
+3. Open Arbor from Applications or Launchpad.
+
+**First launch of an unsigned build.** Until releases are signed with an Apple Developer ID and notarized (the release notes say which kind you have), macOS blocks the first launch with a message that it can't verify Arbor. To open it anyway, once:
+
+- In Finder, right-click (or Control-click) Arbor in Applications, choose **Open**, then **Open** again. This works on macOS 14 Sonoma; macOS 15 and later no longer offer it, so use the next option there.
+- Or try to open Arbor, then go to **System Settings → Privacy & Security**, scroll to Security, and click **Open Anyway** next to the message about Arbor. Confirm with your password.
+
+After that, Arbor opens normally. The release page lists a SHA-256 checksum (`Arbor-<version>.dmg.sha256`) if you want to check the download: `shasum -a 256 Arbor-<version>.dmg`.
+
+The first time you open Desktop, Documents or Downloads, macOS asks whether Arbor may access them. That's normal: Arbor only asks for what you open. From Terminal, `/Applications/Arbor.app/Contents/MacOS/Arbor ~/Projects` opens a specific folder.
+
+### Build from source
+
+It takes a few minutes and needs only Apple's free Command Line Tools:
 
 ```bash
 xcode-select --install          # once, if you don't have the tools
-git clone <this repository> arbor && cd arbor
-scripts/build-app.sh            # creates build/Arbor.app
+git clone https://github.com/ulfatamruddin/arbor.git && cd arbor
+scripts/build-app.sh            # creates build/Arbor.app for this Mac
 open build/Arbor.app
 ```
 
-Drag `build/Arbor.app` into `/Applications` to keep it. From Terminal, `build/Arbor.app/Contents/MacOS/Arbor ~/Projects` opens a specific folder.
-
-The first time you open Desktop, Documents or Downloads, macOS asks whether Arbor may access them. That's normal. Arbor only asks for what you open.
+Drag `build/Arbor.app` into `/Applications` to keep it. `scripts/build-app.sh release --universal` builds one app for both Apple silicon and Intel, and `scripts/make-dmg.sh` makes the disk image. Releases are described in [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Development
 

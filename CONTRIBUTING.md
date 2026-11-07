@@ -2,10 +2,15 @@
 
 Thanks for helping. A few ground rules keep the project trustworthy.
 
+## Reporting bugs and ideas
+- Use the issue templates: **Bug report** or **Feature request** (https://github.com/ulfatamruddin/arbor/issues/new/choose). Include the Arbor version from Arbor ▸ About Arbor and your macOS version.
+- Anything that could lose data or expose files is a security problem: report it privately as described in [SECURITY.md](SECURITY.md), not in a public issue.
+
 ## Before you start
 - Read `docs/SPEC.md` sections 0–3 and `docs/DECISIONS.md`.
 - Link your change to requirement IDs (`FE-###`). Don't delete or renumber IDs. New requirements get new IDs appended to the end.
 - Describe Windows behavior only from evidence (documentation or a recorded observation, spec §2.3), never from memory or from third-party tools such as the Files app or PowerToys.
+- For anything bigger than a small fix, open an issue first so we can agree on the approach.
 
 ## Safety rules for file operations
 - Never delete a source before its copy has succeeded.
@@ -15,11 +20,25 @@ Thanks for helping. A few ground rules keep the project trustworthy.
 - Tests use disposable fixture folders only (see `Fixture` in the tests), never real user files or the real Trash.
 
 ## Workflow
+You need macOS 14 or later and the Command Line Tools (`xcode-select --install`); Xcode is optional.
+
 ```bash
 scripts/test.sh               # must pass
 scripts/build-app.sh debug    # must build without warnings
 ```
-Logic belongs in `Sources/ArborCore` with unit tests. UI goes in `Sources/Arbor`. For UI behavior, add a scripted check with `ARBOR_SCRIPT` (see `Sources/Arbor/DebugScript.swift`) and describe what you verified in the pull request.
+Logic belongs in `Sources/ArborCore` with unit tests. UI goes in `Sources/Arbor`. For UI behavior, add a scripted check with `ARBOR_SCRIPT` (see `TESTING.md` and `Sources/Arbor/DebugScript.swift`) and describe what you verified in the pull request.
+
+## Pull requests
+- Keep each pull request to one topic, with plain, descriptive commit messages.
+- Fill in the pull request checklist. CI (`.github/workflows/ci.yml`) builds with no warnings, runs the tests and builds the disk image on every push and pull request; it must be green.
+- Update `docs/features/<area>.md` (status, decisions, known gaps) when behavior changes.
+- Art must be original (SF Symbols or drawn in code). Never add Microsoft icons, fonts or logos.
+
+## Releases
+Maintainers follow [docs/RELEASING.md](docs/RELEASING.md). The version lives in `VERSION`; don't change it in a feature pull request.
 
 ## Privacy
 No telemetry, analytics or network calls. Never log file names or paths outside the user's own machine.
+
+## License
+By contributing, you agree that your contribution is licensed under the MIT License ([LICENSE](LICENSE)).
