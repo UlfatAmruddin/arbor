@@ -249,12 +249,15 @@ struct SlowWorkTests {
         let queue = SlowWorkQueue<Int>(label: "test.slow", callbackQueue: DispatchQueue(label: "test.callbacks"))
         let started = Date()
         let outcome: String = await withCheckedContinuation { continuation in
-            queue.run(key: "a", timeout: 0.2, work: { Thread.sleep(forTimeInterval: 1.5); return 1 }) { outcome in
+            queue.run(key: "a", timeout: 0.2, work: { Thread.sleep(forTimeInterval: 4.0); return 1 }) { outcome in
                 if case .timedOut = outcome { continuation.resume(returning: "timeout") } else { continuation.resume(returning: "done") }
             }
         }
         #expect(outcome == "timeout")
-        #expect(Date().timeIntervalSince(started) < 1.0)
+        // The timeout must answer long before the 4 s of work ends. The margin is generous because
+        // in this test the callback queue shares the system thread pool with every parallel test
+        // (in the app it is the main queue, which other work can't starve).
+        #expect(Date().timeIntervalSince(started) < 3.0)
     }
 
     @Test func lateResultAndSharedJob() async {
