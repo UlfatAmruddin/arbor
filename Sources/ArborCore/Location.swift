@@ -173,7 +173,10 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
             return request.scope.map { .folder($0) }
         case .archive(let url, let inner):
             let parts = Self.trimSlashes(inner).split(separator: "/")
-            if parts.isEmpty { return .folder(url.standardizedFileURL.deletingLastPathComponent()) }
+            if parts.isEmpty {
+                if let outer = NestedArchives.parent(of: url) { return outer }
+                return .folder(url.standardizedFileURL.deletingLastPathComponent())
+            }
             return .archive(url, innerPath: parts.dropLast().joined(separator: "/"))
         case .library(let name):
             // A library's Up is the Libraries page (FE-076); the Libraries page has none.

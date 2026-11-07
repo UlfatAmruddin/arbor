@@ -150,7 +150,7 @@ enum ArchiveJobs {
                 let transfer = FileTransfer(kind: .move, sources: sources, destination: request.destination)
                 cancel.transfer = transfer
                 DispatchQueue.main.async { OperationCenter.shared.update(activity, fraction: 0.95) }
-                let report = place(transfer, window: window)
+                let report = place(transfer, archive: request.archive, window: window)
                 if report.wasCancelled, report.committed.isEmpty { throw ArchiveError.cancelled }
                 var result = ExtractResult()
                 result.report = report
@@ -166,7 +166,7 @@ enum ArchiveJobs {
     }
 
     /// Runs the move from staging into the destination (blocking), asking about conflicts on the main thread.
-    private static func place(_ transfer: FileTransfer, window: NSWindow?) -> TransferReport {
+    private static func place(_ transfer: FileTransfer, archive: URL, window: NSWindow?) -> TransferReport {
         final class Box: @unchecked Sendable { var report: TransferReport? }
         let box = Box()
         let semaphore = DispatchSemaphore(value: 0)
@@ -176,6 +176,7 @@ enum ArchiveJobs {
                     DispatchQueue.main.async {
                         // Same Windows-style conflict dialogs as copy/move (FileOperations' ConflictFlow).
                         let job = OperationCenter.Job(transfer: transfer, window: window)
+                        job.presentedAs = .extracting(archive)
                         ConflictFlow.run([conflict], job: job) { continuation.resume(returning: $0.first ?? ConflictDecision(.cancel)) }
                     }
                 }

@@ -401,7 +401,10 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         var urls: [URL] = []
         if let url = current.folderURL { urls = [url] }
         if case .archive(let file, _) = current, case .folder = parent { urls = [file] }
-        request(.visit(parent, select: [], selectURLs: urls), tab: activeTab)
+        var names: [String] = []
+        // Leaving an archive that was opened from inside another one selects it in the outer archive.
+        if case .archive(let file, let inner) = current, inner.isEmpty, case .archive = parent { names = [file.lastPathComponent] }
+        request(.visit(parent, select: names, selectURLs: urls), tab: activeTab)
     }
 
     var canGoUp: Bool { location.parent() != nil }
@@ -416,7 +419,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
     func request(_ request: NavRequest, tab: TabState) {
         if tab === activeTab, tab.displayedLocation == tab.location, !tab.restoreOnDisplay {
             captureViewState(tab)
-            tab.history.saveState(selectedNames: tab.selectedNames, topVisibleName: tab.topVisibleName)
+            tab.history.saveState(selectedNames: tab.selectedNames, selectedURLs: tab.selectedURLs, topVisibleName: tab.topVisibleName)
         }
         var target: Location
         var select: [String]? = nil
@@ -428,9 +431,11 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         case .back:
             guard let entry = tab.history.peekBack() else { return }
             target = entry.location; select = entry.selectedNames; top = entry.topVisibleName
+            tab.selectedNames = entry.selectedNames; tab.selectedURLs = entry.selectedURLs   // display() restores by URL
         case .forward:
             guard let entry = tab.history.peekForward() else { return }
             target = entry.location; select = entry.selectedNames; top = entry.topVisibleName
+            tab.selectedNames = entry.selectedNames; tab.selectedURLs = entry.selectedURLs
         case .reload:
             target = tab.displayedLocation ?? tab.location
         }

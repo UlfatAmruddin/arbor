@@ -42,6 +42,6 @@ final class FolderFilterSearch: SearchController {
     func submit(_ text: String) {
         guard let window, let view = window.itemView else { return }
         view.focus()
-        if view.selectedItems.isEmpty, let first = view.items.first { view.select(names: [first.name]) }
+        if view.selectedItems.isEmpty, let first = view.items.first { view.select(urls: [first.url]) }
     }
 }

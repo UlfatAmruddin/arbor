@@ -62,7 +62,10 @@ public struct PathResolver: Sendable {
         // Windows UNC path: \\server\share\folder → smb://server/share/folder; \\server alone → smb://server
         if text.hasPrefix("\\\\") {
             let parts = text.split(separator: "\\").map(String.init)
-            guard parts.count >= 1, !parts[0].contains("/"), !parts[0].contains(" ") else { return .failure(.invalidAddress(text)) }
+            // "\\\share" has no server name.
+            guard parts.count >= 1, !text.hasPrefix("\\\\\\"), !parts[0].contains("/"), !parts[0].contains(" ") else {
+                return .failure(.invalidAddress(text))
+            }
             var components = URLComponents()
             components.scheme = "smb"
             components.host = parts[0]
@@ -84,6 +87,8 @@ public struct PathResolver: Sendable {
             guard let url = URL(string: text) ?? URL(string: text.addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed) ?? "") else {
                 return .failure(.invalidAddress(text))
             }
+            // "smb://" or "smb:///share" names no server; never hand that to the system's connect flow.
+            guard let host = url.host, !host.isEmpty else { return .failure(.invalidAddress(text)) }
             return .success(.network(url))
         } else if text == "~" {
             path = homeDirectory.path

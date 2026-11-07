@@ -31,6 +31,7 @@ public struct AQSParser {
         do {
             let tokens = try Self.tokenize(text)
             guard !tokens.isEmpty else { throw SearchSyntaxError("Type something to search for.") }
+            try Self.checkComplexity(tokens)
             var state = State(tokens: tokens, parser: self)
             let expression = try state.parseExpression(property: nil)
             if let extra = state.peek {
@@ -42,6 +43,30 @@ public struct AQSParser {
             return .failure(error)
         } catch {
             return .failure(SearchSyntaxError(error.localizedDescription))
+        }
+    }
+
+    /// Limits that keep parsing and matching (both recursive) far from the stack's end; a pasted
+    /// query of thousands of "(" or NOTs used to crash the app.
+    public static let maxTerms = 256
+    public static let maxNesting = 32
+
+    static func checkComplexity(_ tokens: [Token]) throws {
+        guard tokens.count <= maxTerms else {
+            throw SearchSyntaxError("This search is too long. Use at most \(maxTerms) words and operators.")
+        }
+        var nesting = 0, nots = 0, deepest = 0
+        for token in tokens {
+            switch token.kind {
+            case .lparen: nesting += 1
+            case .rparen: nesting = max(nesting - 1, 0)
+            default: break
+            }
+            if case .not = token.kind { nots += 1 } else { nots = 0 }
+            deepest = max(deepest, nesting + nots)
+        }
+        guard deepest <= maxNesting else {
+            throw SearchSyntaxError("This search nests too deeply. Use fewer parentheses or NOTs.")
         }
     }
 
@@ -408,6 +433,10 @@ public struct AQSParser {
             throw SearchSyntaxError("“\(text)” isn't a size Arbor understands. Use a number with KB, MB or GB (like 5MB) or empty, tiny, small, medium, large, huge, gigantic.")
         }
         let lower = n * multiplier
+        // Beyond 1 EB (and Int64) no file can match; converting would trap.
+        guard lower + multiplier < Double(1 << 60) else {
+            throw SearchSyntaxError("“\(text)” is larger than any file can be. Use a smaller size, like 5GB or gigantic.")
+        }
         let point = Int64(lower.rounded(.up))
         if multiplier == 1 { return (point, point + 1, point) }
         let whole = n.rounded(.down) == n

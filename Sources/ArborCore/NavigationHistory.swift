@@ -4,6 +4,8 @@ import Foundation
 public struct NavigationEntry: Equatable, Sendable {
     public var location: Location
     public var selectedNames: [String]
+    /// The same selection as URLs: names repeat in search results, so Back/Forward restore by item.
+    public var selectedURLs: [URL] = []
     public var topVisibleName: String?
 
     /// The folder, for folder locations.
@@ -81,8 +83,9 @@ public struct NavigationHistory: Sendable {
     }
 
     /// Records selection and scroll anchor for the current entry before leaving it.
-    public mutating func saveState(selectedNames: [String], topVisibleName: String?) {
+    public mutating func saveState(selectedNames: [String], selectedURLs: [URL] = [], topVisibleName: String?) {
         current.selectedNames = selectedNames
+        current.selectedURLs = selectedURLs
         current.topVisibleName = topVisibleName
     }
 

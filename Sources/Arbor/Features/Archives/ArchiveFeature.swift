@@ -101,6 +101,7 @@ enum ArchiveFeature {
             case .success(let outcome):
                 guard let url = outcome.placed.first else { return }
                 if app == nil, ArchiveFormat.detect(url) != nil {
+                    NestedArchives.register(copy: url, parent: .archive(ref.archive, innerPath: ref.parentPath))
                     weakWindow?.navigate(to: .archive(url, innerPath: ""))
                     return
                 }
@@ -289,7 +290,9 @@ enum ArchiveFeature {
     private static func registerBreadcrumbs() {
         Breadcrumbs.register { location in
             guard case .archive(let file, let inner) = location else { return nil }
-            var crumbs = Breadcrumbs.folderCrumbs(file.deletingLastPathComponent())
+            // An archive opened from inside another one continues the outer archive's breadcrumb.
+            var crumbs = NestedArchives.parent(of: file).map(Breadcrumbs.crumbs(for:))
+                ?? Breadcrumbs.folderCrumbs(file.deletingLastPathComponent())
             func children(_ path: String) -> () -> [CrumbChild] {
                 {
                     let nodes = ArchiveCatalog.shared.peek(file)?.index.children(of: path) ?? []

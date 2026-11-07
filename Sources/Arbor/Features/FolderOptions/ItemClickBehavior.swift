@@ -38,7 +38,7 @@ final class ItemClickBehavior: NSObject {
                   hypot(up.locationInWindow.x - start.x, up.locationInWindow.y - start.y) < 5,
                   controller.itemView?.items.contains(where: { $0.url == item.url }) == true else { return }
             ItemSurface(controller)?.prepareToOpen()
-            controller.itemView?.select(names: [item.name])
+            controller.itemView?.select(urls: [item.url])
             controller.open([item], inNewTab: false)
         }
         return event

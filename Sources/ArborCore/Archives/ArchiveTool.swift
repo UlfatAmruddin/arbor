@@ -57,15 +57,23 @@ public final class ToolProcess: @unchecked Sendable {
         }
         let collected = Collected(onStderrLine)
         let group = DispatchGroup()
+        // The pipes are drained on dedicated threads, not the shared dispatch pool: callers block a pool
+        // thread while waiting here, and with several tools running at once the readers could never be
+        // scheduled (every run waited forever for its own reader).
+        func reader(_ body: @escaping @Sendable () -> Void) {
+            let thread = Thread(block: body)
+            thread.qualityOfService = .utility
+            thread.start()
+        }
         if collectStdout {
             group.enter()
-            DispatchQueue.global(qos: .utility).async {
+            reader {
                 collected.stdout = out.fileHandleForReading.readDataToEndOfFile()
                 group.leave()
             }
         }
         group.enter()
-        DispatchQueue.global(qos: .utility).async {
+        reader {
             var pending = Data()
             let handle = err.fileHandleForReading
             while true {
@@ -119,6 +127,11 @@ public enum ArchiveError: Error, LocalizedError, Equatable {
         let lines = stderr.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty && !$0.contains("Error exit delayed") }
             .map { $0.hasPrefix("bsdtar: ") ? String($0.dropFirst(8)) : $0 }
+            // -v progress ("x name", "a name") is not an error; keep only progress lines carrying one ("x name: failed").
+            .compactMap { line -> String? in
+                guard line.hasPrefix("x ") || line.hasPrefix("a ") else { return line }
+                return line.contains(": ") ? String(line.dropFirst(2)) : nil
+            }
         return lines.suffix(limit).joined(separator: "\n")
     }
 }

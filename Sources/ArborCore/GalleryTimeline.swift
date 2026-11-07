@@ -101,7 +101,8 @@ public enum GalleryTimeline {
         let latest = now.addingTimeInterval(86_400)
         func valid(_ date: Date?) -> Date? { date.flatMap { $0 >= earliest && $0 <= latest ? $0 : nil } }
         if let taken = valid(taken) { return taken }
-        return [valid(created), valid(modified)].compactMap { $0 }.min()
+        // A file whose own dates are all implausible is still shown (under its earliest date), never dropped.
+        return [valid(created), valid(modified)].compactMap { $0 }.min() ?? [created, modified].compactMap { $0 }.min()
     }
 
     /// Parses an EXIF date ("2024:03:15 14:30:05", local time without a zone) in `timeZone`.
@@ -118,6 +119,8 @@ public enum GalleryTimeline {
         c.second = parts.count > 5 ? parts[5] : 0
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
+        // "2024:02:31" or "25:61" would roll over into another day; treat them as no date.
+        guard c.isValidDate(in: calendar) else { return nil }
         return calendar.date(from: c)
     }
 

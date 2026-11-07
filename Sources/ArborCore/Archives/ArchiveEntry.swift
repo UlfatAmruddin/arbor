@@ -83,6 +83,40 @@ public enum ArchivePath {
         }
         return resolved.count >= base.count
     }
+
+    /// Like `linkStaysInside(entry:target:base:)`, but resolves the way the file system will: a component
+    /// naming another link is replaced by that link's target before `..` is applied, so "self → ." makes
+    /// "self/../x" point above the tree. `linkTarget` returns the target of the link at a path (components),
+    /// or nil if that path isn't a link. Loops and long chains count as escaping.
+    public static func linkStaysInside(entry: [String], target: String, base: [String] = [],
+                                       linkTarget: ([String]) -> String?) -> Bool {
+        guard entry.count > base.count, Array(entry.prefix(base.count)) == base else { return false }
+        var expansions = 0
+        func resolve(from folder: [String], _ target: String) -> [String]? {
+            guard !target.isEmpty, !target.hasPrefix("/"), !target.contains("\u{0}") else { return nil }
+            var resolved = folder
+            for part in target.split(separator: "/", omittingEmptySubsequences: true) {
+                switch part {
+                case ".": continue
+                case "..":
+                    guard resolved.count > base.count else { return nil }
+                    resolved.removeLast()
+                default:
+                    resolved.append(String(part))
+                    if let next = linkTarget(resolved) {
+                        expansions += 1
+                        guard expansions <= 32 else { return nil }
+                        resolved.removeLast()
+                        guard let expanded = resolve(from: resolved, next) else { return nil }
+                        resolved = expanded
+                    }
+                }
+            }
+            return resolved
+        }
+        guard let resolved = resolve(from: Array(entry.dropLast()), target) else { return false }
+        return resolved.count >= base.count && Array(resolved.prefix(base.count)) == base
+    }
 }
 
 /// A browsable tree built from a flat listing. Folders that only appear inside other entries'

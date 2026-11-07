@@ -111,8 +111,8 @@ final class ReplaceOrSkipDialog: FileOpsDialog {
         super.init(title: "Replace or Skip Files", width: 470)
         let many = conflicts.count > 1
         let transfer = job.transfer
-        let header = fromToLine(verb: transfer.kind.progressVerb, count: transfer.sources.count,
-                                source: conflicts.first?.source.deletingLastPathComponent(),
+        let header = fromToLine(verb: job.presentedAs?.progressVerb ?? transfer.kind.progressVerb, count: transfer.sources.count,
+                                source: job.presentedAs?.source ?? conflicts.first?.source.deletingLastPathComponent(),
                                 destination: conflicts.first?.destination.deletingLastPathComponent(), open: ConflictFlow.open)
         let instruction = FileOpsStyle.label(
             many ? "The destination has \(conflicts.count) files with the same names"
@@ -214,7 +214,8 @@ final class CompareDialog: FileOpsDialog, NSTableViewDataSource, NSTableViewDele
             guard let a = conflicts[i].sourceStamp, let b = conflicts[i].destinationStamp else { return false }
             return a.size == b.size && abs(a.modified.timeIntervalSince(b.modified)) < 2
         })
-        let source = conflicts.first.map { displayName(of: $0.source.deletingLastPathComponent()) } ?? ""
+        let source = job.presentedAs.map { $0.source.lastPathComponent }
+            ?? conflicts.first.map { displayName(of: $0.source.deletingLastPathComponent()) } ?? ""
         let destination = conflicts.first.map { displayName(of: $0.destination.deletingLastPathComponent()) } ?? ""
         sourceHeader = NSButton(checkboxWithTitle: "Files from \(source)", target: nil, action: nil)
         existingHeader = NSButton(checkboxWithTitle: "Files already in \(destination)", target: nil, action: nil)
@@ -417,11 +418,11 @@ final class FolderMergeDialog: FileOpsDialog {
                                              font: FileOpsStyle.instructionFont, wraps: true)
         instruction.preferredMaxLayoutWidth = 430
         let explain = FileOpsStyle.label(
-            "If the files in the existing folder have the same names as files in the folder you're \(job.transfer.kind == .copy ? "copying" : "moving"), you'll be asked whether to replace them. Do you still want to \(job.transfer.kind.verb) the folder?",
+            "If the files in the existing folder have the same names as files in the folder you're \(job.presentedAs?.gerund ?? (job.transfer.kind == .copy ? "copying" : "moving")), you'll be asked whether to replace them. Do you still want to \(job.presentedAs?.verb ?? job.transfer.kind.verb) the folder?",
             wraps: true)
         explain.preferredMaxLayoutWidth = 430
         let existing = Self.folderRow(conflict.destination, conflict.destinationStamp, caption: "Existing folder")
-        let incoming = Self.folderRow(conflict.source, conflict.sourceStamp, caption: "Folder being \(job.transfer.kind.pastVerb)")
+        let incoming = Self.folderRow(conflict.source, conflict.sourceStamp, caption: "Folder being \(job.presentedAs?.pastVerb ?? job.transfer.kind.pastVerb)")
         applyAll.font = FileOpsStyle.bodyFont
         let body = setBody([instruction, explain, existing, incoming, applyAll], spacing: 10)
         body.setCustomSpacing(16, after: explain)
@@ -474,8 +475,8 @@ final class NameClashDialog: FileOpsDialog {
         super.init(title: "Replace or Skip Files", width: 470)
         let existingIsFolder = conflict.destinationStamp?.isFolder ?? FileOps.isPlainFolder(conflict.destination)
         let name = conflict.destination.lastPathComponent
-        let header = fromToLine(verb: job.transfer.kind.progressVerb, count: job.transfer.sources.count,
-                                source: conflict.source.deletingLastPathComponent(),
+        let header = fromToLine(verb: job.presentedAs?.progressVerb ?? job.transfer.kind.progressVerb, count: job.transfer.sources.count,
+                                source: job.presentedAs?.source ?? conflict.source.deletingLastPathComponent(),
                                 destination: conflict.destination.deletingLastPathComponent(), open: ConflictFlow.open)
         let instruction = FileOpsStyle.label("The destination already has a \(existingIsFolder ? "folder" : "file") named “\(name)”",
                                              font: FileOpsStyle.instructionFont, wraps: true)
@@ -483,7 +484,7 @@ final class NameClashDialog: FileOpsDialog {
         let explain = FileOpsStyle.label("A file and a folder can't replace each other.", color: Theme.secondaryText)
         let newName = NameRules.keepBothName(for: conflict.source.lastPathComponent, treatAsFolder: !existingIsFolder) { _ in false }
         let keep = CommandLinkButton(symbol: "plus.square.on.square", title: "Keep both",
-                                     detail: "The \(existingIsFolder ? "file" : "folder") being \(job.transfer.kind.pastVerb) will be named “\(newName)”.") { [weak self] in
+                                     detail: "The \(existingIsFolder ? "file" : "folder") being \(job.presentedAs?.pastVerb ?? job.transfer.kind.pastVerb) will be named “\(newName)”.") { [weak self] in
             self?.answer(.keepBoth)
         }
         let skip = CommandLinkButton(symbol: "arrowshape.turn.up.right", title: "Skip this item") { [weak self] in self?.answer(.skip) }

@@ -48,9 +48,14 @@ final class ExplorerSearchController: SearchController {
     func placeholder(for location: Location) -> String {
         syncProgress(location)
         if case .search(let r) = location {
-            return "Search " + (r.scope.map { Location.folder($0).displayName } ?? "This Mac")
+            return "Search " + (r.scope.map { Self.title(of: .folder($0)) } ?? "This Mac")
         }
-        return "Search \(location.displayName)"
+        return "Search \(Self.title(of: location))"
+    }
+
+    /// The name the tab and breadcrumb use ("iCloud Drive", a volume's name), not the folder's name on disk.
+    private static func title(of location: Location) -> String {
+        LocationRegistry.provider(for: location).title(for: location)
     }
 
     func boxText(for location: Location, filterText: String) -> String {

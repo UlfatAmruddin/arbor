@@ -18,6 +18,8 @@ final class OperationCenter {
         weak var window: NSWindow?
         /// Speed, time remaining and graph samples (main thread).
         let monitor = JobMonitor()
+        /// How dialogs describe the job when its real source is a hidden staging folder (extracting an archive).
+        var presentedAs: PresentedJob?
         init(transfer: FileTransfer, window: NSWindow?) {
             self.transfer = transfer
             self.window = window

@@ -48,8 +48,11 @@ public enum ExtractionPlanner {
         var nonFolders = Set<String>()
         var parents = Set<String>()
         var anyUnsafe = false
+        // Link targets by lowercased path (APFS is case-insensitive by default), to resolve link chains.
+        var links: [String: String] = [:]
         for entry in entries {
             guard let parts = entry.components else { anyUnsafe = true; continue }
+            if entry.kind == .symlink { links[parts.joined(separator: "/").lowercased()] = entry.linkTarget ?? "" }
             if entry.kind != .directory { nonFolders.insert(parts.joined(separator: "/")) }
             for i in 1..<max(parts.count, 1) { parents.insert(parts.prefix(i).joined(separator: "/")) }
         }
@@ -79,7 +82,8 @@ public enum ExtractionPlanner {
                 if nonFolders.contains(parts.prefix(i).joined(separator: "/")) { reason = .insideNonFolder }
             }
             if reason == nil, entry.kind == .symlink {
-                if !ArchivePath.linkStaysInside(entry: parts, target: entry.linkTarget ?? "", base: baseParts) { reason = .linkOutside }
+                if !ArchivePath.linkStaysInside(entry: parts, target: entry.linkTarget ?? "", base: baseParts,
+                                                linkTarget: { links[$0.joined(separator: "/").lowercased()] }) { reason = .linkOutside }
             }
             if reason == nil, entry.kind == .hardlink {
                 // A hard link must name another safe member inside the extracted tree.
@@ -173,6 +177,7 @@ public enum ExtractionVerifier {
         let fm = FileManager.default
         // A manual walk with lstat: enumerators skip dangling links, which are exactly the ones to check.
         var pending: [(path: String, parts: [String])] = [(rootPath, [])]
+        var links: [(path: String, parts: [String])] = []
         while let (folder, folderParts) = pending.popLast() {
             for name in (try? fm.contentsOfDirectory(atPath: folder)) ?? [] {
                 let path = folder + "/" + name
@@ -182,12 +187,9 @@ public enum ExtractionVerifier {
                 guard lstat(path, &info) == 0 else { continue }
                 switch info.st_mode & S_IFMT {
                 case S_IFLNK:
-                    let target = (try? fm.destinationOfSymbolicLink(atPath: path)) ?? "/"
-                    if !ArchivePath.linkStaysInside(entry: parts, target: target, base: base) {
-                        try? fm.removeItem(atPath: path)
-                        report.removed.append(relative)
-                        continue
-                    }
+                    // Judged after the walk, once every link is known (a link can escape through another).
+                    links.append((path, parts))
+                    continue
                 case S_IFREG:
                     report.bytes += Int64(info.st_size)
                     if info.st_mode & (S_ISUID | S_ISGID | S_ISVTX) != 0 { chmod(path, info.st_mode & 0o777) }
@@ -209,6 +211,27 @@ public enum ExtractionVerifier {
                     }
                 }
             }
+        }
+        // Resolve each link through the links on disk; remove every escaping one only after all are judged.
+        func target(_ parts: [String]) -> String? {
+            try? fm.destinationOfSymbolicLink(atPath: rootPath + "/" + parts.joined(separator: "/"))
+        }
+        var escaping: [(path: String, parts: [String])] = []
+        for link in links {
+            if !ArchivePath.linkStaysInside(entry: link.parts, target: target(link.parts) ?? "/", base: base, linkTarget: target) {
+                escaping.append(link)
+            } else {
+                report.items += 1
+                if let quarantine {
+                    _ = quarantine.withUnsafeBytes { raw in
+                        setxattr(link.path, quarantineName, raw.baseAddress, quarantine.count, 0, XATTR_NOFOLLOW)
+                    }
+                }
+            }
+        }
+        for link in escaping {
+            try? fm.removeItem(atPath: link.path)
+            report.removed.append(link.parts.joined(separator: "/"))
         }
         return report
     }
