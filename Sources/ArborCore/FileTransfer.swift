@@ -174,6 +174,9 @@ public final class FileTransfer: @unchecked Sendable {
     public typealias FailureResolver = @Sendable (TransferFailure) async -> FailureDecision
     public typealias Disposer = @Sendable (URL) throws -> Void
     public typealias VolumeCheck = @Sendable (URL, URL) -> Bool
+    /// "Are you sure you want to copy this file without its properties?"
+    public typealias MetadataLossResolver = @Sendable (MetadataLoss) async -> MetadataLossDecision
+    public typealias CapabilityCheck = @Sendable (URL) -> VolumeCapabilities
 
     public static let trashDisposer: Disposer = { url in
         try SystemTrash.trash(url)
@@ -254,6 +257,14 @@ public final class FileTransfer: @unchecked Sendable {
         set { lock.withLock { retainJournal = newValue } }
     }
     private var retainJournal = false
+
+    /// Set before `run` to be asked when the destination can't hold an item's properties (extended
+    /// attributes, access lists). Without a resolver such items are copied without them, as before.
+    public var metadataLossResolver: MetadataLossResolver?
+    /// How destination volumes are examined (replaceable in tests).
+    public var capabilityCheck: CapabilityCheck = { VolumeCapabilities.of($0) }
+    private var lastCapabilities: (folder: String, capabilities: VolumeCapabilities)?
+    private var stickyMetadata: MetadataLossChoice?
 
     /// The latest progress (any thread).
     public var currentProgress: TransferProgress { lock.withLock { snapshot() } }
@@ -398,6 +409,7 @@ public final class FileTransfer: @unchecked Sendable {
             emit()
         }
         engine.hooks.failure = { [unowned self] failure in askFailure(failure) }
+        engine.hooks.metadata = { [unowned self] source, target in askMetadata(source, target) }
         engine.hooks.detail = { [unowned self] result in
             // The top-level item's own problem becomes its result, not a detail.
             if result.source.standardizedFileURL != currentTopSource { details.append(result) }
@@ -446,6 +458,26 @@ public final class FileTransfer: @unchecked Sendable {
         let decision = waiting { block { await resolver(failure) } }
         if decision.choice == .skip, decision.applyToRemaining { skipFailures.insert(failure.kind) }
         return decision
+    }
+
+    private func askMetadata(_ source: URL, _ target: URL) -> MetadataLossChoice {
+        guard let resolver = metadataLossResolver else { return .copyWithout }
+        let folder = target.deletingLastPathComponent().path
+        let capabilities: VolumeCapabilities
+        if let last = lastCapabilities, last.folder == folder {
+            capabilities = last.capabilities
+        } else {
+            capabilities = capabilityCheck(target.deletingLastPathComponent())
+            lastCapabilities = (folder, capabilities)
+        }
+        guard !capabilities.keepsEverything else { return .copyWithout }
+        let lost = capabilities.losses(MetadataInventory.of(source))
+        guard !lost.isEmpty else { return .copyWithout }
+        if let sticky = stickyMetadata { return sticky }
+        let loss = MetadataLoss(source: source, destination: target, lost: lost, capabilities: capabilities)
+        let decision = waiting { block { await resolver(loss) } }
+        if decision.applyToRemaining, decision.choice != .cancel { stickyMetadata = decision.choice }
+        return decision.choice
     }
 
     // MARK: - One folder level

@@ -1,0 +1,207 @@
+import Foundation
+
+/// Compress to ▸ Additional options (Windows 11 24H2 "Create archive", FE-168): format, compression
+/// method and level, whether hidden items go in, and the name. Everything is written by the system
+/// `bsdtar` (libarchive) through an argument array. Zstandard isn't offered: the system libarchive
+/// isn't built with it and would depend on a separately installed `zstd` program.
+public enum ArchiveOutputFormat: String, Sendable, CaseIterable, Codable {
+    case zip, sevenZip, tar, tarGzip, tarBzip2, tarXz
+    /// One file compressed on its own (no archive around it), like Windows' gzip/BZip2/xz options.
+    case gzip, bzip2, xz
+
+    public var fileExtension: String {
+        switch self {
+        case .zip: return "zip"
+        case .sevenZip: return "7z"
+        case .tar: return "tar"
+        case .tarGzip: return "tar.gz"
+        case .tarBzip2: return "tar.bz2"
+        case .tarXz: return "tar.xz"
+        case .gzip: return "gz"
+        case .bzip2: return "bz2"
+        case .xz: return "xz"
+        }
+    }
+
+    public var title: String {
+        switch self {
+        case .zip: return "ZIP"
+        case .sevenZip: return "7z"
+        case .tar: return "TAR"
+        case .tarGzip: return "TAR + gzip (.tar.gz)"
+        case .tarBzip2: return "TAR + BZip2 (.tar.bz2)"
+        case .tarXz: return "TAR + xz (.tar.xz)"
+        case .gzip: return "gzip (.gz, one file)"
+        case .bzip2: return "BZip2 (.bz2, one file)"
+        case .xz: return "xz (.xz, one file)"
+        }
+    }
+
+    /// gzip/BZip2/xz without TAR hold exactly one regular file.
+    public var isSingleFile: Bool { self == .gzip || self == .bzip2 || self == .xz }
+
+    public var methods: [CompressionMethod] {
+        switch self {
+        case .zip: return [.deflate, .store]
+        case .sevenZip: return [.lzma2, .lzma, .bzip2, .deflate, .store]
+        case .tar: return [.none]
+        case .tarGzip, .gzip: return [.gzip]
+        case .tarBzip2, .bzip2: return [.bzip2]
+        case .tarXz, .xz: return [.xz]
+        }
+    }
+
+    public var levels: [CompressionLevel] {
+        switch self {
+        case .tar: return []
+        default: return [.fastest, .normal, .maximum]
+        }
+    }
+
+    /// Formats offered for a selection (single-file formats only for one regular file).
+    public static func available(forSingleFile single: Bool) -> [ArchiveOutputFormat] {
+        allCases.filter { single || !$0.isSingleFile }
+    }
+}
+
+public enum CompressionMethod: String, Sendable, CaseIterable, Codable {
+    case deflate, store, lzma2, lzma, bzip2, gzip, xz, none
+
+    public var title: String {
+        switch self {
+        case .deflate: return "Deflate"
+        case .store: return "Store (no compression)"
+        case .lzma2: return "LZMA2"
+        case .lzma: return "LZMA"
+        case .bzip2: return "BZip2"
+        case .gzip: return "gzip"
+        case .xz: return "xz"
+        case .none: return "None"
+        }
+    }
+}
+
+public enum CompressionLevel: Int, Sendable, CaseIterable, Codable {
+    case fastest = 1, normal = 6, maximum = 9
+
+    public var title: String {
+        switch self {
+        case .fastest: return "Fastest"
+        case .normal: return "Normal"
+        case .maximum: return "Maximum"
+        }
+    }
+}
+
+public struct ArchiveCreateOptions: Sendable, Equatable {
+    public var format: ArchiveOutputFormat
+    public var method: CompressionMethod
+    public var level: CompressionLevel
+    /// Items whose names start with "." inside selected folders. Selected items themselves are
+    /// always included: the user chose them.
+    public var includeHiddenItems: Bool
+    /// The archive's file name, including its extension.
+    public var name: String
+    public var destinationFolder: URL
+
+    public init(format: ArchiveOutputFormat = .zip, method: CompressionMethod? = nil, level: CompressionLevel = .normal,
+                includeHiddenItems: Bool = true, name: String, destinationFolder: URL) {
+        self.format = format
+        self.method = method.flatMap { format.methods.contains($0) ? $0 : nil } ?? format.methods[0]
+        self.level = level
+        self.includeHiddenItems = includeHiddenItems
+        self.name = name
+        self.destinationFolder = destinationFolder
+    }
+
+    /// The name with this format's extension: "report.zip" → "report.tar.gz".
+    public static func name(_ name: String, withExtensionFor format: ArchiveOutputFormat) -> String {
+        let base = ArchiveFormat.baseName(of: name)
+        let stem = base.isEmpty ? name : base
+        return "\(stem).\(format.fileExtension)"
+    }
+
+    /// Checks the options for a selection; returns a readable problem or nil.
+    public func problem(for sources: [URL]) -> String? {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        if trimmed.isEmpty { return "Type a name for the archive." }
+        if trimmed.contains("/") || trimmed.contains(":") { return "A file name can't contain / or :." }
+        if sources.isEmpty { return "Nothing is selected." }
+        if format.isSingleFile {
+            var isDirectory: ObjCBool = false
+            guard sources.count == 1, FileManager.default.fileExists(atPath: sources[0].path, isDirectory: &isDirectory),
+                  !isDirectory.boolValue else {
+                return "\(format.title) compresses one file. Choose a TAR format for folders or several items."
+            }
+        }
+        let parent = sources[0].deletingLastPathComponent().standardizedFileURL
+        if sources.contains(where: { $0.deletingLastPathComponent().standardizedFileURL != parent }) {
+            return "The items must be in the same folder."
+        }
+        return nil
+    }
+
+    /// bsdtar arguments writing `sources` (all in one folder) to `output`, names read from `listFile`.
+    public func bsdtarArguments(sources: [URL], output: URL, listFile: URL) -> [String] {
+        let parent = sources[0].deletingLastPathComponent().path
+        var args = ["-c", "-v"]
+        var options: [String] = []
+        switch format {
+        case .zip:
+            args += ["--format", "zip"]
+            if method == .store {
+                options.append("zip:compression=store")
+            } else {
+                options += ["zip:compression=deflate", "zip:compression-level=\(level.rawValue)"]
+            }
+        case .sevenZip:
+            args += ["--format", "7zip"]
+            let name: String
+            switch method {
+            case .lzma: name = "lzma1"
+            case .bzip2: name = "bzip2"
+            case .deflate: name = "deflate"
+            case .store: name = "store"
+            default: name = "lzma2"
+            }
+            options.append("7zip:compression=\(name)")
+            if method != .store { options.append("7zip:compression-level=\(level.rawValue)") }
+        case .tar:
+            args += ["--format", "paxr"]
+        case .tarGzip, .gzip:
+            args += ["--format", format == .gzip ? "raw" : "paxr", "--gzip"]
+            options.append("gzip:compression-level=\(level.rawValue)")
+        case .tarBzip2, .bzip2:
+            args += ["--format", format == .bzip2 ? "raw" : "paxr", "--bzip2"]
+            options.append("bzip2:compression-level=\(level.rawValue)")
+        case .tarXz, .xz:
+            args += ["--format", format == .xz ? "raw" : "paxr", "--xz"]
+            options.append("xz:compression-level=\(level.rawValue)")
+        }
+        if !options.isEmpty { args += ["--options", options.joined(separator: ",")] }
+        // "*/.*" matches hidden names below a selected item but not the selected items themselves.
+        if !includeHiddenItems { args += ["--exclude", "*/.*"] }
+        args += ["-f", output.path, "-C", parent, "--null", "-T", listFile.path]
+        return args
+    }
+}
+
+extension ArchiveTool {
+    /// Writes an archive with Additional options to `output` (which must not exist).
+    public static func create(_ options: ArchiveCreateOptions, sources: [URL], output: URL, process: ToolProcess,
+                              onItem: (() -> Void)? = nil) throws {
+        if let problem = options.problem(for: sources) { throw ArchiveError.toolFailed(problem) }
+        let list = output.deletingLastPathComponent().appendingPathComponent(".arbor-names-\(UUID().uuidString)")
+        try createList(sources).write(to: list)
+        defer { try? FileManager.default.removeItem(at: list) }
+        let result = try process.run(bsdtar, options.bsdtarArguments(sources: sources, output: output, listFile: list),
+                                     collectStdout: false) { line in
+            if line.hasPrefix("a ") { onItem?() }
+        }
+        if result.wasCancelled { throw ArchiveError.cancelled }
+        if result.status != 0 {
+            try? FileManager.default.removeItem(at: output)
+            throw ArchiveError.toolFailed(ArchiveError.summarize(result.stderr).nilIfEmpty ?? "The archive couldn't be created.")
+        }
+    }
+}

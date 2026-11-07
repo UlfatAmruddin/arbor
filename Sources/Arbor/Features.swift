@@ -42,6 +42,7 @@ enum Features {
 
         VisualParityFeature.register()   // slot: visual parity and window chrome
         ConsistencyFeature.register()   // slot: consistency across features
+        FileOperationsExtras.register()   // file-operation extras (after Archives and Properties, whose commands they extend)
 
         // slot: (spare 2)
     }

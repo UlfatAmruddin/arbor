@@ -11,7 +11,9 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
     private let page = SheetPage()
     private let objectName = SheetLabel.make("", selectable: true)
     private let namesBox = SheetBox()
-    private let namesList = NSStackView()
+    /// Scrolls when owner, group, everyone and access-list entries don't fit the box.
+    private let namesScroll = SheetScrollList()
+    private var namesList: NSStackView { namesScroll.stack }
     private let permissionsTitle = SheetLabel.make("", bold: true)
     private let allowHeader = SheetLabel.make("Allow")
     private let denyHeader = SheetLabel.make("Deny")
@@ -75,15 +77,20 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
         namesList.orientation = .vertical
         namesList.alignment = .leading
         namesList.spacing = 0
-        namesList.translatesAutoresizingMaskIntoConstraints = false
-        namesBox.addSubview(namesList)
+        namesBox.addSubview(namesScroll)
         NSLayoutConstraint.activate([
             namesBox.heightAnchor.constraint(equalToConstant: 96),
-            namesList.topAnchor.constraint(equalTo: namesBox.topAnchor, constant: 2),
-            namesList.leadingAnchor.constraint(equalTo: namesBox.leadingAnchor, constant: 1),
-            namesList.trailingAnchor.constraint(equalTo: namesBox.trailingAnchor, constant: -1),
+            namesScroll.topAnchor.constraint(equalTo: namesBox.topAnchor, constant: 2),
+            namesScroll.leadingAnchor.constraint(equalTo: namesBox.leadingAnchor, constant: 1),
+            namesScroll.trailingAnchor.constraint(equalTo: namesBox.trailingAnchor, constant: -1),
+            namesScroll.bottomAnchor.constraint(equalTo: namesBox.bottomAnchor, constant: -1),
         ])
         add(namesBox)
+        // Explorer: "To change permissions, click Edit." [Edit…] (access-list entries, group).
+        let edit = SheetButton("Edit…") { [weak self] _ in self?.openEditor() }
+        let editHint = SheetLabel.make("To change permissions, click Edit.")
+        editHint.setContentCompressionResistancePriority(.required, for: .horizontal)
+        add(hstack([editHint, NSView(), edit]))
         let header = NSView()
         header.translatesAutoresizingMaskIntoConstraints = false
         for v in [permissionsTitle, allowHeader, denyHeader] { header.addSubview(v) }
@@ -189,7 +196,7 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
             note = "Owner: \(fullName). Only the owner or an administrator can change these permissions."
         }
         if security.flags.isLocked { note += " The item is Locked (Read-only on the General tab), which blocks changes even where permissions allow them." }
-        if !security.acl.isEmpty { note += " Access-list entries are shown as they are; edit them with chmod +a in Terminal." }
+        if !security.acl.isEmpty { note += " To add or remove access-list entries, click Edit." }
         ownership.stringValue = note
     }
 
@@ -276,6 +283,11 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
                 "mode: \(modeLabel.stringValue)",
                 "access: \(access.joined(separator: ", "))",
                 "editable: \(security.currentUserCanChangePermissions)"].joined(separator: "\n")
+    }
+
+    private func openEditor() {
+        guard let url = model.single?.url, let window = view.window else { return }
+        PermissionsEditorSheet.show(for: url, over: window) { [weak self] in self?.load() }
     }
 
     func selectPrincipal(_ index: Int) {

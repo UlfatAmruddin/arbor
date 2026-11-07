@@ -121,6 +121,8 @@ final class OperationsWindow: NSObject, NSWindowDelegate {
         toggle.expanded = Prefs.fileOpsMoreDetails
         toggle.onToggle = { [weak self] in self?.expanded = $0 }
         footer.addSubview(toggle)
+        let extras = OperationsFooterExtras()
+        footer.addSubview(extras)
         let top = NSStackView(views: [headerBox, stack])
         top.orientation = .vertical
         top.alignment = .leading
@@ -142,6 +144,8 @@ final class OperationsWindow: NSObject, NSWindowDelegate {
             footer.heightAnchor.constraint(equalToConstant: 44),
             toggle.leadingAnchor.constraint(equalTo: footer.leadingAnchor, constant: 18),
             toggle.centerYAnchor.constraint(equalTo: footer.centerYAnchor),
+            extras.trailingAnchor.constraint(equalTo: footer.trailingAnchor, constant: -18),
+            extras.centerYAnchor.constraint(equalTo: footer.centerYAnchor),
         ])
         window.contentView = root
         self.window = window
@@ -185,9 +189,24 @@ final class OperationsWindow: NSObject, NSWindowDelegate {
         let many = jobs.count > 1
         if headerBox.isHidden == many { changedLayout = true }
         headerBox.isHidden = !many
-        header.stringValue = many ? "\(jobs.count) operations running" : ""
-        window.title = many ? "\(jobs.count) operations running" : panels[ObjectIdentifier(jobs[0])]?.windowTitle ?? ""
+        let waiting = jobs.filter { TransferQueueController.shared.isWaiting($0) }.count
+        let summary = waiting == 0 ? "\(jobs.count) operations running"
+            : "\(jobs.count - waiting) running, \(waiting) waiting"   // queue controls (FE-127)
+        header.stringValue = many ? summary : ""
+        window.title = many ? summary : panels[ObjectIdentifier(jobs[0])]?.windowTitle ?? ""
         if changedLayout || force { fit() }
+    }
+
+    /// Puts the panels in queue order (running first, then waiting jobs in the order they start).
+    func reorder(by ids: [UUID]) {
+        let ordered = ids.compactMap { id in OperationCenter.shared.jobs.first { $0.id == id } }.compactMap { panels[ObjectIdentifier($0)] }
+        guard ordered.count == stack.arrangedSubviews.count else { return }
+        for panel in ordered {
+            stack.removeArrangedSubview(panel)
+            stack.addArrangedSubview(panel)
+        }
+        for (index, panel) in ordered.enumerated() { panel.showsSeparator = index > 0 }
+        fit()
     }
 
     private func fit() {
@@ -230,6 +249,7 @@ final class JobPanelView: NSView {
     private let grid: NSGridView
     private let separator = FillView(FileOpsStyle.separator)
     private var expanded = false
+    private lazy var extras = JobPanelExtras(job: job)
 
     var showsSeparator = false { didSet { separator.isHidden = !showsSeparator } }
 
@@ -264,7 +284,7 @@ final class JobPanelView: NSView {
         percentRow.orientation = .horizontal
         percentRow.spacing = 2
         percentRow.translatesAutoresizingMaskIntoConstraints = false
-        let column = NSStackView(views: [fromTo, percentRow, bar, graph, grid])
+        let column = NSStackView(views: [fromTo, percentRow, extras, bar, graph, grid])
         column.orientation = .vertical
         column.alignment = .leading
         column.spacing = 8
@@ -311,14 +331,14 @@ final class JobPanelView: NSView {
     }
 
     private func cancelJob() {
-        job.monitor.isCancelling = true
-        job.transfer.cancel()
+        OperationCenter.shared.cancel(job)
         refresh()
     }
 
     private var percentText: String {
         let p = job.progress
         if job.monitor.isCancelling || job.transfer.isCancelled { return "Cancelling…" }
+        if let status = JobPanelExtras.statusText(for: job) { return job.transfer.isPaused ? "Paused - \(status)" : status }
         if p.phase == .discovering { return "Discovering items…" }
         let pct = "\(Int(((p.fraction ?? 0) * 100).rounded(.down)))% complete"
         if job.transfer.isPaused { return "Paused - \(pct)" }
@@ -327,6 +347,7 @@ final class JobPanelView: NSView {
 
     var windowTitle: String {
         let p = job.progress
+        if let status = JobPanelExtras.statusText(for: job) { return status }
         if p.phase == .discovering { return "Discovering items…" }
         return "\(Int(((p.fraction ?? 0) * 100).rounded(.down)))% complete"
     }
@@ -338,9 +359,11 @@ final class JobPanelView: NSView {
         pause.symbolName = paused ? "play.fill" : "pause.fill"
         pause.toolTip = paused ? "Resume" : "Pause"
         pause.setAccessibilityLabel(paused ? "Resume" : "Pause")
-        pause.isEnabled = !job.transfer.isCancelled && p.phase != .finishing
+        let verifying = JobVerification.progress(job) != nil
+        pause.isEnabled = !job.transfer.isCancelled && (p.phase != .finishing || verifying)
         cancel.isEnabled = !job.transfer.isCancelled
-        bar.fraction = p.fraction
+        bar.fraction = JobPanelExtras.fraction(for: job) ?? p.fraction
+        extras.refresh()
         bar.paused = paused
         graph.samples = job.monitor.samples
         graph.fraction = p.fraction ?? 0
@@ -363,7 +386,7 @@ final class JobPanelView: NSView {
     }
 
     var debugText: String {
-        "\(percent.stringValue) | paused=\(job.transfer.isPaused) | name=\(nameValue.stringValue) | time=\(timeValue.stringValue) | items=\(itemsValue.stringValue) | speed=\(graph.speed.map(TransferRateEstimator.describeSpeed) ?? "-") | expanded=\(expanded)"
+        "\(percent.stringValue) | paused=\(job.transfer.isPaused) | name=\(nameValue.stringValue) | time=\(timeValue.stringValue) | items=\(itemsValue.stringValue) | speed=\(graph.speed.map(TransferRateEstimator.describeSpeed) ?? "-") | expanded=\(expanded)\(extras.debugText.isEmpty ? "" : " | " + extras.debugText)"
     }
 }
 

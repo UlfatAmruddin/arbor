@@ -51,10 +51,7 @@ enum FileOperationsFeature {
             return 0.5
         }
         DebugScript.registerStep("opcancel") { _, _ in
-            OperationCenter.shared.jobs.forEach {
-                $0.monitor.isCancelling = true
-                $0.transfer.cancel()
-            }
+            OperationCenter.shared.jobs.forEach { OperationCenter.shared.cancel($0) }
             return 0.5
         }
         /// opbutton:Title — clicks a button or check box in the newest file-operation dialog.

@@ -18,6 +18,9 @@ final class OperationCenter {
         weak var window: NSWindow?
         /// Speed, time remaining and graph samples (main thread).
         let monitor = JobMonitor()
+        /// Identity for the operation history and the queue.
+        let id = UUID()
+        let created = Date()
         /// How dialogs describe the job when its real source is a hidden staging folder (extracting an archive).
         var presentedAs: PresentedJob?
         init(transfer: FileTransfer, window: NSWindow?) {
@@ -45,6 +48,26 @@ final class OperationCenter {
         }
         if jobs.count > 1 { text += " (+\(jobs.count - 1) more)" }
         return (text, p.fraction ?? 0)
+    }
+
+    // MARK: - Hooks (Features/FileOperations: queue, verification, history)
+
+    /// Called once a job exists, before it runs (e.g. to set its "copy without properties?" resolver).
+    static var prepareJob: ((Job) -> Void)?
+    /// Decides when a job starts: calls `launch` now or later (queue controls). Nil = at once.
+    static var admission: ((Job, _ launch: @escaping () -> Void) -> Void)?
+    /// Runs on the job's task after the transfer and before it is reported (verification).
+    static var afterRun: (@Sendable (Job, TransferReport) async -> Void)?
+    /// The job ended; called first in `finish` (history, queue bookkeeping).
+    static var jobFinished: ((Job, TransferReport) -> Void)?
+    /// Cancel was pressed for one job (a job that is still waiting is started so it ends at once).
+    static var jobCancelled: ((Job) -> Void)?
+
+    func cancel(_ job: Job) {
+        job.monitor.isCancelling = true
+        job.transfer.cancel()
+        Self.jobCancelled?(job)
+        post()
     }
 
     func cancelAll() {
@@ -108,8 +131,15 @@ final class OperationCenter {
                                     options: FileOpsEnvironment.transferOptions)
         let job = Job(transfer: transfer, window: window)
         jobs.append(job)
+        Self.prepareJob?(job)
         post()
         OperationsWindow.shared.jobStarted(job)
+        let launch = { Self.run(job, completion: completion) }
+        if let admission = Self.admission { admission(job, launch) } else { launch() }
+    }
+
+    private static func run(_ job: Job, completion: @escaping (TransferReport) -> Void) {
+        let transfer = job.transfer
         Task.detached(priority: .userInitiated) {
             let report = await transfer.run(
                 progress: { progress in
@@ -121,6 +151,7 @@ final class OperationCenter {
                 },
                 resolveConflicts: { conflicts in await ConflictFlow.resolve(conflicts, job: job) },
                 resolveFailure: { failure in await FailureDialog.resolve(failure, job: job) })
+            await OperationCenter.afterRun?(job, report)
             DispatchQueue.main.async {
                 OperationCenter.shared.finish(job, report, completion)
             }
@@ -128,6 +159,7 @@ final class OperationCenter {
     }
 
     private func finish(_ job: Job, _ report: TransferReport, _ completion: (TransferReport) -> Void) {
+        Self.jobFinished?(job, report)
         jobs.removeAll { $0 === job }
         post()
         if report.kind == .move {

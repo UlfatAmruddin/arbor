@@ -54,6 +54,7 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Time-Machine-Settings.extension")!)
     }
     private var versions: [DocumentVersion] = []
+    private lazy var backups = TimeMachineVersionsView(controller: controller)
     private var rows: [SheetListRow] = []
     private var selected: Int?
     private var status: TimeMachineStatus?
@@ -118,6 +119,7 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
         add(SheetSeparator())
         add(SheetLabel.make("Time Machine", bold: true))
         add(tmStatus)
+        add(backups)
         add(hstack([browse, settings]))
         page.embed(stack)
         updateButtons()
@@ -125,6 +127,7 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
 
     private func load() {
         guard let url = model.single?.url else { return }
+        backups.load(url)
         let isFile = self.isFile
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let versions = isFile ? DocumentVersions.list(url) : []
@@ -264,7 +267,8 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
 
     var debugText: String {
         ["versions: \(versions.count)\(versions.isEmpty ? " (\(empty.stringValue))" : "")",
-         "time machine: \(tmStatus.stringValue)", "browse button: \(browse.isHidden ? "hidden" : "shown")"].joined(separator: "\n")
+         "time machine: \(tmStatus.stringValue)", "browse button: \(browse.isHidden ? "hidden" : "shown")",
+         backups.debugText].joined(separator: "\n")
     }
 }
 

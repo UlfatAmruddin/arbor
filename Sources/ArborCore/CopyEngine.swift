@@ -32,6 +32,8 @@ final class CopyEngine {
         var failure: (TransferFailure) -> FailureDecision = { _ in FailureDecision(.skip) }
         /// Problems below the top-level item (reported in the job's details).
         var detail: (ItemResult) -> Void = { _ in }
+        /// Blocking: whether to copy a file whose properties the destination can't hold.
+        var metadata: (_ source: URL, _ target: URL) -> MetadataLossChoice = { _, _ in .copyWithout }
     }
 
     enum Outcome: Equatable {
@@ -89,6 +91,7 @@ final class CopyEngine {
     // MARK: Files and links
 
     private func copyLeaf(_ source: URL, to target: URL, size: Int64, moveSource: Bool) -> Outcome {
+        if let early = checkMetadata(source, target, totals: TransferTotals(items: 1, bytes: size)) { return early }
         while true {
             hooks.current(source)
             let error = copyData(source, to: target, size: size)
@@ -193,6 +196,20 @@ final class CopyEngine {
         try? url.setResourceValues(values)   // best effort: locked items or some volumes refuse
     }
 
+    /// Asks before copying an item whose properties the destination can't store ("copy this file
+    /// without its properties?"). Nil means go ahead.
+    private func checkMetadata(_ source: URL, _ target: URL, totals: TransferTotals?) -> Outcome? {
+        switch hooks.metadata(source, target) {
+        case .copyWithout: return nil
+        case .skip:
+            hooks.entryDone(totals ?? TransferDiscovery.measure(source) ?? TransferTotals(items: 1))
+            return .skipped("Skipped: the destination can't keep this item's properties.")
+        case .cancel:
+            control.cancel()
+            return .cancelled(leftContent: false)
+        }
+    }
+
     // MARK: Folders
 
     private func copyFolder(_ source: URL, to target: URL, moveSource: Bool) -> Outcome {
@@ -263,6 +280,7 @@ final class CopyEngine {
     // MARK: Packages
 
     private func copyPackage(_ source: URL, to target: URL, moveSource: Bool) -> Outcome {
+        if let early = checkMetadata(source, target, totals: nil) { return early }
         while true {
             hooks.current(source)
             let (error, failedAt, bytes, items) = copyUnit(source, to: target)

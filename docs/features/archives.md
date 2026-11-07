@@ -13,7 +13,7 @@ Code: `Sources/ArborCore/Archives/` (logic, unit-tested in `Tests/ArborCoreTests
 | FE-165 | Modify existing archives | **Boundary (read-only).** Adding, deleting or renaming inside an archive is not offered; the status bar says the archive is read-only on entry, and Cut/Rename/Delete/Paste/New are disabled there | Headless log (command states) |
 | FE-166 | 7z, TAR and compressed TAR | **Implemented.** Browse and extract: 7z, tar, tar.gz/tgz, tar.bz2/tbz2, tar.xz/txz, tar.zst/tzst, cpio. Create: 7z and TAR (Compress to ▸) | Unit tests (create + list + extract 7z/tar); headless runs |
 | FE-167 | RAR extraction | **Partial.** RAR (v4/v5) is read through the system libarchive like the other formats; never created. Not tested: no RAR fixture can be produced with built-in tools | — |
-| FE-168 | Compression options | **Not done.** Windows' "Additional options" (method, level) dialog is not built; fixed defaults are used | — |
+| FE-168 | Compression options | **Implemented.** Compress to ▸ Additional options opens "Create archive": Destination (Browse…), Archive name, Archive format (ZIP, 7z, TAR, TAR + gzip/BZip2/xz, single-file gzip/BZip2/xz), Compression method (ZIP: Deflate/Store; 7z: LZMA2/LZMA/BZip2/Deflate/Store), Compression level (Fastest/Normal/Maximum), "Include hidden files and folders". Written by bsdtar with `--options`; never overwrites (free name). No Zstandard (the system libarchive lacks it). Code: `ArborCore/Archives/ArchiveCreateOptions.swift`, `Features/FileOperations/CompressOptionsDialog.swift` | Unit tests (arguments, round trip per format with and without hidden items, store vs maximum, single-file gzip); headless runs, snapshots light + dark |
 | FE-169 | Encrypted archives | **Boundary, like Windows.** Encrypted ZIP members are detected (central directory flag) and shown with Password protected = Yes; opening or extracting them is refused with an explanation. Other formats report bsdtar's passphrase error | Unit test (flag) |
 | FE-170 | Archive safety | **Implemented.** See "Safety" below | Unit tests (sanitizer, planner, verifier, hostile ZIP end to end); headless hostile ZIP and zip-bomb runs |
 | FE-171 | Mount and eject ISO | **Implemented.** "Mount" for .iso/.dmg/.img/.cdr/.sparseimage/.sparsebundle/.toast (`hdiutil attach -plist`, argument array) then opens the volume; errors are shown. Double-clicking an ISO mounts it like Explorer; if macOS can't mount it, its contents are browsed read-only instead. DMG/IMG double-click goes to macOS (DiskImageMounter handles licenses and passwords). Eject is the core command | Headless run: ISO mounted and opened, broken DMG error; volume detached afterwards |
@@ -64,7 +64,7 @@ zip-bomb confirmation takes the safe answer (Cancel).
 
 ## Known gaps
 
-- Compress to ▸ "Additional options" (FE-168), modifying archives (FE-165), burning (FE-172).
+- Modifying archives (FE-165), burning (FE-172).
 - RAR untested (no fixture). Non-ZIP dates are minute-precise (bsdtar's listing).
 - Promise drops are accepted by the Details view and icon layouts, not by the navigation pane or tab strip. Right-button drags (ItemActions' DragPolish) skip archive members.
 - Properties on an archive member shows what the Properties feature can find for a path that isn't on disk. Drag-out to Finder was verified through the promise code path, not an interactive drag.

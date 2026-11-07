@@ -350,7 +350,7 @@ enum ArchiveJobs {
     }
 
     /// Undo of a created archive moves it to the Trash, unless it changed since (FE-129: never clobber).
-    private static func registerUndoCreate(_ url: URL, action: String) {
+    static func registerUndoCreate(_ url: URL, action: String) {
         let stamp = ArchiveCatalog.stamp(of: url)
         let um = OperationCenter.shared.undoManager
         um.registerUndo(withTarget: OperationCenter.shared) { _ in

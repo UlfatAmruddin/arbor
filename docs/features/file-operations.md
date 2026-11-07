@@ -2,8 +2,14 @@
 
 Area slot: "file-operation progress dialog" (`FileOperationsFeature.register()`).
 Code: `Sources/ArborCore/{FileTransfer,CopyEngine,TransferControl,TransferDiscovery,TransferFailure,TransferRate,JobJournal}.swift`,
-`Sources/Arbor/Features/FileOperations/`. Tests: `Tests/ArborCoreTests/TransferEngineTests.swift` (33 tests) plus the
-original `FileSystemTests.swift` transfer tests (all unchanged and passing).
+`Sources/ArborCore/{OperationHistory,TransferScheduler,CopyVerifier,VolumeCapabilities}.swift`, `Sources/Arbor/Features/FileOperations/`.
+Tests: `Tests/ArborCoreTests/TransferEngineTests.swift` (33 tests), `OperationExtrasTests.swift` (history, queue,
+verification, capabilities, archive options, ACL editing, Time Machine versions) plus the original `FileSystemTests.swift`
+transfer tests (all unchanged and passing).
+
+The extras (history, queue, verification, property-loss prompt, Compress to ▸ Additional options, Security ▸ Edit…,
+Time Machine versions) register through `FileOperationsExtras.register()` in the "(spare 1)" slot of `Features.swift`,
+after Archives and Properties, so they can extend those features' commands and tabs.
 
 ## Status
 
@@ -21,11 +27,12 @@ original `FileSystemTests.swift` transfer tests (all unchanged and passing).
 | FE-123 | Metadata preservation | implemented | unit: xattrs, Finder tags, permissions, flags (hidden), creation + modification dates, folder dates/permissions, with and without clone |
 | FE-124 | Symlinks, hard links, sparse | implemented | unit: links copied as links (never followed, also in discovery), hard links become independent files, 200 MB sparse file stays sparse |
 | FE-125 | Persistent job journal | implemented | unit (completed / not done / uncertain, torn last line, live-process journals left alone); headless crash simulation → review sheet |
-| FE-126 | Operation results | partial | per-item results + end-of-job problem summary; no persistent history list |
-| FE-127 | Queue controls | not done | jobs run concurrently; no ordering/defer/concurrency limit UI |
+| FE-126 | Operation results | implemented | "Operation history" window ("…" menu, Window ▸ Operation History, progress window footer): kind, sources → destination, time, outcome counts, verification state; expanding a job shows per-item results with readable reasons; Open destination, Retry failed items, Clear history (confirmed). Bounded: 50 jobs × 200 items. Jobs from the crash review are added too. Unit (record from report and from journal, counts, retry plan, retention, persistence); headless runs: failure → history → retry → clear, snapshots light + dark |
+| FE-127 | Queue controls | implemented (beyond Explorer) | Off by default (Windows runs every job at once). "Queue options" in the progress window footer and Window ▸ Transfer Queue: "Queue transfers to the same drive", "Run at most N operations at a time". Per waiting job: Start now, Move up/down, Defer; Pause/Resume/Cancel per job as before. Unit (`TransferScheduler`: default concurrency, same drive, limit order, defer, start now, reconfigure); headless run with limit 1, reorder and defer, snapshots light + dark |
 | FE-128 | Safe retry | implemented | "Retry remaining" starts a normal job: destinations re-checked, conflicts asked; missing sources not offered |
 | FE-129 | Undo protection | implemented | Undo Copy removes (to Trash) only copies whose fingerprint is unchanged (unit: edited, replaced-same-size, Finder .DS_Store, deleted); redo restores |
-| FE-130 | Optional copy verification | not done | no checksum pass yet |
+| FE-130 | Optional copy verification | implemented | "Verify after copying" per copy job (check box in its progress panel, off by default; "Verify new copies by default" in Queue options). Size + SHA-256 of original and copy, streamed in 1 MB chunks, copy read with `F_NOCACHE`; shown as "Verifying copies… N%", then "Verified" (status bar, history) or an alert listing the files that don't match. Unit (identical tree incl. links, flipped byte, size, missing, exclusions, cancel, moves not verified); headless run with `ARBOR_VERIFY_THROTTLE`, snapshot |
+| — | "Copy without its properties?" | implemented | Windows' "Property Loss" dialog (Yes · Skip · Cancel, "Do this for all current items") when the destination volume can't store an item's extended attributes (no `VOL_CAP_INT_EXTENDED_ATTR`: FAT32, exFAT, SMB without named streams) or access list (`_PC_EXTENDED_SECURITY_NP`). Unit (APFS, a real exFAT image, inventory ignores system attributes, skip / for-all / cancel); headless copy to a real exFAT image, snapshots |
 | FE-241 | Per-item success vs aborted | implemented | per-item outcomes incl. `partial` and `copiedButSourceRemains`; journal per item |
 | FE-250 | Revalidation after delayed decision | implemented | unit: destination edited while dialog open → asked again; vanished conflict → plain copy |
 | FE-255 | Actual committed name | implemented | unit: keep-both name recorded in report and journal |
@@ -37,6 +44,20 @@ The worker blocks at its next checkpoint: between files and between ~1 MB chunks
 progress callback). The file stays open and continues from the same byte offset on resume. A same-volume move
 (a rename) and an APFS clone are instant and are never "half done". Pausing lasts only while Arbor runs; quitting
 cancels the job (removing the file being copied) and keeps the journal for review at the next launch.
+
+## Queue, history and verification
+
+- **Queue** (`TransferScheduler`, `TransferQueueController`): a job's drives are the volume IDs (`statfs` f_fsid) of its
+  sources and destination, looked up off the main thread. A waiting job shows "Waiting to start" / "Deferred" with the
+  reason ("Waiting for another operation on the same drive", "Waiting: one operation at a time") and its place in the
+  queue; the progress window's header says "1 running, 2 waiting". Cancelling a waiting job starts it, so it ends at
+  once as "cancelled" through the normal report and history. Changing the settings releases waiting jobs immediately;
+  running jobs are never stopped.
+- **History** lives in `~/Library/Application Support/Arbor/History/operations.json` (written atomically, 0600, on a
+  private queue). "Retry failed items" starts normal jobs: a folder that arrived partly is not copied again whole; only
+  its failed items go into the matching destination folder. Sources that no longer exist aren't offered.
+- **Verification** runs on its own thread between the copy and the job's report, uses the job's pause/cancel control,
+  and only checks what was copied (skipped and failed items inside merged folders are excluded).
 
 ## Decisions
 
@@ -54,6 +75,14 @@ cancels the job (removing the file being copied) and keeps the journal for revie
 | DEC-fileops-10 | Delete confirmation for Trash follows Windows (off by default, `Prefs.displayDeleteConfirmation`); permanent delete always asks, default button No | windows11-reference §9.5 |
 | DEC-fileops-11 | Disk full and read-only destination offer Try Again / Cancel only (no Skip) | Skipping can't help when the whole destination can't be written |
 | DEC-fileops-12 | Compare dialog shows type icons, not thumbnails | Thumbnails would need disk reads for every row; icons are free |
+| DEC-fileops-13 | Queue controls are off by default and labeled as Arbor extras | Explorer runs every transfer at once (FE-127 asks to keep this apart from parity claims) |
+| DEC-fileops-14 | Deferred jobs start only when nothing else runs or waits; "Start now" ignores every rule | Predictable; the user can always override |
+| DEC-fileops-15 | History keeps 50 jobs × 200 items, written from the job's report (and from crash journals after review) | Bounded file (spec §15); the journal itself is deleted when a job ends |
+| DEC-fileops-16 | Verification compares SHA-256 of both sides (not a stored hash) and reads the copy uncached | Detects corruption on the destination, not just in memory; memory stays at two 1 MB buffers |
+| DEC-fileops-17 | Moves aren't verified | A cross-volume move removes each original right after its copy, so nothing is left to compare |
+| DEC-fileops-18 | "Property Loss" is asked for files and packages, not folders; system attributes (quarantine, provenance, MACL, last-used date) and all-zero Finder info never trigger it. "Yes" copies anyway: macOS keeps extended attributes in "._" files on FAT/exFAT and drops access lists | Windows asks per file; asking about invisible system attributes would prompt for every download |
+| DEC-fileops-19 | Compress to ▸ Additional options writes ZIP, 7z, TAR, .tar.gz/.bz2/.xz and single-file .gz/.bz2/.xz with bsdtar; no Zstandard | The system libarchive has no zstd writer; it would depend on a separately installed `zstd` |
+| DEC-fileops-20 | "Include hidden files" excludes `*/.*` below the selection; selected dot items are always included | The user chose them explicitly |
 
 ## Scripted checks (headless)
 
@@ -63,11 +92,25 @@ Steps added (append-only, from `FileOperationsFeature`): `opstart:copy|move:/a|/
 `undo action:` lines. Environment: `ARBOR_JOURNAL_DIR` (journal folder; headless runs default to a private temp folder) and,
 headless only, `ARBOR_TRANSFER_THROTTLE=<bytes/s>` to slow jobs down for snapshots.
 
+From `FileOperationsExtras`: `opqueue:samedrive=on,limit=N,verifydefault=on`,
+`opjob:N:startnow|up|down|defer|undefer|verify=on|verify=off|cancel|pause|resume` (N = 1-based job in start order),
+`ophistory`, `histexpand`, `histselect:<row>`, `histbutton:<title>` (also the Clear confirmation), `histsnap:/x.png`,
+`compressset:format=tarGzip,method=store,level=maximum,hidden=off,name=…,dest=…` (with `click:archive.compress.options`,
+`opbutton:Create`, `opsnap:dialog:`), `aclset:kind=group,name=staff,verdict=deny,level=modify,inherit=on,select=N,group=…`
+(with `propbutton:Edit…|Add…|Add|Apply|Back|Remove|Undo last change|Close`), `tmselect:N`, `tmbutton:open|restore`.
+`log:` gains `queue:`, `history:`, the history window's rows, `verification alert:`, `compress options:` and the
+permissions editor's state. Headless-only environment: `ARBOR_HISTORY_FILE`, `ARBOR_VERIFY_THROTTLE=<bytes/s>`,
+`ARBOR_TM_BACKUPS=/a.backup:/b.backup` (backup folders searched instead of `tmutil listbackups`), `ARBOR_TM_ACCESS=denied|unconfigured`.
+
 ## Known gaps
 
-- No operation history window (FE-126), no queue controls (FE-127), no verification pass (FE-130).
+- Verification failures are covered by unit tests; the headless runs reach the "Verified" outcome only (a copy can't be
+  corrupted on demand mid-run). Moves aren't verified (DEC-fileops-17).
+- Waiting jobs aren't restored after quitting (they are cancelled with the rest and appear in the crash review).
+- "Retry failed items" stays available after a retry (the old record still lists the failures); retrying again goes
+  through the conflict prompts, so nothing is overwritten.
 - "File In Use" is rare on macOS (EBUSY/ETXTBSY); locked (uchg) items are reported as "File Access Denied … locked".
-- Metadata a destination can't store (e.g. xattrs on some SMB/exFAT volumes) is dropped by copyfile without the Windows
-  "copy without its properties?" prompt.
+- The property-loss prompt doesn't cover folders' own attributes, file flags or owners (copyfile applies what the
+  volume allows).
 - Pause doesn't survive quitting; a retried item restarts from the beginning.
 - The header counts top-level items ("Copying 2 items"), not every file inside folders; "Items remaining" counts every entry.
