@@ -25,6 +25,10 @@ enum InteractionHooks {
     /// started a right-button drag); otherwise the context menu opens as usual.
     static var rightMouseDown: ((NSTableView, NSEvent) -> Bool)?
 
+    /// A right mouse press on an item in another layout (icon views). `urls` returns the files to drag
+    /// (it selects the pressed item first). Return true when a right-button drag started.
+    static var rightDrag: ((NSView & NSDraggingSource, NSEvent, _ urls: @escaping () -> [URL]) -> Bool)?
+
     /// Decorates an item's icon once per cached icon (e.g. the shortcut arrow). Return nil to keep it.
     static var decorateIcon: ((FileItem, NSImage, CGFloat) -> NSImage?)?
 

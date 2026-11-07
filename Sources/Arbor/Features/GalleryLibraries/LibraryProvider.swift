@@ -164,6 +164,8 @@ final class LibrariesPageController: NSViewController, LocationPageStatus {
     weak var host: LocationHost?
     private let grid = NSStackView()
     private var observer: NSObjectProtocol?
+    /// The search box's text: only libraries whose names contain it are shown.
+    var filterText = "" { didSet { if filterText != oldValue, isViewLoaded { rebuild() } } }
 
     init(host: LocationHost?) {
         self.host = host
@@ -174,7 +176,7 @@ final class LibrariesPageController: NSViewController, LocationPageStatus {
 
     deinit { if let observer { NotificationCenter.default.removeObserver(observer) } }
 
-    var statusSummary: String { StatusText.items(LibraryStore.all.count) + "  |" }
+    var statusSummary: String { StatusText.items(LibraryStore.all.filter { PageFilter.matches($0.name, filterText) }.count) + "  |" }
 
     override func loadView() {
         let root = ThemeBackgroundView(Theme.contentBackground)
@@ -198,7 +200,7 @@ final class LibrariesPageController: NSViewController, LocationPageStatus {
 
     private func rebuild() {
         grid.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        let libraries = LibraryStore.all
+        let libraries = LibraryStore.all.filter { PageFilter.matches($0.name, filterText) }
         let perRow = 4
         for start in stride(from: 0, to: libraries.count, by: perRow) {
             let row = NSStackView(views: libraries[start..<min(start + perRow, libraries.count)].map(tile))

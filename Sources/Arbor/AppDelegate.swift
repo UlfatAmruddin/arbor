@@ -3,6 +3,8 @@ import ArborCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var controllers: [BrowserWindowController] = []
+    private var didLaunch = false
+    private var pendingOpen: [URL] = []
     static var isHeadless: Bool { ProcessInfo.processInfo.environment["ARBOR_HEADLESS"] != nil }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -10,6 +12,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Features.registerAll()
         NSApp.mainMenu = MainMenu.build()
         NSApp.windowsMenu = NSApp.mainMenu?.item(withTitle: "Window")?.submenu
+        didLaunch = true
+        if !pendingOpen.isEmpty {
+            application(NSApp, open: pendingOpen)
+            pendingOpen = []
+        }
         if controllers.isEmpty, launchLocation() == nil { WindowHooks.restoreSession?(self) }
         if controllers.isEmpty {
             let start = launchLocation()
@@ -67,11 +74,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // Dropping a folder on the Dock icon, or `open -a Arbor folder`: a new tab in the front window.
     func application(_ application: NSApplication, open urls: [URL]) {
+        // Documents double-clicked in Finder can arrive before launch finished: open them once features exist.
+        guard didLaunch else { pendingOpen += urls; return }
         for url in urls {
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
-            let location = Location.folder(isDirectory.boolValue ? url : url.deletingLastPathComponent())
-            let select = isDirectory.boolValue ? [] : [url.lastPathComponent]
+            var location = Location.folder(isDirectory.boolValue ? url : url.deletingLastPathComponent())
+            var select = isDirectory.boolValue ? [] : [url.lastPathComponent]
+            // Documents Arbor opens itself (a saved .arborsearch, an archive) show their location instead.
+            if !isDirectory.boolValue, let item = FileItem(url: url), let own = LocationRegistry.locationForOpening(item) {
+                location = own
+                select = []
+            }
             if let front = BrowserWindowController.active {
                 front.openTab(location, select: select)
                 front.window?.makeKeyAndOrderFront(nil)

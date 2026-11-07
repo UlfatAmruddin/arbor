@@ -9,11 +9,13 @@ extension ItemGridView {
     // MARK: Text measurement (cached; visible items only)
 
     private func attributes(_ font: NSFont, color: NSColor, alignment: NSTextAlignment = .left,
-                            lineBreak: NSLineBreakMode = .byWordWrapping) -> [NSAttributedString.Key: Any] {
+                            lineBreak: NSLineBreakMode = .byWordWrapping, underline: Bool = false) -> [NSAttributedString.Key: Any] {
         let style = NSMutableParagraphStyle()
         style.alignment = alignment
         style.lineBreakMode = lineBreak
-        return [.font: font, .foregroundColor: color, .paragraphStyle: style]
+        var attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color, .paragraphStyle: style]
+        if underline { attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue }   // Folder Options › Underline icon titles
+        return attributes
     }
 
     /// Height of `text` wrapped to `width` with the label font.
@@ -224,14 +226,15 @@ extension ItemGridView {
         let m = metrics
         let primary = Theme.primaryText
         let secondary = Theme.secondaryText
+        let underline = ItemViewHooks.underlinesName?(self, i) ?? false
         switch m.style {
         case .iconAbove:
             let name = displayName(item)
             let text = expanded ? name : fittedLabel(name, width: g.name.width, lines: m.labelLines)
             (text as NSString).draw(with: g.name.insetBy(dx: 0, dy: -0.5), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
-                                    attributes: attributes(m.nameFont, color: primary, alignment: .center))
+                                    attributes: attributes(m.nameFont, color: primary, alignment: .center, underline: underline))
         case .iconLeft:
-            drawLine(displayName(item), in: g.name, font: m.nameFont, color: primary, lineBreak: .byTruncatingMiddle)
+            drawLine(displayName(item), in: g.name, font: m.nameFont, color: primary, lineBreak: .byTruncatingMiddle, underline: underline)
         case .tile:
             let lines = tileLines(i)
             var y = g.name.minY
@@ -239,22 +242,24 @@ extension ItemGridView {
                 let font = n == 0 ? m.nameFont : m.detailFont
                 let height = n == 0 ? m.lineHeight : m.detailLineHeight
                 drawLine(line, in: CGRect(x: g.name.minX, y: y, width: g.name.width, height: height), font: font,
-                         color: n == 0 ? primary : secondary, lineBreak: n == 0 ? .byTruncatingMiddle : .byTruncatingTail)
+                         color: n == 0 ? primary : secondary, lineBreak: n == 0 ? .byTruncatingMiddle : .byTruncatingTail,
+                         underline: n == 0 && underline)
                 y += height + 1
             }
         case .content:
-            drawContentRow(item, geometry: g)
+            drawContentRow(item, geometry: g, underline: underline)
         }
     }
 
     /// Content: name and type on the left; dimensions (pictures) in the middle; date and size on the right.
-    private func drawContentRow(_ item: FileItem, geometry g: ItemGeometry) {
+    private func drawContentRow(_ item: FileItem, geometry g: ItemGeometry, underline: Bool = false) {
         let m = metrics
         let left = g.name.minX
         let available = g.cell.maxX - 10 - left
         let line1 = g.name
         let line2 = CGRect(x: left, y: line1.maxY + 1, width: line1.width, height: m.detailLineHeight)
-        drawLine(displayName(item), in: line1, font: m.nameFont, color: Theme.primaryText, lineBreak: .byTruncatingMiddle)
+        drawLine(displayName(item), in: line1, font: m.nameFont, color: Theme.primaryText, lineBreak: .byTruncatingMiddle,
+                 underline: underline)
         drawPair("Type:", item.typeDescription, in: line2)
 
         let middleX = left + available * 0.47
@@ -283,9 +288,10 @@ extension ItemGridView {
         text.draw(with: rect, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine])
     }
 
-    private func drawLine(_ text: String, in rect: CGRect, font: NSFont, color: NSColor, lineBreak: NSLineBreakMode) {
+    private func drawLine(_ text: String, in rect: CGRect, font: NSFont, color: NSColor, lineBreak: NSLineBreakMode,
+                          underline: Bool = false) {
         (text as NSString).draw(with: rect, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
-                                attributes: attributes(font, color: color, lineBreak: lineBreak))
+                                attributes: attributes(font, color: color, lineBreak: lineBreak, underline: underline))
     }
 
     /// Win11-style check box: rounded square, accent fill with a white check when checked.

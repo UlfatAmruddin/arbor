@@ -15,6 +15,8 @@ final class GalleryPageController: NSViewController, LocationPageStatus, Locatio
     private var pendingReload: DispatchWorkItem?
     private var attached = false
     private var showsPartialCoverage = false
+    /// Text typed in the search box: only photos and videos whose names contain it are shown.
+    var filterText = ""
 
     init(host: LocationHost?) {
         self.host = host
@@ -146,7 +148,8 @@ final class GalleryPageController: NSViewController, LocationPageStatus, Locatio
     func reloadNow() {
         guard isViewLoaded else { return }
         let store = GalleryStore.shared
-        let months = GalleryTimeline.months(store.items, newestFirst: GalleryPrefs.newestFirst)
+        let shownItems = filterText.isEmpty ? store.items : store.items.filter { PageFilter.matches($0.url.lastPathComponent, filterText) }
+        let months = GalleryTimeline.months(shownItems, newestFirst: GalleryPrefs.newestFirst)
         grid.setSections(months)
         if let wanted = pendingSelection, grid.allItems.contains(where: { $0.key == wanted }) {
             pendingSelection = nil
@@ -156,7 +159,9 @@ final class GalleryPageController: NSViewController, LocationPageStatus, Locatio
         scrolled()
         let collection = GalleryPrefs.collection
         if months.isEmpty {
-            if collection.sources.isEmpty {
+            if !filterText.isEmpty, !store.items.isEmpty {
+                emptyLabel.stringValue = "No items match “\(filterText)”."
+            } else if collection.sources.isEmpty {
                 emptyLabel.stringValue = "Your collection doesn't include any folders. Use Collection ▾ › Manage collection to add one."
             } else if !collection.sources.contains(where: \.included) {
                 emptyLabel.stringValue = "Every folder in the collection is turned off. Turn one on in Collection ▾."
@@ -250,7 +255,29 @@ final class GalleryGridView: NSView, NSDraggingSource {
     private(set) var selection = Set<String>()
     private var anchor: Int?
     private var focusIndex: Int?
-    private var hoverIndex: Int? { didSet { if hoverIndex != oldValue { needsDisplay = true } } }
+    private var hoverIndex: Int? {
+        didSet {
+            guard hoverIndex != oldValue else { return }
+            needsDisplay = true
+            // Pop-up description (Folder Options): name, type, size and date, like the other layouts.
+            toolTip = hoverIndex.flatMap { i in
+                i < tiles.count && GalleryGridView.showsDescriptions() ? ItemGridView.infotip(GalleryPageController.fileItem(tiles[i].item)) : nil
+            }
+        }
+    }
+    static var showsDescriptions: () -> Bool = { true }
+
+    /// The item under a window point, for Folder Options' click behaviors.
+    func item(atWindowPoint point: NSPoint) -> (index: Int, item: GalleryItem)? {
+        guard let i = index(at: convert(point, from: nil)), i < tiles.count else { return nil }
+        return (i, tiles[i].item)
+    }
+
+    /// Window point of the item with a file name (scripted checks).
+    func windowPoint(ofName name: String) -> NSPoint? {
+        guard let tile = tiles.first(where: { $0.item.url.lastPathComponent == name }) else { return nil }
+        return convert(NSPoint(x: tile.rect.midX, y: tile.rect.midY), to: nil)
+    }
     private var tracking: NSTrackingArea?
     /// Thumbnails come from the app-wide `ThumbnailService` budget (shared with the icon views).
     private lazy var loader: ThumbnailLoader = {

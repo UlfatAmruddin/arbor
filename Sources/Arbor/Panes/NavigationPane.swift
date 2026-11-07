@@ -99,7 +99,7 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
         outline.autoresizesOutlineColumn = false
         outline.dataSource = self
         outline.delegate = self
-        outline.registerForDraggedTypes([.fileURL])
+        outline.registerForDraggedTypes([.fileURL] + ItemHooks.dropTypes)   // file promises (Mail), like the item views
         outline.setAccessibilityLabel(L10n.tr("Navigation pane"))
         outline.menuProvider = { [weak self] row in
             guard let self, let node = self.outline.item(atRow: row) as? NavNode, node.kind != .separator else { return nil }
@@ -272,6 +272,8 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
         InteractionHooks.dragHover?(node?.url.map { "tree:" + $0.path }, node.map { node in
             { [weak outlineView] in outlineView?.expandItem(node) }
         })
+        if index == NSOutlineViewDropOnItemIndex, let url = (item as? NavNode)?.url,
+           let op = ItemHooks.dropOperation(info, destination: url) { return op }
         guard index == NSOutlineViewDropOnItemIndex, let url = (item as? NavNode)?.url,
               let kind = DropPolicy.kind(sources: DropPolicy.fileURLs(from: info), destination: url,
                                          mask: info.draggingSourceOperationMask) else { return [] }
@@ -280,6 +282,7 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
 
     func outlineView(_ outlineView: NSOutlineView, acceptDrop info: NSDraggingInfo, item: Any?, childIndex index: Int) -> Bool {
         InteractionHooks.dragHover?(nil, nil)
+        if ItemHooks.acceptDrop(info, destination: (item as? NavNode)?.url, window: outlineView.window) { return true }
         let urls = DropPolicy.fileURLs(from: info)
         guard let url = (item as? NavNode)?.url,
               let kind = DropPolicy.kind(sources: urls, destination: url, mask: info.draggingSourceOperationMask) else { return false }

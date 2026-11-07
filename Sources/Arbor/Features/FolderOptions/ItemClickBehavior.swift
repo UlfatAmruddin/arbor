@@ -19,6 +19,7 @@ final class ItemClickBehavior: NSObject {
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [unowned self] event in self.mouseDown(event) } as Any)
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [unowned self] event in self.keyDown(event) } as Any)
         ItemViewHooks.decorateName = { [unowned self] field, item, row, table in self.decorate(field, item, row, table) }
+        ItemViewHooks.underlinesName = { [unowned self] view, slot in self.underlines(view, slot) }
         WindowHooks.didDisplay.append { [unowned self] window, _ in self.hover.attach(to: ItemSurface(window)) }
     }
 
@@ -66,6 +67,11 @@ final class ItemClickBehavior: NSObject {
         field.toolTip = Prefs.showPopupDescriptions ? ItemGridView.infotip(item) : item.name
         let underline = Prefs.singleClickToOpen && (Prefs.underlineTitles == "always" || (hover.view === table && hover.slot == row))
         Self.setUnderline(field, underline)
+    }
+
+    /// Icon layouts: underline always, or the pointed item in hover mode (single-click only).
+    func underlines(_ view: NSView, _ slot: Int) -> Bool {
+        Prefs.singleClickToOpen && (Prefs.underlineTitles == "always" || (hover.view === view && hover.slot == slot))
     }
 
     static func setUnderline(_ field: NSTextField, _ on: Bool) {
@@ -183,8 +189,9 @@ struct ItemSurface {
         }
     }
 
-    /// Hover underline (Details only; the icon views draw their own hover highlight).
+    /// Hover underline: Details name cells, or a redraw of the icon grid (it asks `underlines`).
     func setUnderline(_ slot: Int, _ on: Bool) {
+        if case .grid(let g) = kind { g.canvas.needsDisplay = true; return }
         guard case .table(let d) = kind, slot < d.table.numberOfRows else { return }
         let column = d.table.column(withIdentifier: NSUserInterfaceItemIdentifier("name"))
         guard column >= 0, let field = (d.table.view(atColumn: column, row: slot, makeIfNecessary: false) as? NSTableCellView)?.textField else { return }

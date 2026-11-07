@@ -35,6 +35,8 @@ enum WindowHooks {
 enum ItemViewHooks {
     /// Called for each name cell after it is configured.
     static var decorateName: ((NSTextField, FileItem, Int, NSTableView) -> Void)?
+    /// Layouts that draw their own names (icon views): whether item `index` of `view` is underlined.
+    static var underlinesName: ((NSView, Int) -> Bool)?
 }
 
 /// Navigation pane adjustments.

@@ -30,6 +30,8 @@ enum SearchRegistry {
 
     static func register(_ make: @escaping (BrowserWindowController) -> SearchController) { factory = make }
     static func make(for window: BrowserWindowController) -> SearchController { factory(window) }
+    /// The factory registered so far, so a feature can wrap it.
+    static var registered: (BrowserWindowController) -> SearchController { factory }
 }
 
 /// v0.1 behavior: filter the visible folder by name; Return moves focus to the first match.

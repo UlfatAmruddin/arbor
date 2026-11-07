@@ -119,7 +119,7 @@ enum ArchiveFeature {
         }
     }
 
-    private static func makeReadOnly(_ url: URL) {
+    static func makeReadOnly(_ url: URL) {
         var info = stat()
         guard lstat(url.path, &info) == 0, info.st_mode & S_IFMT == S_IFREG else { return }
         chmod(url.path, info.st_mode & 0o555)

@@ -70,6 +70,7 @@ final class DriveTileView: TileView {
             bar.heightAnchor.constraint(equalToConstant: 10),
         ])
         toolTip = Self.tooltip(volume)
+        titleField = name
         setAccessibilityLabel(volume.name)
         setAccessibilityValue(Self.detailText(volume))
         setAccessibilityHelp(Self.tooltip(volume))
@@ -238,6 +239,9 @@ final class ThisMacPage: NSViewController, LocationPageStatus, LocationPageSelec
     }
 
     var activeGrid: TileGridView? { grids.first { !$0.grid.selection.isEmpty }?.grid }
+
+    /// The drive groups shown (Folder Options' click behaviors, ItemActionsEverywhere).
+    var driveGrids: [(grid: TileGridView, volumes: [VolumeSummary])] { grids.map { ($0.grid, $0.volumes) } }
 
     func contextMenu(sender: NSView?) -> NSMenu? {
         guard let browser else { return nil }

@@ -38,6 +38,10 @@ final class SearchSession {
     private var notifyScheduled = false
     private var lastNotify = Date.distantPast
     private let filter: ScopeFilter?
+    /// Direct scans of `request.extraScopes` (library folders, pinned folders, other drives).
+    private var extraSearches: [DirectSearch] = []
+    private var extraPending = 0
+    private var extraReports: [DirectSearchReport] = []
 
     init(request: SearchRequest, showHidden: Bool) {
         self.request = request
@@ -140,6 +144,7 @@ final class SearchSession {
         } else {
             coverage.indexOnly = true
         }
+        startExtras(evaluator: evaluator)
         startSpotlight(expression: expression, evaluator: evaluator)
         let needsIndex = request.scope == nil || evaluator.needsContents || evaluator.needsIndexOnlyMetadata
         if needsIndex {
@@ -174,6 +179,55 @@ final class SearchSession {
                 self.finishIfDone()
             }
         })
+    }
+
+    /// Extra folders are scanned like the scope; extra files are matched by themselves.
+    private func startExtras(evaluator: SearchEvaluator) {
+        let primary = request.scope?.path
+        let extras = request.extraScopes.filter { url in
+            guard let primary else { return true }
+            return url.path != primary && !url.path.hasPrefix(primary == "/" ? "/" : primary + "/")
+        }
+        guard !extras.isEmpty else { return }
+        extraPending = extras.count
+        for root in extras {
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: root.path, isDirectory: &isDirectory) else { extraFinished(nil); continue }
+            if !isDirectory.boolValue || (FileItem(url: root)?.isPackage ?? false) {
+                let readContents = evaluator.needsContents
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    let hit = SearchCandidates.hit(path: root.path, evaluator: evaluator, authors: nil, acceptUnknown: false,
+                                                   readContents: readContents)
+                    DispatchQueue.main.async {
+                        if let hit { self?.merge([hit]) }
+                        self?.extraFinished(nil)
+                    }
+                }
+                continue
+            }
+            var config = DirectSearch.Configuration(root: root)
+            config.recursive = request.recursive
+            config.includeHidden = showHidden || request.options.contains(.systemFiles)
+            config.enterPackages = request.options.contains(.systemFiles)
+            config.searchArchives = request.options.contains(.zipped)
+            config.resultLimit = Self.resultLimit
+            let search = DirectSearch(evaluator: evaluator, configuration: config)
+            extraSearches.append(search)
+            search.start(onHits: { [weak self] hits in
+                DispatchQueue.main.async { self?.merge(hits) }
+            }, completion: { [weak self] report in
+                DispatchQueue.main.async {
+                    guard let self, self.extraSearches.contains(where: { $0 === search }) else { return }
+                    self.extraFinished(report)
+                }
+            })
+        }
+    }
+
+    private func extraFinished(_ report: DirectSearchReport?) {
+        if let report { extraReports.append(report) }
+        extraPending = max(0, extraPending - 1)
+        finishIfDone()
     }
 
     private func startSpotlight(expression: SearchExpression, evaluator: SearchEvaluator) {
@@ -234,10 +288,15 @@ final class SearchSession {
     }
 
     private func finishIfDone() {
-        guard coverage.phase == .searching, directDone, spotlightDone, indexState != nil || !needsIndexState else { return }
+        guard coverage.phase == .searching, directDone, spotlightDone, extraPending == 0,
+              indexState != nil || !needsIndexState else { return }
         coverage.phase = .finished
         finishedAt = Date()
         if let report = directReport {
+            report.apply(to: &coverage)
+            if report.limitReached { coverage.resultLimit = Self.resultLimit }
+        }
+        for report in extraReports {
             report.apply(to: &coverage)
             if report.limitReached { coverage.resultLimit = Self.resultLimit }
         }
@@ -263,6 +322,7 @@ final class SearchSession {
     private func stopEngines() {
         direct?.cancel()
         spotlight?.cancel()
+        extraSearches.forEach { $0.cancel() }
     }
 
     /// True when stopped because a newer query is about to replace it (the status keeps saying "Searching…").
@@ -279,6 +339,8 @@ final class SearchSession {
         coverage.phase = .stopped
         directDone = true
         spotlightDone = true
+        extraPending = 0
+        extraSearches = []
         if let report = directReport { report.apply(to: &coverage) }
         finishedAt = Date()
         changed(immediate: true)
@@ -353,6 +415,7 @@ final class SearchSession {
     deinit {
         direct?.cancel()
         spotlight?.cancel()
+        extraSearches.forEach { $0.cancel() }
         watcher?.stop()
     }
 }

@@ -33,6 +33,8 @@ final class IconViewController: NSViewController, ItemViewController, ItemGridHo
     private var renameCancelled = false
     private var pendingRenameText: String?
     private var deferredUpdate: ItemViewUpdate?
+    /// Tab (+1) or Shift-Tab (-1) ended the rename: continue with the next/previous item (FE-064).
+    private var renameStep = 0
 
     override func loadView() {
         let container = ThemeBackgroundView(Theme.contentBackground)
@@ -260,6 +262,11 @@ final class IconViewController: NSViewController, ItemViewController, ItemGridHo
             view.window?.makeFirstResponder(grid)
             return true
         }
+        if selector == #selector(NSResponder.insertTab(_:)) || selector == #selector(NSResponder.insertBacktab(_:)) {
+            renameStep = selector == #selector(NSResponder.insertTab(_:)) ? 1 : -1
+            view.window?.makeFirstResponder(grid)
+            return true
+        }
         return false
     }
 
@@ -270,6 +277,10 @@ final class IconViewController: NSViewController, ItemViewController, ItemGridHo
         pendingRenameText = nil
         let cancelled = renameCancelled
         renameCancelled = false
+        let step = renameStep
+        renameStep = 0
+        let nextItem = step == 0 || cancelled ? nil : items.firstIndex(of: item).map { $0 + step }
+            .flatMap { items.indices.contains($0) ? items[$0] : nil }
         endRenameField()
 
         if !(cancelled || typed == item.name), itemDelegate?.itemViewRename(item, to: typed) == false {
@@ -282,6 +293,9 @@ final class IconViewController: NSViewController, ItemViewController, ItemGridHo
         if let update = deferredUpdate {
             deferredUpdate = nil
             display(update)
+        }
+        if let nextItem {
+            DispatchQueue.main.async { [weak self] in self?.beginRename(named: nextItem.name, text: nil) }
         }
     }
 

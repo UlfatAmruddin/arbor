@@ -41,6 +41,7 @@ enum Features {
         AccessibilityFeature.register()   // slot: accessibility
 
         VisualParityFeature.register()   // slot: visual parity and window chrome
+        ConsistencyFeature.register()   // slot: consistency across features
 
         // slot: (spare 2)
     }

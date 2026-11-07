@@ -83,6 +83,7 @@ final class FolderTileView: TileView {
             text.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
         toolTip = tile.url.path
+        titleField = name
         setAccessibilityLabel(tile.isPinned ? "\(tile.name), \(tile.subtitle), pinned" : "\(tile.name), \(tile.subtitle)")
     }
 
@@ -104,6 +105,8 @@ final class ExplorerHomePage: NSViewController, LocationPageStatus, LocationPage
     private var pendingReload: DispatchWorkItem?
     private var loading: LoadHandle?
     private var syncingSelection = false
+    /// The page's scroll view (selection and scroll are restored on Back, see `LocationPageViewState`).
+    private(set) weak var scrollView: NSScrollView?
 
     init(host: LocationHost?, snapshot: HomeSnapshot) {
         self.host = host
@@ -146,6 +149,7 @@ final class ExplorerHomePage: NSViewController, LocationPageStatus, LocationPage
     override func loadView() {
         let root = ThemeBackgroundView(Theme.contentBackground)
         let scroll = NSScrollView()
+        scrollView = scroll
         scroll.drawsBackground = false
         scroll.hasVerticalScroller = true
         scroll.autohidesScrollers = true
@@ -450,4 +454,55 @@ final class ExplorerHomePage: NSViewController, LocationPageStatus, LocationPage
         if responder === recent.table { return "recent" }
         return "other"
     }
+}
+
+// MARK: - Back/Forward restore (selection by section and path, scroll offset)
+
+extension ExplorerHomePage: LocationPageViewState {
+    var savedSelection: [String] {
+        guard isViewLoaded, let section = activeSection else { return [] }
+        return selectedItems.map { "\(section.rawValue):\($0.url.path)" }
+    }
+
+    var savedScroll: String? {
+        guard let scroll = scrollView else { return nil }
+        let y = scroll.contentView.bounds.origin.y
+        return y > 0 ? String(format: "%.0f", y) : nil
+    }
+
+    func restoreViewState(selection: [String], scroll: String?) {
+        guard isViewLoaded else { return }
+        view.layoutSubtreeIfNeeded()
+        var bySection: [HomeSection: Set<String>] = [:]
+        for entry in selection {
+            guard let colon = entry.firstIndex(of: ":"), let section = HomeSection(rawValue: String(entry[..<colon])) else { continue }
+            bySection[section, default: []].insert(String(entry[entry.index(after: colon)...]))
+        }
+        if let (section, paths) = bySection.first {
+            switch section {
+            case .quickAccess:
+                grid.select(IndexSet(snapshot.quickAccess.indices.filter { paths.contains(snapshot.quickAccess[$0].url.path) }))
+                view.window?.makeFirstResponder(grid)
+            case .favorites, .recent:
+                let list = section == .favorites ? favorites : recent
+                list.table.selectRowIndexes(IndexSet(list.rows.indices.filter { paths.contains(list.rows[$0].item.url.path) }),
+                                            byExtendingSelection: false)
+                view.window?.makeFirstResponder(list.table)
+            }
+            selectionChanged(in: section)
+        }
+        if let scroll, let y = Double(scroll), let scrollView {
+            let maxY = max(0, (scrollView.documentView?.frame.height ?? 0) - scrollView.contentView.bounds.height)
+            scrollView.contentView.scroll(to: NSPoint(x: 0, y: min(CGFloat(y), maxY)))
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+        }
+    }
+}
+
+// MARK: - Sections for Folder Options' click behaviors (ItemActionsEverywhere)
+
+extension ExplorerHomePage {
+    var homeTiles: TileGridView { grid }
+    var homeFavorites: HomeFileList { favorites }
+    var homeRecent: HomeFileList { recent }
 }

@@ -20,7 +20,7 @@ enum PropertiesTabs {
             return [GeneralTab(model: model, controller: controller), SecurityTab(model: model),
                     DetailsTab(model: model, controller: controller), SignaturesTab(model: model)]
         case .volume:
-            return [DriveGeneralTab(model: model, controller: controller), ToolsTab(model: model), SharingTab(model: model),
+            return [DriveGeneralTab(model: model, controller: controller), FileSystemTab(model: model), ToolsTab(model: model), SharingTab(model: model),
                     SecurityTab(model: model)]
         }
     }

@@ -27,6 +27,27 @@
 			<key>LSHandlerRank</key><string>None</string>
 			<key>LSItemContentTypes</key><array><string>public.folder</string></array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeName</key><string>Arbor Saved Search</string>
+			<key>CFBundleTypeRole</key><string>Viewer</string>
+			<key>LSHandlerRank</key><string>Owner</string>
+			<key>CFBundleTypeIconFile</key><string>AppIcon</string>
+			<key>LSItemContentTypes</key><array><string>io.github.arbor-files.saved-search</string></array>
+			<key>CFBundleTypeExtensions</key><array><string>arborsearch</string></array>
+		</dict>
+	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key><string>io.github.arbor-files.saved-search</string>
+			<key>UTTypeDescription</key><string>Arbor Saved Search</string>
+			<key>UTTypeIconFile</key><string>AppIcon</string>
+			<key>UTTypeConformsTo</key><array><string>public.json</string></array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key><array><string>arborsearch</string></array>
+			</dict>
+		</dict>
 	</array>
 	<key>NSDesktopFolderUsageDescription</key><string>Arbor shows the files in your Desktop folder when you open it.</string>
 	<key>NSDocumentsFolderUsageDescription</key><string>Arbor shows the files in your Documents folder when you open it.</string>

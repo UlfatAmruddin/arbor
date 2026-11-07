@@ -8,13 +8,25 @@ public struct SearchRequest: Hashable, Sendable {
     public var recursive: Bool
     /// Search options ▸ Advanced options (File contents, System files, Zipped files).
     public var options: SearchOptions = []
+    /// More places the search covers besides `scope`: the other folders of a library, pinned folders
+    /// outside the user folder (Home), other drives (This Mac). A file here is matched by itself.
+    public var extraScopes: [URL] = []
+    /// Key of the location the search was started from when that isn't the scope folder (Home, a
+    /// library, This Mac): its name titles the results and Up / Close search return there.
+    public var originKey: String?
 
-    public init(query: String, scope: URL? = nil, recursive: Bool = true, options: SearchOptions = []) {
+    public init(query: String, scope: URL? = nil, recursive: Bool = true, options: SearchOptions = [],
+                extraScopes: [URL] = [], originKey: String? = nil) {
         self.query = query
         self.scope = scope?.standardizedFileURL
         self.recursive = recursive
         self.options = options
+        self.extraScopes = extraScopes.map(\.standardizedFileURL)
+        self.originKey = originKey
     }
+
+    /// The location the search was started from, if it isn't the scope folder.
+    public var origin: Location? { originKey.flatMap(Location.init(key:)) }
 }
 
 /// Explorer's Advanced options for a search. Stored in the location key as `opts=csz`.
@@ -81,6 +93,7 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
         case .network: return L10n.tr("Network")
         case .trash: return L10n.tr("Trash")
         case .search(let request):
+            if let origin = request.origin { return "Search Results in \(origin.displayName)" }
             let scope = request.scope.map { Location.folder($0).displayName }
             return scope.map { L10n.format("Search Results in %@", $0) } ?? L10n.tr("Search Results")
         case .archive(let url, let inner):
@@ -109,6 +122,8 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
             if let scope = r.scope { items.append(URLQueryItem(name: "scope", value: Self.normalizedPath(scope))) }
             items.append(URLQueryItem(name: "recursive", value: r.recursive ? "1" : "0"))
             if !r.options.isEmpty { items.append(URLQueryItem(name: "opts", value: r.options.code)) }
+            for extra in r.extraScopes { items.append(URLQueryItem(name: "also", value: Self.normalizedPath(extra))) }
+            if let origin = r.originKey { items.append(URLQueryItem(name: "from", value: origin)) }
             return Self.compose("search", items)
         case .archive(let url, let inner):
             return Self.compose("archive", [URLQueryItem(name: "file", value: Self.normalizedPath(url)),
@@ -140,9 +155,12 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
         switch components.path {
         case "search":
             guard let q = values["q"] else { return nil }
+            let extras = (components.queryItems ?? []).filter { $0.name == "also" }.compactMap(\.value)
+                .filter { $0.hasPrefix("/") }.map { URL(fileURLWithPath: $0) }
             self = .search(SearchRequest(query: q, scope: values["scope"].map { URL(fileURLWithPath: $0) },
                                          recursive: values["recursive"] != "0",
-                                         options: SearchOptions(code: values["opts"] ?? "")))
+                                         options: SearchOptions(code: values["opts"] ?? ""),
+                                         extraScopes: extras, originKey: values["from"].flatMap { $0.isEmpty ? nil : $0 }))
         case "archive":
             guard let file = values["file"], file.hasPrefix("/") else { return nil }
             self = .archive(URL(fileURLWithPath: file), innerPath: values["inner"] ?? "")
@@ -170,6 +188,7 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
             if url.path == "/" || isVolumeRoot(url) { return .thisMac }
             return .folder(url.deletingLastPathComponent().standardizedFileURL)
         case .search(let request):
+            if let origin = request.origin { return origin }
             return request.scope.map { .folder($0) }
         case .archive(let url, let inner):
             let parts = Self.trimSlashes(inner).split(separator: "/")

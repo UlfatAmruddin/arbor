@@ -363,6 +363,9 @@ final class TileSectionsView: NSView {
     var onSelectionChange: (() -> Void)?
     var emptyView: NSView? { didSet { oldValue?.removeFromSuperview(); if let emptyView { addSubview(emptyView) }; needsLayout = true } }
     private let inset = NSEdgeInsets(top: 8, left: 16, bottom: 16, right: 16)
+    /// The search box's text: only tiles whose titles contain it are shown.
+    var filterText = "" { didSet { if filterText != oldValue { setSections(unfiltered) } } }
+    private var unfiltered: [TileSection] = []
 
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
@@ -381,7 +384,12 @@ final class TileSectionsView: NSView {
         let previous = selected?.identifier2
         subviews.filter { $0 !== emptyView }.forEach { $0.removeFromSuperview() }
         headers = [:]
-        sections = newSections.filter { !$0.tiles.isEmpty }
+        unfiltered = newSections
+        let query = filterText
+        let shown = query.isEmpty ? newSections : newSections.map { section in
+            TileSection(id: section.id, title: section.title, tiles: section.tiles.filter { PageFilter.matches($0.titleText, query) })
+        }
+        sections = shown.filter { !$0.tiles.isEmpty }
         selected = nil
         for section in sections {
             let header = SectionHeader(title: "\(section.title) (\(section.tiles.count))", collapsed: collapsed.contains(section.id)) { [weak self] in

@@ -42,6 +42,19 @@ class TileView: NSView {
     var isDropTarget = false { didSet { if isDropTarget != oldValue { needsDisplay = true } } }
     var showsFocus = false { didSet { if showsFocus != oldValue { needsDisplay = true } } }
     private var tracking: NSTrackingArea?
+    /// The tile's name label (Folder Options underlines it when items open with a single click).
+    weak var titleField: NSTextField?
+
+    /// Folder Options › "Show pop-up description for folder and desktop items" (set by that feature).
+    static var showsDescriptions: () -> Bool = { true }
+    private var storedTip: String?
+    /// The tile's pop-up description; shown only while descriptions are turned on.
+    override var toolTip: String? {
+        get { super.toolTip }
+        set { storedTip = newValue; super.toolTip = Self.showsDescriptions() ? newValue : nil }
+    }
+    /// Re-applies the description after the preference changed.
+    func refreshToolTip() { super.toolTip = Self.showsDescriptions() ? storedTip : nil }
 
     override init(frame: NSRect) {
         super.init(frame: frame)

@@ -469,6 +469,20 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
         slowRename = nil
     }
 
+    /// A feature may start a right-button drag here (FE-106); otherwise the context menu opens.
+    override func rightMouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        if let i = itemHit(point), let begin = InteractionHooks.rightDrag {
+            let urls: () -> [URL] = { [weak self] in
+                guard let self else { return [] }
+                if !self.selection.selected.contains(i) { self.setSelection(IndexSet(integer: i)) }
+                return self.selectedItems.filter { ItemHooks.dragWriter(for: $0) == nil }.map(\.url)
+            }
+            if begin(self, event, urls) { return }
+        }
+        super.rightMouseDown(with: event)
+    }
+
     override func otherMouseDown(with event: NSEvent) {
         guard event.buttonNumber == 2, let i = itemHit(convert(event.locationInWindow, from: nil)), items[i].isFolder else {
             super.otherMouseDown(with: event)
@@ -693,6 +707,10 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
             return []
         }
         setDropTarget(index)
+        let spring = index.map { items[$0] }   // spring-loaded folders (FE-108), as in Details
+        InteractionHooks.dragHover?(spring?.url.path, spring.map { item in
+            { [weak self] in self?.host?.gridOpen([item], inNewTab: false) }
+        })
         return kind == .move ? .move : .copy
     }
 
@@ -709,11 +727,15 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
         return dropOperation(sender)
     }
 
-    override func draggingExited(_ sender: NSDraggingInfo?) { setDropTarget(nil) }
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        setDropTarget(nil)
+        InteractionHooks.dragHover?(nil, nil)
+    }
     override func draggingEnded(_ sender: NSDraggingInfo) { setDropTarget(nil) }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         defer { setDropTarget(nil) }
+        InteractionHooks.dragHover?(nil, nil)
         if ItemHooks.acceptDrop(sender, destination: dropDestination(sender).url, window: window) { return true }
         let urls = DropPolicy.fileURLs(from: sender)
         guard let dest = dropDestination(sender).url,

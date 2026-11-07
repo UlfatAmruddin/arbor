@@ -435,6 +435,12 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
     var canGoUp: Bool { location.parent() != nil }
 
     private func captureViewState(_ tab: TabState) {
+        if tab === activeTab, tab.showsPage, let page = tab.page as? LocationPageViewState {
+            tab.selectedNames = page.savedSelection
+            tab.topVisibleName = page.savedScroll
+            tab.selectedURLs = []
+            return
+        }
         guard tab === activeTab, tab.displayedLocation != nil, let view = itemView, !tab.showsPage else { return }
         tab.selectedNames = view.selectedNames
         tab.selectedURLs = view.selectedItems.map(\.url)
@@ -588,12 +594,18 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
     /// Puts the tab's content on screen: its items in the item view for its mode, or its page.
     private func display(_ tab: TabState, select: [String]?, top: String?, locationChanged: Bool) {
         if tab.showsPage, let page = tab.page {
+            var restore: (selection: [String], scroll: String?)?
             if shownPage !== page {
                 shownPage?.view.removeFromSuperview()
                 embed(page.view)
                 shownPage = page
+                // A new page for the place (Back, Forward, Refresh, tab switch): put its selection back.
+                if page is LocationPageViewState { restore = (select ?? tab.selectedNames, top ?? (select == nil ? tab.topVisibleName : nil)) }
             }
             itemView?.view.isHidden = true
+            if let restore, let stateful = page as? LocationPageViewState, !restore.selection.isEmpty || restore.scroll != nil {
+                DispatchQueue.main.async { stateful.restoreViewState(selection: restore.selection, scroll: restore.scroll) }
+            }
             return
         }
         shownPage?.view.removeFromSuperview()
@@ -677,6 +689,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
 
     /// Default search: filter the visible folder (DEC-014).
     func applyFilter(_ text: String) {
+        if activeTab.showsPage, let page = activeTab.page as? LocationPageFiltering { page.applyFilter(text) }
         activeTab.searchText = text
         if !activeTab.showsPage { display(activeTab, select: nil, top: nil, locationChanged: false) }
         updateChrome()
@@ -977,11 +990,13 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
 
     func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! {
         let items = selectedItems
-        return index < items.count ? items[index].url as NSURL : nil
+        return index < items.count ? PreviewHooks.url(for: items[index]) as NSURL : nil
     }
 
     func previewPanel(_ panel: QLPreviewPanel!, handle event: NSEvent!) -> Bool {
-        guard event.type == .keyDown, let view = itemView?.focusView else { return false }
+        // Pages (Gallery, Home) take the arrow keys in their own view, which keeps first responder.
+        let pageView = activeTab.showsPage ? window?.firstResponder as? NSView : nil
+        guard event.type == .keyDown, let view = pageView ?? itemView?.focusView else { return false }
         view.keyDown(with: event)
         return true
     }

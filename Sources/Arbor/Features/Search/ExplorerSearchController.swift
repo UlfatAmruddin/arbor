@@ -48,6 +48,7 @@ final class ExplorerSearchController: SearchController {
     func placeholder(for location: Location) -> String {
         syncProgress(location)
         if case .search(let r) = location {
+            if let origin = r.origin { return "Search " + Self.title(of: origin) }
             return "Search " + (r.scope.map { Self.title(of: .folder($0)) } ?? "This Mac")
         }
         return "Search \(Self.title(of: location))"
@@ -139,9 +140,13 @@ final class ExplorerSearchController: SearchController {
     static func isSearchable(_ location: Location) -> Bool {
         switch location {
         case .folder, .search, .home, .thisMac: return true
-        default: return false
+        default: return scopedRequest?(location, nil) != nil
         }
     }
+
+    /// Builds the search for a place that isn't a plain folder (Home with its pinned folders and
+    /// recent files, a library's folders, every drive from This Mac). nil = the default for `location`.
+    static var scopedRequest: ((Location, BrowserWindowController?) -> SearchRequest?)?
 
     /// The folder a search from `location` covers (nil = everywhere / This Mac).
     static func scope(for location: Location) -> URL? {
@@ -162,7 +167,8 @@ final class ExplorerSearchController: SearchController {
             request = r
             request.query = query
         } else {
-            request = SearchRequest(query: query, scope: Self.scope(for: shown), recursive: true)
+            request = Self.scopedRequest?(shown, window) ?? SearchRequest(query: query, scope: Self.scope(for: shown), recursive: true)
+            request.query = query
         }
         if case .success = AQSParser.parse(query) {   // only searches that could run go into the history
             SearchHistoryStore.update { $0.record(query, refining: refining) }
@@ -188,7 +194,7 @@ final class ExplorerSearchController: SearchController {
         if let back = window.activeTab.history.peekBack(), !Self.isSearchLocation(back.location) {
             window.goBack()
         } else {
-            window.navigate(to: r.scope.map { .folder($0) } ?? .home)
+            window.navigate(to: r.origin ?? r.scope.map { .folder($0) } ?? .home)
         }
         window.searchBox.text = ""
     }
