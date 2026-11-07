@@ -101,10 +101,25 @@ public struct PathResolver: Sendable {
 
         let url = URL(fileURLWithPath: path).standardizedFileURL
         switch probe(url.path) {
-        case .some(true): return .success(.folder(url))
-        case .some(false): return .success(.file(url))
+        case .some(true): return .success(.folder(Self.onDiskSpelling(url)))
+        case .some(false): return .success(.file(Self.onDiskSpelling(url)))
         case .none: return .failure(.notFound(url.path))
         }
+    }
+
+    /// Letter case and Unicode normalization as stored on disk, like Explorer showing “Desktop”
+    /// after `c:\users\me\desktop` was typed. Without it a typed folder would be a different
+    /// location from the same folder opened by clicking (history, pins, per-folder views,
+    /// QA-CORE-2). Symbolic links are kept as typed; components that don't exist are unchanged.
+    public static func onDiskSpelling(_ url: URL) -> URL {
+        var result = URL(fileURLWithPath: "/")
+        for component in url.standardizedFileURL.pathComponents.dropFirst() {
+            let next = result.appendingPathComponent(component)
+            let stored = (try? next.resourceValues(forKeys: [.nameKey]).name) ?? component
+            let sameName = stored.compare(component, options: [.caseInsensitive]) == .orderedSame
+            result = result.appendingPathComponent(sameName ? stored : component)
+        }
+        return result.standardizedFileURL
     }
 
     static func isWindowsDrivePath(_ text: String) -> Bool {

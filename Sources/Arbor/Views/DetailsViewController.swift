@@ -413,6 +413,13 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         table.selectRowIndexes(selected, byExtendingSelection: false)
     }
 
+    func select(urls: [URL]) {
+        let wanted = Set(urls.map(\.standardizedFileURL))
+        let indexes = items.indices.filter { wanted.contains(items[$0].url.standardizedFileURL) }
+        expandGroupsIfHidden(Set(indexes.map { items[$0].name }))
+        table.selectRowIndexes(IndexSet(indexes.compactMap { itemRows[$0] }), byExtendingSelection: false)
+    }
+
     func focus() { view.window?.makeFirstResponder(table) }
 
     var isEditingName: Bool { renamingItem != nil }
@@ -437,6 +444,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         if id == "name" {
             let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier("NameCell"), owner: nil) as? NameCellView ?? NameCellView()
             cell.nameField.stringValue = shownName(item)
+            cell.nameField.font = Theme.listFont
             cell.nameField.toolTip = item.name
             cell.nameField.delegate = self
             cell.nameField.onBecomeFirstResponder = { [weak self] field in self?.renameFieldActivated(field) }
@@ -453,6 +461,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         let alignment: NSTextAlignment = id == "size" || ColumnCatalog.descriptor(ColumnID(id))?.alignRight == true ? .right : .left
         let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier("TextCell-\(id)"), owner: nil) as? TextCellView
             ?? TextCellView(id: id, alignment: alignment)
+        cell.label.font = Theme.listDetailFont
         switch id {
         case "dateModified": cell.label.stringValue = item.modified.map(dateFormatter.string(from:)) ?? ""
         case "type": cell.label.stringValue = item.typeDescription

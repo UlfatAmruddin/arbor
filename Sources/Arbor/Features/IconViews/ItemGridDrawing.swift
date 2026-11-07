@@ -159,6 +159,7 @@ extension ItemGridView {
         if isSelected || isDrop {
             let color = isDrop ? Theme.selection : (active ? (isHovered ? Theme.selectionHover : Theme.selection) : Theme.selectionInactive)
             fillRounded(g.highlight, radius: radius, color)
+            Theme.strokeSelectionIfContrast(g.highlight, radius: radius)   // Increase contrast (FE-201)
         } else if isHovered {
             fillRounded(g.highlight, radius: radius, Theme.hover)
         } else if metrics.style == .content, i + 1 < items.count, !selection.selected.contains(i + 1), hovered != i + 1 {

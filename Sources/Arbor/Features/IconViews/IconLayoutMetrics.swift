@@ -36,9 +36,9 @@ struct IconLayoutMetrics {
     init(mode: ViewMode, compact: Bool) {
         self.mode = mode
         self.compact = compact
-        let label = NSFont.systemFont(ofSize: 12)
-        let body = Theme.bodyFont
-        let small = NSFont.systemFont(ofSize: 12)
+        let label = Theme.listSmallFont   // View ▸ Text size (FE-050)
+        let body = Theme.listFont
+        let small = Theme.listSmallFont
         func iconCell(icon: CGFloat, width: CGFloat, compactWidth: CGFloat, lines: Int) -> (CGSize, CGFloat, CGFloat) {
             let pad: CGFloat = compact ? 4 : 6
             let gap: CGFloat = compact ? 3 : 5
@@ -67,7 +67,7 @@ struct IconLayoutMetrics {
         case .smallIcons, .list:
             style = .iconLeft
             iconSize = 16
-            cellSize = CGSize(width: mode == .smallIcons ? 236 : 220, height: compact ? 22 : 26)
+            cellSize = CGSize(width: mode == .smallIcons ? 236 : 220, height: Theme.scaledBlock(compact ? 22 : 26, lines: 1))
             spacing = mode == .list ? CGSize(width: compact ? 8 : 14, height: 0) : CGSize(width: compact ? 4 : 8, height: compact ? 0 : 2)
             insets = compact ? (4, 6, 6, 6) : (6, 10, 10, 10)
             labelLines = 1
@@ -78,7 +78,7 @@ struct IconLayoutMetrics {
         case .tiles:
             style = .tile
             iconSize = 48
-            cellSize = CGSize(width: compact ? 252 : 268, height: compact ? 60 : 72)
+            cellSize = CGSize(width: compact ? 252 : 268, height: Theme.scaledBlock(compact ? 60 : 72, lines: 3))
             spacing = compact ? CGSize(width: 2, height: 2) : CGSize(width: 6, height: 6)
             insets = compact ? (4, 6, 6, 6) : (8, 10, 12, 10)
             labelLines = 1
@@ -89,7 +89,7 @@ struct IconLayoutMetrics {
         case .content, .details:
             style = .content
             iconSize = 48
-            cellSize = CGSize(width: 0, height: compact ? 60 : 72)
+            cellSize = CGSize(width: 0, height: Theme.scaledBlock(compact ? 60 : 72, lines: 3))
             spacing = .zero
             insets = compact ? (2, 6, 6, 6) : (4, 8, 10, 8)
             labelLines = 1

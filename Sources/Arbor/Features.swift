@@ -38,7 +38,7 @@ enum Features {
 
         ItemActionsFeature.register()   // slot: New menu, shortcuts and batch rename
 
-        // slot: accessibility
+        AccessibilityFeature.register()   // slot: accessibility
 
         // slot: (spare 1)
 

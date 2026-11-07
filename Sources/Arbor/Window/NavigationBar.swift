@@ -124,7 +124,7 @@ final class NavigationBar: ThemeBackgroundView {
     init() {
         super.init(Theme.toolbarBackground)
         setAccessibilityElement(false)
-        for (button, label) in [(back, "Back"), (forward, "Forward"), (up, "Up")] {
+        for (button, label) in [(back, L10n.tr("Back")), (forward, L10n.tr("Forward")), (up, L10n.tr("Up"))] {
             button.fixedWidth = 34
             button.symbolSize = 14
             button.setAccessibilityLabel(label)

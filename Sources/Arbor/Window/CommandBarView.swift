@@ -8,9 +8,9 @@ final class CommandBarView: ThemeBackgroundView {
     var contextProvider: ((CommandSurface, Any?) -> CommandContext)?
 
     private let stack = NSStackView()
-    let newButton = ChromeButton(symbol: "plus.circle", title: "New", tooltip: "Create a new item")
-    let sortButton = ChromeButton(symbol: "arrow.up.arrow.down", title: "Sort", tooltip: "Sort items")
-    let viewButton = ChromeButton(symbol: "list.bullet.rectangle", title: "View", tooltip: "Layout and view options")
+    let newButton = ChromeButton(symbol: "plus.circle", title: L10n.tr("New"), tooltip: "Create a new item")
+    let sortButton = ChromeButton(symbol: "arrow.up.arrow.down", title: L10n.tr("Sort"), tooltip: "Sort items")
+    let viewButton = ChromeButton(symbol: "list.bullet.rectangle", title: L10n.tr("View"), tooltip: "Layout and view options")
     let moreButton = ChromeButton(symbol: "ellipsis", tooltip: "See more")
     private var primary: [(ExplorerCommand, ChromeButton)] = []
     private var contextual: [(ExplorerCommand, ChromeButton)] = []
@@ -24,7 +24,7 @@ final class CommandBarView: ThemeBackgroundView {
         bottomLine = Theme.separator
         setAccessibilityElement(true)
         setAccessibilityRole(.toolbar)
-        setAccessibilityLabel("Commands")
+        setAccessibilityLabel(L10n.tr("Commands"))
         stack.orientation = .horizontal
         stack.spacing = 2
         stack.edgeInsets = NSEdgeInsets(top: 0, left: 10, bottom: 0, right: 12)
@@ -81,7 +81,7 @@ final class CommandBarView: ThemeBackgroundView {
         guard let context = contextProvider?(.commandBar, button) else { return }
         let menu = CommandDispatcher.shared.menu(for: slot, context: context)
         if menu.items.isEmpty {
-            let none = NSMenuItem(title: "No commands", action: nil, keyEquivalent: "")
+            let none = NSMenuItem(title: L10n.tr("No commands"), action: nil, keyEquivalent: "")
             none.isEnabled = false
             menu.addItem(none)
         }
@@ -226,7 +226,11 @@ final class StatusBarView: ThemeBackgroundView {
         toggleButtons.map { "\($0.0.id)\($0.1.isEnabled ? "" : "(off)")\($0.1.isToggled ? "(on)" : "")" }.joined(separator: " ")
     }
 
+    /// Observers of status messages (VoiceOver announces outcomes and errors).
+    static var messageHooks: [(StatusBarView, String?, _ isError: Bool) -> Void] = []
+
     func setMessage(_ text: String?, isError: Bool = false) {
+        Self.messageHooks.forEach { $0(self, text, isError) }
         clearMessage?.cancel()
         message.stringValue = text ?? ""
         message.textColor = isError ? .systemRed : Theme.secondaryText

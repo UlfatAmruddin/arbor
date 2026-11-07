@@ -13,6 +13,8 @@ final class TabState {
     var searchText = ""
     /// Restored when the tab becomes active again.
     var selectedNames: [String] = []
+    /// The same selection as URLs, for listings where names repeat (search results, QA-CORE-4).
+    var selectedURLs: [URL] = []
     var topVisibleName: String?
 
     /// The location whose content is loaded (nil before the first load finishes).
@@ -42,6 +44,7 @@ final class TabState {
         let copy = TabState(location: location, viewMode: viewMode, sortOrder: sortOrder)
         copy.history = history
         copy.selectedNames = selectedNames
+        copy.selectedURLs = selectedURLs
         copy.topVisibleName = topVisibleName
         return copy
     }

@@ -38,7 +38,7 @@ public enum StatusText {
 
     public static func items(_ n: Int) -> String {
         let number = counts.string(from: NSNumber(value: n)) ?? "\(n)"
-        return n == 1 ? "1 item" : "\(number) items"
+        return n == 1 ? L10n.tr("1 item") : L10n.format("%@ items", number)
     }
 
     public static func bytes(_ n: Int64) -> String {
@@ -65,9 +65,10 @@ public enum StatusText {
         let q = query.trimmingCharacters(in: .whitespaces)
         let shown = counts.string(from: NSNumber(value: visible)) ?? "\(visible)"
         var parts = [q.isEmpty ? (visible == total ? items(total) : "\(shown) of \(items(total))")   // column filters: "3 of 15 items"
-                     : "\(shown) of \(items(total)) match “\(q)”"]
+                     : L10n.format("%@ of %@ match “%@”", shown, items(total), q)]
         if !selected.isEmpty {
-            var text = selected.count == 1 ? "1 item selected" : "\(counts.string(from: NSNumber(value: selected.count)) ?? "\(selected.count)") items selected"
+            var text = selected.count == 1 ? L10n.tr("1 item selected")
+                : L10n.format("%@ items selected", counts.string(from: NSNumber(value: selected.count)) ?? "\(selected.count)")
             let sizes = selected.compactMap(\.size)
             if sizes.count == selected.count { text += "  \(bytes(sizes.reduce(0, +)))" }
             parts.append(text)

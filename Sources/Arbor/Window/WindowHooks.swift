@@ -11,6 +11,8 @@ enum WindowHooks {
     static var willDisplay: [(BrowserWindowController, TabState, Location, _ changed: Bool) -> Void] = []
     /// The active tab's items were put on screen (after mode/sort/filter changes too).
     static var didDisplay: [(BrowserWindowController, TabState) -> Void] = []
+    /// The active tab's selection changed (VoiceOver selection-count announcements).
+    static var selectionChanged: [(BrowserWindowController) -> Void] = []
     /// The user changed the active tab's view mode or sort order.
     static var viewStateChanged: [(BrowserWindowController, TabState) -> Void] = []
     /// Filters a loaded listing before it is cached in the tab (protected system files…).

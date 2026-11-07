@@ -187,9 +187,9 @@ final class ExplorerCommand {
          submenu: ((CommandContext) -> [NSMenuItem])? = nil,
          perform: @escaping (CommandContext) -> Void = { _ in }) {
         self.id = id
-        self.title = title
+        self.title = L10n.tr(title)   // user-visible strings go through the string table (FE-204)
         self.symbol = symbol
-        self.tooltip = tooltip
+        self.tooltip = tooltip.map { L10n.tr($0) }
         self.shortcut = shortcut
         self.keyBindings = keyBindings
         self.placements = placements
@@ -204,7 +204,7 @@ final class ExplorerCommand {
         self.perform = perform
     }
 
-    func title(in context: CommandContext) -> String { dynamicTitle?(context) ?? title }
+    func title(in context: CommandContext) -> String { dynamicTitle.map { L10n.tr($0(context)) } ?? title }
 
     /// "Cut (⌘X)" for tooltips.
     var tooltipText: String {

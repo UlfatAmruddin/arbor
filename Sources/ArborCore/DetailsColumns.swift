@@ -145,7 +145,7 @@ public enum ColumnCatalog {
         registered.append(descriptor)
     }
 
-    public static func title(_ id: ColumnID) -> String { descriptor(id)?.title ?? id.rawValue }
+    public static func title(_ id: ColumnID) -> String { descriptor(id).map { L10n.tr($0.title) } ?? id.rawValue }
 
     /// Columns read from the listing never need loading.
     public static func needsLoading(_ id: ColumnID) -> Bool { (descriptor(id)?.source ?? .listing) != .listing }

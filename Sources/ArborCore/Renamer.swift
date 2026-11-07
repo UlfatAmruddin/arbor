@@ -77,6 +77,34 @@ public enum FileOps {
         return f == i || f.hasPrefix(i.hasSuffix("/") ? i : i + "/")
     }
 
+    /// The path as the file system stores it: symbolic links in the parent folders resolved and the
+    /// last component spelled as on disk (letter case, Unicode normalization). The last component
+    /// itself is not followed. For comparing locations that may be typed or reached differently
+    /// (`~/desktop` vs `~/Desktop`, `/tmp` vs `/private/tmp`). Touches the disk.
+    public static func canonicalPath(_ url: URL) -> String {
+        let url = url.standardizedFileURL
+        guard url.path != "/" else { return "/" }
+        let parent = url.deletingLastPathComponent().resolvingSymlinksInPath()
+        let name = (try? URL(fileURLWithPath: url.path).resourceValues(forKeys: [.nameKey]).name) ?? url.lastPathComponent
+        return parent.appendingPathComponent(name).path
+    }
+
+    /// True if `a` and `b` are the same directory entry reached through different spellings.
+    /// (Two hard links to one file are different entries.)
+    public static func isSameEntry(_ a: URL, _ b: URL) -> Bool {
+        if a.standardizedFileURL == b.standardizedFileURL { return exists(a) }
+        return isSameObject(a, b) && canonicalPath(a) == canonicalPath(b)
+    }
+
+    /// `isSameOrInside` after resolving how both are spelled: `folder` fully (it is written into),
+    /// `item` without following its last component. Touches the disk.
+    public static func isSameOrInsideOnDisk(_ folder: URL, _ item: URL) -> Bool {
+        if isSameOrInside(folder, item) { return true }
+        let f = folder.standardizedFileURL.resolvingSymlinksInPath().path
+        let i = canonicalPath(item)
+        return f == i || f.hasPrefix(i.hasSuffix("/") ? i : i + "/")
+    }
+
     /// Folder contents ignoring Finder's view-settings file.
     public static func isEffectivelyEmpty(_ folder: URL) -> Bool {
         guard let names = try? FileManager.default.contentsOfDirectory(atPath: folder.path) else { return false }

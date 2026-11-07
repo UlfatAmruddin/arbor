@@ -41,6 +41,7 @@ final class ExplorerRowView: NSTableRowView {
             color = isEmphasized ? (isHovered ? Theme.selectionHover : Theme.selection) : Theme.selectionInactive
         }
         fillRounded(pill, radius: Theme.cornerRadius, color)
+        if style == .content { Theme.strokeSelectionIfContrast(pill, radius: Theme.cornerRadius) }   // Increase contrast (FE-201)
         if style == .navigation {
             // Short accent bar at the left edge of the current location (docs/research/windows11-reference.md §2.1).
             let bar = NSRect(x: pill.minX, y: pill.midY - 8, width: 3, height: 16)

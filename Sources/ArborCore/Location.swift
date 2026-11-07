@@ -75,14 +75,14 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
             let path = url.standardizedFileURL.path
             let name = FileManager.default.displayName(atPath: path)
             return name.isEmpty ? (path == "/" ? "/" : url.lastPathComponent) : name
-        case .home: return "Home"
-        case .thisMac: return "This Mac"
-        case .gallery: return "Gallery"
-        case .network: return "Network"
-        case .trash: return "Trash"
+        case .home: return L10n.tr("Home")
+        case .thisMac: return L10n.tr("This Mac")
+        case .gallery: return L10n.tr("Gallery")
+        case .network: return L10n.tr("Network")
+        case .trash: return L10n.tr("Trash")
         case .search(let request):
             let scope = request.scope.map { Location.folder($0).displayName }
-            return scope.map { "Search Results in \($0)" } ?? "Search Results"
+            return scope.map { L10n.format("Search Results in %@", $0) } ?? L10n.tr("Search Results")
         case .archive(let url, let inner):
             let last = inner.split(separator: "/").last.map(String.init)
             return last ?? url.lastPathComponent

@@ -1,4 +1,5 @@
 import AppKit
+import ArborCore
 
 protocol TabStripDelegate: AnyObject {
     func tabStripSelect(_ index: Int)
@@ -35,7 +36,7 @@ final class TabStripView: NSView {
         translatesAutoresizingMaskIntoConstraints = false
         setAccessibilityElement(true)
         setAccessibilityRole(.tabGroup)
-        setAccessibilityLabel("Tabs")
+        setAccessibilityLabel(L10n.tr("Tabs"))
         scroll.drawsBackground = false
         scroll.automaticallyAdjustsContentInsets = false
         scroll.hasHorizontalScroller = false
@@ -49,7 +50,7 @@ final class TabStripView: NSView {
         plusButton.fixedHeight = 28
         plusButton.translatesAutoresizingMaskIntoConstraints = true
         plusButton.onClick = { [weak self] _ in self?.delegate?.tabStripNewTab() }
-        plusButton.setAccessibilityLabel("New tab")
+        plusButton.setAccessibilityLabel(L10n.tr("New tab"))
         addSubview(plusButton)
         registerForDraggedTypes([.fileURL])
     }
@@ -137,6 +138,7 @@ final class TabStripView: NSView {
         }
         plusButton.frame = NSRect(x: scroll.frame.maxX - Self.feet + 2, y: top + (Theme.tabHeight - 28) / 2 - 1,
                                   width: plusButton.fixedWidth!, height: 28)
+        RightToLeft.mirror(self, [scroll, plusButton], contents: document, [tabViews])   // FE-204
     }
 
     private func scrollToSelected() {
@@ -220,7 +222,7 @@ final class TabItemView: NSView {
         closeButton.fixedHeight = 22
         closeButton.translatesAutoresizingMaskIntoConstraints = true
         closeButton.isHidden = true
-        closeButton.setAccessibilityLabel("Close tab")
+        closeButton.setAccessibilityLabel(L10n.tr("Close tab"))
         closeButton.onClick = { [weak self] _ in
             guard let self else { return }
             self.strip?.delegate?.tabStripClose(self.index)
@@ -263,6 +265,7 @@ final class TabItemView: NSView {
         let titleHeight = ceil(Theme.tabFont.ascender - Theme.tabFont.descender)
         let titleRect = NSRect(x: iconRect.maxX + 8, y: (b.height - titleHeight) / 2, width: max(0, textRight - iconRect.maxX - 8), height: titleHeight)
         (item.title as NSString).draw(with: titleRect, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], attributes: attrs)
+        if hasKeyboardFocus { FocusVisual.draw(in: NSRect(x: b.minX + 1, y: b.minY + 1, width: b.width - 2, height: b.height - 3), radius: 6) }
     }
 
     /// Rounded top corners plus outward "feet" at the bottom, so the tab flows into the row below.

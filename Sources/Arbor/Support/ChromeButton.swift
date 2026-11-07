@@ -1,4 +1,5 @@
 import AppKit
+import ArborCore
 
 /// Flat Explorer-style button: icon and/or title, optional ▾, rounded hover/pressed fill.
 /// Draws itself (no bezel) so it looks the same in light and dark mode and in snapshots.
@@ -33,13 +34,13 @@ final class ChromeButton: NSControl {
         self.symbolName = symbol
         self.title = title
         self.onClick = onClick
-        self.toolTip = tooltip
+        self.toolTip = tooltip.map { L10n.tr($0) }
         translatesAutoresizingMaskIntoConstraints = false
         setContentHuggingPriority(.defaultHigh, for: .horizontal)
         setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
         setAccessibilityElement(true)
         setAccessibilityRole(.button)
-        setAccessibilityLabel(title.isEmpty ? tooltip : title)
+        setAccessibilityLabel(title.isEmpty ? self.toolTip : title)
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -51,7 +52,8 @@ final class ChromeButton: NSControl {
     }
 
     override var mouseDownCanMoveWindow: Bool { false }
-    override var acceptsFirstResponder: Bool { false }
+    /// Only keyboard navigation (F6, Tab, arrows) focuses chrome buttons; clicks leave focus where it was.
+    override var acceptsFirstResponder: Bool { FocusRegions.movingFocus || window?.firstResponder === self }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     // MARK: Layout
@@ -113,6 +115,7 @@ final class ChromeButton: NSControl {
                 chevron.drawFlippedAware(in: NSRect(x: x + 6, y: (rect.height - s.height) / 2, width: s.width, height: s.height))
             }
         }
+        if hasKeyboardFocus { FocusVisual.draw(in: rect, radius: cornerRadius) }
     }
 
     private var contentWidth: CGFloat {

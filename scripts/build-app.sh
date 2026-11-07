@@ -99,5 +99,7 @@ if [ ! -f Resources/AppIcon.icns ]; then
   swift scripts/make-icon.swift Resources/AppIcon.icns
 fi
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# String tables (en.lproj is the English base; see scripts/extract-strings.sh).
+for lproj in Resources/*.lproj; do [ -d "$lproj" ] && cp -R "$lproj" "$APP/Contents/Resources/"; done
 codesign --force --sign - "$APP" >/dev/null
 echo "Built $APP (version $VERSION, build $BUILD_NUMBER, $(lipo -archs "$APP/Contents/MacOS/Arbor" | sed 's/ / + /g'), macOS $MIN_MACOS+)"

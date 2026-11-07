@@ -60,3 +60,7 @@ Rules of thumb:
 - Read the PNGs to check visuals, in light and dark.
 - End scripts with `quit`. Never leave a test app running, headless or not.
 - Rendering note (macOS 26): a custom `NSTableHeaderView` or header-cell subclass stops table rows from drawing (on screen and in snapshots). Style headers through the stock cell's attributed title instead.
+
+## 3. Accessibility, keyboard and localization checks
+Steps: `axdump:/path` (accessibility tree as VoiceOver sees it), `key:shift+F10` (keys through the real keyboard path), `focus:/path`, `mouse:3|4`, `swipe:back|forward`, `compose:<text>` (input-method marked text), `announcements:/path`, `contextkey:/path`, `textsize:130`.
+Environment: `ARBOR_PSEUDO_LOC=1` (accented, longer strings), `ARBOR_RTL=1` (right-to-left layout), `ARBOR_CONTRAST=1`, `ARBOR_REDUCE_MOTION=1`, `ARBOR_TEXT_SIZE=150`. Keep the string table current with `scripts/extract-strings.sh` (`--check` verifies). Details: docs/features/accessibility.md.

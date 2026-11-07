@@ -82,7 +82,7 @@ extension DetailsViewController {
     func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool { headerIndex(atRow: row) != nil }
 
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-        if headerIndex(atRow: row) != nil { return Prefs.compactView ? 30 : 36 }
+        if headerIndex(atRow: row) != nil { return Theme.listRowHeight(Prefs.compactView ? 30 : 36) }
         return Theme.rowHeight(compact: Prefs.compactView)
     }
 
@@ -117,11 +117,11 @@ extension DetailsViewController {
     }
 
     private func relayoutRows(focusHeader: Int?) {
-        let keep = Set(selectedNames)
+        let keep = Set(selectedItems.map(\.url))   // by URL: names repeat in search results
         let wasHeader = table.selectedRowIndexes.count == 1 ? headerIndex(atRow: table.selectedRowIndexes.first!) : nil
         rebuildRows()
         table.reloadData()
-        var selection = IndexSet(items.indices.filter { keep.contains(items[$0].name) }.compactMap { itemRows[$0] })
+        var selection = IndexSet(items.indices.filter { keep.contains(items[$0].url) }.compactMap { itemRows[$0] })
         if selection.isEmpty, let g = focusHeader ?? wasHeader, let row = headerRow(of: g) { selection = [row] }
         table.selectRowIndexes(selection, byExtendingSelection: false)
         itemDelegate?.itemViewSelectionDidChange()

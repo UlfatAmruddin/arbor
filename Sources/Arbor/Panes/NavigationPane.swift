@@ -60,7 +60,8 @@ final class NavOutlineView: NSOutlineView {
         let view = super.makeView(withIdentifier: identifier, owner: owner)
         if identifier == NSOutlineView.disclosureButtonIdentifier, let button = view as? NSButton {
             let tint = Theme.secondaryText.resolved(for: effectiveAppearance)
-            button.image = NSImage.tintedSymbol("chevron.right", size: 9, weight: .semibold, color: tint)
+            button.image = NSImage.tintedSymbol(userInterfaceLayoutDirection == .rightToLeft ? "chevron.left" : "chevron.right",
+                                                size: 9, weight: .semibold, color: tint)
             button.alternateImage = NSImage.tintedSymbol("chevron.down", size: 9, weight: .semibold, color: tint)
         }
         return view
@@ -99,7 +100,7 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
         outline.dataSource = self
         outline.delegate = self
         outline.registerForDraggedTypes([.fileURL])
-        outline.setAccessibilityLabel("Navigation pane")
+        outline.setAccessibilityLabel(L10n.tr("Navigation pane"))
         outline.menuProvider = { [weak self] row in
             guard let self, let node = self.outline.item(atRow: row) as? NavNode, node.kind != .separator else { return nil }
             return self.delegate?.navigationPaneMenu(for: node)
@@ -144,16 +145,16 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
             return NavNode(kind: .volume, title: values?.volumeLocalizedName ?? displayName(of: url), location: .folder(url),
                            isEjectable: (values?.volumeIsEjectable ?? false) || (values?.volumeIsRemovable ?? false))
         }
-        let thisMac = NavNode(kind: .thisMac, title: "This Mac", location: .thisMac, children: volumes)
+        let thisMac = NavNode(kind: .thisMac, title: L10n.tr("This Mac"), location: .thisMac, children: volumes)
         let wasExpanded = roots.first { $0.kind == .thisMac }.map { outline.isItemExpanded($0) } ?? true
-        roots = [NavNode(kind: .place, title: "Home", location: .home),
-                 NavNode(kind: .place, title: "Gallery", location: .gallery)]
+        roots = [NavNode(kind: .place, title: L10n.tr("Home"), location: .home),
+                 NavNode(kind: .place, title: L10n.tr("Gallery"), location: .gallery)]
             + NavigationPaneExtras.nodes(.afterGallery)
             + [NavNode(kind: .separator, title: "", location: nil)]
             + favorites
             + [NavNode(kind: .separator, title: "", location: nil),
                thisMac,
-               NavNode(kind: .place, title: "Network", location: .network)]
+               NavNode(kind: .place, title: L10n.tr("Network"), location: .network)]
             + NavigationPaneExtras.nodes(.afterNetwork)
         roots = NavigationPaneHooks.roots(roots)
         suppressNavigation = true
@@ -248,6 +249,7 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
         let cell = outlineView.makeView(withIdentifier: id, owner: nil) as? NavCellView ?? NavCellView()
         cell.identifier = id
         cell.textField?.stringValue = node.title
+        cell.textField?.font = Theme.listFont
         cell.textField?.toolTip = node.url?.path ?? node.title
         cell.imageView?.image = node.icon
         cell.pin.isHidden = node.kind != .favorite

@@ -51,6 +51,9 @@ protocol ItemViewController: NSViewController {
     var selectedItems: [FileItem] { get }
     var selectedNames: [String] { get }
     func select(names: [String])
+    /// Selects exactly these items. Names can repeat (search results list items from many
+    /// folders), so restoring or inverting a selection must use URLs (QA-CORE-4).
+    func select(urls: [URL])
     /// Name of the first fully visible item, for scroll restoration.
     var topVisibleName: String? { get }
     func focus()
@@ -70,6 +73,11 @@ protocol ItemViewController: NSViewController {
 extension ItemViewController {
     var selectedNames: [String] { selectedItems.map(\.name) }
     func sizeToFit() {}
+    /// Fallback for views without their own: by name, which is exact while names are unique.
+    func select(urls: [URL]) {
+        let wanted = Set(urls.map(\.standardizedFileURL))
+        select(names: items.filter { wanted.contains($0.url.standardizedFileURL) }.map(\.name))
+    }
 }
 
 /// Maps each view mode to the factory that builds its view (B4). Unregistered modes fall back to Details.

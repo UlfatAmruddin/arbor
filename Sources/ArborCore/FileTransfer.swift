@@ -467,13 +467,17 @@ public final class FileTransfer: @unchecked Sendable {
             return Plan(source: source, target: folder, action: .immediate(.failed("The item no longer exists.")), sourceIsFolder: false)
         }
         let isFolder = FileOps.isPlainFolder(source)
-        if isFolder && FileOps.isSameOrInside(folder, source) && folder != source.deletingLastPathComponent().standardizedFileURL {
+        var target = folder.appendingPathComponent(source.lastPathComponent)
+        // The destination may spell the source's own folder differently (other letter case,
+        // a symbolic link): the "existing item" is then the source itself and must never be
+        // offered for replacing (QA-CORE-1).
+        let intoOwnFolder = target.standardizedFileURL == source || FileOps.isSameEntry(target, source)
+        if isFolder && !intoOwnFolder && FileOps.isSameOrInsideOnDisk(folder, source) {
             return Plan(source: source, target: folder,
                         action: .immediate(.failed("The destination folder is inside the folder being \(kind.pastVerb).")),
                         sourceIsFolder: isFolder)
         }
-        var target = folder.appendingPathComponent(source.lastPathComponent)
-        if target.standardizedFileURL == source {
+        if intoOwnFolder {
             if kind == .move {
                 return Plan(source: source, target: target, action: .immediate(.skipped("The item is already in this folder.")),
                             sourceIsFolder: isFolder)
@@ -616,7 +620,7 @@ public final class FileTransfer: @unchecked Sendable {
             }
             return merge(plan.source, into: plan.target, top: top)
         case .replace:
-            if FileOps.isSameOrInside(plan.source, plan.target) {
+            if FileOps.isSameOrInsideOnDisk(plan.source, plan.target) {
                 accountWhole(plan.source, known: known, top: top)
                 return .failed("Can't replace a folder that contains the item being \(self.kind.pastVerb).")
             }

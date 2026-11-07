@@ -3,6 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key><string>Arbor</string>
+	<key>CFBundleDevelopmentRegion</key><string>en</string>
 	<key>CFBundleDisplayName</key><string>Arbor</string>
 	<key>CFBundleIdentifier</key><string>io.github.arbor-files.Arbor</string>
 	<key>CFBundleExecutable</key><string>Arbor</string>

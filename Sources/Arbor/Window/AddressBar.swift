@@ -42,7 +42,7 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         translatesAutoresizingMaskIntoConstraints = false
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
-        setAccessibilityLabel("Address")
+        setAccessibilityLabel(L10n.tr("Address"))
 
         iconView.imageScaling = .scaleProportionallyDown
         addSubview(iconView)
@@ -55,8 +55,8 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         field.cell?.wraps = false
         field.delegate = self
         field.isHidden = true
-        field.placeholderString = "Type a path, ~/folder, or smb://server/share"
-        field.setAccessibilityLabel("Address")
+        field.placeholderString = L10n.tr("Type a path, ~/folder, or smb://server/share")
+        field.setAccessibilityLabel(L10n.tr("Address"))
         addSubview(field)
 
         for button in [refreshButton, overflowButton, rootChevron] {
@@ -67,12 +67,12 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         refreshButton.fixedWidth = 30
         refreshButton.fixedHeight = 26
         refreshButton.onClick = { [weak self] _ in self?.onRefresh?() }
-        refreshButton.setAccessibilityLabel("Refresh")
+        refreshButton.setAccessibilityLabel(L10n.tr("Refresh"))
         overflowButton.symbolSize = 9
         overflowButton.fixedWidth = 22
         overflowButton.fixedHeight = 24
         overflowButton.onPress = { [weak self] button in self?.showOverflowMenu(button) }
-        overflowButton.setAccessibilityLabel("Collapsed folders")
+        overflowButton.setAccessibilityLabel(L10n.tr("Collapsed folders"))
         configureChevron(rootChevron)
         rootChevron.onPress = { [weak self] button in self?.showMenu(Breadcrumbs.rootChildren(), current: self?.crumbs.first?.location, from: button) }
         heightAnchor.constraint(equalToConstant: Theme.fieldHeight).isActive = true
@@ -110,11 +110,11 @@ final class AddressBar: NSView, NSTextFieldDelegate {
             return b
         }
         chevronButtons = crumbs.enumerated().map { index, crumb in
-            let b = ChromeButton(symbol: "chevron.right", tooltip: "Folders in \(crumb.title)")
+            let b = ChromeButton(symbol: "chevron.right", tooltip: L10n.format("Folders in %@", crumb.title))
             configureChevron(b)
             let next = index + 1 < crumbs.count ? crumbs[index + 1].location : nil
             b.onPress = { [weak self] button in self?.showMenu(crumb.children(), current: next, from: button) }
-            b.setAccessibilityLabel("Folders in \(crumb.title)")
+            b.setAccessibilityLabel(L10n.format("Folders in %@", crumb.title))
             addSubview(b)
             return b
         }
@@ -158,6 +158,7 @@ final class AddressBar: NSView, NSTextFieldDelegate {
             chevronButtons[i].frame = NSRect(x: x, y: (h - 24) / 2, width: 18, height: 24)
             x += 18
         }
+        RightToLeft.mirrorBreadcrumb(self, chevrons: chevronButtons + [rootChevron])   // FE-204
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -178,7 +179,7 @@ final class AddressBar: NSView, NSTextFieldDelegate {
     private func showMenu(_ children: [CrumbChild], current: Location?, from button: ChromeButton) {
         let menu = NSMenu()
         if children.isEmpty {
-            let empty = NSMenuItem(title: "No folders", action: nil, keyEquivalent: "")
+            let empty = NSMenuItem(title: L10n.tr("No folders"), action: nil, keyEquivalent: "")
             empty.isEnabled = false
             menu.addItem(empty)
         }

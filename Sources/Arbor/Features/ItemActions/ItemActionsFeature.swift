@@ -181,8 +181,9 @@ enum SelectionCommands {
                 isEnabled: { $0.window?.itemView != nil && !($0.window?.visibleItems.isEmpty ?? true) },
                 perform: { ctx in
                     guard let window = ctx.window, let view = window.itemView else { return }
-                    let selected = Set(ctx.selection.map(\.name))
-                    view.select(names: window.visibleItems.map(\.name).filter { !selected.contains($0) })
+                    // By URL: search results can list several items with the same name.
+                    let selected = Set(ctx.selection.map(\.url))
+                    view.select(urls: window.visibleItems.map(\.url).filter { !selected.contains($0) })
                 }),
         ])
     }

@@ -87,7 +87,7 @@ final class ExplorerSearchController: SearchController {
             // In-place filter places: Return moves focus to the first match (DEC-014 behavior).
             guard let view = window.itemView else { return }
             view.focus()
-            if view.selectedItems.isEmpty, let first = view.items.first { view.select(names: [first.name]) }
+            if view.selectedItems.isEmpty, let first = view.items.first { view.select(urls: [first.url]) }
             return
         }
         if trimmed.isEmpty {
@@ -99,7 +99,7 @@ final class ExplorerSearchController: SearchController {
             SearchHistoryStore.update { $0.record(trimmed) }
             if let view = window.itemView {
                 view.focus()
-                if view.selectedItems.isEmpty, let first = view.items.first { view.select(names: [first.name]) }
+                if view.selectedItems.isEmpty, let first = view.items.first { view.select(urls: [first.url]) }
             }
             return
         }
@@ -286,7 +286,7 @@ final class SearchProgressFill: NSView {
                 fraction = 1
                 needsDisplay = true
                 NSAnimationContext.runAnimationGroup({ ctx in
-                    ctx.duration = 0.6
+                    ctx.duration = Theme.reduceMotion ? 0 : 0.6
                     self.animator().alphaValue = 0
                 }, completionHandler: { [weak self] in
                     if self?.state == .done { self?.isHidden = true; self?.fraction = 0 }

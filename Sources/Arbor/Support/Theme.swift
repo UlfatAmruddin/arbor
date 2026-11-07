@@ -17,10 +17,10 @@ enum Theme {
     static let contentBackground = dynamic(light: 0xFFFFFF, dark: 0x191919)
     /// Address and search boxes.
     static let fieldBackground = dynamic(light: 0xFFFFFF, dark: 0x343434)
-    static let fieldBorder = dynamic(light: 0xDCDCDC, dark: 0x404040)
-    static let separator = dynamic(light: 0xE3E3E3, dark: 0x383838)
+    static let fieldBorder = dynamic(light: 0xDCDCDC, dark: 0x404040, contrastLight: 0x6B6B6B, contrastDark: 0xA6A6A6)
+    static let separator = dynamic(light: 0xE3E3E3, dark: 0x383838, contrastLight: 0x8A8A8A, contrastDark: 0x8C8C8C)
     /// Thin separators between tabs.
-    static let tabSeparator = dynamic(light: 0xC8CBCF, dark: 0x3E3E3E)
+    static let tabSeparator = dynamic(light: 0xC8CBCF, dark: 0x3E3E3E, contrastLight: 0x7A7A7A, contrastDark: 0x9A9A9A)
 
     // MARK: States
 
@@ -34,10 +34,11 @@ enum Theme {
     /// Selected rows: accent-tinted (≈ #CCE4F7 light, ≈ #2D4A63 dark with a blue accent).
     static let selection = NSColor(name: "ArborSelection") { appearance in
         let accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) ?? .systemBlue
+        let contrast = isHighContrast(appearance)   // Increase contrast: a stronger tint
         if isDark(appearance) {
-            return accent.blended(withFraction: 0.62, of: NSColor(srgbRed: 0.23, green: 0.23, blue: 0.23, alpha: 1)) ?? accent
+            return accent.blended(withFraction: contrast ? 0.35 : 0.62, of: NSColor(srgbRed: 0.23, green: 0.23, blue: 0.23, alpha: 1)) ?? accent
         }
-        return accent.blended(withFraction: 0.80, of: .white) ?? accent
+        return accent.blended(withFraction: contrast ? 0.6 : 0.80, of: .white) ?? accent
     }
     static let selectionHover = NSColor(name: "ArborSelectionHover") { appearance in
         let base = selection.resolved(for: appearance)
@@ -50,7 +51,7 @@ enum Theme {
     // MARK: Text and glyphs
 
     static let primaryText = NSColor.labelColor
-    static let secondaryText = dynamic(light: 0x5F5F5F, dark: 0xC2C2C2)
+    static let secondaryText = dynamic(light: 0x5F5F5F, dark: 0xC2C2C2, contrastLight: 0x333333, contrastDark: 0xEBEBEB)
     static let disabledText = NSColor.tertiaryLabelColor
     static let iconTint = dynamic(light: 0x262626, dark: 0xE6E6E6)
     static var accent: NSColor { .controlAccentColor }
@@ -77,9 +78,10 @@ enum Theme {
     static let controlHeight: CGFloat = 32
     static let fieldHeight: CGFloat = 32
     static let cornerRadius: CGFloat = 4
-    static let treeRowHeight: CGFloat = 28
+    static var treeRowHeight: CGFloat { listRowHeight(28) }
     static let navPaneWidth: CGFloat = 230
-    static func rowHeight(compact: Bool) -> CGFloat { compact ? 24 : 28 }
+    /// Rows grow with View ▸ Text size so larger text is never clipped (FE-050).
+    static func rowHeight(compact: Bool) -> CGFloat { listRowHeight(compact ? 24 : 28) }
 
     // MARK: Helpers
 
@@ -91,8 +93,19 @@ enum Theme {
         NSColor(name: nil) { isDark($0) ? rgb(dark) : rgb(light) }
     }
 
+    /// A color with stronger variants for Increase contrast (FE-201).
+    static func dynamic(light: UInt32, dark: UInt32, contrastLight: UInt32, contrastDark: UInt32) -> NSColor {
+        NSColor(name: nil) { a in
+            isHighContrast(a) ? rgb(isDark(a) ? contrastDark : contrastLight) : rgb(isDark(a) ? dark : light)
+        }
+    }
+
+    /// Hover/pressed/selection overlays are about twice as strong with Increase contrast.
     static func overlay(lightAlpha: CGFloat, darkAlpha: CGFloat) -> NSColor {
-        NSColor(name: nil) { isDark($0) ? NSColor(white: 1, alpha: darkAlpha) : NSColor(white: 0, alpha: lightAlpha) }
+        NSColor(name: nil) {
+            let k: CGFloat = isHighContrast($0) ? 2.2 : 1
+            return isDark($0) ? NSColor(white: 1, alpha: darkAlpha * k) : NSColor(white: 0, alpha: lightAlpha * k)
+        }
     }
 
     static func rgb(_ hex: UInt32, alpha: CGFloat = 1) -> NSColor {

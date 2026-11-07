@@ -724,21 +724,9 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
 
     var dropTargetIndex: Int? { dropTarget }
 
-    // MARK: Accessibility (minimal: the visible items, their names and selection)
+    // MARK: Accessibility: one element per item (ItemGridAccessibility.swift)
 
-    override func accessibilityChildren() -> [Any]? {
-        visibleIndexes.prefix(400).map { i in
-            let element = NSAccessibilityElement()
-            element.setAccessibilityRole(.cell)
-            element.setAccessibilityLabel(items[i].name)
-            element.setAccessibilityParent(self)
-            element.setAccessibilitySelected(selection.selected.contains(i))
-            element.setAccessibilityFrameInParentSpace(geometry(i).highlight)
-            return element
-        }
-    }
+    override func accessibilityChildren() -> [Any]? { ItemGridAccessibility.children(self) }
 
-    override func accessibilitySelectedChildren() -> [Any]? {
-        (accessibilityChildren() ?? []).filter { ($0 as? NSAccessibilityElement)?.isAccessibilitySelected() == true }
-    }
+    override func accessibilitySelectedChildren() -> [Any]? { ItemGridAccessibility.selectedChildren(self) }
 }

@@ -409,6 +409,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
     private func captureViewState(_ tab: TabState) {
         guard tab === activeTab, tab.displayedLocation != nil, let view = itemView, !tab.showsPage else { return }
         tab.selectedNames = view.selectedNames
+        tab.selectedURLs = view.selectedItems.map(\.url)
         tab.topVisibleName = view.topVisibleName
     }
 
@@ -575,9 +576,16 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         let visible = tab.visibleItems
         let empty = tab.items?.isEmpty == false && visible.isEmpty
             ? "No items match “\(tab.searchText)”." : provider.emptyText(for: location)
+        // Restoring the tab's own selection: names can repeat in search results, so selecting by
+        // name could add items the user never picked (and Delete would then take them too).
+        let savedURLs = select != nil && select == tab.selectedNames
+            && Set(tab.selectedURLs.map(\.lastPathComponent)) == Set(tab.selectedNames) ? tab.selectedURLs : []
         view.display(ItemViewUpdate(items: visible, folder: provider.targetFolder(for: location), select: select,
                                     scrollTo: top, locationChanged: locationChanged, emptyText: empty,
                                     allowsEditing: provider.allowsItemEditing(in: location), location: location))
+        if !savedURLs.isEmpty, view.selectedItems.count > savedURLs.count {
+            view.select(urls: savedURLs)
+        }
         WindowHooks.didDisplay.forEach { $0(self, tab) }
     }
 
@@ -833,9 +841,13 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
     func itemViewOpen(_ items: [FileItem], inNewTab: Bool) { open(items, inNewTab: inNewTab) }
 
     func itemViewSelectionDidChange() {
-        if !activeTab.showsPage, let view = itemView { activeTab.selectedNames = view.selectedNames }
+        if !activeTab.showsPage, let view = itemView {
+            activeTab.selectedNames = view.selectedNames
+            activeTab.selectedURLs = view.selectedItems.map(\.url)
+        }
         updateChrome()
         refreshQuickLook()
+        WindowHooks.selectionChanged.forEach { $0(self) }
     }
 
     func itemViewContextMenu() -> NSMenu? {

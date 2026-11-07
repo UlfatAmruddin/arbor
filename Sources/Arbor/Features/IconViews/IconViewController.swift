@@ -104,13 +104,19 @@ final class IconViewController: NSViewController, ItemViewController, ItemGridHo
         }
         view.superview?.layoutSubtreeIfNeeded()
         let keepSelection = update.locationChanged ? [] : selectedNames
+        let keepURLs = update.locationChanged ? [] : Set(selectedItems.map(\.url))
         let keepTop = update.locationChanged ? nil : topVisibleName
         let focusedName = update.locationChanged ? nil : grid.selection.focus.flatMap { $0 < items.count ? items[$0].name : nil }
         folder = update.folder
         allowsEditing = update.allowsEditing
         grid.location = update.location
         grid.setItems(update.items, locationChanged: update.locationChanged)
-        select(names: update.select ?? keepSelection, notify: true)
+        if update.select == nil, !keepURLs.isEmpty {
+            // Search results can hold several items with one name: keep the selection by URL.
+            grid.setSelection(IndexSet(items.indices.filter { keepURLs.contains(items[$0].url) }), notify: true)
+        } else {
+            select(names: update.select ?? keepSelection, notify: true)
+        }
         if update.select == nil, let focusedName, let i = items.firstIndex(where: { $0.name == focusedName }),
            grid.selection.selected.contains(i) || grid.selection.selected.isEmpty {
             grid.selection.focus = i
@@ -142,6 +148,11 @@ final class IconViewController: NSViewController, ItemViewController, ItemGridHo
     }
 
     func select(names: [String]) { select(names: names, notify: true) }
+
+    func select(urls: [URL]) {
+        let wanted = Set(urls.map(\.standardizedFileURL))
+        grid.setSelection(IndexSet(items.indices.filter { wanted.contains(items[$0].url.standardizedFileURL) }), notify: true)
+    }
 
     private func select(names: [String], notify: Bool) {
         let wanted = Set(names)
