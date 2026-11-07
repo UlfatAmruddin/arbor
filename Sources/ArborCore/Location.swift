@@ -210,9 +210,9 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
 
     /// The root of a mounted volume ("/", "/Volumes/USB", …).
     public static func isVolumeRoot(_ url: URL) -> Bool {
-        let url = url.standardizedFileURL
-        if url.path == "/" { return true }
-        return (try? url.resourceValues(forKeys: [.isVolumeKey]))?.isVolume ?? false
+        // The kernel's mount table instead of a metadata read: this runs on the main thread for every
+        // tab title, icon and Up button, and a read can block on a slow network volume.
+        MountPoints.shared.isMountPoint(normalizedPath(url))
     }
 
     // MARK: Typed names

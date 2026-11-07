@@ -194,9 +194,17 @@ public enum FolderTemplateDetector {
     public static func detect(items: [FileItem]) -> FolderTemplate {
         var counts: [FolderTemplate: Int] = [:]
         var files = 0
+        // One lookup per extension, not per file (a type lookup per row dominated large folders).
+        var byExtension: [String: FolderTemplate?] = [:]
         for item in items where !item.isFolder && !item.isHidden {
             files += 1
-            if let kind = kind(of: item.name) { counts[kind, default: 0] += 1 }
+            let ext = TypeDescriptions.pathExtension(item.name)
+            let kind: FolderTemplate?
+            if let known = byExtension[ext] { kind = known } else {
+                kind = ext.isEmpty ? nil : self.kind(of: item.name)
+                byExtension[ext] = kind
+            }
+            if let kind { counts[kind, default: 0] += 1 }
         }
         guard files > 0 else { return .generalItems }
         // Ties go to the first in this order.

@@ -70,7 +70,8 @@ public enum FileSorter {
     nonisolated(unsafe) public static var columnValues: ColumnValueLookup?
 
     public static func sorted(_ items: [FileItem], by order: FileSortOrder) -> [FileItem] {
-        items.sorted { precedes($0, $1, order) }
+        if items.count >= LargeSort.threshold { return LargeSort.sorted(items, by: order) }
+        return items.sorted { precedes($0, $1, order) }
     }
 
     public static func precedes(_ a: FileItem, _ b: FileItem, _ order: FileSortOrder) -> Bool {

@@ -29,16 +29,54 @@ public enum DirectoryLister {
             throw ListingError.notFound(path: path)
         }
         guard isDirectory.boolValue else { throw ListingError.notAFolder(path: path) }
-        do {
-            let urls = try fileManager.contentsOfDirectory(
-                at: folder,
-                includingPropertiesForKeys: FileItem.resourceKeys,
-                options: includeHidden ? [] : [.skipsHiddenFiles]
-            )
-            return urls.compactMap(FileItem.init(url:))
-        } catch let error as NSError {
-            throw map(error, path: path)
+        // Streamed in batches rather than `contentsOfDirectory`: that returns every URL with its prefetched
+        // values at once (1.2 KB per entry, 120 MB for 100,000 entries) before any row exists, and the
+        // freed memory stayed with the process. Here at most one batch of URLs is alive (FE-228).
+        var failure: NSError?
+        var options: FileManager.DirectoryEnumerationOptions = [.skipsSubdirectoryDescendants, .skipsPackageDescendants]
+        if !includeHidden { options.insert(.skipsHiddenFiles) }
+        guard let enumerator = fileManager.enumerator(at: folder, includingPropertiesForKeys: FileItem.resourceKeys, options: options,
+                                                      errorHandler: { _, error in
+                                                          if failure == nil { failure = error as NSError }
+                                                          return false
+                                                      }) else {
+            throw ListingError.other(path: path, message: "“\(path)” couldn't be read.")
         }
+        var items: [FileItem] = []
+        var done = false
+        while !done {
+            autoreleasepool {
+                var batch: [URL] = []
+                batch.reserveCapacity(4_096)
+                while batch.count < 4_096 {
+                    guard let url = enumerator.nextObject() as? URL else { done = true; break }
+                    batch.append(url)
+                }
+                items += makeItems(batch)
+            }
+        }
+        if let failure, items.isEmpty { throw map(failure, path: path) }
+        return items
+    }
+
+    /// Builds the rows; large folders in parallel chunks (reading the prefetched values is about half
+    /// of a 100,000-entry listing's time). Order is kept.
+    static func makeItems(_ urls: [URL]) -> [FileItem] {
+        guard urls.count >= 4_000 else { return urls.compactMap(FileItem.init(url:)) }
+        let chunks = max(1, min(8, ProcessInfo.processInfo.activeProcessorCount))
+        let size = (urls.count + chunks - 1) / chunks
+        final class Parts: @unchecked Sendable {
+            var lists: [[FileItem]]
+            let lock = NSLock()
+            init(_ n: Int) { lists = Array(repeating: [], count: n) }
+        }
+        let parts = Parts(chunks)
+        DispatchQueue.concurrentPerform(iterations: chunks) { c in
+            let range = min(urls.count, c * size)..<min(urls.count, (c + 1) * size)
+            let made = urls[range].compactMap(FileItem.init(url:))
+            parts.lock.withLock { parts.lists[c] = made }
+        }
+        return parts.lists.flatMap { $0 }
     }
 
     /// Subfolders only, for the navigation tree.

@@ -53,6 +53,11 @@ Steps (separated by `;`; the first `:` separates a step from its argument):
 | `quit` | delete the headless preferences domain and exit |
 
 Features add steps and log lines from their own files: `DebugScript.registerStep("name") { arg, window in … }` and `DebugScript.registerLogger { window in "…" }`.
+A step that must hold the script until something finishes (a folder load, a copy) registers with `DebugScript.registerWaitStep("name") { arg, window, elapsed in … }`; it is polled until it returns true.
+
+## 3. Performance benchmarks
+`scripts/bench.sh` runs the memory and responsiveness workloads headless on generated fixtures; `scripts/bench.sh --check`
+fails when a result exceeds its budget. Steps (`memlog:`, `nav:`, `scroll:`, `stalls:`…), budgets and results: docs/PERFORMANCE.md.
 
 Rules of thumb:
 - Start with `wait:1` so the first location has loaded.

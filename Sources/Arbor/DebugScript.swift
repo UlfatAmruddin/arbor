@@ -30,6 +30,14 @@ enum DebugScript {
     static func registerStep(_ name: String, _ step: @escaping Step) { steps[name] = step }
     static func registerLogger(_ logger: @escaping (BrowserWindowController) -> String) { loggers.append(logger) }
 
+    /// A step that holds the script until it reports completion: called first with `elapsed` 0 (start
+    /// the work), then every few milliseconds until it returns true (benchmarks: wait for a load).
+    typealias WaitStep = (_ argument: String, _ window: BrowserWindowController?, _ elapsed: TimeInterval) -> Bool
+    private static var waitSteps: [String: WaitStep] = [:]
+    static func registerWaitStep(_ name: String, _ step: @escaping WaitStep) { waitSteps[name] = step }
+    /// The step running now (labels main-thread stall reports).
+    private(set) static var currentStep = ""
+
     static func runIfRequested() {
         guard let script = ProcessInfo.processInfo.environment["ARBOR_SCRIPT"] else { return }
         let list = script.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
@@ -39,9 +47,27 @@ enum DebugScript {
     private static func run(_ list: ArraySlice<String>, delay: TimeInterval) {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             guard let step = list.first else { return }
+            currentStep = step
+            let (command, argument) = split(step)
+            if let wait = waitSteps[command] {
+                poll(wait, argument, started: Date(), rest: list.dropFirst())
+                return
+            }
             let next = perform(step)
             run(list.dropFirst(), delay: next)
         }
+    }
+
+    private static func poll(_ wait: @escaping WaitStep, _ argument: String, started: Date, rest: ArraySlice<String>,
+                             first: Bool = true) {
+        let elapsed = first ? 0 : max(Date().timeIntervalSince(started), 0.000_001)
+        if wait(argument, controller, elapsed) { run(rest, delay: 0); return }
+        if elapsed > 600 {
+            NSLog("DebugScript: \(currentStep) timed out")
+            run(rest, delay: 0)
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) { poll(wait, argument, started: started, rest: rest, first: false) }
     }
 
     private static var controller: BrowserWindowController? { BrowserWindowController.active }

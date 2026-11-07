@@ -19,7 +19,17 @@ enum NavigationPaneExtras {
     }
 
     /// Rebuilds the pane in every window (after a node's icon or the set of nodes changed).
+    /// Coalesced: a disk image mount posts several changes, and each rebuild reads names on the main thread.
     static func refreshAll() {
+        pendingRefresh?.cancel()
+        let work = DispatchWorkItem { refreshAllNow() }
+        pendingRefresh = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
+    }
+
+    private static var pendingRefresh: DispatchWorkItem?
+
+    private static func refreshAllNow() {
         for controller in (NSApp.delegate as? AppDelegate)?.controllers ?? [] {
             controller.navPane.rebuild()
             controller.navPane.reveal(controller.activeTab.displayedLocation ?? controller.location)

@@ -5,6 +5,7 @@ import ArborCore
 final class DirectoryWatcher {
     private var source: DispatchSourceFileSystemObject?
     private var pending: DispatchWorkItem?
+    private var throttle = EventThrottle()
     private(set) var url: URL?
 
     func watch(_ url: URL, onChange: @escaping () -> Void) {
@@ -15,11 +16,16 @@ final class DirectoryWatcher {
         self.url = url
         let src = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fd, eventMask: [.write, .delete, .rename, .link, .extend], queue: .main)
+        throttle.reset()
         src.setEventHandler { [weak self] in
-            self?.pending?.cancel()
-            let work = DispatchWorkItem(block: onChange)
-            self?.pending = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
+            // Bursts become at most one reload a second, and the last change always reloads (EventThrottle).
+            guard let self, let delay = self.throttle.event(at: ProcessInfo.processInfo.systemUptime) else { return }
+            let work = DispatchWorkItem { [weak self] in
+                self?.throttle.fired(at: ProcessInfo.processInfo.systemUptime)
+                onChange()
+            }
+            self.pending = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
         }
         src.setCancelHandler { close(fd) }
         src.resume()
@@ -28,6 +34,7 @@ final class DirectoryWatcher {
 
     func stop() {
         pending?.cancel()
+        throttle.reset()
         source?.cancel()
         source = nil
         url = nil
@@ -47,7 +54,7 @@ enum DropPolicy {
         if flags.contains(.option) { return mask.contains(.copy) ? .copy : nil }
         if flags.contains(.command) { return canMove ? .move : nil }
         if sources.allSatisfy({ $0.deletingLastPathComponent().standardizedFileURL == dest }) { return nil }
-        if canMove, sources.allSatisfy({ FileOps.sameVolume($0, dest) }) { return .move }
+        if canMove, sources.allSatisfy({ FileOps.sameVolumeCached($0, dest) }) { return .move }   // asked on every hover move
         return mask.contains(.copy) ? .copy : nil
     }
 

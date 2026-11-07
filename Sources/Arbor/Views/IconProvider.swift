@@ -27,7 +27,9 @@ final class IconProvider {
         }
     }
 
-    private let cache = NSCache<NSString, NSImage>()
+    /// One byte budget for every window (CacheBudgets.iconBytes), trimmed under memory pressure.
+    let cache = ByteBudgetCache<String, NSImage>(byteLimit: CacheBudgets.iconBytes)
+    private let lock = NSLock()
     private lazy var specialFolders: [String: FolderKind] = {
         let fm = FileManager.default
         var map: [String: FolderKind] = [:]
@@ -45,7 +47,7 @@ final class IconProvider {
         return map
     }()
 
-    init() { cache.countLimit = 2500 }
+    init() {}
 
     func folderKind(for url: URL) -> FolderKind {
         specialFolders[Location.normalizedKey(url)] ?? .plain
@@ -66,20 +68,26 @@ final class IconProvider {
     /// change over time, are added on top by `icon(for:size:)` (see `ItemBadges`).
     func decoratedIcon(for item: FileItem, size: CGFloat) -> NSImage {
         guard let decorate = InteractionHooks.decorateIcon else { return plainIcon(for: item, size: size) }
-        return cached("decorated-\(item.url.path)-\(size)") {
-            let plain = plainIcon(for: item, size: size)
-            return decorate(item, plain, size) ?? plain
-        }
+        let key = "decorated-\(item.url.path)-\(size)"
+        if let hit = lock.withLock({ cache.value(for: key) }) { return hit }
+        let plain = plainIcon(for: item, size: size)
+        let decorated = decorate(item, plain, size)
+        // Most items aren't decorated: the entry then only points at the shared plain icon.
+        let pixels = Int(size * 2)
+        lock.withLock { cache.insert(decorated ?? plain, for: key, cost: decorated == nil ? 256 : max(1024, pixels * pixels * 4)) }
+        return decorated ?? plain
     }
 
     /// The icon without decorations or status badges.
     func plainIcon(for item: FileItem, size: CGFloat = 16) -> NSImage {
         if item.isFolder {
-            // Cached per path so the volume check runs once, not on every row redraw.
-            return cached("item-\(Location.normalizedKey(item.url))-\(size)") {
-                Location.isVolumeRoot(item.url) ? driveIcon(for: item.url, size: size)
-                                                : folderIcon(folderKind(for: item.url), size: size)
+            // The volume check reads the cached mount table, so folders share their kind's artwork instead of
+            // one cache entry per folder path; only drives are cached per path.
+            let key = Location.normalizedKey(item.url)
+            if MountPoints.shared.isMountPoint(key) {
+                return cached("item-\(key)-\(size)", cost: size) { driveIcon(for: item.url, size: size) }
             }
+            return folderIcon(folderKind(for: item.url), size: size)
         }
         return fileIcon(item.url, size: size)
     }
@@ -104,7 +112,7 @@ final class IconProvider {
     }
 
     func folderIcon(_ kind: FolderKind = .plain, size: CGFloat) -> NSImage {
-        cached("folder-\(kind.rawValue)-\(size)") {
+        cached("folder-\(kind.rawValue)-\(size)", cost: size) {
             NSImage(size: NSSize(width: size, height: size), flipped: true) { rect in
                 Self.drawFolder(in: rect, glyph: kind.glyph)
                 return true
@@ -122,7 +130,7 @@ final class IconProvider {
     }
 
     func symbolIcon(_ name: String, color: UInt32, size: CGFloat) -> NSImage {
-        cached("sym-\(name)-\(color)-\(size)") {
+        cached("sym-\(name)-\(color)-\(size)", cost: size) {
             NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
                 guard let img = NSImage.tintedSymbol(name, size: size * 0.78, color: Theme.rgb(color)) else { return false }
                 let s = img.size
@@ -134,8 +142,20 @@ final class IconProvider {
         }
     }
 
+    /// Extensions whose files can each look different (apps, icon files, links); everything else with
+    /// an extension uses its type's icon, looked up once instead of once per file (spec §15.3).
+    static let perFileIconExtensions: Set<String> = ["app", "icns", "ico", "lnk", "url", "webloc", "fileloc", "inetloc"]
+
     func fileIcon(_ url: URL, size: CGFloat) -> NSImage {
-        cached("file-\(url.path)-\(size)") {
+        let ext = url.pathExtension.lowercased()
+        if !ext.isEmpty, !Self.perFileIconExtensions.contains(ext), let type = UTType(filenameExtension: ext), !type.isDynamic {
+            return cached("type-\(type.identifier)-\(size)", cost: size) {
+                let image = NSWorkspace.shared.icon(for: type)
+                image.size = NSSize(width: size, height: size)
+                return image
+            }
+        }
+        return cached("file-\(url.path)-\(size)", cost: size) {
             // Items that aren't on disk (archive members) get their type's icon instead of a blank page.
             let image = FileManager.default.fileExists(atPath: url.path) ? NSWorkspace.shared.icon(forFile: url.path)
                 : NSWorkspace.shared.icon(for: UTType(filenameExtension: url.pathExtension) ?? .data)
@@ -144,15 +164,25 @@ final class IconProvider {
         }
     }
 
-    private func cached(_ key: String, make: () -> NSImage) -> NSImage {
-        if let hit = cache.object(forKey: key as NSString) { return hit }
+    /// `cost` is the icon's point size: an icon costs about its 2x bitmap once drawn.
+    private func cached(_ key: String, cost size: CGFloat = 32, make: () -> NSImage) -> NSImage {
+        if let hit = lock.withLock({ cache.value(for: key) }) { return hit }
         let image = make()
-        cache.setObject(image, forKey: key as NSString)
+        let pixels = Int(size * 2)
+        lock.withLock { cache.insert(image, for: key, cost: max(1024, pixels * pixels * 4)) }
         return image
     }
 
     /// Drops file icons (their type can change); folder artwork stays.
-    func purgeFileIcons() { cache.removeAllObjects() }
+    func purgeFileIcons() { lock.withLock { cache.removeAll() } }
+
+    /// Memory pressure (CacheRegistry).
+    func trim(_ level: CacheTrimLevel) {
+        lock.withLock { cache.trim(toBytes: level == .critical ? 0 : cache.byteLimit / 4) }
+    }
+
+    var cachedBytes: Int { lock.withLock { cache.totalCost } }
+    var cachedCount: Int { lock.withLock { cache.count } }
 
     // MARK: Folder artwork
 

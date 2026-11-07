@@ -45,14 +45,18 @@ public struct FileItem: Hashable, Sendable, Identifiable {
         self.typeDescription = typeDescription
     }
 
+    /// Keys `init(url:)` reads; prefetch them when enumerating a folder. The kind ("PDF document") is
+    /// not among them: Launch Services computes it per file, which was half the time of listing a
+    /// 100,000-entry folder, so it comes from `TypeDescriptions` (one lookup per extension) instead.
     public static let resourceKeys: [URLResourceKey] = [
         .nameKey, .isDirectoryKey, .isPackageKey, .isHiddenKey, .isSymbolicLinkKey,
-        .fileSizeKey, .contentModificationDateKey, .localizedTypeDescriptionKey, .typeIdentifierKey,
+        .fileSizeKey, .contentModificationDateKey, .isAliasFileKey,
     ]
+    private static let resourceKeySet = Set(resourceKeys)
 
     /// Reads metadata for an existing item. Returns nil if the item vanished.
     public init?(url: URL) {
-        guard let values = try? url.resourceValues(forKeys: Set(Self.resourceKeys)) else { return nil }
+        guard let values = try? url.resourceValues(forKeys: Self.resourceKeySet) else { return nil }
         let name = values.name ?? url.lastPathComponent
         let isSymlink = values.isSymbolicLink ?? false
         var isDirectory = values.isDirectory ?? false
@@ -68,8 +72,13 @@ public struct FileItem: Hashable, Sendable, Identifiable {
             }
         }
         let isFolder = isDirectory && !isPackage
+        let isAlias = !isSymlink && (values.isAliasFile ?? false)   // symbolic links also report isAliasFile
+        // A listed URL keeps every prefetched resource value; dropping them saves ~40 % of a row's memory
+        // (0.4 KB per entry, measured on 100,000 entries). They are read again on demand.
+        var stored = url
+        stored.removeAllCachedResourceValues()
         self.init(
-            url: url,
+            url: stored,
             name: name,
             isFolder: isFolder,
             isPackage: isPackage,
@@ -77,8 +86,11 @@ public struct FileItem: Hashable, Sendable, Identifiable {
             isSymbolicLink: isSymlink,
             size: isFolder ? nil : values.fileSize.map(Int64.init),
             modified: values.contentModificationDate,
-            typeDescription: ExplorerTypeName.name(localized: values.localizedTypeDescription, typeIdentifier: values.typeIdentifier,
-                                                   isFolder: isFolder, isSymbolicLink: isSymlink, targetDescription: targetType)
+            typeDescription: ExplorerTypeName.name(
+                localized: TypeDescriptions.shared.describe(url, name: name, isFolder: isFolder, isPackage: isPackage,
+                                                            isSymbolicLink: isSymlink, isAlias: isAlias),
+                typeIdentifier: isAlias ? ExplorerTypeName.aliasTypeIdentifier : nil,
+                isFolder: isFolder, isSymbolicLink: isSymlink, targetDescription: targetType)
         )
     }
 }

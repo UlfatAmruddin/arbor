@@ -247,17 +247,18 @@ struct NetworkDiscoveryTests {
 struct SlowWorkTests {
     @Test func timesOutWithoutWaitingForTheWork() async {
         let queue = SlowWorkQueue<Int>(label: "test.slow", callbackQueue: DispatchQueue(label: "test.callbacks"))
-        let started = Date()
-        let outcome: String = await withCheckedContinuation { continuation in
-            queue.run(key: "a", timeout: 0.2, work: { Thread.sleep(forTimeInterval: 4.0); return 1 }) { outcome in
-                if case .timedOut = outcome { continuation.resume(returning: "timeout") } else { continuation.resume(returning: "done") }
+        let workDone = NetworkCallCounter()
+        let result: (outcome: String, workFinishedFirst: Bool) = await withCheckedContinuation { continuation in
+            queue.run(key: "a", timeout: 0.2, work: { Thread.sleep(forTimeInterval: 4.0); workDone.bump(); return 1 }) { outcome in
+                let finished = workDone.value > 0
+                if case .timedOut = outcome { continuation.resume(returning: ("timeout", finished)) }
+                else { continuation.resume(returning: ("done", finished)) }
             }
         }
-        #expect(outcome == "timeout")
-        // The timeout must answer long before the 4 s of work ends. The margin is generous because
-        // in this test the callback queue shares the system thread pool with every parallel test
-        // (in the app it is the main queue, which other work can't starve).
-        #expect(Date().timeIntervalSince(started) < 3.0)
+        // The caller must hear "timed out" before the slow work ends. Ordering, not wall-clock time,
+        // is checked: on a loaded CI machine parallel tests can delay any callback by seconds.
+        #expect(result.outcome == "timeout")
+        #expect(!result.workFinishedFirst)
     }
 
     @Test func lateResultAndSharedJob() async {

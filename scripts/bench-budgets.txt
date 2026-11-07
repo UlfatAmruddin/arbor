@@ -1,0 +1,35 @@
+# Budgets for scripts/bench.sh --check: "<metric> <maximum>". A run fails when the median exceeds the maximum by more
+# than the margin (25 %, BENCH_MARGIN). Proposed from measurements on the reference Mac (docs/PERFORMANCE.md); the
+# values leave headroom for slower Macs, not for regressions. Derived metrics (per_tab, plateau, growth) are computed
+# by bench.sh from the medians.
+#
+# Idle launch (one folder, previews closed)
+idle.idle.footprint_mb                 45
+idle.launch.first_content_ms          600
+idle.idle.cpu_ms_per_s                  2
+# Ordinary browsing: ten 1,000-entry folders, five rounds
+browse.nav.p95_ms                      60
+browse.retained_growth_mb               6
+# Many tabs and windows
+tabs.open1.footprint_mb                70
+tabs.per_tab_mb                       1.2
+tabs.plateau_growth_mb                  4
+tabs.windows1.footprint_mb            120
+tabs.window_plateau_growth_mb           3
+# 100,000-entry folder
+large.first.ms                       1200
+large.big.peak_mb                     170
+large.large.max                       150
+large.large_details.max               350
+large.details.p95_ms                   12
+large.away2.footprint_mb              110
+# Thumbnails and Preview pane
+media.thumbs.footprint_mb              70
+media.paneclosed.footprint_mb          80
+# Search churn
+search.churn1.done_ms                1500
+search.churn1.stale                     0
+search.retained_growth_mb               6
+# Copies
+copy.small.peak_delta_mb               16
+copy.large.peak_delta_mb               16

@@ -25,7 +25,13 @@ public enum ProtectedSystemItems {
     }
 
     public static func filter(_ items: [FileItem]) -> [FileItem] {
-        items.filter { !isProtected(name: $0.name, parentPath: $0.url.deletingLastPathComponent().path, isHidden: $0.isHidden) }
+        // The parent path is only needed for hidden items; building it for every row of a 100,000-entry
+        // listing cost more than the rest of the filter.
+        items.filter { item in
+            if names.contains(item.name) || item.name.hasPrefix("._") { return false }
+            guard item.isHidden else { return true }
+            return !isProtected(name: item.name, parentPath: item.url.deletingLastPathComponent().path, isHidden: true)
+        }
     }
 }
 

@@ -21,7 +21,12 @@ final class TabState {
     var displayedLocation: Location?
     /// Cached listing for `displayedLocation` (nil for custom pages, or evicted).
     var items: [FileItem]? {
-        didSet { visibleCache = nil; if items != nil { TabState.touch(self) } }
+        didSet {
+            if let old = oldValue, old.count >= 10_000 { BackgroundRelease.drop(old) }
+            if let cache = visibleCache, cache.items.count >= 10_000 { BackgroundRelease.drop(cache.items) }
+            visibleCache = nil
+            if let items { TabState.touch(self, cost: CacheBudgets.listingCost(items)) } else { TabState.forget(self) }
+        }
     }
     /// Custom page, kept only while the tab is active.
     var page: NSViewController?
@@ -32,6 +37,10 @@ final class TabState {
     var renameAfterLoad: String?
     /// Set while the tab's content is not on screen yet (restore selection/scroll when it arrives).
     var restoreOnDisplay = false
+    /// The next reload is a background check (folder watcher, tab switch): if the listing is unchanged it
+    /// leaves the view alone instead of rebuilding it.
+    var quietReload = false
+    var quietToken: UUID?
 
     init(location: Location, viewMode: ViewMode = Prefs.defaultViewMode, sortOrder: FileSortOrder = Prefs.sortOrder) {
         history = NavigationHistory(start: location)
@@ -74,22 +83,50 @@ final class TabState {
     /// Drops the cached rows (a filter or a sort column's metadata changed).
     func invalidateVisibleItems() { visibleCache = nil }
 
-    // MARK: Bounded listing cache shared by all tabs (spec §15.3)
+    // MARK: Bounded listing cache shared by all tabs (spec §15.3, FE-251)
 
-    static var listingLimit = 8
-    private static var recent: [Weak] = []
+    /// Inactive tabs' listings share one byte budget (CacheBudgets.tabListingBytes), oldest evicted first;
+    /// an evicted tab lists its folder again when it's selected.
+    private(set) static var listingBudget = ListingBudget(byteLimit: CacheBudgets.tabListingBytes)
+    private static var listed: [String: Weak] = [:]
     private struct Weak { weak var tab: TabState? }
 
-    /// Marks a tab's listing as recently used and evicts the oldest beyond the limit.
-    static func touch(_ tab: TabState) {
-        recent.removeAll { $0.tab == nil || $0.tab === tab }
-        recent.append(Weak(tab: tab))
-        while recent.count > listingLimit {
-            let old = recent.removeFirst()
-            if let t = old.tab, !t.isActive { t.items = nil }
+    /// Marks a tab's listing as recently used and evicts the oldest inactive ones beyond the budget.
+    static func touch(_ tab: TabState, cost: Int) {
+        let key = tab.id.uuidString
+        listed[key] = Weak(tab: tab)
+        evict(listingBudget.touch(key, cost: cost, active: activeKeys))
+    }
+
+    static func forget(_ tab: TabState) {
+        let key = tab.id.uuidString
+        listed[key] = nil
+        listingBudget.remove(key)
+    }
+
+    /// Drops inactive listings down to `bytes` (memory pressure).
+    static func trimListings(toBytes bytes: Int) { evict(listingBudget.trim(toBytes: bytes, active: activeKeys)) }
+
+    private static var activeKeys: Set<String> {
+        Set(listed.compactMap { key, weak in weak.tab?.isActive == true ? key : nil })
+    }
+
+    private static func evict(_ keys: [String]) {
+        for key in keys {
+            let tab = listed.removeValue(forKey: key)?.tab
+            tab?.items = nil
         }
     }
 
-    /// Set by the window for the tab on screen; active tabs are never evicted.
-    var isActive = false
+    deinit {
+        let key = id.uuidString
+        TabState.listed[key] = nil
+        TabState.listingBudget.remove(key)
+    }
+
+    /// Set by the window for the tab on screen; active tabs are never evicted. An inactive tab also drops
+    /// its sorted copy of the rows (rebuilt when it is shown again).
+    var isActive = false {
+        didSet { if !isActive { visibleCache = nil } }
+    }
 }

@@ -62,7 +62,22 @@ final class RenameField: NSTextField {
 final class NameCellView: NSTableCellView {
     let icon = NSImageView()
     let nameField = RenameField()
-    let checkbox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    /// Made on first use: most rows never show one, and a check box is half the cost of a new cell.
+    private(set) lazy var checkbox: NSButton = {
+        let box = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+        box.translatesAutoresizingMaskIntoConstraints = false
+        box.controlSize = .small
+        box.isHidden = true
+        box.setAccessibilityLabel("Select")
+        addSubview(box)
+        NSLayoutConstraint.activate([
+            box.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            box.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+        hasCheckbox = true
+        return box
+    }()
+    private var hasCheckbox = false
     private var iconLeading: NSLayoutConstraint!
 
     init() {
@@ -80,19 +95,12 @@ final class NameCellView: NSTableCellView {
         nameField.cell?.usesSingleLineMode = true
         nameField.translatesAutoresizingMaskIntoConstraints = false
         nameField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        checkbox.translatesAutoresizingMaskIntoConstraints = false
-        checkbox.controlSize = .small
-        checkbox.isHidden = true
-        checkbox.setAccessibilityLabel("Select")
-        addSubview(checkbox)
         addSubview(icon)
         addSubview(nameField)
         imageView = icon
         textField = nameField
         iconLeading = icon.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6)
         NSLayoutConstraint.activate([
-            checkbox.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
-            checkbox.centerYAnchor.constraint(equalTo: centerYAnchor),
             iconLeading,
             icon.centerYAnchor.constraint(equalTo: centerYAnchor),
             icon.widthAnchor.constraint(equalToConstant: 16),
@@ -106,7 +114,7 @@ final class NameCellView: NSTableCellView {
     required init?(coder: NSCoder) { fatalError() }
 
     func setCheckboxVisible(_ visible: Bool) {
-        checkbox.isHidden = !visible
+        if visible || hasCheckbox { checkbox.isHidden = !visible }
         iconLeading.constant = visible ? 26 : 6
     }
 }
@@ -347,10 +355,13 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         DetailsColumns.apply(to: table, location: update.location)   // per-location extra columns (Trash, cloud, search)
         // A location with its own column layout owns the columns; the tab's column set applies elsewhere.
         if DetailsColumns.activeLayoutID(of: table) == nil { applyTabColumns() }
+        let hadGroups = !groups.isEmpty
+        if items.count >= 10_000 { BackgroundRelease.drop(items) }   // freed off the main thread
         items = regroup(update.items)
         rebuildRows()
         table.rowHeight = Theme.rowHeight(compact: Prefs.compactView)
-        table.reloadData()
+        // Without group rows, keep the cell views: reloadData() discards them all (spec §15.3).
+        if hadGroups || !groups.isEmpty { table.reloadData() } else { table.reloadKeepingViews() }
         headerOverlay?.needsDisplay = true
         if update.select == nil, !keepURLs.isEmpty {
             // Search results can hold several items with one name: keep the selection by URL.
@@ -451,9 +462,11 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
             cell.nameField.setAccessibilityLabel(item.name)
             cell.icon.image = IconProvider.shared.icon(for: item, size: 16)
             cell.setCheckboxVisible(Prefs.itemCheckBoxes)
-            cell.checkbox.state = table.isRowSelected(row) ? .on : .off
-            cell.checkbox.target = self
-            cell.checkbox.action = #selector(checkboxClicked(_:))
+            if Prefs.itemCheckBoxes {
+                cell.checkbox.state = table.isRowSelected(row) ? .on : .off
+                cell.checkbox.target = self
+                cell.checkbox.action = #selector(checkboxClicked(_:))
+            }
             cell.alphaValue = dimmed ? 0.5 : 1
             ItemViewHooks.decorateName?(cell.nameField, item, row, tableView)
             return cell

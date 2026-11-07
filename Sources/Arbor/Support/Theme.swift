@@ -166,6 +166,32 @@ class ThemeBackgroundView: NSView {
 
     override var isOpaque: Bool { false }
 
+    /// A plain fill (no hairlines, no subclass drawing) is the layer's background color instead of a
+    /// drawn bitmap: a window-sized backing store is ~14 MB at 2x, and the window has several of these
+    /// views stacked (docs/PERFORMANCE.md). Snapshots (`cacheDisplay`) still go through `draw(_:)`.
+    override var wantsUpdateLayer: Bool {
+        bottomLine == nil && topLine == nil && !Self.subclassDraws(type(of: self))
+    }
+
+    override func updateLayer() {
+        guard let layer else { return }
+        effectiveAppearance.performAsCurrentDrawingAppearance { layer.backgroundColor = color.cgColor }
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+    }
+
+    private static var drawingSubclasses: [ObjectIdentifier: Bool] = [:]
+    private static func subclassDraws(_ type: ThemeBackgroundView.Type) -> Bool {
+        if let known = drawingSubclasses[ObjectIdentifier(type)] { return known }
+        let selector = #selector(NSView.draw(_:))
+        let draws = type.instanceMethod(for: selector) != ThemeBackgroundView.instanceMethod(for: selector)
+        drawingSubclasses[ObjectIdentifier(type)] = draws
+        return draws
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         color.setFill()
         bounds.intersection(dirtyRect).fill(using: .sourceOver)

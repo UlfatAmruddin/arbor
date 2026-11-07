@@ -10,10 +10,7 @@ final class ThumbnailService {
     static let shared = ThumbnailService()
 
     /// Decoded-bytes budget. 64 MB holds ~64 Extra large (512 px) or ~1,700 Medium (96 px) thumbnails.
-    static var defaultByteLimit: Int {
-        if let mb = ProcessInfo.processInfo.environment["ARBOR_THUMBNAIL_BUDGET_MB"].flatMap(Int.init) { return mb << 20 }
-        return 64 << 20
-    }
+    static var defaultByteLimit: Int { CacheBudgets.thumbnailBytes }   // ARBOR_THUMBNAIL_BUDGET_MB overrides
 
     let cache = ByteBudgetCache<ThumbnailKey, CGImage>(byteLimit: ThumbnailService.defaultByteLimit)
     /// Files the generator couldn't thumbnail (bounded; cleared when it grows).

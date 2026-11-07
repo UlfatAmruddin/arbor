@@ -184,8 +184,15 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         navPane.reveal(location)
     }
 
+    private var navPaneRebuild: DispatchWorkItem?
+
     private func volumesChanged(_ note: Notification) {
-        rebuildNavPane()
+        // Coalesced: mounting one disk image posts several notifications, and each rebuild reads every
+        // volume's name on the main thread.
+        navPaneRebuild?.cancel()
+        let rebuild = DispatchWorkItem { [weak self] in self?.rebuildNavPane() }
+        navPaneRebuild = rebuild
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: rebuild)
         guard note.name == NSWorkspace.didUnmountNotification,
               let volume = note.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
         for tab in tabs {
@@ -270,6 +277,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         } else if tab.items != nil, !tab.showsPage {
             display(tab, select: tab.selectedNames, top: tab.topVisibleName, locationChanged: true)
             startWatching(tab)
+            tab.quietReload = true
             request(.reload, tab: tab)
         } else {
             tab.restoreOnDisplay = true
@@ -475,6 +483,8 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         let provider = LocationRegistry.provider(for: target)
         let token = UUID()
         tab.loadToken = token
+        tab.quietToken = tab.quietReload ? token : nil
+        tab.quietReload = false
         tab.pendingLoad?.cancel()
         let slow = DispatchWorkItem { [weak self, weak tab] in
             guard let self, let tab, tab.loadToken == token, tab === self.activeTab else { return }
@@ -496,6 +506,12 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         case .failure(let error):
             loadFailed(request, tab: tab, target: target, error: error)
         case .success(let content):
+            if case .reload = request, tab.quietToken == tab.loadToken, case .items(let listed) = content,
+               tab.displayedLocation == target, !tab.showsPage,
+               !tab.restoreOnDisplay, tab.renameAfterLoad == nil, let shown = tab.items, shown.count <= listed.count,
+               shown == WindowHooks.filter(listed, target) {
+                return   // Nothing changed (metadata-only event, tab switch): keep rows, selection and scroll as they are.
+            }
             switch request {
             case .visit(let location, let names, _): tab.history.visit(location, selectedNames: names)
             case .back: tab.history.goBack()
@@ -579,6 +595,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         guard let shown = tab.displayedLocation else { watchToken = nil; return }
         watchToken = LocationRegistry.provider(for: shown).watch(shown) { [weak self, weak tab] in
             guard let self, let tab, tab === self.activeTab else { return }
+            tab.quietReload = true
             self.request(.reload, tab: tab)
         }
     }

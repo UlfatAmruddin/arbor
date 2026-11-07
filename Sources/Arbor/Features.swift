@@ -44,7 +44,7 @@ enum Features {
         ConsistencyFeature.register()   // slot: consistency across features
         FileOperationsExtras.register()   // file-operation extras (after Archives and Properties, whose commands they extend)
 
-        // slot: (spare 2)
+        PerformanceFeature.register()   // slot: memory and responsiveness
     }
 }
 

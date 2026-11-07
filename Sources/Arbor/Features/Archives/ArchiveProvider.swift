@@ -59,6 +59,14 @@ final class ArchiveCatalog: @unchecked Sendable {
         return result
     }
 
+    /// Entries held by all cached listings (memory reporting, spec §15.3).
+    var entryCount: Int { lock.withLock { cache.reduce(0) { $0 + $1.listing.entries.count } } }
+
+    /// Keeps the `count` most recent listings (memory pressure).
+    func trim(keeping count: Int) {
+        lock.withLock { if cache.count > count { cache.removeLast(cache.count - count) } }
+    }
+
     /// The member a listing row stands for.
     func entry(for item: FileItem) -> (ref: ArchiveItemRef, node: ArchiveIndex.Node?)? {
         guard let ref = Self.ref(for: item.url) else { return nil }

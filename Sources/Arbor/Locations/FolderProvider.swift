@@ -10,8 +10,11 @@ final class FolderProvider: LocationProvider {
         guard let url = location.folderURL else { return nil }
         let handle = LoadHandle()
         let includeHidden = context.showHidden
+        let order = Prefs.sortOrder
         DispatchQueue.global(qos: .userInitiated).async {
+            // Large folders arrive sorted in the usual order, so the main thread only verifies it (FE-228).
             let result = Result { try DirectoryLister.list(url, includeHidden: includeHidden) }
+                .map { $0.count >= 2_000 && !handle.isCancelled ? FileSorter.sorted($0, by: order) : $0 }
             DispatchQueue.main.async {
                 guard !handle.isCancelled else { return }
                 completion(result.map { .items($0) })
