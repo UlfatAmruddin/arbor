@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Headless run of the task scenarios T01–T30 (docs/SPEC.md §17.5) against build/Arbor.app.
-# Every scenario builds its own fixture in a fresh `mktemp -d` folder with a private Trash, journal and history.
+# Every scenario builds its own fixture in a fresh folder (arbor_mktemp_dir) with a private Trash, journal and history.
 # Results and how to read them: docs/ACCEPTANCE.md.
 #
 # Usage: scripts/build-app.sh debug && scripts/acceptance.sh [T01 T07 …]   (no names = all scenarios)
@@ -22,7 +22,7 @@ want() { [[ "$WANTED" == *" all "* || "$WANTED" == *" $1 "* ]]; }
 # begin <id> <title>: start a scenario with a fresh fixture root in $R.
 begin() {
   SCEN="$1"; SCEN_TITLE="$2"; SCEN_FAILS=0; SCEN_NOTE=""
-  R=$(mktemp -d); R=$(cd "$R" && pwd -P); mkdir -p "$R/trash" "$R/journal" "$R/state"
+  R=$(arbor_mktemp_dir); R=$(cd "$R" && pwd -P); mkdir -p "$R/trash" "$R/journal" "$R/state"
   K="${R#/private}"   # the same folder as location keys spell it
   echo "== $SCEN $SCEN_TITLE"
 }

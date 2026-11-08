@@ -198,7 +198,7 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
     /// Opens a read-only copy so the stored version itself is never edited.
     private func openVersion() {
         guard let version = current, let url = model.single?.url else { return }
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("Arbor Versions/\(UUID().uuidString)")
+        let folder = TemporaryFiles.versionsFolder.appendingPathComponent(UUID().uuidString)
         let stamp = version.date.map { PropertyFormat.shortDate($0).replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: ".") } ?? "version"
         let (base, ext) = NameRules.splitExtension(url.lastPathComponent, treatAsFolder: false)
         let target = folder.appendingPathComponent("\(base) (\(stamp))" + (ext.map { ".\($0)" } ?? ""))

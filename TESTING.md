@@ -84,7 +84,7 @@ menu item delivers it) and a `clipboard:` line in `log:` (pasteboard names, copy
 
 ## 6. The scripted suites and continuous integration
 `scripts/behavior-checks.sh`, `scripts/core-checks.sh`, `scripts/acceptance.sh` and `scripts/bench.sh` share
-`scripts/lib/app-bundle.sh`, which adds three guards before the first check:
+`scripts/lib/app-bundle.sh`, which adds four guards before the first check:
 
 - **Stale bundle.** The suites test `build/Arbor.app`, not the sources. When any file under `Sources/` or `Resources/`, or
   `Package.swift` / `Package.resolved`, is newer than `build/Arbor.app/Contents/MacOS/Arbor`, a suite stops with exit 2
@@ -96,6 +96,10 @@ menu item delivers it) and a `clipboard:` line in `log:` (pasteboard names, copy
   what it is waiting for and starts when the first one ends. `ARBOR_LOCK_WAIT=<seconds>` limits the wait (default 3600;
   `0` exits at once with code 2), `ARBOR_LOCK_DIR` moves the lock. A lock whose process no longer runs is taken over. The
   app itself keeps each headless run apart (preferences domain, pasteboards, Trash, journal and history are per process).
+- **Own temporary folder.** While a suite holds the lock, `TMPDIR` points into `$TMPDIR/arbor-suite.<pid>.XXXXXX`;
+  every fixture (`arbor_mktemp_dir`), the app's temporary files and the build tools' scratch go there, and the folder is
+  removed when the suite exits, also after Ctrl-C or a failure. Folders of suites that were killed are removed when the
+  next suite starts. `ARBOR_KEEP_TMP=1` (or `ACCEPT_KEEP=1`) keeps it and prints its path.
 - **Smoke launch.** The app is started headless once; if it can't start here at all (no window server session, broken
   bundle), the suite stops with exit 2 and the app's output instead of reporting every check as failed.
 
@@ -105,6 +109,18 @@ files, snapshots and fixture) into `<dir>`, and remove the rest as usual.
 Checks that can't run in an environment say so in a `skip` line with the reason, and acceptance marks the scenario
 `partial`: no disk image (`hdiutil` failed: behavior `undomove`, T13, the disk part of T26), a case-sensitive temporary
 volume (QA-CORE-2), running as root, where permissions aren't enforced (T18, T21, T23).
+
+### Temporary files
+Nothing a run creates should outlive it:
+
+- The app in headless mode keeps the journal, history and Trash it would keep in `~/Library` in
+  `$TMPDIR/arbor-headless-<pid>`, removed when the app exits. Folders of headless runs that crashed or were killed are
+  removed at the next launch, headless or not (`TemporaryFiles.sweepLeftovers`, unit-tested). `ARBOR_JOURNAL_DIR`,
+  `ARBOR_HISTORY_FILE` and `ARBOR_TEST_TRASH` still put them where a script wants.
+- For everyone, read-only copies of Time Machine versions opened from Properties (`$TMPDIR/Arbor Versions`) are removed
+  a day after they were made; "Arbor Archives" is cleaned per launch.
+- `scripts/test.sh` first removes unit-test fixtures (`arbor-tests-*`, `arbor-vol-*`, `arbor-qa-*`) and detaches test
+  disk images left by runs that were interrupted, once they are two hours old; newer ones may belong to a run in progress.
 
 ### What CI runs
 `.github/workflows/ci.yml` runs three jobs in parallel on every push and pull request, on GitHub's `macos-26` runner

@@ -34,14 +34,14 @@ discard() {
 }
 
 # QA-CORE-3: after cut and paste, Paste is disabled (the clipboard no longer names moved files).
-R=$(mktemp -d); mkdir -p "$R/trash" "$R/A" "$R/B"; echo 1 > "$R/A/one.txt"
+R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/A" "$R/B"; echo 1 > "$R/A/one.txt"
 run "$R" "$R/A" "wait:1;select:one.txt;click:edit.cut;event;location:$R/B;wait:1;click:edit.paste;event;wait:2;menu:background:$R/menu.txt;quit"
 check "cut and paste empties the clipboard" "$R/menu.txt" "Paste [⌘V] (disabled)"
 [ -f "$R/B/one.txt" ] && [ ! -e "$R/A/one.txt" ] || fail "cut and paste moved the file"
 discard qa-core-3 "$R"
 
 # QA-CORE-4: one of several same-named search results stays the only selected item.
-R=$(mktemp -d); mkdir -p "$R/trash" "$R/P/one" "$R/P/two" "$R/P/three"
+R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/P/one" "$R/P/two" "$R/P/three"
 for d in one two three; do echo "$d" > "$R/P/$d/readme.txt"; done
 run "$R" "$R/P" "wait:1;search:readme;event;enter;wait:3;log:$R/a.txt;newtab;wait:1;tab:1;wait:1.5;log:$R/b.txt;view:largeIcons;wait:1;refresh;wait:2;log:$R/c.txt;click:edit.invertSelection;wait:0.5;log:$R/d.txt;quit"
 check "Return in search selects one result" "$R/a.txt" "selected: readme.txt"
@@ -51,7 +51,7 @@ check "invert selection with same names" "$R/d.txt" "selected: readme.txt | read
 discard qa-core-4 "$R"
 
 # QA-CORE-2: a path typed in other letter case opens the folder as spelled on disk.
-R=$(mktemp -d); mkdir -p "$R/trash" "$R/Docs/Sub"
+R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/Docs/Sub"
 LOWER=$(printf '%s' "$R/docs/sub")
 if [ -e "$LOWER" ]; then   # case-insensitive volume
   run "$R" "$R/Docs" "wait:1;address:$LOWER;wait:1.5;log:$R/a.txt;quit"

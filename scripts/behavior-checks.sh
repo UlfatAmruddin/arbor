@@ -58,7 +58,7 @@ fact() {   # fact <name> <shell test…>
 
 # QA-CORE-6: Undo and Redo keep each action's own name, however often they alternate.
 if want undo; then
-  R=$(mktemp -d); mkdir -p "$R/trash" "$R/F/sub"
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F/sub"
   for n in a b c d e; do echo "$n" > "$R/F/$n.txt"; done
   # A 1×1 PNG, for Rotate.
   echo "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAEElEQVR4nGP4z8DAwMDAAAAJ/gH/4cXYyAAAAABJRU5ErkJggg==" | base64 -D > "$R/F/p.png"
@@ -91,7 +91,7 @@ fi
 
 # QA-CORE-5: Undo of a move from another volume runs as a background job (progress, cancel), not on the main thread.
 if want undomove; then
-  R=$(mktemp -d); mkdir -p "$R/trash" "$R/A" "$R/mnt"
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/A" "$R/mnt"
   if hdiutil create -size 24m -fs HFS+ -volname ArborUndo -quiet "$R/v.dmg" && \
      hdiutil attach -nobrowse -noautoopen -quiet -mountpoint "$R/mnt" "$R/v.dmg"; then
     dd if=/dev/zero of="$R/A/big.bin" bs=1048576 count=4 2>/dev/null
@@ -113,13 +113,13 @@ fi
 
 # Selection identity: duplicated tabs and the selection after a delete keep exactly the chosen items.
 if want selection; then
-  R=$(mktemp -d); mkdir -p "$R/trash" "$R/P/one" "$R/P/two" "$R/P/three"
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/P/one" "$R/P/two" "$R/P/three"
   for d in one two three; do echo "$d" > "$R/P/$d/a.txt"; done
   echo b > "$R/P/three/b.txt"
   run "$R" "$R/P" "wait:1;search:txt;event;wait:3;select:b.txt;wait:0.5;log:$R/s0.txt;click:file.trash;event;wait:3;log:$R/s1.txt;quit"
   check "search results listed" "$R/s0.txt" "selected: b.txt"
   check "after a delete only one neighbour is selected" "$R/s1.txt" "selected: a.txt"
-  R2=$(mktemp -d); mkdir -p "$R2/trash" "$R2/P/one" "$R2/P/two"
+  R2=$(arbor_mktemp_dir); mkdir -p "$R2/trash" "$R2/P/one" "$R2/P/two"
   for d in one two; do echo "$d" > "$R2/P/$d/readme.txt"; done
   run "$R2" "$R2/P" "wait:1;search:readme;event;enter;wait:3;log:$R2/d0.txt;duptab;wait:3;log:$R2/d1.txt;quit"
   check "one same-named result selected" "$R2/d0.txt" "selected: readme.txt"
@@ -129,7 +129,7 @@ fi
 
 # Rename prompts are window-modal sheets that scripts can answer.
 if want sheets; then
-  R=$(mktemp -d); mkdir -p "$R/trash" "$R/F"; echo 1 > "$R/F/a.txt"; echo 2 > "$R/F/b.txt"; echo 3 > "$R/F/c.txt"
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F"; echo 1 > "$R/F/a.txt"; echo 2 > "$R/F/b.txt"; echo 3 > "$R/F/c.txt"
   run "$R" "$R/F" "wait:1;select:a.txt;click:file.rename;event;type:a.md;enter;wait:1;log:$R/x1.txt;sheetlog:$R/x1.txt;button:Use .md;wait:1.5;log:$R/x2.txt;select:b.txt;click:file.rename;event;type:b.rtf;enter;wait:1;button:Cancel;wait:1;escape;wait:1;log:$R/x3.txt;select:c.txt;click:file.rename;event;type:b.txt;enter;wait:1;log:$R/x4.txt;sheetlog:$R/x4.txt;button:OK;wait:1;escape;wait:1;log:$R/x5.txt;quit"
   check "extension change asks in a sheet" "$R/x1.txt" "sheet: true"
   contains "extension prompt wording" "$R/x1.txt" "Change the file name extension?"
@@ -144,7 +144,7 @@ fi
 
 # qa-places #12: a second network error waits for the first sheet instead of stacking or going app-modal.
 if want network; then
-  R=$(mktemp -d); mkdir -p "$R/trash" "$R/F" "$R/state"
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/state"
   run "$R" "$R/F" "wait:1;address:\\\\nope-one\\a;wait:2;address:\\\\nope-two\\b;wait:2;address:\\\\nope-one\\a;wait:2;sheetlog:$R/n1.txt;button:Cancel;wait:1;sheetlog:$R/n2.txt;button:Cancel;wait:1;sheetlog:$R/n3.txt;log:$R/n4.txt;quit" \
     ARBOR_FAKE_NETWORK=1 ARBOR_STATE_DIR="$R/state"
   contains "first error shows" "$R/n1.txt" "nope-one"
@@ -156,7 +156,7 @@ fi
 
 # Headless runs never open anything outside Arbor's windows: requests are logged instead.
 if want headless; then
-  R=$(mktemp -d); mkdir -p "$R/trash" "$R/F"; echo 1 > "$R/F/a.txt"
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F"; echo 1 > "$R/F/a.txt"
   run "$R" "$R/F" "wait:1;select:a.txt;click:file.open;wait:0.5;click:file.showInFinder;wait:0.5;click:file.openInTerminal;wait:0.5;log:$R/h.txt;quit"
   P=$(cd "$R/F" && pwd -P)   # items are listed under the physical path (/private/var/…)
   contains "opening a file is only logged" "$R/h.txt" "system open: open $P/a.txt"
@@ -167,7 +167,7 @@ fi
 
 # consistency.md: opening a file shortcut records its target in Recent.
 if want recent; then
-  R=$(mktemp -d); mkdir -p "$R/trash" "$R/F" "$R/state"; echo 1 > "$R/F/report.txt"
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/state"; echo 1 > "$R/F/report.txt"
   run "$R" "$R/F" "wait:1;select:report.txt;click:file.createShortcut;event;wait:1.5;escape;wait:0.5;log:$R/r0.txt;select:report.txt - Shortcut;click:file.open;wait:1;log:$R/r1.txt;quit" \
     ARBOR_STATE_DIR="$R/state"
   contains "shortcut created" "$R/r0.txt" "report.txt - Shortcut"
@@ -178,7 +178,7 @@ fi
 
 # file-operations.md: a job still waiting in the queue at quit is offered again at the next launch.
 if want queue; then
-  R=$(mktemp -d); mkdir -p "$R/trash" "$R/A" "$R/B"
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/A" "$R/B"
   dd if=/dev/zero of="$R/A/one.bin" bs=1048576 count=6 2>/dev/null; echo two > "$R/A/two.txt"
   run "$R" "$R/A" "wait:1;opqueue:limit=1;opstart:copy:$R/A/one.bin:$R/B;wait:0.5;opstart:copy:$R/A/two.txt:$R/B;wait:1;log:$R/q0.txt;terminate" \
     ARBOR_TRANSFER_THROTTLE=500000

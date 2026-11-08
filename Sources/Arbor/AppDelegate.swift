@@ -8,6 +8,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static var isHeadless: Bool { ProcessInfo.processInfo.environment["ARBOR_HEADLESS"] != nil }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Folders and files earlier runs left in the temporary folder (crashed or killed test runs, old
+        // version copies). Off the main thread; it never touches this process's own files.
+        DispatchQueue.global(qos: .utility).async { TemporaryFiles.sweepLeftovers() }
         Theme.applyEnvironmentAppearance()
         Features.registerAll()
         NSApp.mainMenu = MainMenu.build()

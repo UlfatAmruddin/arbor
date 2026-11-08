@@ -7,7 +7,7 @@ public enum SystemTrash {
         let env = ProcessInfo.processInfo.environment
         if let path = env["ARBOR_TEST_TRASH"] { return URL(fileURLWithPath: path) }
         guard env["ARBOR_HEADLESS"] != nil else { return nil }
-        return FileManager.default.temporaryDirectory.appendingPathComponent("arbor-test-trash-\(getpid())")
+        return TemporaryFiles.headlessFolder("trash")
     }()
 
     /// Moves the item to the Trash and returns where it ended up.

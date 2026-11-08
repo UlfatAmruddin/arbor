@@ -177,7 +177,7 @@ final class TimeMachineVersionsView: NSStackView {
             return
         }
         // A locked copy in a temporary folder: the backup itself is never opened for editing.
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("Arbor Versions/\(UUID().uuidString)")
+        let folder = TemporaryFiles.versionsFolder.appendingPathComponent(UUID().uuidString)
         let stamp = PropertyFormat.shortDate(version.date).replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: ".")
         let (base, ext) = NameRules.splitExtension(item.lastPathComponent, treatAsFolder: false)
         let target = folder.appendingPathComponent("\(base) (\(stamp))" + (ext.map { ".\($0)" } ?? ""))

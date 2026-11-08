@@ -36,7 +36,7 @@ enum FileOpsEnvironment {
         let env = ProcessInfo.processInfo.environment
         if let path = env["ARBOR_JOURNAL_DIR"] { return URL(fileURLWithPath: path) }
         if AppDelegate.isHeadless {
-            return FileManager.default.temporaryDirectory.appendingPathComponent("arbor-test-journal-\(getpid())")
+            return TemporaryFiles.headlessFolder("journal")
         }
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")

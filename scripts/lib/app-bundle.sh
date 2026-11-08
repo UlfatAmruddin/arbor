@@ -18,7 +18,13 @@
 #      ARBOR_LOCK_DIR=<dir>  the lock directory (default $TMPDIR/arbor-app-suites.lock)
 #    A lock left by a suite that no longer runs (crash, kill -9) is taken over.
 #
-# 3. Smoke launch. Before the first check, the app is started headless once; when it can't start at
+# 3. One temporary folder per suite run. While a suite holds the lock, TMPDIR points into
+#    $TMPDIR/arbor-suite.<pid>.XXXXXX, so every fixture (arbor_mktemp_dir), the app's own temporary files and
+#    the build tools' scratch land there. It is removed when the suite exits, also after Ctrl-C or a
+#    failure; folders of suites that were killed are removed when the next suite starts.
+#      ARBOR_KEEP_TMP=1      keep it (its path is printed); ACCEPT_KEEP=1 keeps it too
+#
+# 4. Smoke launch. Before the first check, the app is started headless once; when it can't start at
 #    all here (no window server session, a broken bundle) the suite stops with that reason instead of
 #    reporting every check as failed.
 
@@ -28,6 +34,8 @@ ARBOR_LOCK_DIR="${ARBOR_LOCK_DIR:-${TMPDIR:-/tmp}}"
 case "$ARBOR_LOCK_DIR" in *.lock) ;; *) ARBOR_LOCK_DIR="${ARBOR_LOCK_DIR%/}/arbor-app-suites.lock" ;; esac
 ARBOR_SUITE="${ARBOR_SUITE:-$(basename "$0")}"
 ARBOR_LOCK_HELD=0
+ARBOR_REAL_TMPDIR="${TMPDIR:-/tmp}"; ARBOR_REAL_TMPDIR="${ARBOR_REAL_TMPDIR%/}"
+ARBOR_SUITE_TMP=""
 
 arbor_say() { echo "$ARBOR_SUITE: $*" >&2; }
 
@@ -102,6 +110,7 @@ arbor_take_suite_lock() {
   echo "$ARBOR_SUITE" > "$ARBOR_LOCK_DIR/suite"
   date "+%Y-%m-%d %H:%M:%S" > "$ARBOR_LOCK_DIR/started"
   ARBOR_LOCK_HELD=1
+  arbor_enter_suite_temp
   # Interrupted, terminated or writing into a closed pipe (`scripts/acceptance.sh | head`): release, then exit.
   trap 'arbor_release_suite_lock' EXIT
   trap 'arbor_release_suite_lock; exit 130' INT
@@ -110,8 +119,54 @@ arbor_take_suite_lock() {
   trap 'arbor_release_suite_lock; exit 141' PIPE
 }
 
+# A fresh fixture folder inside the suite's temporary folder. (A bare `mktemp -d` on macOS ignores
+# TMPDIR and would put it in the system temporary folder, where an interrupted run leaves it.)
+arbor_mktemp_dir() {
+  mktemp -d "${TMPDIR%/}/arbor-check.XXXXXX"
+}
+
+# Deletes a folder even when the app left locked or read-only items in it.
+arbor_remove_tree() {
+  chflags -R nouchg "$1" 2>/dev/null || true
+  chmod -R -N "$1" 2>/dev/null || true   # "deny delete" access rules
+  chmod -R u+rwx "$1" 2>/dev/null || true
+  rm -rf "$1" 2>/dev/null || true
+}
+
+# Removes the temporary folders of suites that no longer run (killed, crashed, closed terminal).
+arbor_sweep_suite_temp() {
+  local d pid
+  for d in "$ARBOR_REAL_TMPDIR"/arbor-suite.*; do
+    [ -d "$d" ] || continue
+    pid="${d##*/arbor-suite.}"; pid="${pid%%.*}"
+    case "$pid" in ''|*[!0-9]*) continue ;; esac
+    [ "$pid" = "$$" ] && continue
+    kill -0 "$pid" 2>/dev/null && continue
+    arbor_remove_tree "$d"
+  done
+}
+
+arbor_enter_suite_temp() {
+  [ -z "$ARBOR_SUITE_TMP" ] || return 0
+  arbor_sweep_suite_temp
+  ARBOR_SUITE_TMP="$(mktemp -d "$ARBOR_REAL_TMPDIR/arbor-suite.$$.XXXXXX")" || { ARBOR_SUITE_TMP=""; return 0; }
+  export TMPDIR="$ARBOR_SUITE_TMP/"
+}
+
+arbor_leave_suite_temp() {
+  [ -n "$ARBOR_SUITE_TMP" ] || return 0
+  if [ "${ARBOR_KEEP_TMP:-0}" = 1 ] || [ "${ACCEPT_KEEP:-0}" = 1 ]; then
+    arbor_say "kept the temporary files in $ARBOR_SUITE_TMP"
+  else
+    arbor_remove_tree "$ARBOR_SUITE_TMP"
+  fi
+  export TMPDIR="$ARBOR_REAL_TMPDIR/"
+  ARBOR_SUITE_TMP=""
+}
+
 # Releases the lock if this process holds it. Scripts that set their own EXIT trap must call it there.
 arbor_release_suite_lock() {
+  arbor_leave_suite_temp
   [ "$ARBOR_LOCK_HELD" = 1 ] || return 0
   # `read`, not $(cat …): after a write to a closed pipe, bash 3.2 flushes the unwritten text into the
   # next command substitution, which would then never match the pid.

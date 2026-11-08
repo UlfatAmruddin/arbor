@@ -18,7 +18,7 @@ final class OperationHistory {
         let env = ProcessInfo.processInfo.environment
         if let path = env["ARBOR_HISTORY_FILE"] { return URL(fileURLWithPath: path) }
         if AppDelegate.isHeadless {
-            return FileManager.default.temporaryDirectory.appendingPathComponent("arbor-test-history-\(getpid())/operations.json")
+            return TemporaryFiles.headlessFolder("history").appendingPathComponent("operations.json")
         }
         return FileOpsEnvironment.journalDirectory.deletingLastPathComponent().appendingPathComponent("History/operations.json")
     }()
