@@ -66,7 +66,7 @@ enum DetailsColumns {
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = alignment
         paragraph.lineBreakMode = .byTruncatingTail
-        return NSAttributedString(string: title, attributes: [
+        return NSAttributedString(string: L10n.tr(title), attributes: [
             .font: Theme.headerFont, .foregroundColor: Theme.secondaryText, .paragraphStyle: paragraph,
         ])
     }
@@ -102,7 +102,7 @@ enum DetailsColumns {
             table.autosaveTableColumns = false
             for spec in layout.extras where column(spec.id, in: table) == nil {
                 let c = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(spec.id))
-                c.title = spec.title
+                c.title = L10n.tr(spec.title)
                 // Explorer headers are always left-aligned; `alignment` applies to the values.
                 c.headerCell.alignment = .left
                 c.headerCell.attributedStringValue = DetailsColumns.headerTitle(spec.title, alignment: .left)
@@ -115,7 +115,7 @@ enum DetailsColumns {
             for (id, title) in layout.titles {
                 guard let c = column(id, in: table) else { continue }
                 savedTitles[id] = (c.title, c.headerCell.attributedStringValue)
-                c.title = title
+                c.title = L10n.tr(title)
                 c.headerCell.attributedStringValue = DetailsColumns.headerTitle(title, alignment: c.headerCell.alignment)
             }
             for (id, width) in layout.widths {

@@ -54,11 +54,11 @@ public enum RenameCaseStyle: String, Sendable, CaseIterable {
 
     public var title: String {
         switch self {
-        case .unchanged: return "Don't change"
-        case .lower: return "lowercase"
-        case .upper: return "UPPERCASE"
-        case .title: return "Title Case"
-        case .sentence: return "Sentence case"
+        case .unchanged: return L10n.tr("Don't change")
+        case .lower: return L10n.tr("lowercase")
+        case .upper: return L10n.tr("UPPERCASE")
+        case .title: return L10n.tr("Title Case")
+        case .sentence: return L10n.tr("Sentence case")
         }
     }
 
@@ -122,10 +122,10 @@ public enum BatchRenameStatus: Equatable, Sendable {
 
     public var text: String {
         switch self {
-        case .unchanged: return "Unchanged"
-        case .ok: return "OK"
-        case .exists: return "Name already exists"
-        case .duplicate: return "Duplicate name"
+        case .unchanged: return L10n.tr("Unchanged")
+        case .ok: return L10n.tr("OK")
+        case .exists: return L10n.tr("Name already exists")
+        case .duplicate: return L10n.tr("Duplicate name")
         case .invalid(let why): return why
         }
     }
@@ -154,8 +154,8 @@ public enum BatchRenameError: Error, Equatable, LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .badPattern(let why): return "The regular expression isn't valid: \(why)"
-        case .failed(let name, let reason): return "Couldn't rename “\(name)”: \(reason)"
+        case .badPattern(let why): return L10n.format("The regular expression isn't valid: %@", "\(why)")
+        case .failed(let name, let reason): return L10n.format("Couldn't rename “%@”: %@", "\(name)", "\(reason)")
         }
     }
 }
@@ -227,7 +227,7 @@ public enum BatchRenamer {
             if let problem = NameRules.validate(name) {
                 status = .invalid(problem.errorDescription ?? "Invalid name")
             } else if name.trimmingCharacters(in: .whitespaces).isEmpty || name.hasPrefix(".") && !item.name.hasPrefix(".") {
-                status = .invalid(name.hasPrefix(".") ? "Would become hidden" : "A name can't be empty.")
+                status = .invalid(name.hasPrefix(".") ? L10n.tr("Would become hidden") : L10n.tr("A name can't be empty."))
             } else if (batchKeys[item.folder]?[key(name)] ?? 0) > 1 {
                 status = .duplicate
             } else if outside[item.folder]?.contains(key(name)) == true {

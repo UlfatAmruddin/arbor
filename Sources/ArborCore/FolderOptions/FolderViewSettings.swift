@@ -78,10 +78,10 @@ public enum ViewSettingsSource: Equatable, Sendable {
 
     public var description: String {
         switch self {
-        case .appDefault: return "Default view"
+        case .appDefault: return L10n.tr("Default view")
         case .template(let t, let applied):
-            return applied ? "Applied to all \(t.title) folders" : "\(t.title) folder type"
-        case .folder: return "Saved for this folder"
+            return applied ? L10n.format("Applied to all %@ folders", "\(t.title)") : L10n.format("%@ folder type", "\(t.title)")
+        case .folder: return L10n.tr("Saved for this folder")
         }
     }
 }

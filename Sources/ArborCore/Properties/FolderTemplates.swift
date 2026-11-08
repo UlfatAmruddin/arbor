@@ -6,11 +6,11 @@ public enum FolderTemplate: String, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .generalItems: return "General items"
-        case .documents: return "Documents"
-        case .pictures: return "Pictures"
-        case .music: return "Music"
-        case .videos: return "Videos"
+        case .generalItems: return L10n.tr("General items")
+        case .documents: return L10n.tr("Documents")
+        case .pictures: return L10n.tr("Pictures")
+        case .music: return L10n.tr("Music")
+        case .videos: return L10n.tr("Videos")
         }
     }
 }

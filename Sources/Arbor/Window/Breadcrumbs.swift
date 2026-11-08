@@ -40,9 +40,9 @@ enum Breadcrumbs {
             crumbs.append(Crumb(title: location.displayName, location: location, children: { [] }))
             return crumbs
         case .thisMac:
-            return [Crumb(title: "This Mac", location: .thisMac, children: volumeChildren)]
+            return [Crumb(title: L10n.tr("This Mac"), location: .thisMac, children: volumeChildren)]
         case .home:
-            return [Crumb(title: "Home", location: .home, children: quickAccessChildren)]
+            return [Crumb(title: L10n.tr("Home"), location: .home, children: quickAccessChildren)]
         default:
             return [Crumb(title: location.displayName, location: location, children: { [] })]
         }

@@ -68,7 +68,9 @@ final class IconProvider {
     /// change over time, are added on top by `icon(for:size:)` (see `ItemBadges`).
     func decoratedIcon(for item: FileItem, size: CGFloat) -> NSImage {
         guard let decorate = InteractionHooks.decorateIcon else { return plainIcon(for: item, size: size) }
-        let key = "decorated-\(item.url.path)-\(size)"
+        // A custom icon found later gets its own entry (the type icon was cached under the plain key).
+        let custom = !item.isFolder && CustomIcons.shared.icon(for: item.url) != nil
+        let key = "decorated-\(item.url.path)-\(size)" + (custom ? "-custom" : "")
         if let hit = lock.withLock({ cache.value(for: key) }) { return hit }
         let plain = plainIcon(for: item, size: size)
         let decorated = decorate(item, plain, size)
@@ -149,6 +151,14 @@ final class IconProvider {
     func fileIcon(_ url: URL, size: CGFloat) -> NSImage {
         let ext = url.pathExtension.lowercased()
         if !ext.isEmpty, !Self.perFileIconExtensions.contains(ext), let type = UTType(filenameExtension: ext), !type.isDynamic {
+            // A custom Finder icon (checked in the background for files on screen) wins over the type's icon.
+            if let custom = CustomIcons.shared.icon(for: url) {
+                return cached("custom-\(url.path)-\(size)", cost: size) {
+                    let image = custom.copy() as? NSImage ?? custom
+                    image.size = NSSize(width: size, height: size)
+                    return image
+                }
+            }
             return cached("type-\(type.identifier)-\(size)", cost: size) {
                 let image = NSWorkspace.shared.icon(for: type)
                 image.size = NSSize(width: size, height: size)

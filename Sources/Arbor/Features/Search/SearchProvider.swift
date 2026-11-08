@@ -49,21 +49,21 @@ final class SearchProvider: LocationProvider {
     func allowsItemEditing(in location: Location) -> Bool { true }     // results are real files
 
     func emptyText(for location: Location) -> String {
-        guard let session = Self.session(for: location) else { return "Searching…" }
+        guard let session = Self.session(for: location) else { return L10n.tr("Searching…") }
         let coverage = session.coverage
         switch coverage.phase {
-        case .searching: return "Searching…"
-        case .failed(let message): return "Search couldn't run: \(message)"
-        case .stopped: return "The search was stopped. Press Refresh to search again."
+        case .searching: return L10n.tr("Searching…")
+        case .failed(let message): return L10n.format("Search couldn't run: %@", "\(message)")
+        case .stopped: return L10n.tr("The search was stopped. Press Refresh to search again.")
         case .finished:
-            if let scope = coverage.scopeUnavailable { return "“\(scope)” isn't available. It may have been moved, deleted or disconnected." }
+            if let scope = coverage.scopeUnavailable { return L10n.format("“%@” isn't available. It may have been moved, deleted or disconnected.", "\(scope)") }
             return coverage.isComplete ? "No items match your search."
                 : "No items match your search. Some places couldn't be searched; see Search options ▸ Why might results be missing?"
         }
     }
 
     func statusDetail(for location: Location) -> String? {
-        guard let session = Self.session(for: location) else { return "Searching…" }
+        guard let session = Self.session(for: location) else { return L10n.tr("Searching…") }
         return session.superseded ? "Searching…" : session.coverage.statusLine
     }
 }
@@ -92,7 +92,7 @@ enum SearchColumns {
                         let cell = DetailsTextCell.make(table, id: "search.match")
                         let text = reasonText(item, location)
                         cell.label.stringValue = text
-                        cell.label.toolTip = text.isEmpty ? nil : "Matched on: " + text
+                        cell.label.toolTip = text.isEmpty ? nil : L10n.format("Matched on: %@", text)
                         return cell
                     },
                 ])

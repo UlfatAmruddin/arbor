@@ -31,55 +31,55 @@ public enum SpotlightMetadata {
 
     /// Explorer's groups and order (Description, Origin, Image, Camera, Audio/Media, Video, Content).
     public static let fields: [Field] = [
-        Field(key: "kMDItemTitle", label: "Title", group: "Description", format: .text),
-        Field(key: "kMDItemHeadline", label: "Subject", group: "Description", format: .text),
-        Field(key: "kMDItemStarRating", label: "Rating", group: "Description", format: .rating),
-        Field(key: "kMDItemKeywords", label: "Keywords", group: "Description", format: .list),
-        Field(key: "kMDItemDescription", label: "Comments", group: "Description", format: .text),
-        Field(key: "kMDItemAuthors", label: "Authors", group: "Origin", format: .list),
-        Field(key: "kMDItemCreator", label: "Program name", group: "Origin", format: .text),
-        Field(key: "kMDItemContentCreationDate", label: "Content created", group: "Origin", format: .date),
-        Field(key: "kMDItemDateAdded", label: "Date acquired", group: "Origin", format: .date),
-        Field(key: "kMDItemCopyright", label: "Copyright", group: "Origin", format: .text),
-        Field(key: "kMDItemWhereFroms", label: "Where from", group: "Origin", format: .list),
-        Field(key: "kMDItemPixelWidth", label: "Width", group: "Image", format: .pixels),
-        Field(key: "kMDItemPixelHeight", label: "Height", group: "Image", format: .pixels),
-        Field(key: "kMDItemResolutionWidthDPI", label: "Horizontal resolution", group: "Image", format: .dpi),
-        Field(key: "kMDItemResolutionHeightDPI", label: "Vertical resolution", group: "Image", format: .dpi),
-        Field(key: "kMDItemBitsPerSample", label: "Bit depth", group: "Image", format: .number),
-        Field(key: "kMDItemColorSpace", label: "Color representation", group: "Image", format: .text),
-        Field(key: "kMDItemProfileName", label: "Color profile", group: "Image", format: .text),
-        Field(key: "kMDItemAcquisitionMake", label: "Camera maker", group: "Camera", format: .text),
-        Field(key: "kMDItemAcquisitionModel", label: "Camera model", group: "Camera", format: .text),
-        Field(key: "kMDItemFNumber", label: "F-stop", group: "Camera", format: .fStop),
-        Field(key: "kMDItemExposureTimeSeconds", label: "Exposure time", group: "Camera", format: .exposure),
-        Field(key: "kMDItemISOSpeed", label: "ISO speed", group: "Camera", format: .iso),
-        Field(key: "kMDItemFocalLength", label: "Focal length", group: "Camera", format: .focalLength),
-        Field(key: "kMDItemFlashOnOff", label: "Flash mode", group: "Camera", format: .flash),
-        Field(key: "kMDItemLensModel", label: "Lens model", group: "Camera", format: .text),
-        Field(key: "kMDItemLatitude", label: "Latitude", group: "GPS", format: .number),
-        Field(key: "kMDItemLongitude", label: "Longitude", group: "GPS", format: .number),
-        Field(key: "kMDItemAltitude", label: "Altitude", group: "GPS", format: .meters),
-        Field(key: "kMDItemDurationSeconds", label: "Length", group: "Media", format: .duration),
-        Field(key: "kMDItemAlbum", label: "Album", group: "Media", format: .text),
-        Field(key: "kMDItemComposer", label: "Composers", group: "Media", format: .text),
-        Field(key: "kMDItemMusicalGenre", label: "Genre", group: "Media", format: .text),
-        Field(key: "kMDItemRecordingYear", label: "Year", group: "Media", format: .number),
-        Field(key: "kMDItemAudioTrackNumber", label: "#", group: "Media", format: .number),
-        Field(key: "kMDItemAudioBitRate", label: "Bit rate", group: "Audio", format: .bitRate),
-        Field(key: "kMDItemAudioSampleRate", label: "Audio sample rate", group: "Audio", format: .hertz),
-        Field(key: "kMDItemAudioChannelCount", label: "Channels", group: "Audio", format: .number),
-        Field(key: "kMDItemVideoBitRate", label: "Data rate", group: "Video", format: .bitRate),
-        Field(key: "kMDItemCodecs", label: "Codecs", group: "Video", format: .list),
-        Field(key: "kMDItemMediaTypes", label: "Media types", group: "Video", format: .list),
-        Field(key: "kMDItemNumberOfPages", label: "Pages", group: "Content", format: .number),
-        Field(key: "kMDItemPageWidth", label: "Page width", group: "Content", format: .number),
-        Field(key: "kMDItemPageHeight", label: "Page height", group: "Content", format: .number),
-        Field(key: "kMDItemLanguages", label: "Languages", group: "Content", format: .list),
-        Field(key: "kMDItemEncodingApplications", label: "Encoded by", group: "Content", format: .list),
-        Field(key: "kMDItemVersion", label: "Version", group: "Content", format: .text),
-        Field(key: "kMDItemLastUsedDate", label: "Last opened", group: "File", format: .date),
-        Field(key: "kMDItemUseCount", label: "Times opened", group: "File", format: .number),
+        Field(key: "kMDItemTitle", label: L10n.tr("Title"), group: L10n.tr("Description"), format: .text),
+        Field(key: "kMDItemHeadline", label: L10n.tr("Subject"), group: L10n.tr("Description"), format: .text),
+        Field(key: "kMDItemStarRating", label: L10n.tr("Rating"), group: L10n.tr("Description"), format: .rating),
+        Field(key: "kMDItemKeywords", label: L10n.tr("Keywords"), group: L10n.tr("Description"), format: .list),
+        Field(key: "kMDItemDescription", label: L10n.tr("Comments"), group: L10n.tr("Description"), format: .text),
+        Field(key: "kMDItemAuthors", label: L10n.tr("Authors"), group: L10n.tr("Origin"), format: .list),
+        Field(key: "kMDItemCreator", label: L10n.tr("Program name"), group: L10n.tr("Origin"), format: .text),
+        Field(key: "kMDItemContentCreationDate", label: L10n.tr("Content created"), group: L10n.tr("Origin"), format: .date),
+        Field(key: "kMDItemDateAdded", label: L10n.tr("Date acquired"), group: L10n.tr("Origin"), format: .date),
+        Field(key: "kMDItemCopyright", label: L10n.tr("Copyright"), group: L10n.tr("Origin"), format: .text),
+        Field(key: "kMDItemWhereFroms", label: L10n.tr("Where from"), group: L10n.tr("Origin"), format: .list),
+        Field(key: "kMDItemPixelWidth", label: L10n.tr("Width"), group: L10n.tr("Image"), format: .pixels),
+        Field(key: "kMDItemPixelHeight", label: L10n.tr("Height"), group: L10n.tr("Image"), format: .pixels),
+        Field(key: "kMDItemResolutionWidthDPI", label: L10n.tr("Horizontal resolution"), group: L10n.tr("Image"), format: .dpi),
+        Field(key: "kMDItemResolutionHeightDPI", label: L10n.tr("Vertical resolution"), group: L10n.tr("Image"), format: .dpi),
+        Field(key: "kMDItemBitsPerSample", label: L10n.tr("Bit depth"), group: L10n.tr("Image"), format: .number),
+        Field(key: "kMDItemColorSpace", label: L10n.tr("Color representation"), group: L10n.tr("Image"), format: .text),
+        Field(key: "kMDItemProfileName", label: L10n.tr("Color profile"), group: L10n.tr("Image"), format: .text),
+        Field(key: "kMDItemAcquisitionMake", label: L10n.tr("Camera maker"), group: L10n.tr("Camera"), format: .text),
+        Field(key: "kMDItemAcquisitionModel", label: L10n.tr("Camera model"), group: L10n.tr("Camera"), format: .text),
+        Field(key: "kMDItemFNumber", label: L10n.tr("F-stop"), group: L10n.tr("Camera"), format: .fStop),
+        Field(key: "kMDItemExposureTimeSeconds", label: L10n.tr("Exposure time"), group: L10n.tr("Camera"), format: .exposure),
+        Field(key: "kMDItemISOSpeed", label: L10n.tr("ISO speed"), group: L10n.tr("Camera"), format: .iso),
+        Field(key: "kMDItemFocalLength", label: L10n.tr("Focal length"), group: L10n.tr("Camera"), format: .focalLength),
+        Field(key: "kMDItemFlashOnOff", label: L10n.tr("Flash mode"), group: L10n.tr("Camera"), format: .flash),
+        Field(key: "kMDItemLensModel", label: L10n.tr("Lens model"), group: L10n.tr("Camera"), format: .text),
+        Field(key: "kMDItemLatitude", label: L10n.tr("Latitude"), group: L10n.tr("GPS"), format: .number),
+        Field(key: "kMDItemLongitude", label: L10n.tr("Longitude"), group: L10n.tr("GPS"), format: .number),
+        Field(key: "kMDItemAltitude", label: L10n.tr("Altitude"), group: L10n.tr("GPS"), format: .meters),
+        Field(key: "kMDItemDurationSeconds", label: L10n.tr("Length"), group: L10n.tr("Media"), format: .duration),
+        Field(key: "kMDItemAlbum", label: L10n.tr("Album"), group: L10n.tr("Media"), format: .text),
+        Field(key: "kMDItemComposer", label: L10n.tr("Composers"), group: L10n.tr("Media"), format: .text),
+        Field(key: "kMDItemMusicalGenre", label: L10n.tr("Genre"), group: L10n.tr("Media"), format: .text),
+        Field(key: "kMDItemRecordingYear", label: L10n.tr("Year"), group: L10n.tr("Media"), format: .number),
+        Field(key: "kMDItemAudioTrackNumber", label: "#", group: L10n.tr("Media"), format: .number),
+        Field(key: "kMDItemAudioBitRate", label: L10n.tr("Bit rate"), group: L10n.tr("Audio"), format: .bitRate),
+        Field(key: "kMDItemAudioSampleRate", label: L10n.tr("Audio sample rate"), group: L10n.tr("Audio"), format: .hertz),
+        Field(key: "kMDItemAudioChannelCount", label: L10n.tr("Channels"), group: L10n.tr("Audio"), format: .number),
+        Field(key: "kMDItemVideoBitRate", label: L10n.tr("Data rate"), group: L10n.tr("Video"), format: .bitRate),
+        Field(key: "kMDItemCodecs", label: L10n.tr("Codecs"), group: L10n.tr("Video"), format: .list),
+        Field(key: "kMDItemMediaTypes", label: L10n.tr("Media types"), group: L10n.tr("Video"), format: .list),
+        Field(key: "kMDItemNumberOfPages", label: L10n.tr("Pages"), group: L10n.tr("Content"), format: .number),
+        Field(key: "kMDItemPageWidth", label: L10n.tr("Page width"), group: L10n.tr("Content"), format: .number),
+        Field(key: "kMDItemPageHeight", label: L10n.tr("Page height"), group: L10n.tr("Content"), format: .number),
+        Field(key: "kMDItemLanguages", label: L10n.tr("Languages"), group: L10n.tr("Content"), format: .list),
+        Field(key: "kMDItemEncodingApplications", label: L10n.tr("Encoded by"), group: L10n.tr("Content"), format: .list),
+        Field(key: "kMDItemVersion", label: L10n.tr("Version"), group: L10n.tr("Content"), format: .text),
+        Field(key: "kMDItemLastUsedDate", label: L10n.tr("Last opened"), group: L10n.tr("File"), format: .date),
+        Field(key: "kMDItemUseCount", label: L10n.tr("Times opened"), group: L10n.tr("File"), format: .number),
     ]
 
     /// Raw Spotlight values for `fields` (and any extra keys). Missing or unindexed → empty.
@@ -147,7 +147,7 @@ public enum SpotlightMetadata {
     public static func rows(from values: [String: Any]) -> [MetadataRow] {
         var rows: [MetadataRow] = []
         if let w = number(values["kMDItemPixelWidth"]), let h = number(values["kMDItemPixelHeight"]), w > 0, h > 0 {
-            rows.append(MetadataRow(group: "Image", label: "Dimensions", value: "\(Int(w)) x \(Int(h))"))
+            rows.append(MetadataRow(group: L10n.tr("Image"), label: L10n.tr("Dimensions"), value: "\(Int(w)) x \(Int(h))"))
         }
         for field in fields {
             guard let raw = values[field.key], let text = format(raw, field.format), !text.isEmpty else { continue }
@@ -207,7 +207,7 @@ public enum SpotlightMetadata {
         case .iso:
             return number(value).map { "ISO-\(Int($0))" }
         case .flash:
-            return number(value).map { $0 != 0 ? "Flash" : "No flash" }
+            return number(value).map { $0 != 0 ? L10n.tr("Flash") : L10n.tr("No flash") }
         case .rating:
             guard let n = number(value) else { return nil }
             let stars = max(0, min(5, Int(n.rounded())))
@@ -219,7 +219,7 @@ public enum SpotlightMetadata {
         case .meters:
             return number(value).map { "\(String(format: "%.1f", $0)) m" }
         case .bool:
-            return number(value).map { $0 != 0 ? "Yes" : "No" }
+            return number(value).map { $0 != 0 ? L10n.tr("Yes") : L10n.tr("No") }
         }
     }
 }

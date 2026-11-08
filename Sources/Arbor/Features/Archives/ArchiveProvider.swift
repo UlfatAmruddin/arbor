@@ -107,13 +107,13 @@ final class ArchiveProvider: LocationProvider {
             do {
                 let listing = try ArchiveCatalog.shared.load(file, process: process)
                 if listing.index.encryptedCount > 0 {
-                    note = "Some items in “\(file.lastPathComponent)” are password-protected and can't be opened or extracted."
+                    note = L10n.format("Some items in “%@” are password-protected and can't be opened or extracted.", "\(file.lastPathComponent)")
                 } else if listing.index.unsafeCount > 0 {
                     note = "\(StatusText.items(listing.index.unsafeCount)) in this archive \(listing.index.unsafeCount == 1 ? "has a name" : "have names") that point outside it. They aren't shown and won't be extracted."
                 } else if let warning = listing.warning {
-                    note = "This archive may be damaged: \(warning)"
+                    note = L10n.format("This archive may be damaged: %@", "\(warning)")
                 } else if inner.isEmpty {
-                    note = "Arbor shows “\(file.lastPathComponent)” read-only: copy or drag items out, or use Extract all."
+                    note = L10n.format("Arbor shows “%@” read-only: copy or drag items out, or use Extract all.", "\(file.lastPathComponent)")
                     noteIsError = false
                 }
                 guard let items = listing.index.items(in: inner, archive: listing.archive, includeHidden: includeHidden) else {
@@ -153,7 +153,7 @@ final class ArchiveProvider: LocationProvider {
 
     func targetFolder(for location: Location) -> URL? { nil }
     func allowsItemEditing(in location: Location) -> Bool { false }
-    func emptyText(for location: Location) -> String { "This folder is empty." }
+    func emptyText(for location: Location) -> String { L10n.tr("This folder is empty.") }
 }
 
 extension Location {

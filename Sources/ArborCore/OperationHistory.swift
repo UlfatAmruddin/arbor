@@ -28,15 +28,15 @@ public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
 
         public var label: String {
             switch self {
-            case .succeeded: return "Done"
-            case .merged: return "Merged"
-            case .skipped: return "Skipped"
-            case .failed: return "Failed"
-            case .sourceRemains: return "Copied; original kept"
-            case .partial: return "Partly done"
-            case .cancelled: return "Cancelled"
-            case .notDone: return "Not done"
-            case .uncertain: return "Uncertain"
+            case .succeeded: return L10n.tr("Done")
+            case .merged: return L10n.tr("Merged")
+            case .skipped: return L10n.tr("Skipped")
+            case .failed: return L10n.tr("Failed")
+            case .sourceRemains: return L10n.tr("Copied; original kept")
+            case .partial: return L10n.tr("Partly done")
+            case .cancelled: return L10n.tr("Cancelled")
+            case .notDone: return L10n.tr("Not done")
+            case .uncertain: return L10n.tr("Uncertain")
             }
         }
     }
@@ -139,11 +139,11 @@ public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
     /// "2 done · 1 skipped · 1 failed".
     public var countsText: String {
         let c = counts
-        var parts = ["\(c.done) done"]
-        if c.skipped > 0 { parts.append("\(c.skipped) skipped") }
-        if c.failed > 0 { parts.append("\(c.failed) failed") }
-        if c.cancelled > 0 { parts.append("\(c.cancelled) not done") }
-        if omittedItems > 0 { parts.append("\(omittedItems) more not listed") }
+        var parts = [L10n.format("%@ done", "\(c.done)")]
+        if c.skipped > 0 { parts.append(L10n.format("%@ skipped", "\(c.skipped)")) }
+        if c.failed > 0 { parts.append(L10n.format("%@ failed", "\(c.failed)")) }
+        if c.cancelled > 0 { parts.append(L10n.format("%@ not done", "\(c.cancelled)")) }
+        if omittedItems > 0 { parts.append(L10n.format("%@ more not listed", "\(omittedItems)")) }
         return parts.joined(separator: " · ")
     }
 
@@ -214,7 +214,7 @@ public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
             return Item(source: source, outcome: .sourceRemains, destination: url.path, message: why, retryFolder: retryFolder, nested: nested)
         case .partial(let url, let why):
             return Item(source: source, outcome: .partial, destination: url.path, message: why, retryFolder: retryFolder, nested: nested)
-        case .cancelled: return Item(source: source, outcome: .cancelled, message: "The job was cancelled before this item.", retryFolder: retryFolder, nested: nested)
+        case .cancelled: return Item(source: source, outcome: .cancelled, message: L10n.tr("The job was cancelled before this item."), retryFolder: retryFolder, nested: nested)
         }
     }
 

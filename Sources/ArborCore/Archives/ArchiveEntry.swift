@@ -208,7 +208,7 @@ public struct ArchiveIndex: Sendable {
         let ext = NameRules.splitExtension(name, treatAsFolder: false).ext ?? ""
         if let format = ArchiveFormat.detect(name: name) { return format.typeName }
         if !ext.isEmpty, let type = UTType(filenameExtension: ext), let text = type.localizedDescription { return capitalized(text) }
-        return ext.isEmpty ? "File" : "\(ext.uppercased()) File"
+        return ext.isEmpty ? L10n.tr("File") : L10n.format("%@ File", "\(ext.uppercased())")
     }
 
     /// Every entry at or below `path` ("" = all), safe names only.

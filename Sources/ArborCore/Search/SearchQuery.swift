@@ -44,17 +44,17 @@ public enum SearchProperty: String, CaseIterable, Sendable {
     /// Label for match reasons ("Matched: Name").
     public var label: String {
         switch self {
-        case .name: return "Name"
-        case .fileExtension: return "Extension"
-        case .kind: return "Kind"
-        case .type: return "Type"
-        case .size: return "Size"
-        case .dateModified: return "Date modified"
-        case .dateCreated: return "Date created"
-        case .tags: return "Tags"
-        case .author: return "Author"
-        case .contents: return "Contents"
-        case .folderPath: return "Folder"
+        case .name: return L10n.tr("Name")
+        case .fileExtension: return L10n.tr("Extension")
+        case .kind: return L10n.tr("Kind")
+        case .type: return L10n.tr("Type")
+        case .size: return L10n.tr("Size")
+        case .dateModified: return L10n.tr("Date modified")
+        case .dateCreated: return L10n.tr("Date created")
+        case .tags: return L10n.tr("Tags")
+        case .author: return L10n.tr("Author")
+        case .contents: return L10n.tr("Contents")
+        case .folderPath: return L10n.tr("Folder")
         }
     }
 
@@ -112,23 +112,23 @@ public enum SearchKind: String, CaseIterable, Sendable {
     /// Title as it appears in Explorer's Search options ▸ Kind menu.
     public var title: String {
         switch self {
-        case .folder: return "Folder"
-        case .document: return "Document"
-        case .picture: return "Picture"
-        case .music: return "Music"
-        case .video: return "Video"
-        case .text: return "Text"
-        case .program: return "Program"
-        case .link: return "Link"
-        case .archive: return "Archive"
-        case .email: return "E-mail"
-        case .contact: return "Contact"
-        case .calendar: return "Calendar"
-        case .playlist: return "Playlist"
-        case .savedSearch: return "Saved search"
-        case .font: return "Font"
-        case .communication: return "Communication"
-        case .unknown: return "Unknown"
+        case .folder: return L10n.tr("Folder")
+        case .document: return L10n.tr("Document")
+        case .picture: return L10n.tr("Picture")
+        case .music: return L10n.tr("Music")
+        case .video: return L10n.tr("Video")
+        case .text: return L10n.tr("Text")
+        case .program: return L10n.tr("Program")
+        case .link: return L10n.tr("Link")
+        case .archive: return L10n.tr("Archive")
+        case .email: return L10n.tr("E-mail")
+        case .contact: return L10n.tr("Contact")
+        case .calendar: return L10n.tr("Calendar")
+        case .playlist: return L10n.tr("Playlist")
+        case .savedSearch: return L10n.tr("Saved search")
+        case .font: return L10n.tr("Font")
+        case .communication: return L10n.tr("Communication")
+        case .unknown: return L10n.tr("Unknown")
         }
     }
 

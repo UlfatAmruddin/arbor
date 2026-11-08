@@ -159,10 +159,10 @@ final class NetworkFolderProvider: LocationProvider {
         let share = NetworkCenter.shared.share(containing: url)
         let name = share?.address(of: url)?.unc ?? url.path
         return NetworkMessagePage(
-            icon: NetworkIcons.drive(48), title: "\(name) isn't responding",
-            message: "The network share is taking too long to answer. Other tabs keep working. Arbor shows the folder as soon as it answers.",
-            actions: [.init(title: "Retry", primary: true) { [weak host] in host?.reloadLocation() },
-                      .init(title: "Go to This Mac", primary: false) { [weak host] in host?.navigate(to: .thisMac, select: []) }],
+            icon: NetworkIcons.drive(48), title: L10n.format("%@ isn't responding", "\(name)"),
+            message: L10n.tr("The network share is taking too long to answer. Other tabs keep working. Arbor shows the folder as soon as it answers."),
+            actions: [.init(title: L10n.tr("Retry"), primary: true) { [weak host] in host?.reloadLocation() },
+                      .init(title: L10n.tr("Go to This Mac"), primary: false) { [weak host] in host?.navigate(to: .thisMac, select: []) }],
             spinner: true)
     }
 
@@ -171,16 +171,16 @@ final class NetworkFolderProvider: LocationProvider {
         let name = address?.unc ?? url.path
         var actions: [NetworkMessagePage.Action] = []
         if let address {
-            actions.append(.init(title: "Reconnect", primary: true) { [weak host] in
+            actions.append(.init(title: L10n.tr("Reconnect"), primary: true) { [weak host] in
                 guard let window = host as? BrowserWindowController else { return }
                 let tab = window.activeTab
                 _ = NetworkConnectFlow.open(address, in: window, tab: tab) { ok in if ok { window.reload() } }
             })
         }
-        actions.append(.init(title: "Go to This Mac", primary: false) { [weak host] in host?.navigate(to: .thisMac, select: []) })
+        actions.append(.init(title: L10n.tr("Go to This Mac"), primary: false) { [weak host] in host?.navigate(to: .thisMac, select: []) })
         let page = NetworkMessagePage(
-            icon: NetworkIcons.drive(48, disconnected: true), title: "\(name) is disconnected",
-            message: "The network share isn't connected any more. Reconnect to keep browsing this folder.", actions: actions)
+            icon: NetworkIcons.drive(48, disconnected: true), title: L10n.format("%@ is disconnected", "\(name)"),
+            message: L10n.tr("The network share isn't connected any more. Reconnect to keep browsing this folder."), actions: actions)
         page.onNetworkChange = { [weak page, weak host] in
             NetworkCenter.shared.invalidateMounts()
             guard page?.view.window != nil, NetworkCenter.shared.share(containing: url) != nil else { return }

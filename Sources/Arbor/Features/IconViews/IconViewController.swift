@@ -220,7 +220,7 @@ final class IconViewController: NSViewController, ItemViewController, ItemGridHo
         field.lineBreakMode = multiline ? .byWordWrapping : .byClipping
         field.stringValue = text ?? item.name
         field.delegate = self
-        field.setAccessibilityLabel("Rename \(item.name)")
+        field.setAccessibilityLabel(L10n.format("Rename %@", "\(item.name)"))
         field.onBecomeFirstResponder = { [weak self] field in self?.renameFieldActivated(field) }
         renameField = field
         renamingItem = item

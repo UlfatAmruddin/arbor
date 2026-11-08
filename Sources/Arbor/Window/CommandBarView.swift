@@ -167,7 +167,7 @@ final class StatusBarView: ThemeBackgroundView {
         }
         summary.textColor = Theme.primaryText
         summary.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
-        summary.setAccessibilityLabel("Status")
+        summary.setAccessibilityLabel(L10n.tr("Status"))
         jobProgress.style = .bar
         jobProgress.controlSize = .small
         jobProgress.isIndeterminate = false

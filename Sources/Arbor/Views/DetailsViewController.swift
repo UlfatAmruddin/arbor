@@ -10,12 +10,30 @@ final class FileTableView: NSTableView {
     /// Group headers: their own context menu (Collapse group…), nil for item rows.
     var rowMenuProvider: ((Int) -> NSMenu?)?
 
+    /// Type-to-select through the input method (FE-068); set by the Details view.
+    var typeSelect: ListTypeSelect?
+    /// Keyboard focus moved apart from the selection (⌥⌘↑/↓, DEC-accessibility-3); nil = follows the selection.
+    var focusRow: Int? {
+        didSet {
+            guard focusRow != oldValue else { return }
+            for row in [oldValue, focusRow].compactMap({ $0 }) where row < numberOfRows { rowView(atRow: row, makeIfNecessary: false)?.needsDisplay = true }
+        }
+    }
+
     override func keyDown(with event: NSEvent) {
+        if typeSelect?.handleWhileComposing(event) == true { return }
         if keyHandler?(event) == true { return }
+        if typeSelect?.handle(event) == true { return }
         super.keyDown(with: event)
     }
 
+    override func resignFirstResponder() -> Bool {
+        typeSelect?.reset()
+        return super.resignFirstResponder()
+    }
+
     override func mouseDown(with event: NSEvent) {
+        focusRow = nil
         let row = row(at: convert(event.locationInWindow, from: nil))
         if row >= 0, rowMouseDown?(row, event) == true { return }
         super.mouseDown(with: event)
@@ -68,7 +86,7 @@ final class NameCellView: NSTableCellView {
         box.translatesAutoresizingMaskIntoConstraints = false
         box.controlSize = .small
         box.isHidden = true
-        box.setAccessibilityLabel("Select")
+        box.setAccessibilityLabel(L10n.tr("Select"))
         addSubview(box)
         NSLayoutConstraint.activate([
             box.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
@@ -199,9 +217,9 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
     override func loadView() {
         let container = ThemeBackgroundView(Theme.contentBackground)
 
-        addColumn("name", "Name", width: 340, min: 140, key: .name)
-        addColumn("dateModified", "Date modified", width: 160, min: 90, key: .dateModified)
-        addColumn("type", "Type", width: 150, min: 70, key: .type)
+        addColumn("name", L10n.tr("Name"), width: 340, min: 140, key: .name)
+        addColumn("dateModified", L10n.tr("Date modified"), width: 160, min: 90, key: .dateModified)
+        addColumn("type", L10n.tr("Type"), width: 150, min: 70, key: .type)
         addColumn("size", "Size", width: 90, min: 55, key: .size)   // header text left like Explorer; values right-aligned
 
         // Stock header view and cells on purpose: on macOS 26 a custom NSTableHeaderView or header cell
@@ -228,10 +246,11 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         table.setDraggingSourceOperationMask([.copy, .move, .link], forLocal: false)
         table.setDraggingSourceOperationMask([.copy, .move], forLocal: true)
         table.draggingDestinationFeedbackStyle = .regular
-        table.setAccessibilityLabel("Files")
+        table.setAccessibilityLabel(L10n.tr("Files"))
         table.headerView?.menu = columnMenu()
 
         table.keyHandler = { [weak self] event in self?.handleKey(event) ?? false }
+        table.typeSelect = makeTypeSelect()
         table.middleClick = { [weak self] row in
             guard let self, let item = self.item(atRow: row), item.isFolder else { return }
             self.itemDelegate?.itemViewOpen([item], inNewTab: true)
@@ -287,7 +306,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id))
         column.title = title
         column.headerCell.alignment = alignment
-        column.headerCell.attributedStringValue = NSAttributedString(string: title, attributes: [
+        column.headerCell.attributedStringValue = NSAttributedString(string: L10n.tr(title), attributes: [
             .font: Theme.headerFont, .foregroundColor: Theme.secondaryText,
             .paragraphStyle: { let p = NSMutableParagraphStyle(); p.alignment = alignment; p.lineBreakMode = .byTruncatingTail; return p }(),
         ])

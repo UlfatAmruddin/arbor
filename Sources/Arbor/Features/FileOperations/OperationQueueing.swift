@@ -118,12 +118,12 @@ final class TransferQueueController {
 
 enum QueueOptionsMenu {
     static func items() -> [NSMenuItem] {
-        let header = NSMenuItem(title: "Arbor extras (File Explorer runs every transfer at once)", action: nil, keyEquivalent: "")
+        let header = NSMenuItem(title: L10n.tr("Arbor extras (File Explorer runs every transfer at once)"), action: nil, keyEquivalent: "")
         header.isEnabled = false
-        let same = ClosureMenuItem("Queue transfers to the same drive") { Prefs.fileOpsQueueSameDrive.toggle() }
+        let same = ClosureMenuItem(L10n.tr("Queue transfers to the same drive")) { Prefs.fileOpsQueueSameDrive.toggle() }
         same.state = Prefs.fileOpsQueueSameDrive ? .on : .off
         var list: [NSMenuItem] = [header, same, .separator()]
-        let limitTitle = NSMenuItem(title: "Run at most", action: nil, keyEquivalent: "")
+        let limitTitle = NSMenuItem(title: L10n.tr("Run at most"), action: nil, keyEquivalent: "")
         limitTitle.isEnabled = false
         list.append(limitTitle)
         for value in [0, 1, 2, 3, 4] {
@@ -135,7 +135,7 @@ enum QueueOptionsMenu {
             list.append(item)
         }
         list.append(.separator())
-        let verify = ClosureMenuItem("Verify new copies by default") { Prefs.fileOpsVerifyByDefault.toggle() }
+        let verify = ClosureMenuItem(L10n.tr("Verify new copies by default")) { Prefs.fileOpsVerifyByDefault.toggle() }
         verify.state = Prefs.fileOpsVerifyByDefault ? .on : .off
         list.append(verify)
         return list
@@ -156,15 +156,15 @@ enum QueueOptionsMenu {
 final class JobPanelExtras: NSStackView {
     let job: OperationCenter.Job
     private let waitingLabel = FileOpsStyle.label("", font: FileOpsStyle.captionFont, color: Theme.secondaryText)
-    private lazy var startNow = FileOpsLinkButton("Start now") { [weak self] in self.map { TransferQueueController.shared.startNow($0.job) } }
-    private lazy var moveUp = FileOpsLinkButton("Move up") { [weak self] in self.map { TransferQueueController.shared.move($0.job, by: -1) } }
-    private lazy var moveDown = FileOpsLinkButton("Move down") { [weak self] in self.map { TransferQueueController.shared.move($0.job, by: 1) } }
-    private lazy var deferButton = FileOpsLinkButton("Defer") { [weak self] in
+    private lazy var startNow = FileOpsLinkButton(L10n.tr("Start now")) { [weak self] in self.map { TransferQueueController.shared.startNow($0.job) } }
+    private lazy var moveUp = FileOpsLinkButton(L10n.tr("Move up")) { [weak self] in self.map { TransferQueueController.shared.move($0.job, by: -1) } }
+    private lazy var moveDown = FileOpsLinkButton(L10n.tr("Move down")) { [weak self] in self.map { TransferQueueController.shared.move($0.job, by: 1) } }
+    private lazy var deferButton = FileOpsLinkButton(L10n.tr("Defer")) { [weak self] in
         guard let self else { return }
         TransferQueueController.shared.setDeferred(self.job, !TransferQueueController.shared.isDeferred(self.job))
     }
     private let queueRow = NSStackView()
-    let verify = NSButton(checkboxWithTitle: "Verify after copying", target: nil, action: nil)
+    let verify = NSButton(checkboxWithTitle: L10n.tr("Verify after copying"), target: nil, action: nil)
 
     init(job: OperationCenter.Job) {
         self.job = job
@@ -181,7 +181,7 @@ final class JobPanelExtras: NSStackView {
         verify.font = FileOpsStyle.captionFont
         verify.target = self
         verify.action = #selector(verifyChanged)
-        verify.toolTip = "After copying, Arbor reads each copy back and compares its size and SHA-256 checksum with the original."
+        verify.toolTip = L10n.tr("After copying, Arbor reads each copy back and compares its size and SHA-256 checksum with the original.")
         verify.state = JobVerification.isRequested(job) ? .on : .off
         verify.isHidden = job.transfer.kind != .copy
         addArrangedSubview(verify)
@@ -240,8 +240,8 @@ final class JobPanelExtras: NSStackView {
 
 /// "Operation history" and "Queue options" at the right of the progress window's footer.
 final class OperationsFooterExtras: NSStackView {
-    private lazy var history = FileOpsLinkButton("Operation history", font: FileOpsStyle.bodyFont) { OperationHistoryWindow.shared.show() }
-    private lazy var options: FileOpsLinkButton = FileOpsLinkButton("Queue options", font: FileOpsStyle.bodyFont) { [weak self] in
+    private lazy var history = FileOpsLinkButton(L10n.tr("Operation history"), font: FileOpsStyle.bodyFont) { OperationHistoryWindow.shared.show() }
+    private lazy var options: FileOpsLinkButton = FileOpsLinkButton(L10n.tr("Queue options"), font: FileOpsStyle.bodyFont) { [weak self] in
         guard let self else { return }
         QueueOptionsMenu.menu().popUp(positioning: nil, at: NSPoint(x: 0, y: self.options.bounds.height + 4), in: self.options)
     }
@@ -252,7 +252,7 @@ final class OperationsFooterExtras: NSStackView {
         spacing = 16
         translatesAutoresizingMaskIntoConstraints = false
         setViews([options, history], in: .trailing)
-        options.toolTip = "Beyond File Explorer: queue transfers to the same drive, limit how many run at once."
+        options.toolTip = L10n.tr("Beyond File Explorer: queue transfers to the same drive, limit how many run at once.")
     }
     required init?(coder: NSCoder) { fatalError() }
 }

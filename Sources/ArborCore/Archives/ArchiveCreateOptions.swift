@@ -25,15 +25,15 @@ public enum ArchiveOutputFormat: String, Sendable, CaseIterable, Codable {
 
     public var title: String {
         switch self {
-        case .zip: return "ZIP"
+        case .zip: return L10n.tr("ZIP")
         case .sevenZip: return "7z"
-        case .tar: return "TAR"
-        case .tarGzip: return "TAR + gzip (.tar.gz)"
-        case .tarBzip2: return "TAR + BZip2 (.tar.bz2)"
-        case .tarXz: return "TAR + xz (.tar.xz)"
-        case .gzip: return "gzip (.gz, one file)"
-        case .bzip2: return "BZip2 (.bz2, one file)"
-        case .xz: return "xz (.xz, one file)"
+        case .tar: return L10n.tr("TAR")
+        case .tarGzip: return L10n.tr("TAR + gzip (.tar.gz)")
+        case .tarBzip2: return L10n.tr("TAR + BZip2 (.tar.bz2)")
+        case .tarXz: return L10n.tr("TAR + xz (.tar.xz)")
+        case .gzip: return L10n.tr("gzip (.gz, one file)")
+        case .bzip2: return L10n.tr("BZip2 (.bz2, one file)")
+        case .xz: return L10n.tr("xz (.xz, one file)")
         }
     }
 
@@ -69,14 +69,14 @@ public enum CompressionMethod: String, Sendable, CaseIterable, Codable {
 
     public var title: String {
         switch self {
-        case .deflate: return "Deflate"
-        case .store: return "Store (no compression)"
-        case .lzma2: return "LZMA2"
-        case .lzma: return "LZMA"
-        case .bzip2: return "BZip2"
+        case .deflate: return L10n.tr("Deflate")
+        case .store: return L10n.tr("Store (no compression)")
+        case .lzma2: return L10n.tr("LZMA2")
+        case .lzma: return L10n.tr("LZMA")
+        case .bzip2: return L10n.tr("BZip2")
         case .gzip: return "gzip"
         case .xz: return "xz"
-        case .none: return "None"
+        case .none: return L10n.tr("None")
         }
     }
 }
@@ -86,9 +86,9 @@ public enum CompressionLevel: Int, Sendable, CaseIterable, Codable {
 
     public var title: String {
         switch self {
-        case .fastest: return "Fastest"
-        case .normal: return "Normal"
-        case .maximum: return "Maximum"
+        case .fastest: return L10n.tr("Fastest")
+        case .normal: return L10n.tr("Normal")
+        case .maximum: return L10n.tr("Maximum")
         }
     }
 }
@@ -124,19 +124,19 @@ public struct ArchiveCreateOptions: Sendable, Equatable {
     /// Checks the options for a selection; returns a readable problem or nil.
     public func problem(for sources: [URL]) -> String? {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        if trimmed.isEmpty { return "Type a name for the archive." }
-        if trimmed.contains("/") || trimmed.contains(":") { return "A file name can't contain / or :." }
-        if sources.isEmpty { return "Nothing is selected." }
+        if trimmed.isEmpty { return L10n.tr("Type a name for the archive.") }
+        if trimmed.contains("/") || trimmed.contains(":") { return L10n.tr("A file name can't contain / or :.") }
+        if sources.isEmpty { return L10n.tr("Nothing is selected.") }
         if format.isSingleFile {
             var isDirectory: ObjCBool = false
             guard sources.count == 1, FileManager.default.fileExists(atPath: sources[0].path, isDirectory: &isDirectory),
                   !isDirectory.boolValue else {
-                return "\(format.title) compresses one file. Choose a TAR format for folders or several items."
+                return L10n.format("%@ compresses one file. Choose a TAR format for folders or several items.", "\(format.title)")
             }
         }
         let parent = sources[0].deletingLastPathComponent().standardizedFileURL
         if sources.contains(where: { $0.deletingLastPathComponent().standardizedFileURL != parent }) {
-            return "The items must be in the same folder."
+            return L10n.tr("The items must be in the same folder.")
         }
         return nil
     }

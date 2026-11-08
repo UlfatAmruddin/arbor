@@ -17,8 +17,8 @@ public struct BundleInfo: Equatable, Sendable {
         guard let bundle = Bundle(url: url), let info = bundle.infoDictionary else { return nil }
         let archs = (bundle.executableArchitectures ?? []).compactMap { arch -> String? in
             switch arch.intValue {
-            case NSBundleExecutableArchitectureARM64: return "Apple silicon"
-            case NSBundleExecutableArchitectureX86_64: return "Intel"
+            case NSBundleExecutableArchitectureARM64: return L10n.tr("Apple silicon")
+            case NSBundleExecutableArchitectureX86_64: return L10n.tr("Intel")
             default: return nil
             }
         }
@@ -36,7 +36,7 @@ public struct BundleInfo: Equatable, Sendable {
         switch architectures.count {
         case 0: return nil
         case 1: return architectures[0]
-        default: return "Universal (\(architectures.joined(separator: " and ")))"
+        default: return L10n.format("Universal (%@)", "\(architectures.joined(separator: " and "))")
         }
     }
 }
@@ -57,15 +57,15 @@ public struct CodeSignatureInfo: Equatable, Sendable {
     public var isAdHoc: Bool
 
     public var signerName: String? {
-        if isAdHoc { return "Ad hoc (no certificate)" }
+        if isAdHoc { return L10n.tr("Ad hoc (no certificate)") }
         return certificates.first
     }
 
     public var statusText: String {
         switch status {
-        case .valid: return isAdHoc ? "Signed locally (ad hoc). The signature is intact but doesn't identify a developer." : "This digital signature is OK."
-        case .unsigned: return "This item isn't signed."
-        case .invalid(let reason): return "This digital signature isn't valid: \(reason)"
+        case .valid: return isAdHoc ? L10n.tr("Signed locally (ad hoc). The signature is intact but doesn't identify a developer.") : L10n.tr("This digital signature is OK.")
+        case .unsigned: return L10n.tr("This item isn't signed.")
+        case .invalid(let reason): return L10n.format("This digital signature isn't valid: %@", "\(reason)")
         }
     }
 
@@ -143,9 +143,9 @@ public struct VolumeInfo: Equatable, Sendable {
 
     /// Explorer's drive types, in Mac terms.
     public static func typeText(local: Bool, isInternal: Bool?, removable: Bool, ejectable: Bool) -> String {
-        if !local { return "Network Drive" }
-        if removable { return "Removable Disk" }
-        if isInternal == false || ejectable { return "External Disk" }
-        return "Local Disk"
+        if !local { return L10n.tr("Network Drive") }
+        if removable { return L10n.tr("Removable Disk") }
+        if isInternal == false || ejectable { return L10n.tr("External Disk") }
+        return L10n.tr("Local Disk")
     }
 }

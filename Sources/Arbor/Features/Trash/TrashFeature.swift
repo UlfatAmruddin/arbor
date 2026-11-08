@@ -13,7 +13,7 @@ enum TrashFeature {
         LocationRegistry.register(TrashProvider())
         DetailsColumns.register { $0 == .trash ? layout : nil }
         NavigationPaneExtras.register(.afterNetwork) {
-            let node = NavNode(kind: .place, title: "Trash", location: .trash)
+            let node = NavNode(kind: .place, title: L10n.tr("Trash"), location: .trash)
             node.icon = TrashIcon.image(full: TrashStore.isFull == true, size: 16)
             return [node]
         }
@@ -28,7 +28,7 @@ enum TrashFeature {
     static let layout = DetailsLayout(
         id: "trash",
         order: ["name", "originalLocation", "dateDeleted", "size", "type", "dateModified"],
-        titles: ["type": "Item type", "dateModified": "Date Modified"],
+        titles: ["type": L10n.tr("Item type"), "dateModified": L10n.tr("Date Modified")],
         widths: ["name": 200],
         extras: [
             DetailsColumnSpec(id: "originalLocation", title: "Original Location", width: 210, minWidth: 80) { table, item in
@@ -38,8 +38,8 @@ enum TrashFeature {
                     cell.label.toolTip = record.originalFolder
                     cell.label.textColor = Theme.secondaryText
                 } else {
-                    cell.label.stringValue = "Unknown"
-                    cell.label.toolTip = "Arbor didn't move this item to the Trash, so its original location isn't known."
+                    cell.label.stringValue = L10n.tr("Unknown")
+                    cell.label.toolTip = L10n.tr("Arbor didn't move this item to the Trash, so its original location isn't known.")
                     cell.label.textColor = Theme.disabledText
                 }
                 return cell
@@ -51,9 +51,9 @@ enum TrashFeature {
                     cell.label.textColor = Theme.secondaryText
                     cell.label.toolTip = nil
                 } else {
-                    cell.label.stringValue = "Unknown"
+                    cell.label.stringValue = L10n.tr("Unknown")
                     cell.label.textColor = Theme.disabledText
-                    cell.label.toolTip = "The deletion date isn't available for this item."
+                    cell.label.toolTip = L10n.tr("The deletion date isn't available for this item.")
                 }
                 return cell
             },
@@ -87,7 +87,7 @@ enum TrashFeature {
                 tooltip: "Put the selected items back where they were",
                 placements: [.commandBarContextual(20), .itemContextMenu(.main, 5)],
                 showsTitle: true,
-                dynamicTitle: { $0.surface == .itemContextMenu ? "Restore" : "Restore the selected items" },
+                dynamicTitle: { $0.surface == .itemContextMenu ? L10n.tr("Restore") : L10n.tr("Restore the selected items") },
                 isAvailable: { inTrash($0) && $0.hasSelection },
                 isEnabled: { TrashActions.canRestore($0.selection) },
                 perform: { ctx in TrashActions.restore(ctx.selection, window: ctx.window) }),
@@ -107,7 +107,7 @@ enum TrashFeature {
             ExplorerCommand(
                 id: "trash.properties", title: "Trash properties", symbol: "info.circle",
                 placements: [.seeMore(.properties, 10), .treeContextMenu(.properties, 10), .backgroundContextMenu(.properties, 10)],
-                dynamicTitle: { $0.surface == .commandBar ? "Trash properties" : "Properties" },
+                dynamicTitle: { $0.surface == .commandBar ? L10n.tr("Trash properties") : L10n.tr("Properties") },
                 isAvailable: { ctx in ctx.surface == .treeContextMenu ? ctx.treeLocation == .trash : inTrash(ctx) },
                 perform: { ctx in TrashActions.showTrashProperties(window: ctx.window) }),
         ])

@@ -24,7 +24,7 @@ by more than 25 %. They are proposals for the owner to confirm (spec §15.4: "ag
 | 100,000-entry folder: rows on screen | ≤ 1.2 s | 0.68 s | `large.first.ms` |
 | 100,000-entry folder: peak footprint | ≤ 170 MB | 128 MB | `large.big.peak_mb` |
 | 100,000-entry folder: longest main-thread stall while opening/leaving | ≤ 150 ms | 68 ms | `large.large.max` |
-| 100,000-entry folder: longest stall while sorting and scrolling | ≤ 350 ms | 242 ms (sort by type) | `large.large_details.max` |
+| 100,000-entry folder: longest stall while sorting and scrolling | ≤ 350 ms | 77 ms (sorts run in the background; was 242 ms) | `large.large_details.max` |
 | 100,000-entry folder: scroll frame | p95 ≤ 12 ms | 4.4 ms | `large.details.p95_ms` |
 | After leaving the 100,000-entry folder (twice) | ≤ 110 MB | 94 MB | `large.away2.footprint_mb` |
 | Thumbnails of 60 12-megapixel photos | ≤ 70 MB | 48 MB | `media.thumbs.footprint_mb` |
@@ -95,8 +95,8 @@ to ~17 MB after leaving a large folder).
 - **Freed but kept memory.** After leaving the 100,000-entry folder the footprint stays ~57 MB above launch even though the
   live heap is back to ~17 MB (`heap`): the allocator keeps partly used pages; the next large listing reuses them.
 - **Rows are not progressive.** The first rows of a huge folder appear when it has been fully read and sorted (0.68 s here).
-- **Sorting by type or in reverse** still takes ~230 ms on the main thread for 100,000 rows (many ties fall through to
-  name comparisons; a reversed order can't reuse the background pre-sort).
+- **Re-sorting** 100,000 rows by type or in reverse takes ~210 ms, now on a background queue (the main thread's share is
+  under 1 ms; `timecmd:` logs both). Orders on extra Details columns still sort on the main thread.
 - **Windows** cost ~9 MB each (view tree, navigation pane, layers).
 - Not covered yet: remote-storage latency/disconnect and optional-index workloads (spec §15.4).
 

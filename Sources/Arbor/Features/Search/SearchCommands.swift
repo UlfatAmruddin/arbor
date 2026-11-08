@@ -78,22 +78,22 @@ enum SearchCommands {
 
         var items: [NSMenuItem] = []
         if request.scope == nil {
-            items += [disabled("Current folder", "Searching This Mac uses the Spotlight index; choose a folder to limit the scope."),
-                      disabled("All subfolders", "Searching This Mac uses the Spotlight index; choose a folder to limit the scope."),
+            items += [disabled(L10n.tr("Current folder"), L10n.tr("Searching This Mac uses the Spotlight index; choose a folder to limit the scope.")),
+                      disabled(L10n.tr("All subfolders"), L10n.tr("Searching This Mac uses the Spotlight index; choose a folder to limit the scope.")),
                       .separator()]
         } else {
-            let current = ClosureMenuItem("Current folder") { var n = request; n.recursive = false; apply(n) }
+            let current = ClosureMenuItem(L10n.tr("Current folder")) { var n = request; n.recursive = false; apply(n) }
             current.state = request.recursive ? .off : .on
-            current.toolTip = "Search only the items directly in “\(scopeName(request))”"
-            let all = ClosureMenuItem("All subfolders") { var n = request; n.recursive = true; apply(n) }
+            current.toolTip = L10n.format("Search only the items directly in “%@”", "\(scopeName(request))")
+            let all = ClosureMenuItem(L10n.tr("All subfolders")) { var n = request; n.recursive = true; apply(n) }
             all.state = request.recursive ? .on : .off
-            all.toolTip = "Search “\(scopeName(request))” and every folder inside it"
+            all.toolTip = L10n.format("Search “%@” and every folder inside it", "\(scopeName(request))")
             items += [current, all, .separator()]
         }
 
         // Date modified ▸
         let dateActive = activeValue(.dateModified)
-        items.append(submenu("Date modified", AQSParser.dateKeywords.map { entry in
+        items.append(submenu(L10n.tr("Date modified"), AQSParser.dateKeywords.map { entry in
             let item = ClosureMenuItem(entry.title, handler: toggle(.dateModified, entry.keyword))
             item.state = dateActive == entry.keyword ? .on : .off
             return item
@@ -108,7 +108,7 @@ enum SearchCommands {
             ("Picture", "picture"), ("Playlist", "playlist"), ("Program", "program"), ("Recorded TV", nil),
             ("Saved search", "savedsearch"), ("Task", nil), ("Video", "video"), ("Web history", nil), ("Unknown", "unknown"),
         ]
-        items.append(submenu("Kind", kinds.map { title, keyword in
+        items.append(submenu(L10n.tr("Kind"), kinds.map { title, keyword in
             guard let keyword else { return disabled(title, "“\(title)” is a Windows kind with no macOS equivalent.") }
             let item = ClosureMenuItem(title, handler: toggle(.kind, keyword))
             item.state = kindActive != nil && kindActive == SearchKind.lookup(keyword) ? .on : .off
@@ -117,14 +117,14 @@ enum SearchCommands {
 
         // Size ▸
         let sizeActive = activeValue(.size)
-        items.append(submenu("Size", AQSParser.sizeNames.map { entry in
+        items.append(submenu(L10n.tr("Size"), AQSParser.sizeNames.map { entry in
             let item = ClosureMenuItem(entry.title, handler: toggle(.size, entry.name))
             item.state = sizeActive == entry.name ? .on : .off
             return item
         }))
 
         // Other properties ▸ — inserts the property into the box, like Explorer.
-        items.append(submenu("Other properties", [("Type", "type:"), ("Name", "name:"), ("Folder path", "folderpath:"), ("Tags", "tags:")].map { title, text in
+        items.append(submenu(L10n.tr("Other properties"), [("Type", "type:"), ("Name", "name:"), ("Folder path", "folderpath:"), ("Tags", "tags:")].map { title, text in
             ClosureMenuItem(title) { controller.insertIntoBox(text) }
         }))
 
@@ -142,20 +142,20 @@ enum SearchCommands {
             item.toolTip = tip
             return item
         }
-        let indexed = ClosureMenuItem("Change indexed locations…") {
+        let indexed = ClosureMenuItem(L10n.tr("Change indexed locations…")) {
             if let url = URL(string: "x-apple.systempreferences:com.apple.Spotlight-Settings.extension") { SystemOpen.open(url) }
         }
-        indexed.toolTip = "Opens System Settings ▸ Spotlight, where macOS decides what's indexed."
-        items.append(submenu("Advanced options", [
+        indexed.toolTip = L10n.tr("Opens System Settings ▸ Spotlight, where macOS decides what's indexed.")
+        items.append(submenu(L10n.tr("Advanced options"), [
             indexed, .separator(),
-            optionItem("File contents", .contents, "Also match words inside files: text files directly, other documents through the Spotlight index."),
-            optionItem("System files", .systemFiles, "Include hidden items and the contents of apps and other packages."),
-            optionItem("Zipped (compressed) folders", .zipped, "Look inside .zip archives; a match shows the archive."),
+            optionItem(L10n.tr("File contents"), .contents, "Also match words inside files: text files directly, other documents through the Spotlight index."),
+            optionItem(L10n.tr("System files"), .systemFiles, "Include hidden items and the contents of apps and other packages."),
+            optionItem(L10n.tr("Zipped (compressed) folders"), .zipped, "Look inside .zip archives; a match shows the archive."),
         ]))
 
         items.append(.separator())
-        items.append(ClosureMenuItem("Why might results be missing?") { showCoverage(ctx) })
-        items.append(ClosureMenuItem("Save search") { save(ctx) })
+        items.append(ClosureMenuItem(L10n.tr("Why might results be missing?")) { showCoverage(ctx) })
+        items.append(ClosureMenuItem(L10n.tr("Save search")) { save(ctx) })
         return items
     }
 
@@ -188,7 +188,7 @@ enum SearchCommands {
         alert.messageText = session.coverage.isComplete ? "This search covered everything in its location."
                                                         : "Why might some results be missing?"
         alert.informativeText = coverageText(session)
-        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: L10n.tr("OK"))
         AlertSheets.present(alert, in: ctx.window?.window)
     }
 
@@ -210,14 +210,14 @@ enum SearchCommands {
         panel.nameFieldStringValue = SavedSearch.suggestedFileName(for: request.query)
         panel.allowedContentTypes = [savedSearchType]
         panel.directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
-        panel.message = "Save this search. Opening the file in Arbor runs it again."
+        panel.message = L10n.tr("Save this search. Opening the file in Arbor runs it again.")
         panel.beginSheetModal(for: host) { response in
             guard response == .OK, let url = panel.url else { return }
             do {
                 try write(request, to: url)
-                ctx.window?.statusBar.setMessage("Search saved as “\(url.lastPathComponent)”.")
+                ctx.window?.statusBar.setMessage(L10n.format("Search saved as “%@”.", "\(url.lastPathComponent)"))
             } catch {
-                NSAlert.show("Couldn't save the search.", error.localizedDescription, in: host)
+                NSAlert.show(L10n.tr("Couldn't save the search."), error.localizedDescription, in: host)
             }
         }
     }

@@ -14,13 +14,13 @@ final class DetailsSidePane: NSView, SidePaneProvider {
     private let thumbnail = NSImageView()
     private let nameLabel = NSTextField(wrappingLabelWithString: "")
     private let typeLabel = NSTextField(labelWithString: "")
-    private let propertiesHeader = NSTextField(labelWithString: "Properties")
+    private let propertiesHeader = NSTextField(labelWithString: L10n.tr("Properties"))
     private let grid = NSStackView()
-    private let editHeader = NSTextField(labelWithString: "Finder tags and comments")
-    private let tagsField = SheetTextField(placeholder: "Add a tag")
-    private let commentField = SheetTextField(placeholder: "Add comments")
-    private lazy var saveButton = SheetButton("Save", isDefault: true) { [weak self] _ in self?.saveEdits() }
-    private lazy var cancelButton = SheetButton("Cancel") { [weak self] _ in self?.cancelEdits() }
+    private let editHeader = NSTextField(labelWithString: L10n.tr("Finder tags and comments"))
+    private let tagsField = SheetTextField(placeholder: L10n.tr("Add a tag"))
+    private let commentField = SheetTextField(placeholder: L10n.tr("Add comments"))
+    private lazy var saveButton = SheetButton(L10n.tr("Save"), isDefault: true) { [weak self] _ in self?.saveEdits() }
+    private lazy var cancelButton = SheetButton(L10n.tr("Cancel")) { [weak self] _ in self?.cancelEdits() }
     private let editButtons = NSStackView()
     private let editBox = NSStackView()
     private let message = NSTextField(wrappingLabelWithString: "")
@@ -36,7 +36,7 @@ final class DetailsSidePane: NSView, SidePaneProvider {
     override init(frame: NSRect) {
         super.init(frame: frame)
         translatesAutoresizingMaskIntoConstraints = false
-        setAccessibilityLabel("Details pane")
+        setAccessibilityLabel(L10n.tr("Details pane"))
         build()
     }
 
@@ -59,7 +59,7 @@ final class DetailsSidePane: NSView, SidePaneProvider {
 
         thumbnail.imageScaling = .scaleProportionallyUpOrDown
         thumbnail.translatesAutoresizingMaskIntoConstraints = false
-        thumbnail.setAccessibilityLabel("Thumbnail")
+        thumbnail.setAccessibleName(L10n.tr("Thumbnail"))
         nameLabel.font = .systemFont(ofSize: 15, weight: .semibold)
         nameLabel.textColor = Theme.primaryText
         nameLabel.alignment = .left
@@ -86,8 +86,11 @@ final class DetailsSidePane: NSView, SidePaneProvider {
         editBox.orientation = .vertical
         editBox.alignment = .leading
         editBox.spacing = 6
-        for (label, field) in [("Tags", tagsField), ("Comments", commentField)] {
-            let l = NSTextField(labelWithString: label)
+        for (label, field) in [(L10n.tr("Tags"), tagsField), (L10n.tr("Comments"), commentField)] {
+            // Property names wrap onto a second line rather than being cut off (longer translations).
+            let l = NSTextField(wrappingLabelWithString: label)
+            l.maximumNumberOfLines = 2
+            l.preferredMaxLayoutWidth = 100
             l.font = Theme.bodyFont
             l.textColor = Theme.secondaryText
             editBox.addArrangedSubview(l)
@@ -187,11 +190,11 @@ final class DetailsSidePane: NSView, SidePaneProvider {
             thumbnail.contentTintColor = Theme.iconTint
             var rows: [(String, String)] = []
             if summary.files > 0 {
-                rows.append((summary.folders > 0 ? "Size (files)" : "Total size", PropertyFormat.adaptiveSize(summary.knownFileSize)))
+                rows.append((summary.folders > 0 ? L10n.tr("Size (files)") : L10n.tr("Total size"), PropertyFormat.adaptiveSize(summary.knownFileSize)))
             }
-            rows.append(("Items", summary.countText))
-            if let range = PropertyFormat.dateRange(summary.modifiedDates) { rows.append(("Date modified", range)) }
-            if !summary.locationText.isEmpty { rows.append(("Location", summary.locationText.replacingOccurrences(of: "All in ", with: ""))) }
+            rows.append((L10n.tr("Items"), summary.countText))
+            if let range = PropertyFormat.dateRange(summary.modifiedDates) { rows.append((L10n.tr("Date modified"), range)) }
+            if !summary.locationText.isEmpty { rows.append((L10n.tr("Location"), summary.locationValue)) }
             setRows(rows)
             prepareEditing(nil)
         } else {
@@ -201,7 +204,7 @@ final class DetailsSidePane: NSView, SidePaneProvider {
                 typeLabel.stringValue = location.folderURL == nil ? "" : "Folder"
                 thumbnail.image = IconProvider.shared.icon(for: location, size: 128)
                 setRows([])
-                message.stringValue = "Select a file to see its details."
+                message.stringValue = L10n.tr("Select a file to see its details.")
                 message.isHidden = false
                 if let folder = location.folderURL {
                     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -210,9 +213,9 @@ final class DetailsSidePane: NSView, SidePaneProvider {
                         DispatchQueue.main.async {
                             guard let self, token == self.generation else { return }
                             var rows: [(String, String)] = []
-                            if let count { rows.append(("Items", StatusText.items(count))) }
-                            if let created { rows.append(("Date created", PropertyFormat.shortDate(created))) }
-                            rows.append(("Location", folder.deletingLastPathComponent().path))
+                            if let count { rows.append((L10n.tr("Items"), StatusText.items(count))) }
+                            if let created { rows.append((L10n.tr("Date created"), PropertyFormat.shortDate(created))) }
+                            rows.append((L10n.tr("Location"), folder.deletingLastPathComponent().path))
                             self.setRows(rows)
                         }
                     }
@@ -228,18 +231,38 @@ final class DetailsSidePane: NSView, SidePaneProvider {
         if items.count != 1 { thumbnail.contentTintColor = items.count > 1 ? Theme.iconTint : nil }
     }
 
+    /// What the preview area shows now (scripted checks): "icon", "thumbnail" or "page", with the image size.
+    private(set) var previewKind = "icon"
+
     private func requestThumbnail(_ item: FileItem, token: Int) {
-        guard !item.isFolder else { return }
+        previewKind = "icon"
+        let kind = ThumbnailPolicy.panePreview(item, iconsOnly: Prefs.alwaysShowIcons)
+        guard kind != .icon else { return }   // text, source code, CSV…: the type icon (Explorer does the same)
         let scale = window?.backingScaleFactor ?? 2
         let request = QLThumbnailGenerator.Request(fileAt: item.url, size: CGSize(width: 220, height: 150), scale: scale,
                                                    representationTypes: .thumbnail)
         thumbnailRequest = request
         QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { [weak self] rep, _ in
-            guard let image = rep?.nsImage else { return }
+            guard let cgImage = rep?.cgImage else { return }
             DispatchQueue.main.async {
                 guard let self, token == self.generation else { return }
-                self.thumbnail.image = image
+                // Size the image from its pixels: the representation's own NSImage can report a zero size.
+                let size = NSSize(width: CGFloat(cgImage.width) / scale, height: CGFloat(cgImage.height) / scale)
+                self.thumbnail.image = kind == .page ? Self.framedPage(cgImage, size: size) : NSImage(cgImage: cgImage, size: size)
+                self.previewKind = kind == .page ? "page" : "thumbnail"
             }
+        }
+    }
+
+    /// A document page with a hairline border, so a white page stays visible on the pane's white background.
+    private static func framedPage(_ page: CGImage, size: NSSize) -> NSImage {
+        NSImage(size: NSSize(width: size.width + 2, height: size.height + 2), flipped: false) { rect in
+            NSGraphicsContext.current?.cgContext.draw(page, in: rect.insetBy(dx: 1, dy: 1))
+            Theme.separator.setStroke()
+            let border = NSBezierPath(rect: rect.insetBy(dx: 0.5, dy: 0.5))
+            border.lineWidth = 1
+            border.stroke()
+            return true
         }
     }
 
@@ -252,30 +275,30 @@ final class DetailsSidePane: NSView, SidePaneProvider {
         var rows: [(String, String)] = []
         if !item.isFolder {
             let sizes = SizeScanner.entrySizes(url)
-            if !item.isPackage { rows.append(("Size", PropertyFormat.adaptiveSize(sizes.size))) }
+            if !item.isPackage { rows.append((L10n.tr("Size"), PropertyFormat.adaptiveSize(sizes.size))) }
         }
-        if let d = v?.contentModificationDate { rows.append(("Date modified", PropertyFormat.shortDate(d))) }
-        if let d = v?.creationDate { rows.append(("Date created", PropertyFormat.shortDate(d))) }
+        if let d = v?.contentModificationDate { rows.append((L10n.tr("Date modified"), PropertyFormat.shortDate(d))) }
+        if let d = v?.creationDate { rows.append((L10n.tr("Date created"), PropertyFormat.shortDate(d))) }
         let meta = SpotlightMetadata.rows(for: url, isImage: v?.contentType?.conforms(to: .image) ?? false)
         let wanted: Set<String> = ["Dimensions", "Length", "Authors", "Title", "Camera model", "Album", "Bit rate", "Pages", "Rating"]
         for row in meta where wanted.contains(row.label) { rows.append((row.label, row.value)) }
         if item.isPackage, let bundle = BundleInfo.read(url) {
-            if let version = bundle.version { rows.append(("Version", version)) }
+            if let version = bundle.version { rows.append((L10n.tr("Version"), version)) }
         }
         let tags = FinderMetadata.tags(of: url)
-        if !tags.isEmpty { rows.append(("Tags", FinderMetadata.tagText(tags))) }
+        if !tags.isEmpty { rows.append((L10n.tr("Tags"), FinderMetadata.tagText(tags))) }
         // Availability and sharing, where macOS knows them (iCloud Drive, network volumes).
         if v?.isUbiquitousItem == true {
             let local = v?.ubiquitousItemDownloadingStatus == .current
-            rows.append(("Availability", local ? "Available on this device" : "Available when online (stored in iCloud)"))
-            if v?.ubiquitousItemIsShared == true { rows.append(("Sharing", "Shared")) }
+            rows.append((L10n.tr("Availability"), local ? L10n.tr("Available on this device") : L10n.tr("Available when online (stored in iCloud)")))
+            if v?.ubiquitousItemIsShared == true { rows.append((L10n.tr("Sharing"), L10n.tr("Shared"))) }
         } else if v?.volumeIsLocal == false {
-            rows.append(("Availability", "On a network drive"))
+            rows.append((L10n.tr("Availability"), L10n.tr("On a network drive")))
         } else {
-            rows.append(("Availability", "Available on this device"))
+            rows.append((L10n.tr("Availability"), L10n.tr("Available on this device")))
         }
-        if let flags = try? FileFlags.read(url), flags.isLocked { rows.append(("Attributes", "Read-only (Locked)")) }
-        rows.append(("Location", url.deletingLastPathComponent().path))
+        if let flags = try? FileFlags.read(url), flags.isLocked { rows.append((L10n.tr("Attributes"), L10n.tr("Read-only (Locked)"))) }
+        rows.append((L10n.tr("Location"), url.deletingLastPathComponent().path))
         return rows
     }
 
@@ -284,11 +307,15 @@ final class DetailsSidePane: NSView, SidePaneProvider {
         grid.arrangedSubviews.forEach { $0.removeFromSuperview() }
         propertiesHeader.isHidden = rows.isEmpty
         for (label, value) in rows {
-            let l = NSTextField(labelWithString: label)
+            // Property names wrap onto a second line rather than being cut off (longer translations).
+            let l = NSTextField(wrappingLabelWithString: label)
+            l.maximumNumberOfLines = 2
+            l.preferredMaxLayoutWidth = 100
+            l.isSelectable = false
+            l.setContentCompressionResistancePriority(.required, for: .vertical)
             l.font = Theme.bodyFont
             l.textColor = Theme.secondaryText
             l.translatesAutoresizingMaskIntoConstraints = false
-            l.setContentHuggingPriority(.required, for: .horizontal)
             let v = NSTextField(wrappingLabelWithString: value)
             v.font = Theme.bodyFont
             v.textColor = Theme.primaryText
@@ -354,16 +381,16 @@ final class DetailsSidePane: NSView, SidePaneProvider {
         guard let url = editURL, let original = editOriginal, let edited = editedState else { return }
         window?.makeFirstResponder(nil)
         guard let current = try? EditableState.read(url) else {
-            NSAlert.show("“\(url.lastPathComponent)” can't be found.", "It may have been moved or deleted.", in: window)
+            NSAlert.show(L10n.format("“%@” can't be found.", "\(url.lastPathComponent)"), L10n.tr("It may have been moved or deleted."), in: window)
             return
         }
         let plan = PropertyChangePlan(url: url, original: original, edited: edited)
         if !plan.conflicts(with: current).isEmpty {
             let alert = NSAlert()
-            alert.messageText = "“\(url.lastPathComponent)” was changed by another app."
-            alert.informativeText = "Save your tags and comments anyway?"
-            alert.addButton(withTitle: "Save")
-            alert.addButton(withTitle: "Cancel")
+            alert.messageText = L10n.format("“%@” was changed by another app.", "\(url.lastPathComponent)")
+            alert.informativeText = L10n.tr("Save your tags and comments anyway?")
+            alert.addButton(withTitle: L10n.tr("Save"))
+            alert.addButton(withTitle: L10n.tr("Cancel"))
             PropertiesWindowController.present(alert, window: window) { [weak self] response in
                 if response == .alertFirstButtonReturn { self?.write(edited, over: current, at: url) }
             }
@@ -381,10 +408,10 @@ final class DetailsSidePane: NSView, SidePaneProvider {
             _ = try PropertyChangePlan(url: url, original: current, edited: target).apply()
             editOriginal = try EditableState.read(url)
             editsChanged()
-            BrowserWindowController.active?.statusBar.setMessage("Saved tags and comments for “\(url.lastPathComponent)”.")
+            BrowserWindowController.active?.statusBar.setMessage(L10n.format("Saved tags and comments for “%@”.", "\(url.lastPathComponent)"))
             if let item = FileItem(url: url), shownItems.count == 1 { show([item], location: nil) }
         } catch {
-            NSAlert.show("Tags and comments couldn't be saved.", error.localizedDescription, in: window)
+            NSAlert.show(L10n.tr("Tags and comments couldn't be saved."), error.localizedDescription, in: window)
         }
     }
 
@@ -399,6 +426,10 @@ final class DetailsSidePane: NSView, SidePaneProvider {
 
     var debugText: String {
         var lines = ["details pane: \(nameLabel.stringValue) | \(typeLabel.stringValue)"]
+        if shownItems.count == 1 {
+            let size = thumbnail.image?.size ?? .zero
+            lines.append("  preview: \(previewKind) \(Int(size.width))x\(Int(size.height))")
+        }
         lines += rows.map { "  \($0.0): \($0.1)" }
         if !editBox.isHidden { lines.append("  edit tags: \(tagsField.stringValue)  comments: \(commentField.stringValue)  save shown: \(!editButtons.isHidden)") }
         if !message.isHidden { lines.append("  message: \(message.stringValue)") }

@@ -102,9 +102,9 @@ enum CloudFeature {
         let what = folders.isEmpty ? "available only online, so \(onlineOnly.count == 1 ? "it" : "they") must be downloaded"
                                    : "in \(root.displayName). Any files in \(folders.count == 1 ? "it" : "them") that are only available online will be downloaded"
         return TransferPreflight.Prompt(
-            message: "Download from \(root.displayName) to \(verb) \(cloudSources.count == 1 ? "this item" : "these items")?",
+            message: L10n.format("Download from %@ to %@ %@?", "\(root.displayName)", "\(verb)", "\(cloudSources.count == 1 ? "this item" : "these items")"),
             info: "\(subject) \(what) to this Mac before they're \(kind == .move ? "moved" : "copied"). This can take a while and use storage space.",
-            confirmTitle: kind == .move ? "Download and Move" : "Download and Copy")
+            confirmTitle: kind == .move ? L10n.tr("Download and Move") : L10n.tr("Download and Copy"))
     }
 
     // MARK: Commands (FE-191): only what the system lets a third-party app request
@@ -194,9 +194,9 @@ enum CloudFeature {
                     ? "\(StatusText.items(done)) now available on this device."
                     : "Freed up space: \(StatusText.items(done)) now available when online.")
             } else if errors > 0 {
-                window?.statusBar.setMessage("\(provider) reported a problem with \(StatusText.items(errors)). See the Status column.", isError: true)
+                window?.statusBar.setMessage(L10n.format("%@ reported a problem with %@. See the Status column.", "\(provider)", "\(StatusText.items(errors))"), isError: true)
             } else if Date().timeIntervalSince(started) > (action == .download ? 120 : 20) {
-                window?.statusBar.setMessage("\(StatusText.items(done)) of \(urls.count) done so far. The Status column shows the current state.")
+                window?.statusBar.setMessage(L10n.format("%@ of %@ done so far. The Status column shows the current state.", "\(StatusText.items(done))", "\(urls.count)"))
             } else {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { follow(action, urls, provider: provider, window: window, started: started) }
             }

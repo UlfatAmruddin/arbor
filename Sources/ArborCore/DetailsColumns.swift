@@ -151,52 +151,52 @@ public enum ColumnCatalog {
     public static func needsLoading(_ id: ColumnID) -> Bool { (descriptor(id)?.source ?? .listing) != .listing }
 
     public static let builtIn: [ColumnDescriptor] = [
-        ColumnDescriptor(id: .name, title: "Name", width: 340, minWidth: 140, source: .listing, groupStyle: .alphabet,
+        ColumnDescriptor(id: .name, title: L10n.tr("Name"), width: 340, minWidth: 140, source: .listing, groupStyle: .alphabet,
                          isCommon: true, listingValue: { .text($0.name) }),
-        ColumnDescriptor(id: .dateModified, title: "Date modified", width: 160, minWidth: 90, source: .listing,
+        ColumnDescriptor(id: .dateModified, title: L10n.tr("Date modified"), width: 160, minWidth: 90, source: .listing,
                          groupStyle: .date, isCommon: true, listingValue: { $0.modified.map(ColumnValue.date) ?? .unknown }),
-        ColumnDescriptor(id: .type, title: "Type", width: 150, minWidth: 70, source: .listing, groupStyle: .distinct,
+        ColumnDescriptor(id: .type, title: L10n.tr("Type"), width: 150, minWidth: 70, source: .listing, groupStyle: .distinct,
                          isCommon: true, keywords: ["kind", "item type"], listingValue: { .text($0.typeDescription) }),
-        ColumnDescriptor(id: .size, title: "Size", width: 90, minWidth: 55, alignRight: true, source: .listing,
+        ColumnDescriptor(id: .size, title: L10n.tr("Size"), width: 90, minWidth: 55, alignRight: true, source: .listing,
                          groupStyle: .size, isCommon: true, listingValue: { item in
                              item.isFolder ? .unsupported : (item.size.map(ColumnValue.bytes) ?? .unknown) }),
-        ColumnDescriptor(id: .dateCreated, title: "Date created", width: 160, minWidth: 90, source: .fileSystem,
+        ColumnDescriptor(id: .dateCreated, title: L10n.tr("Date created"), width: 160, minWidth: 90, source: .fileSystem,
                          groupStyle: .date, isCommon: true),
-        ColumnDescriptor(id: .dateAccessed, title: "Date accessed", width: 160, minWidth: 90, source: .fileSystem,
+        ColumnDescriptor(id: .dateAccessed, title: L10n.tr("Date accessed"), width: 160, minWidth: 90, source: .fileSystem,
                          groupStyle: .date, keywords: ["last opened"]),
-        ColumnDescriptor(id: .sizeOnDisk, title: "Size on disk", width: 100, minWidth: 55, alignRight: true,
+        ColumnDescriptor(id: .sizeOnDisk, title: L10n.tr("Size on disk"), width: 100, minWidth: 55, alignRight: true,
                          source: .fileSystem, groupStyle: .size, keywords: ["allocated"]),
-        ColumnDescriptor(id: .authors, title: "Authors", width: 150, source: .content, groupStyle: .distinct,
+        ColumnDescriptor(id: .authors, title: L10n.tr("Authors"), width: 150, source: .content, groupStyle: .distinct,
                          isCommon: true, keywords: ["creator"]),
-        ColumnDescriptor(id: .tags, title: "Tags", width: 140, source: .fileSystem, groupStyle: .distinct,
+        ColumnDescriptor(id: .tags, title: L10n.tr("Tags"), width: 140, source: .fileSystem, groupStyle: .distinct,
                          isCommon: true, keywords: ["finder tags", "labels", "keywords"]),
-        ColumnDescriptor(id: .title, title: "Title", width: 180, source: .content, groupStyle: .alphabet, isCommon: true),
-        ColumnDescriptor(id: .itemDate, title: "Date", width: 160, minWidth: 90, source: .content, groupStyle: .date,
+        ColumnDescriptor(id: .title, title: L10n.tr("Title"), width: 180, source: .content, groupStyle: .alphabet, isCommon: true),
+        ColumnDescriptor(id: .itemDate, title: L10n.tr("Date"), width: 160, minWidth: 90, source: .content, groupStyle: .date,
                          keywords: ["item date"]),
-        ColumnDescriptor(id: .dimensions, title: "Dimensions", width: 110, source: .content, groupStyle: .distinct,
+        ColumnDescriptor(id: .dimensions, title: L10n.tr("Dimensions"), width: 110, source: .content, groupStyle: .distinct,
                          keywords: ["resolution", "pixels"]),
-        ColumnDescriptor(id: .width, title: "Width", width: 80, alignRight: true, source: .content, groupStyle: .distinct,
+        ColumnDescriptor(id: .width, title: L10n.tr("Width"), width: 80, alignRight: true, source: .content, groupStyle: .distinct,
                          keywords: ["pixels"]),
-        ColumnDescriptor(id: .height, title: "Height", width: 80, alignRight: true, source: .content, groupStyle: .distinct,
+        ColumnDescriptor(id: .height, title: L10n.tr("Height"), width: 80, alignRight: true, source: .content, groupStyle: .distinct,
                          keywords: ["pixels"]),
-        ColumnDescriptor(id: .dateTaken, title: "Date taken", width: 160, minWidth: 90, source: .content, groupStyle: .date,
+        ColumnDescriptor(id: .dateTaken, title: L10n.tr("Date taken"), width: 160, minWidth: 90, source: .content, groupStyle: .date,
                          keywords: ["photo", "exif"]),
-        ColumnDescriptor(id: .cameraModel, title: "Camera model", width: 140, source: .content, groupStyle: .distinct,
+        ColumnDescriptor(id: .cameraModel, title: L10n.tr("Camera model"), width: 140, source: .content, groupStyle: .distinct,
                          keywords: ["photo", "exif"]),
-        ColumnDescriptor(id: .length, title: "Length", width: 90, alignRight: true, source: .content, groupStyle: .duration,
+        ColumnDescriptor(id: .length, title: L10n.tr("Length"), width: 90, alignRight: true, source: .content, groupStyle: .duration,
                          keywords: ["duration", "time"]),
-        ColumnDescriptor(id: .bitRate, title: "Bit rate", width: 90, alignRight: true, source: .content, groupStyle: .distinct,
+        ColumnDescriptor(id: .bitRate, title: L10n.tr("Bit rate"), width: 90, alignRight: true, source: .content, groupStyle: .distinct,
                          keywords: ["kbps", "bitrate"]),
         ColumnDescriptor(id: .trackNumber, title: "#", width: 50, minWidth: 36, alignRight: true, source: .content,
                          groupStyle: .distinct, keywords: ["track", "number"]),
-        ColumnDescriptor(id: .artists, title: "Contributing artists", width: 170, source: .content, groupStyle: .distinct,
+        ColumnDescriptor(id: .artists, title: L10n.tr("Contributing artists"), width: 170, source: .content, groupStyle: .distinct,
                          keywords: ["artist", "performer"]),
-        ColumnDescriptor(id: .album, title: "Album", width: 160, source: .content, groupStyle: .distinct),
-        ColumnDescriptor(id: .genre, title: "Genre", width: 110, source: .content, groupStyle: .distinct),
-        ColumnDescriptor(id: .year, title: "Year", width: 70, alignRight: true, source: .content, groupStyle: .distinct),
-        ColumnDescriptor(id: .pages, title: "Pages", width: 70, alignRight: true, source: .content, groupStyle: .distinct,
+        ColumnDescriptor(id: .album, title: L10n.tr("Album"), width: 160, source: .content, groupStyle: .distinct),
+        ColumnDescriptor(id: .genre, title: L10n.tr("Genre"), width: 110, source: .content, groupStyle: .distinct),
+        ColumnDescriptor(id: .year, title: L10n.tr("Year"), width: 70, alignRight: true, source: .content, groupStyle: .distinct),
+        ColumnDescriptor(id: .pages, title: L10n.tr("Pages"), width: 70, alignRight: true, source: .content, groupStyle: .distinct,
                          keywords: ["page count"]),
-        ColumnDescriptor(id: .comments, title: "Comments", width: 180, source: .content, groupStyle: .distinct,
+        ColumnDescriptor(id: .comments, title: L10n.tr("Comments"), width: 180, source: .content, groupStyle: .distinct,
                          keywords: ["finder comment"]),
     ]
 }
@@ -255,10 +255,10 @@ public enum ColumnValues {
     /// Spoken/tooltip description of a cell's state.
     public static func stateDescription(_ value: ColumnValue?) -> String? {
         switch value {
-        case nil: return "Loading…"
-        case .unknown?: return "Unknown: this information couldn't be read"
-        case .unsupported?: return "Not available for this kind of item"
-        case .empty?: return "None"
+        case nil: return L10n.tr("Loading…")
+        case .unknown?: return L10n.tr("Unknown: this information couldn't be read")
+        case .unsupported?: return L10n.tr("Not available for this kind of item")
+        case .empty?: return L10n.tr("None")
         default: return nil
         }
     }
@@ -300,12 +300,12 @@ public enum FolderKind: String, CaseIterable, Sendable, Codable {
 
     public var title: String {
         switch self {
-        case .general: return "General items"
-        case .documents: return "Documents"
-        case .pictures: return "Pictures"
-        case .music: return "Music"
-        case .videos: return "Videos"
-        case .downloads: return "Downloads"
+        case .general: return L10n.tr("General items")
+        case .documents: return L10n.tr("Documents")
+        case .pictures: return L10n.tr("Pictures")
+        case .music: return L10n.tr("Music")
+        case .videos: return L10n.tr("Videos")
+        case .downloads: return L10n.tr("Downloads")
         }
     }
 

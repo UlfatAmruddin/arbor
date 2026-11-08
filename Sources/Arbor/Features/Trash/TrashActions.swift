@@ -16,9 +16,9 @@ enum TrashActions {
     /// "Are you sure you want to permanently delete this file?" / "…this folder?" / "…these 12 items?"
     static func permanentQuestion(count: Int, single: FileItem?) -> String {
         if count == 1, let single {
-            return "Are you sure you want to permanently delete this \(single.isFolder ? "folder" : "file")?"
+            return L10n.format("Are you sure you want to permanently delete this %@?", "\(single.isFolder ? "folder" : "file")")
         }
-        return "Are you sure you want to permanently delete these \(count.formatted()) items?"
+        return L10n.format("Are you sure you want to permanently delete these %@ items?", "\(count.formatted())")
     }
 
     /// Yes / No like Explorer; No is the default button so Return never destroys anything.
@@ -32,9 +32,9 @@ enum TrashActions {
         if count == 1, let item = items.first {
             info = describe(item)
         }
-        alert.informativeText = info.isEmpty ? "This can't be undone." : info + "\n\nThis can't be undone."
-        let yes = alert.addButton(withTitle: "Yes")
-        let no = alert.addButton(withTitle: "No")
+        alert.informativeText = info.isEmpty ? L10n.tr("This can't be undone.") : info + L10n.tr("\n\nThis can't be undone.")
+        let yes = alert.addButton(withTitle: L10n.tr("Yes"))
+        let no = alert.addButton(withTitle: L10n.tr("No"))
         yes.hasDestructiveAction = true
         yes.keyEquivalent = ""
         no.keyEquivalent = "\r"
@@ -44,9 +44,9 @@ enum TrashActions {
     static func describe(_ item: FileItem) -> String {
         let entry = TrashStore.entry(for: item.url)
         var lines = [item.name]
-        lines.append("Original Location: \(entry?.record?.originalFolder ?? "Unknown")")
-        lines.append("Date Deleted: \(entry?.dateDeleted.map(dates.string(from:)) ?? "Unknown")")
-        if !item.isFolder, let size = item.size { lines.append("Size: \(StatusText.bytes(size))") }
+        lines.append(L10n.format("Original Location: %@", "\(entry?.record?.originalFolder ?? "Unknown")"))
+        lines.append(L10n.format("Date Deleted: %@", "\(entry?.dateDeleted.map(dates.string(from:)) ?? "Unknown")"))
+        if !item.isFolder, let size = item.size { lines.append(L10n.format("Size: %@", "\(StatusText.bytes(size))")) }
         return lines.joined(separator: "\n")
     }
 
@@ -62,14 +62,14 @@ enum TrashActions {
         confirmPermanent(items, window: window?.window) {
             remove(items.map(\.url), window: window) { removed in
                 window?.refreshSelecting(urls: next.map { [$0] } ?? [])
-                if removed > 0 { window?.statusBar.setMessage("\(StatusText.items(removed)) permanently deleted.") }
+                if removed > 0 { window?.statusBar.setMessage(L10n.format("%@ permanently deleted.", "\(StatusText.items(removed))")) }
             }
         }
     }
 
     /// Empty Trash: everything in every Trash folder Arbor can read, after confirming the count.
     static func emptyTrash(window: BrowserWindowController?) {
-        window?.statusBar.setMessage("Checking the Trash…")
+        window?.statusBar.setMessage(L10n.tr("Checking the Trash…"))
         DispatchQueue.global(qos: .userInitiated).async {
             let listing = TrashStore.list(includeHidden: true)
             DispatchQueue.main.async {
@@ -78,14 +78,14 @@ enum TrashActions {
                 case .denied:
                     window?.statusBar.setMessage(nil)
                     let alert = NSAlert()
-                    alert.messageText = "Arbor can't empty the Trash without Full Disk Access."
-                    alert.informativeText = "macOS protects the Trash folder. Turn on Arbor in System Settings → Privacy & Security → Full Disk Access, or empty the Trash in Finder."
-                    alert.addButton(withTitle: "Open Settings")
-                    alert.addButton(withTitle: "Cancel")
+                    alert.messageText = L10n.tr("Arbor can't empty the Trash without Full Disk Access.")
+                    alert.informativeText = L10n.tr("macOS protects the Trash folder. Turn on Arbor in System Settings → Privacy & Security → Full Disk Access, or empty the Trash in Finder.")
+                    alert.addButton(withTitle: L10n.tr("Open Settings"))
+                    alert.addButton(withTitle: L10n.tr("Cancel"))
                     present(alert, in: window?.window) { if $0 == .alertFirstButtonReturn { SystemOpen.open(TrashAccessPage.settingsURL) } }
                 case .items(let entries, _, _):
                     window?.statusBar.setMessage(nil)
-                    guard !entries.isEmpty else { window?.statusBar.setMessage("The Trash is already empty."); return }
+                    guard !entries.isEmpty else { window?.statusBar.setMessage(L10n.tr("The Trash is already empty.")); return }
                     confirmPermanent(entries.map(\.item), window: window?.window) {
                         remove(entries.map(\.item.url), window: window) { removed in
                             if window?.location == .trash { window?.reload() }
@@ -166,14 +166,14 @@ enum TrashActions {
             let isFolder = (try? from.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
             let alert = NSAlert()
             alert.alertStyle = .warning
-            alert.messageText = "The destination already has a \(isFolder ? "folder" : "file") named “\(to.lastPathComponent)”."
-            alert.informativeText = "Restoring to “\(to.deletingLastPathComponent().path)”.\n\nKeep both restores this one as “\(keepBoth.lastPathComponent)”. Skip leaves it in the Trash."
-            alert.addButton(withTitle: "Keep Both")
-            alert.addButton(withTitle: "Skip")
-            alert.addButton(withTitle: "Cancel")
+            alert.messageText = (isFolder ? L10n.format("The destination already has a folder named “%@”.", to.lastPathComponent) : L10n.format("The destination already has a file named “%@”.", to.lastPathComponent))
+            alert.informativeText = L10n.format("Restoring to “%@”.\n\nKeep both restores this one as “%@”. Skip leaves it in the Trash.", "\(to.deletingLastPathComponent().path)", "\(keepBoth.lastPathComponent)")
+            alert.addButton(withTitle: L10n.tr("Keep Both"))
+            alert.addButton(withTitle: L10n.tr("Skip"))
+            alert.addButton(withTitle: L10n.tr("Cancel"))
             if remaining.contains(where: { if case .conflict = $0 { return true }; return false }) {
                 alert.showsSuppressionButton = true
-                alert.suppressionButton?.title = "Do this for all current items"
+                alert.suppressionButton?.title = L10n.tr("Do this for all current items")
             }
             present(alert, in: window) { response in
                 let all = alert.suppressionButton?.state == .on
@@ -211,7 +211,7 @@ enum TrashActions {
                                  "Arbor only knows where items came from if Arbor moved them to the Trash. To put back items deleted in Finder, use Finder's Put Back.",
                                  style: .informational, in: window?.window)
                 } else if !failures.isEmpty {
-                    NSAlert.show("Some items couldn't be restored.", failures.prefix(10).joined(separator: "\n"), in: window?.window)
+                    NSAlert.show(L10n.tr("Some items couldn't be restored."), failures.prefix(10).joined(separator: "\n"), in: window?.window)
                 }
             }
         }
@@ -228,7 +228,7 @@ enum TrashActions {
             // Redo restores again; every later Undo/Redo round keeps the name "Restore".
             center.registerUndoTrash(pairs, actionName: "Restore")
         }
-        center.undoManager.setActionName("Restore")
+        center.undoManager.setActionName(L10n.tr("Restore"))
     }
 
     // MARK: Properties
@@ -237,7 +237,7 @@ enum TrashActions {
     /// measured only now, on request, off the main thread).
     static func showItemProperties(_ items: [FileItem], window: BrowserWindowController?) {
         guard !items.isEmpty else { return }
-        window?.statusBar.setMessage("Calculating size…")
+        window?.statusBar.setMessage(L10n.tr("Calculating size…"))
         DispatchQueue.global(qos: .userInitiated).async {
             let sizes = items.map { measure($0.url) }
             DispatchQueue.main.async {
@@ -248,21 +248,21 @@ enum TrashActions {
                 alert.icon = IconProvider.shared.icon(for: items[0], size: 48)
                 if items.count == 1, let item = items.first {
                     let entry = TrashStore.entry(for: item.url)
-                    alert.messageText = "“\(item.name)” Properties"
-                    var lines = ["Type: \(item.typeDescription)",
+                    alert.messageText = L10n.format("“%@” Properties", "\(item.name)")
+                    var lines = [L10n.format("Type: %@", "\(item.typeDescription)"),
                                  "Original Location: \(entry?.record?.originalFolder ?? "Unknown")",
                                  "Date Deleted: \(entry?.dateDeleted.map(dates.string(from:)) ?? "Unknown")",
                                  "Size: \(sizeText(total))"]
-                    if item.isFolder { lines.append("Contains: \(sizes[0].files.formatted()) files") }
-                    if let modified = item.modified { lines.append("Date Modified: \(dates.string(from: modified))") }
-                    lines.append("In: \(item.url.deletingLastPathComponent().path)")
+                    if item.isFolder { lines.append(L10n.format("Contains: %@ files", "\(sizes[0].files.formatted())")) }
+                    if let modified = item.modified { lines.append(L10n.format("Date Modified: %@", "\(dates.string(from: modified))")) }
+                    lines.append(L10n.format("In: %@", "\(item.url.deletingLastPathComponent().path)"))
                     if entry?.record == nil {
                         lines.append("\nArbor didn't move this item to the Trash, so its original location isn't known.")
                     }
                     alert.informativeText = lines.joined(separator: "\n")
                 } else {
-                    alert.messageText = "\(StatusText.items(items.count)) Properties"
-                    alert.informativeText = "Size: \(sizeText(total))\nFiles: \(sizes.reduce(0) { $0 + $1.files }.formatted())"
+                    alert.messageText = L10n.format("%@ Properties", "\(StatusText.items(items.count))")
+                    alert.informativeText = L10n.format("Size: %@\nFiles: %@", "\(sizeText(total))", "\(sizes.reduce(0) { $0 + $1.files }.formatted())")
                 }
                 present(alert, in: window?.window) { _ in }
             }
@@ -273,7 +273,7 @@ enum TrashActions {
     /// macOS has no per-volume maximum size or "remove files immediately" setting to change, so
     /// none is offered (DEC-019).
     static func showTrashProperties(window: BrowserWindowController?) {
-        window?.statusBar.setMessage("Calculating size…")
+        window?.statusBar.setMessage(L10n.tr("Calculating size…"))
         DispatchQueue.global(qos: .userInitiated).async {
             let folders = TrashStore.folders()
             var lines: [String] = []
@@ -286,9 +286,9 @@ enum TrashActions {
                     let size = measure(folder.url)
                     line += "    \(StatusText.items(items.count)), \(StatusText.bytes(size.bytes)) used"
                 } else if FileManager.default.fileExists(atPath: folder.url.path) {
-                    line += "    Contents can't be read (Full Disk Access is needed)"
+                    line += L10n.tr("    Contents can't be read (Full Disk Access is needed)")
                 } else {
-                    line += "    Empty"
+                    line += L10n.tr("    Empty")
                 }
                 if let free { line += "\n    Space available: \(StatusText.bytes(free))" }
                 lines.append(line)
@@ -298,7 +298,7 @@ enum TrashActions {
                 let alert = NSAlert()
                 alert.alertStyle = .informational
                 alert.icon = TrashIcon.image(full: TrashStore.isFull == true, size: 64)
-                alert.messageText = "Trash Properties"
+                alert.messageText = L10n.tr("Trash Properties")
                 alert.informativeText = lines.joined(separator: "\n\n")
                     + "\n\nmacOS manages the Trash size. To remove items automatically after 30 days, use Finder › Settings › Advanced."
                 present(alert, in: window?.window) { _ in }

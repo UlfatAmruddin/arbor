@@ -97,11 +97,11 @@ final class OperationHistoryWindow: NSObject, NSWindowDelegate, NSOutlineViewDat
 
     private var window: NSWindow?
     private let outline = NSOutlineView()
-    private let empty = FileOpsStyle.label("No copy or move operations yet.", color: Theme.secondaryText)
+    private let empty = FileOpsStyle.label(L10n.tr("No copy or move operations yet."), color: Theme.secondaryText)
     private let status = FileOpsStyle.label("", font: FileOpsStyle.captionFont, color: Theme.secondaryText)
-    private lazy var openButton = WinButton("Open destination") { [weak self] in self?.openDestination() }
-    private lazy var retryButton = WinButton("Retry failed items") { [weak self] in self?.retry() }
-    private lazy var clearButton = WinButton("Clear history") { [weak self] in self?.confirmClear() }
+    private lazy var openButton = WinButton(L10n.tr("Open destination")) { [weak self] in self?.openDestination() }
+    private lazy var retryButton = WinButton(L10n.tr("Retry failed items")) { [weak self] in self?.retry() }
+    private lazy var clearButton = WinButton(L10n.tr("Clear history")) { [weak self] in self?.confirmClear() }
     private var nodes: [JobNode] = []
     private var observer: NSObjectProtocol?
     private var retryToken = 0
@@ -146,16 +146,16 @@ final class OperationHistoryWindow: NSObject, NSWindowDelegate, NSOutlineViewDat
     private func makeWindow() -> NSWindow {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 780, height: 470), styleMask: [.titled, .closable, .resizable, .miniaturizable],
                               backing: .buffered, defer: false)
-        window.title = "Operation history"
+        window.title = L10n.tr("Operation history")
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.minSize = NSSize(width: 560, height: 320)
         let root = FillView(FileOpsStyle.background)
-        let intro = FileOpsStyle.label("Recent copy and move operations, newest first. Arbor keeps the last \(OperationHistoryStore.defaultLimit). Expand one to see what happened to each item.",
+        let intro = FileOpsStyle.label(L10n.format("Recent copy and move operations, newest first. Arbor keeps the last %@. Expand one to see what happened to each item.", "\(OperationHistoryStore.defaultLimit)"),
                                        font: FileOpsStyle.captionFont, color: Theme.secondaryText, wraps: true)
-        let heading = FileOpsStyle.label("Operation history", font: FileOpsStyle.instructionFont)
+        let heading = FileOpsStyle.label(L10n.tr("Operation history"), font: FileOpsStyle.instructionFont)
 
-        for (id, title, width) in [("what", "Operation", 200.0), ("where", "From → To", 150.0), ("when", "Finished", 130.0), ("result", "Result", 270.0)] {
+        for (id, title, width) in [("what", L10n.tr("Operation"), 200.0), ("where", L10n.tr("From → To"), 150.0), ("when", L10n.tr("Finished"), 130.0), ("result", L10n.tr("Result"), 270.0)] {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id))
             column.title = title
             column.width = width
@@ -170,7 +170,7 @@ final class OperationHistoryWindow: NSObject, NSWindowDelegate, NSOutlineViewDat
         outline.dataSource = self
         outline.delegate = self
         outline.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
-        outline.setAccessibilityLabel("Operation history")
+        outline.setAccessibilityLabel(L10n.tr("Operation history"))
         let scroll = NSScrollView()
         scroll.documentView = outline
         scroll.hasVerticalScroller = true
@@ -184,7 +184,7 @@ final class OperationHistoryWindow: NSObject, NSWindowDelegate, NSOutlineViewDat
 
         let footer = FillView(FileOpsStyle.footer)
         footer.topLine = FileOpsStyle.footerLine
-        let close = WinButton("Close") { [weak self] in self?.window?.orderOut(nil) }
+        let close = WinButton(L10n.tr("Close")) { [weak self] in self?.window?.orderOut(nil) }
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let row = NSStackView(views: [clearButton, status, spacer, openButton, retryButton, close])
@@ -281,7 +281,7 @@ final class OperationHistoryWindow: NSObject, NSWindowDelegate, NSOutlineViewDat
     private static func name(_ path: String) -> String { displayName(of: URL(fileURLWithPath: path)) }
 
     static func title(_ record: OperationRecord) -> String {
-        let verb = record.kind == .copy ? "Copied" : "Moved"
+        let verb = record.kind == .copy ? L10n.tr("Copied") : L10n.tr("Moved")
         let n = record.sources.count
         let what = n == 1 ? "“\(URL(fileURLWithPath: record.sources[0]).lastPathComponent)”" : StatusText.items(n)
         return record.wasInterrupted ? "\(verb.dropLast()) \(what) (interrupted)" : "\(verb) \(what)"
@@ -289,7 +289,7 @@ final class OperationHistoryWindow: NSObject, NSWindowDelegate, NSOutlineViewDat
 
     static func result(_ record: OperationRecord) -> String {
         var text = record.countsText
-        if record.wasCancelled, !record.wasInterrupted { text = "Cancelled · " + text }
+        if record.wasCancelled, !record.wasInterrupted { text = L10n.tr("Cancelled · ") + text }
         switch record.verification?.state {
         case .verified?: text += " · Verified"
         case .failed?: text += " · Verification failed (\(record.verification?.failures.count ?? 0))"
@@ -343,7 +343,7 @@ final class OperationHistoryWindow: NSObject, NSWindowDelegate, NSOutlineViewDat
             case "when": text = ""
             default:
                 text = node.detail.isEmpty ? node.result : "\(node.result): \(node.detail)"
-                if node.isProblem { color = SheetColors.failure } else if node.result != "Done" && node.result != "Merged" { color = Theme.secondaryText }
+                if node.isProblem { color = SheetColors.failure } else if node.result != L10n.tr("Done") && node.result != L10n.tr("Merged") { color = Theme.secondaryText }
                 tip = text
             }
         }
@@ -398,14 +398,14 @@ final class OperationHistoryWindow: NSObject, NSWindowDelegate, NSOutlineViewDat
             select = [URL(fileURLWithPath: destination).lastPathComponent]
         }
         guard FileOps.isPlainFolder(folder) else {
-            status.stringValue = "“\(folder.lastPathComponent)” isn't available anymore."
+            status.stringValue = L10n.format("“%@” isn't available anymore.", "\(folder.lastPathComponent)")
             return
         }
         guard let browser = BrowserWindowController.active else { return }
         browser.openTab(.folder(folder))
         if !select.isEmpty { browser.navigate(to: .folder(folder), select: select) }
         browser.window?.makeKeyAndOrderFront(nil)
-        status.stringValue = "Opened “\(displayName(of: folder))”."
+        status.stringValue = L10n.format("Opened “%@”.", "\(displayName(of: folder))")
     }
 
     /// Starts one normal job per destination folder for the items that didn't finish.
@@ -415,22 +415,22 @@ final class OperationHistoryWindow: NSObject, NSWindowDelegate, NSOutlineViewDat
             browser.startTransfer(record.kind, group.sources.map { URL(fileURLWithPath: $0) }, to: URL(fileURLWithPath: group.folder))
         }
         let count = retryPlan.reduce(0) { $0 + $1.sources.count }
-        status.stringValue = "Retrying \(StatusText.items(count)). Arbor asks before replacing anything."
+        status.stringValue = L10n.format("Retrying %@. Arbor asks before replacing anything.", "\(StatusText.items(count))")
         retryButton.isEnabled = false
     }
 
     private func confirmClear() {
         guard let window else { return }
         let alert = NSAlert()
-        alert.messageText = "Clear the operation history?"
-        alert.informativeText = "The list of past copy and move operations is removed. Your files aren't changed."
-        alert.addButton(withTitle: "Clear history")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = L10n.tr("Clear the operation history?")
+        alert.informativeText = L10n.tr("The list of past copy and move operations is removed. Your files aren't changed.")
+        alert.addButton(withTitle: L10n.tr("Clear history"))
+        alert.addButton(withTitle: L10n.tr("Cancel"))
         if AppDelegate.isHeadless { alert.window.alphaValue = 0 }
         alert.beginSheetModal(for: window) { [weak self] response in
             guard response == .alertFirstButtonReturn else { return }
             OperationHistory.shared.clear()
-            self?.status.stringValue = "History cleared."
+            self?.status.stringValue = L10n.tr("History cleared.")
         }
     }
 

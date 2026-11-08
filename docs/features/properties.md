@@ -8,7 +8,7 @@ Code: `Sources/Arbor/Features/Properties/` (UI) and `Sources/ArborCore/Propertie
 | FE | Feature | Status | How verified |
 |---|---|---|---|
 | FE-099 | Properties window | implemented | Non-modal window per selection (re-opening brings the same window forward), tabs + OK / Cancel / Apply, Return = OK, Esc = Cancel, ⌃Tab cycles tabs. Opened by ⌥↩ (Alt+Enter), ⌘I, and "Properties" in item, background, tree, "…" and File menus. Scripted: `menu:` logs, `click:file.properties`, snapshots light/dark |
-| FE-148 | Details pane | implemented | Replaces the core "details" pane: thumbnail (QuickLook, cancelled on change), name, type, property list, multi-select summary ("3 items selected", size of files, date range), folder summary when nothing is selected, availability (local / iCloud / network) and sharing (iCloud shared). Stale loads dropped by generation token. Scripted log + snapshots |
+| FE-148 | Details pane | implemented | Replaces the core "details" pane: large preview (`ThumbnailPolicy.panePreview`: QuickLook thumbnail for pictures and videos, a page with a hairline border for PDF, office, iWork and e-book documents, the type icon for text, source code, CSV, JSON, Markdown and logs, whose thumbnail was a nearly blank page; "Always show icons" shows icons; cancelled on change; unit tests `PanePreviewTests`, `log` line `preview:`, snapshots light/dark), name, type, property list, multi-select summary ("3 items selected", size of files, date range), folder summary when nothing is selected, availability (local / iCloud / network) and sharing (iCloud shared). Stale loads dropped by generation token. Scripted log + snapshots |
 | FE-150 | General properties | implemented | Name (editable), type with extension, Opens with + Change… (sets the default app for the type), location, Size and Size on disk (allocated blocks), "Contains: N Files, M Folders" scanned in the background with live updates, Stop, cancel on close; Created/Modified/Accessed in Explorer's long format; multi-selection "2 Files, 1 Folder", "All of type …"/"Multiple types", "All in …". Unit + scripted |
 | FE-151 | Detailed metadata | implemented | Details tab: Spotlight attributes grouped like Explorer (Description, Origin, Image, Camera, GPS, Media, Audio, Video, Content, File) with Explorer formatting; ImageIO fallback for unindexed images; app bundle info. Unit + scripted |
 | FE-152 | Metadata editing/removal | partial | Embedded metadata is read-only (never rewritten in place). "Remove Properties and Personal Information" is offered for JPEG/PNG/HEIC/TIFF only, as Explorer's "Create a copy with all possible properties removed": lossless copy, orientation kept, original untouched. Unit test checks EXIF/GPS gone, pixels and orientation kept |
@@ -55,6 +55,9 @@ folder URL) and `Prefs.changed` with `key == "folderTemplates"`. Choosing "Gener
 - **DEC-properties-7** Sizes use Explorer's adaptive format (1024-based, 3 significant digits, truncated, unit switch at
   1000: "0.99 MB"); Properties appends exact bytes. Symlinks are counted, not followed; hard links counted per entry.
 - **DEC-properties-8** Alerts are sheets on the Properties window (scripts can answer them; headless keeps them invisible).
+- **DEC-properties-10** The Details pane's large preview shows the type icon for plain text and source code, like
+  Explorer's Details pane, instead of a QuickLook page that is almost empty at 150 pt. Property names in the pane wrap
+  to two lines instead of being cut off.
 - **DEC-properties-9** Opens with › Change… sets the default app for the file's type (all files of that type), like
   Windows; unknown types change only that file.
 

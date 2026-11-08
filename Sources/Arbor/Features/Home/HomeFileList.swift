@@ -65,9 +65,9 @@ final class HomeFileList: NSView, NSTableViewDataSource, NSTableViewDelegate {
         translatesAutoresizingMaskIntoConstraints = false
         table.sectionID = sectionID
         table.owner = self
-        addColumn("name", "Name", width: 320, min: 140)
+        addColumn("name", L10n.tr("Name"), width: 320, min: 140)
         addColumn("date", dateTitle, width: 170, min: 90)
-        addColumn("location", "File location", width: 320, min: 100)
+        addColumn("location", L10n.tr("File location"), width: 320, min: 100)
         table.style = .plain
         table.selectionHighlightStyle = .regular
         table.backgroundColor = Theme.contentBackground
@@ -84,7 +84,7 @@ final class HomeFileList: NSView, NSTableViewDataSource, NSTableViewDelegate {
         table.doubleAction = #selector(doubleClicked(_:))
         table.setDraggingSourceOperationMask([.copy, .move, .link], forLocal: false)
         table.setDraggingSourceOperationMask([.copy, .move], forLocal: true)
-        table.setAccessibilityLabel(sectionID == "recent" ? "Recent files" : "Favorites")
+        table.setAccessibilityLabel(sectionID == "recent" ? L10n.tr("Recent files") : L10n.tr("Favorites"))
 
         scroll.documentView = table
         scroll.hasVerticalScroller = false
@@ -113,7 +113,7 @@ final class HomeFileList: NSView, NSTableViewDataSource, NSTableViewDelegate {
         column.title = title
         // Stock header cells, styled through the attributed title (custom header classes stop
         // rows drawing on macOS 26).
-        column.headerCell.attributedStringValue = NSAttributedString(string: title, attributes: [
+        column.headerCell.attributedStringValue = NSAttributedString(string: L10n.tr(title), attributes: [
             .font: Theme.headerFont, .foregroundColor: Theme.secondaryText,
         ])
         column.width = width

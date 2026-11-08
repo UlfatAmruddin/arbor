@@ -9,24 +9,24 @@ enum MainMenu {
         let appName = "Arbor"
 
         let app = NSMenu(title: appName)
-        app.addItem(plain("About \(appName)", #selector(AppDelegate.showAbout(_:))))
+        app.addItem(plain(L10n.format("About %@", appName), #selector(AppDelegate.showAbout(_:))))
         app.addItem(.separator())
         // Commands placed in `.mainMenu("Arbor")` (Settings… ⌘,) go into the application menu.
         let appCommands = CommandRegistry.shared.entries(in: .mainMenu(appName))
         appCommands.forEach { app.addItem(CommandDispatcher.shared.menuItem($0.command, context: nil)) }
         if !appCommands.isEmpty { app.addItem(.separator()) }
-        app.addItem(plain("Hide \(appName)", #selector(NSApplication.hide(_:)), "h"))
-        app.addItem(plain("Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]))
-        app.addItem(plain("Show All", #selector(NSApplication.unhideAllApplications(_:))))
+        app.addItem(plain(L10n.format("Hide %@", appName), #selector(NSApplication.hide(_:)), "h"))
+        app.addItem(plain(L10n.tr("Hide Others"), #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]))
+        app.addItem(plain(L10n.tr("Show All"), #selector(NSApplication.unhideAllApplications(_:))))
         app.addItem(.separator())
-        app.addItem(plain("Quit \(appName)", #selector(NSApplication.terminate(_:)), "q"))
+        app.addItem(plain(L10n.format("Quit %@", appName), #selector(NSApplication.terminate(_:)), "q"))
         main.addItem(parent(appName, app))
 
         for title in CommandRegistry.shared.mainMenuTitles where title != appName {
-            let menu = NSMenu(title: title)
+            let menu = NSMenu(title: shownTitle(title))
             if title == "Window" {
-                menu.addItem(plain("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m"))
-                menu.addItem(plain("Zoom", #selector(NSWindow.performZoom(_:))))
+                menu.addItem(plain(L10n.tr("Minimize"), #selector(NSWindow.performMiniaturize(_:)), "m"))
+                menu.addItem(plain(L10n.tr("Zoom"), #selector(NSWindow.performZoom(_:))))
                 menu.addItem(.separator())
             }
             var lastSection: MenuSection?
@@ -35,9 +35,22 @@ enum MainMenu {
                 lastSection = placement.section
                 menu.addItem(CommandDispatcher.shared.menuItem(command, context: nil))
             }
-            main.addItem(parent(title, menu))
+            main.addItem(parent(shownTitle(title), menu))
         }
         return main
+    }
+
+    /// Menu bar titles double as command slot ids ("File", "Edit"…), so only the shown title is translated.
+    static func shownTitle(_ slot: String) -> String {
+        switch slot {
+        case "File": return L10n.tr("File")
+        case "Edit": return L10n.tr("Edit")
+        case "View": return L10n.tr("View")
+        case "Go": return L10n.tr("Go")
+        case "Window": return L10n.tr("Window")
+        case "Help": return L10n.tr("Help")
+        default: return L10n.tr(slot)
+        }
     }
 
     private static func plain(_ title: String, _ action: Selector, _ key: String = "",

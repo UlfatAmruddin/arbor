@@ -18,6 +18,23 @@ final class ExplorerRowView: NSTableRowView {
         tracking = area
     }
 
+    /// Keyboard focus parted from the selection (Details ⌥⌘arrows): a thin accent outline, like the icon layouts.
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard style == .content, let table = superview as? FileTableView, let focus = table.focusRow,
+              table.row(for: self) == focus, SelectionEmphasis.hasFocus(table) else { return }
+        Theme.accent.withAlphaComponent(0.9).setStroke()
+        let path = NSBezierPath(roundedRect: pill.insetBy(dx: 0.5, dy: 0.5), xRadius: Theme.cornerRadius, yRadius: Theme.cornerRadius)
+        path.lineWidth = 1
+        path.stroke()
+    }
+
+    /// Row icons are decoration: VoiceOver reads the name, not "image".
+    override func didAddSubview(_ subview: NSView) {
+        super.didAddSubview(subview)
+        (subview as? NSTableCellView)?.imageView?.hideFromAccessibility()
+    }
+
     override func mouseEntered(with event: NSEvent) { isHovered = true }
     override func mouseExited(with event: NSEvent) { isHovered = false }
     override func prepareForReuse() { super.prepareForReuse(); isHovered = false }
@@ -36,16 +53,18 @@ final class ExplorerRowView: NSTableRowView {
         let color: NSColor
         switch style {
         case .navigation:
-            color = Theme.navSelection
+            color = SelectionEmphasis.windowIsActive(window) ? Theme.navSelection : SelectionEmphasis.navInactive
         case .content:
-            color = isEmphasized ? (isHovered ? Theme.selectionHover : Theme.selection) : Theme.selectionInactive
+            // Same rule as the icon layouts and tiles (SelectionEmphasis), also in headless snapshots.
+            let focused = superview.map(SelectionEmphasis.hasFocus) ?? isEmphasized
+            color = SelectionEmphasis.fill(focused: focused, hovered: isHovered)
         }
         fillRounded(pill, radius: Theme.cornerRadius, color)
         if style == .content { Theme.strokeSelectionIfContrast(pill, radius: Theme.cornerRadius) }   // Increase contrast (FE-201)
         if style == .navigation {
             // Short accent bar at the left edge of the current location (docs/research/windows11-reference.md §2.1).
             let bar = NSRect(x: pill.minX, y: pill.midY - 8, width: 3, height: 16)
-            fillRounded(bar, radius: 1.5, Theme.accent)
+            fillRounded(bar, radius: 1.5, SelectionEmphasis.windowIsActive(window) ? Theme.accent : SelectionEmphasis.inactiveMark)
         }
     }
 }

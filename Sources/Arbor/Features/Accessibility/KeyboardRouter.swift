@@ -36,6 +36,12 @@ enum KeyboardRouter {
             return true
         }
 
+        // The same for type-to-select text being composed in the file list (Escape cancels it, not the list).
+        if !mods.contains(.command), let list = window.firstResponder as? NSView, TypeSelectInput.isComposing(in: list) {
+            list.keyDown(with: event)
+            return true
+        }
+
         guard let c = window.windowController as? BrowserWindowController, window.attachedSheet == nil, !c.tabs.isEmpty else { return false }
         let focused = FocusRegions.focusedView(in: window)
         let editingText = window.firstResponder is NSTextView
@@ -62,6 +68,7 @@ enum KeyboardRouter {
         if let tab = focused as? TabItemView { return tabStripKey(event, tab: tab, c: c, mods: mods) }
         if let button = focused as? ChromeButton { return buttonKey(event, button: button, c: c, mods: mods) }
         if let grid = focused as? ItemGridView { return gridKey(event, grid: grid, mods: mods) }
+        if let table = focused as? FileTableView { return DetailsFocusKeys.handle(event, table: table, mods: mods) }
         if let outline = focused as? NavOutlineView { return TreeKeys.handle(event, outline: outline, c: c, mods: mods) }
         return false
     }

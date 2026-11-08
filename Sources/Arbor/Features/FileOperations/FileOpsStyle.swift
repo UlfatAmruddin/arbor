@@ -221,7 +221,7 @@ final class DetailsToggle: NSButton {
     required init?(coder: NSCoder) { fatalError() }
 
     private func refresh() {
-        title = expanded ? "Fewer details" : "More details"
+        title = expanded ? L10n.tr("Fewer details") : L10n.tr("More details")
         attributedTitle = NSAttributedString(string: " " + title, attributes: [.font: FileOpsStyle.bodyFont, .foregroundColor: Theme.primaryText])
         let config = NSImage.SymbolConfiguration(pointSize: 10, weight: .semibold)
         image = NSImage(systemSymbolName: expanded ? "chevron.up" : "chevron.down", accessibilityDescription: nil)?
@@ -405,12 +405,12 @@ class FileOpsDialog: NSObject, NSWindowDelegate {
 
 /// "Copying 3 items from <Downloads> to <Desktop>" with the folder names as links.
 func fromToLine(verb: String, count: Int, source: URL?, destination: URL?, open: @escaping (URL) -> Void) -> NSStackView {
-    var views: [NSView] = [FileOpsStyle.label("\(verb) \(StatusText.items(count)) from", font: FileOpsStyle.captionFont, color: Theme.secondaryText)]
+    var views: [NSView] = [FileOpsStyle.label(L10n.format("%@ %@ from", TransferWords.localized(verb), StatusText.items(count)), font: FileOpsStyle.captionFont, color: Theme.secondaryText)]
     if let source {
         views.append(FileOpsLinkButton(displayName(of: source)) { open(source) })
     }
     if let destination {
-        views.append(FileOpsStyle.label("to", font: FileOpsStyle.captionFont, color: Theme.secondaryText))
+        views.append(FileOpsStyle.label(L10n.tr("to"), font: FileOpsStyle.captionFont, color: Theme.secondaryText))
         views.append(FileOpsLinkButton(displayName(of: destination)) { open(destination) })
     }
     for view in views { view.setContentHuggingPriority(.required, for: .horizontal) }

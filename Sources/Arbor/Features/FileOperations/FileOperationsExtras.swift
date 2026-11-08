@@ -32,7 +32,7 @@ enum FileOperationsExtras {
             ExplorerCommand(
                 id: "fileops.history", title: "Operation history", symbol: "clock.arrow.circlepath",
                 placements: [.seeMore(section, 10), .mainMenu("Window", section, 20)],
-                dynamicTitle: { $0.surface == .menuBar ? "Operation History" : "Operation history" },
+                dynamicTitle: { $0.surface == .menuBar ? L10n.tr("Operation History") : L10n.tr("Operation history") },
                 perform: { _ in OperationHistoryWindow.shared.show() }),
             ExplorerCommand(
                 id: "fileops.queueOptions", title: "Transfer Queue",
@@ -126,7 +126,7 @@ enum FileOperationsExtras {
             case .failure(let error)?: compress = "failed: \(error.localizedDescription)"
             case nil: compress = "-"
             }
-            return "\(CompressOptionsDialog.current?.debugText ?? "compress options: none") | last archive: \(compress)\n" +
+            return L10n.format("%@ | last archive: %@\n", "\(CompressOptionsDialog.current?.debugText ?? "compress options: none")", "\(compress)") +
                 PermissionsEditorSheet.debugText
         }
         DebugScript.registerLogger { _ in

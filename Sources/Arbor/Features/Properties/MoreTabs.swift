@@ -38,19 +38,19 @@ enum PropertiesTabs {
 /// Document versions (NSFileVersion) and Time Machine status (FE-155). Nothing is invented: an empty
 /// list says so, and Time Machine browsing is handed to the Time Machine app.
 final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
-    let title = "Previous Versions"
+    let title = L10n.tr("Previous Versions")
     let view: NSView
     private let model: PropertiesModel
     private weak var controller: PropertiesWindowController?
     private let page = SheetPage()
     private let list = SheetScrollList()
-    private let empty = SheetLabel.wrapping("There are no previous versions available.", secondary: true)
-    private let tmStatus = SheetLabel.wrapping("Checking Time Machine…", secondary: false)
-    private lazy var openButton = SheetButton("Open") { [weak self] _ in self?.openVersion() }
-    private lazy var restoreToButton = SheetButton("Restore To…") { [weak self] _ in self?.restoreTo() }
-    private lazy var restoreButton = SheetButton("Restore") { [weak self] _ in self?.restoreInPlace() }
-    private lazy var browse = SheetButton("Browse in Time Machine") { [weak self] _ in self?.browseTimeMachine() }
-    private lazy var settings = SheetButton("Time Machine Settings…") { _ in
+    private let empty = SheetLabel.wrapping(L10n.tr("There are no previous versions available."), secondary: true)
+    private let tmStatus = SheetLabel.wrapping(L10n.tr("Checking Time Machine…"), secondary: false)
+    private lazy var openButton = SheetButton(L10n.tr("Open")) { [weak self] _ in self?.openVersion() }
+    private lazy var restoreToButton = SheetButton(L10n.tr("Restore To…")) { [weak self] _ in self?.restoreTo() }
+    private lazy var restoreButton = SheetButton(L10n.tr("Restore")) { [weak self] _ in self?.restoreInPlace() }
+    private lazy var browse = SheetButton(L10n.tr("Browse in Time Machine")) { [weak self] _ in self?.browseTimeMachine() }
+    private lazy var settings = SheetButton(L10n.tr("Time Machine Settings…")) { _ in
         SystemOpen.open(URL(string: "x-apple.systempreferences:com.apple.Time-Machine-Settings.extension")!)
     }
     private var versions: [DocumentVersion] = []
@@ -84,10 +84,10 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
                                                : "Previous versions of folders come from Time Machine backups.", secondary: false)
         add(hstack([icon, intro], spacing: 10))
         if isFile {
-            add(SheetLabel.make("File versions:"))
+            add(SheetLabel.make(L10n.tr("File versions:")))
             let header = NSView()
             header.translatesAutoresizingMaskIntoConstraints = false
-            let n = SheetLabel.make("Name", secondary: true), d = SheetLabel.make("Date modified", secondary: true)
+            let n = SheetLabel.make(L10n.tr("Name"), secondary: true), d = SheetLabel.make(L10n.tr("Date modified"), secondary: true)
             header.addSubview(n)
             header.addSubview(d)
             NSLayoutConstraint.activate([
@@ -117,7 +117,7 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
             add(hstack([NSView(), openButton, restoreButton, restoreToButton]))
         }
         add(SheetSeparator())
-        add(SheetLabel.make("Time Machine", bold: true))
+        add(SheetLabel.make(L10n.tr("Time Machine"), bold: true))
         add(tmStatus)
         add(backups)
         add(hstack([browse, settings]))
@@ -161,19 +161,19 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
         var text: String
         if let status, status.available {
             if let dest = status.destinations.first {
-                text = "Backing up to “\(dest.name)”."
+                text = L10n.format("Backing up to “%@”.", "\(dest.name)")
                 if status.destinations.count > 1 { text += " (\(status.destinations.count) backup disks)" }
             } else {
-                text = "Time Machine isn't set up on this Mac."
+                text = L10n.tr("Time Machine isn't set up on this Mac.")
             }
             if let latest = status.localSnapshotDates.first {
-                text += " This disk has \(PropertyFormat.count(status.localSnapshotDates.count, "local snapshot", "local snapshots")); the newest is from \(PropertyFormat.shortDate(latest))."
+                text += L10n.format(" This disk has %@; the newest is from %@.", "\(PropertyFormat.count(status.localSnapshotDates.count, "local snapshot", "local snapshots"))", "\(PropertyFormat.shortDate(latest))")
             }
             if status.isConfigured || !status.localSnapshotDates.isEmpty {
-                text += " To see older copies of this item, browse it in Time Machine."
+                text += L10n.tr(" To see older copies of this item, browse it in Time Machine.")
             }
         } else {
-            text = "Time Machine status isn't available."
+            text = L10n.tr("Time Machine status isn't available.")
         }
         tmStatus.stringValue = text
         browse.isHidden = !(status.map { $0.isConfigured || !$0.localSnapshotDates.isEmpty } ?? false)
@@ -208,7 +208,7 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
             try FileFlags.update(target, locked: true)
             SystemOpen.open(target)
         } catch {
-            PropertiesWindowController.present(message: "The version couldn't be opened.", info: error.localizedDescription, window: controller?.window)
+            PropertiesWindowController.present(message: L10n.tr("The version couldn't be opened."), info: error.localizedDescription, window: controller?.window)
         }
     }
 
@@ -237,10 +237,10 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
     private func restoreInPlace() {
         guard let version = current, let url = model.single?.url else { return }
         let alert = NSAlert()
-        alert.messageText = "Restore “\(url.lastPathComponent)” to the version from \(version.date.map { PropertyFormat.shortDate($0) } ?? "this date")?"
-        alert.informativeText = "The current contents are kept as another version, so you can switch back from this tab."
-        alert.addButton(withTitle: "Restore")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = L10n.format("Restore “%@” to the version from %@?", "\(url.lastPathComponent)", "\(version.date.map { PropertyFormat.shortDate($0) } ?? "this date")")
+        alert.informativeText = L10n.tr("The current contents are kept as another version, so you can switch back from this tab.")
+        alert.addButton(withTitle: L10n.tr("Restore"))
+        alert.addButton(withTitle: L10n.tr("Cancel"))
         PropertiesWindowController.present(alert, window: controller?.window) { [weak self] response in
             guard response == .alertFirstButtonReturn else { return }
             do {
@@ -249,7 +249,7 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
                 self?.load()
             } catch {
                 DispatchQueue.main.async {
-                    PropertiesWindowController.present(message: "The version couldn't be restored.", info: error.localizedDescription, window: self?.controller?.window)
+                    PropertiesWindowController.present(message: L10n.tr("The version couldn't be restored."), info: error.localizedDescription, window: self?.controller?.window)
                 }
             }
         }
@@ -277,13 +277,13 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
 /// "Optimize this folder for:" (stored per folder for views and Folder Options to read; see
 /// `FolderTemplateStore`) and the folder icon (NSWorkspace.setIcon), FE-154.
 final class CustomizeTab: PropertiesTab, PropertiesTabDebug {
-    let title = "Customize"
+    let title = L10n.tr("Customize")
     let view: NSView
     private let model: PropertiesModel
     private weak var controller: PropertiesWindowController?
     private let page = SheetPage()
     private let popup = NSPopUpButton(frame: .zero, pullsDown: false)
-    private lazy var subfolders = SheetCheckbox("Also apply this template to all subfolders") { [weak self] _ in self?.changed() }
+    private lazy var subfolders = SheetCheckbox(L10n.tr("Also apply this template to all subfolders")) { [weak self] _ in self?.changed() }
     private let iconPreview = fixedImage(nil, 48)
     private var pendingIcon: NSImage??   // .some(nil) = restore default
     private var store: FolderTemplateStore { FolderTemplateStore(defaults: Prefs.store) }
@@ -309,8 +309,8 @@ final class CustomizeTab: PropertiesTab, PropertiesTabDebug {
             v.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor).isActive = true
             if let gap, let prev = stack.arrangedSubviews.dropLast().last { stack.setCustomSpacing(gap, after: prev) }
         }
-        add(SheetLabel.make("What kind of folder do you want?", bold: true))
-        add(SheetLabel.make("Optimize this folder for:"))
+        add(SheetLabel.make(L10n.tr("What kind of folder do you want?"), bold: true))
+        add(SheetLabel.make(L10n.tr("Optimize this folder for:")))
         popup.addItems(withTitles: FolderTemplate.allCases.map(\.title))
         popup.target = self
         popup.action = #selector(changed)
@@ -319,13 +319,13 @@ final class CustomizeTab: PropertiesTab, PropertiesTabDebug {
         popup.widthAnchor.constraint(equalToConstant: 200).isActive = true
         add(popup)
         add(subfolders)
-        add(SheetLabel.wrapping("Arbor uses this to choose columns and sorting for the folder. Finder doesn't use it.", small: true))
+        add(SheetLabel.wrapping(L10n.tr("Arbor uses this to choose columns and sorting for the folder. Finder doesn't use it."), small: true))
         add(SheetSeparator(), gap: 14)
         stack.arrangedSubviews.last?.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-        add(SheetLabel.make("Folder icons", bold: true), gap: 14)
-        add(SheetLabel.wrapping("You can change the folder's icon. Finder and other apps show it too.", small: true))
-        let change = SheetButton("Change Icon…") { [weak self] _ in self?.chooseIcon() }
-        let restore = SheetButton("Restore Default") { [weak self] _ in
+        add(SheetLabel.make(L10n.tr("Folder icons"), bold: true), gap: 14)
+        add(SheetLabel.wrapping(L10n.tr("You can change the folder's icon. Finder and other apps show it too."), small: true))
+        let change = SheetButton(L10n.tr("Change Icon…")) { [weak self] _ in self?.chooseIcon() }
+        let restore = SheetButton(L10n.tr("Restore Default")) { [weak self] _ in
             self?.pendingIcon = .some(nil)
             self?.changed()
         }
@@ -357,7 +357,7 @@ final class CustomizeTab: PropertiesTab, PropertiesTabDebug {
         guard let window = controller?.window else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.image]
-        panel.message = "Choose a picture for the folder's icon"
+        panel.message = L10n.tr("Choose a picture for the folder's icon")
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url, let image = NSImage(contentsOf: url) else { return }
             self?.pendingIcon = .some(image)
@@ -399,7 +399,7 @@ final class CustomizeTab: PropertiesTab, PropertiesTabDebug {
 
 /// Network sharing is a system setting on the Mac (FE-154): an honest handoff, no fake share state.
 final class SharingTab: PropertiesTab {
-    let title = "Sharing"
+    let title = L10n.tr("Sharing")
     let view: NSView
 
     init(model: PropertiesModel) {
@@ -412,15 +412,15 @@ final class SharingTab: PropertiesTab {
         stack.translatesAutoresizingMaskIntoConstraints = false
         let name = model.single?.url.lastPathComponent ?? ""
         let items: [NSView] = [
-            SheetLabel.make("Network File and Folder Sharing", bold: true),
+            SheetLabel.make(L10n.tr("Network File and Folder Sharing"), bold: true),
             hstack([fixedImage(IconProvider.shared.icon(for: model.entries[0].item, size: 32), 32), SheetLabel.make(name)], spacing: 10),
-            SheetLabel.wrapping("On a Mac, folders are shared with other computers in System Settings › General › Sharing › File Sharing, where you choose the folders and who can use them."),
-            SheetButton("Sharing Settings…") { _ in
+            SheetLabel.wrapping(L10n.tr("On a Mac, folders are shared with other computers in System Settings › General › Sharing › File Sharing, where you choose the folders and who can use them.")),
+            SheetButton(L10n.tr("Sharing Settings…")) { _ in
                 SystemOpen.open(URL(string: "x-apple.systempreferences:com.apple.Sharing-Settings.extension")!)
             },
             SheetSeparator(),
-            SheetLabel.make("Share with nearby devices", bold: true),
-            SheetLabel.wrapping("To send copies to people nearby, select the items and use Share in the command bar (AirDrop, Mail, Messages)."),
+            SheetLabel.make(L10n.tr("Share with nearby devices"), bold: true),
+            SheetLabel.wrapping(L10n.tr("To send copies to people nearby, select the items and use Share in the command bar (AirDrop, Mail, Messages).")),
         ]
         for v in items {
             stack.addArrangedSubview(v)
@@ -438,7 +438,7 @@ final class SharingTab: PropertiesTab {
 /// A drive's General tab: label, type, file system, used/free/capacity with a pie chart, and
 /// "Disk Cleanup" handed to macOS Storage settings (FE-183 boundary).
 final class DriveGeneralTab: PropertiesTab, PropertiesTabDebug {
-    let title = "General"
+    let title = L10n.tr("General")
     let view: NSView
     private let model: PropertiesModel
     private weak var controller: PropertiesWindowController?
@@ -470,8 +470,8 @@ final class DriveGeneralTab: PropertiesTab, PropertiesTabDebug {
         let header = hstack([icon, nameField], spacing: form.labelWidth + 4 - 34)
         form.add(header)
         form.separator()
-        form.row("Type:", typeValue)
-        form.row("File system:", fsValue)
+        form.row(L10n.tr("Type:"), typeValue)
+        form.row(L10n.tr("File system:"), fsValue)
         form.separator()
         func sizeRow(_ swatch: NSColor?, _ label: String, _ bytes: NSTextField, _ short: NSTextField) {
             let row = NSView()
@@ -498,17 +498,17 @@ final class DriveGeneralTab: PropertiesTab, PropertiesTabDebug {
             }
             form.add(row)
         }
-        sizeRow(SheetColors.usedSpace, "Used space:", usedBytes, usedShort)
-        sizeRow(SheetColors.freeSpace, "Free space:", freeBytes, freeShort)
+        sizeRow(SheetColors.usedSpace, L10n.tr("Used space:"), usedBytes, usedShort)
+        sizeRow(SheetColors.freeSpace, L10n.tr("Free space:"), freeBytes, freeShort)
         form.add(purgeable)
         form.separator()
-        sizeRow(nil, "Capacity:", capBytes, capShort)
+        sizeRow(nil, L10n.tr("Capacity:"), capBytes, capShort)
         let chart = NSView()
         chart.translatesAutoresizingMaskIntoConstraints = false
-        let cleanup = SheetButton("Disk Cleanup") { _ in
+        let cleanup = SheetButton(L10n.tr("Disk Cleanup")) { _ in
             SystemOpen.open(URL(string: "x-apple.systempreferences:com.apple.settings.Storage")!)
         }
-        cleanup.toolTip = "Opens Storage in System Settings, where macOS recommends what to remove"
+        cleanup.toolTip = L10n.tr("Opens Storage in System Settings, where macOS recommends what to remove")
         for v in [pie, caption, cleanup] as [NSView] { chart.addSubview(v) }
         NSLayoutConstraint.activate([
             chart.heightAnchor.constraint(equalToConstant: 130),
@@ -537,14 +537,14 @@ final class DriveGeneralTab: PropertiesTab, PropertiesTabDebug {
     }
 
     private func show() {
-        guard let info else { typeValue.stringValue = "This drive's details couldn't be read."; return }
+        guard let info else { typeValue.stringValue = L10n.tr("This drive's details couldn't be read."); return }
         if !model.extraChanges.contains("volumeName") { nameField.stringValue = info.name }
         nameField.isEditable = info.canRename && !info.isReadOnly
         nameField.toolTip = nameField.isEditable ? nil : "This drive can't be renamed here."
         typeValue.stringValue = info.typeText
         fsValue.stringValue = info.fileSystem
         func put(_ n: Int64, _ a: NSTextField, _ b: NSTextField) {
-            a.stringValue = "\(PropertyFormat.grouped(n)) bytes"
+            a.stringValue = L10n.format("%@ bytes", "\(PropertyFormat.grouped(n))")
             b.stringValue = PropertyFormat.adaptiveSize(n)
         }
         put(info.used, usedBytes, usedShort)
@@ -555,7 +555,7 @@ final class DriveGeneralTab: PropertiesTab, PropertiesTabDebug {
             : ""
         purgeable.isHidden = info.purgeable == 0
         pie.fraction = info.usedFraction
-        caption.stringValue = "Drive \(info.name)"
+        caption.stringValue = L10n.format("Drive %@", "\(info.name)")
     }
 
     func reload() {
@@ -574,7 +574,7 @@ final class DriveGeneralTab: PropertiesTab, PropertiesTabDebug {
             info?.name = name
             return nil
         } catch {
-            return "The drive couldn't be renamed: \(error.localizedDescription)"
+            return L10n.format("The drive couldn't be renamed: %@", "\(error.localizedDescription)")
         }
     }
 
@@ -588,7 +588,7 @@ final class DriveGeneralTab: PropertiesTab, PropertiesTabDebug {
 
 /// Explorer's drive Tools tab mapped to Disk Utility (FE-183 boundary).
 final class ToolsTab: PropertiesTab {
-    let title = "Tools"
+    let title = L10n.tr("Tools")
     let view: NSView
 
     init(model: PropertiesModel) {
@@ -599,17 +599,17 @@ final class ToolsTab: PropertiesTab {
         stack.alignment = .leading
         stack.spacing = 8
         stack.translatesAutoresizingMaskIntoConstraints = false
-        let check = SheetButton("Check") { _ in
+        let check = SheetButton(L10n.tr("Check")) { _ in
             SystemOpen.openApplication(at: URL(fileURLWithPath: "/System/Applications/Utilities/Disk Utility.app"))
         }
-        check.toolTip = "Opens Disk Utility; select the drive and click First Aid"
+        check.toolTip = L10n.tr("Opens Disk Utility; select the drive and click First Aid")
         let items: [NSView] = [
-            SheetLabel.make("Error checking", bold: true),
-            SheetLabel.wrapping("This option checks the drive for file system errors. On a Mac this is First Aid in Disk Utility.", secondary: false),
+            SheetLabel.make(L10n.tr("Error checking"), bold: true),
+            SheetLabel.wrapping(L10n.tr("This option checks the drive for file system errors. On a Mac this is First Aid in Disk Utility."), secondary: false),
             check,
             SheetSeparator(),
-            SheetLabel.make("Optimize and defragment drive", bold: true),
-            SheetLabel.wrapping("APFS drives and SSDs don't need defragmenting; macOS keeps them optimized automatically. There is nothing to run.", secondary: false),
+            SheetLabel.make(L10n.tr("Optimize and defragment drive"), bold: true),
+            SheetLabel.wrapping(L10n.tr("APFS drives and SSDs don't need defragmenting; macOS keeps them optimized automatically. There is nothing to run."), secondary: false),
         ]
         for v in items {
             stack.addArrangedSubview(v)
@@ -626,12 +626,12 @@ final class ToolsTab: PropertiesTab {
 
 /// The code signature: Explorer's Digital Signatures tab in Mac terms (FE-157).
 final class SignaturesTab: PropertiesTab, PropertiesTabDebug {
-    let title = "Digital Signatures"
+    let title = L10n.tr("Digital Signatures")
     let view: NSView
     private let model: PropertiesModel
     private let page = SheetPage()
     private let form = SheetForm(labelWidth: 110)
-    private let status = SheetLabel.wrapping("Checking the signature…", secondary: false)
+    private let status = SheetLabel.wrapping(L10n.tr("Checking the signature…"), secondary: false)
     private let statusIcon = fixedImage(NSImage(systemSymbolName: "hourglass", accessibilityDescription: nil), 20)
     private let signer = SheetLabel.make("")
     private let team = SheetLabel.make("")
@@ -644,15 +644,15 @@ final class SignaturesTab: PropertiesTab, PropertiesTabDebug {
     init(model: PropertiesModel) {
         self.model = model
         view = page
-        form.add(SheetLabel.make("Digital Signature Information", bold: true))
+        form.add(SheetLabel.make(L10n.tr("Digital Signature Information"), bold: true))
         form.add(hstack([statusIcon, status], spacing: 8))
         form.separator()
-        form.row("Signer:", signer)
-        form.row("Team ID:", team)
-        form.row("Identifier:", identifier)
-        form.row("Signing time:", timestamp)
+        form.row(L10n.tr("Signer:"), signer)
+        form.row(L10n.tr("Team ID:"), team)
+        form.row(L10n.tr("Identifier:"), identifier)
+        form.row(L10n.tr("Signing time:"), timestamp)
         form.separator()
-        form.add(SheetLabel.make("Certificate chain:"))
+        form.add(SheetLabel.make(L10n.tr("Certificate chain:")))
         form.add(chain)
         page.embed(form.stack)
         load()

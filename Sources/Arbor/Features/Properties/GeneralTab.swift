@@ -47,7 +47,7 @@ struct GeneralInfo {
 
 /// Explorer's General tab for a file, folder, app/package or several items (FE-150, FE-156).
 final class GeneralTab: PropertiesTab, PropertiesTabDebug {
-    let title = "General"
+    let title = L10n.tr("General")
     let view: NSView
     private let model: PropertiesModel
     private weak var controller: PropertiesWindowController?
@@ -60,22 +60,22 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
     private let typeValue = SheetLabel.make("")
     private let openWithIcon = fixedImage(nil, 16)
     private let openWithName = SheetLabel.make("")
-    private lazy var changeButton = SheetButton("Change…") { [weak self] _ in self?.changeApp() }
+    private lazy var changeButton = SheetButton(L10n.tr("Change…")) { [weak self] _ in self?.changeApp() }
     private let versionValue = SheetLabel.make("")
     private let locationValue = SheetLabel.make("", selectable: true)
     private let sizeValue = SheetLabel.make("")
     private let onDiskValue = SheetLabel.make("")
     private let containsValue = SheetLabel.make("")
-    private lazy var stopButton = SheetButton("Stop") { [weak self] _ in self?.stopScan() }
+    private lazy var stopButton = SheetButton(L10n.tr("Stop")) { [weak self] _ in self?.stopScan() }
     private let createdValue = SheetLabel.make("")
     private let modifiedValue = SheetLabel.make("")
     private let accessedValue = SheetLabel.make("")
-    private lazy var readOnly = SheetCheckbox("Read-only") { [weak self] box in self?.setLocked(box.state) }
-    private lazy var hidden = SheetCheckbox("Hidden") { [weak self] box in self?.setHidden(box.state) }
-    private lazy var advanced = SheetButton("Advanced…") { [weak self] _ in self?.showAdvanced() }
+    private lazy var readOnly = SheetCheckbox(L10n.tr("Read-only")) { [weak self] box in self?.setLocked(box.state) }
+    private lazy var hidden = SheetCheckbox(L10n.tr("Hidden")) { [weak self] box in self?.setHidden(box.state) }
+    private lazy var advanced = SheetButton(L10n.tr("Advanced…")) { [weak self] _ in self?.showAdvanced() }
     private let attributeNote = SheetLabel.wrapping("", small: true)
-    private let securityNote = SheetLabel.wrapping("This file came from another computer. macOS may check it with Gatekeeper before it opens.", small: true)
-    private lazy var unblock = SheetCheckbox("Unblock") { [weak self] box in
+    private let securityNote = SheetLabel.wrapping(L10n.tr("This file came from another computer. macOS may check it with Gatekeeper before it opens."), small: true)
+    private lazy var unblock = SheetCheckbox(L10n.tr("Unblock")) { [weak self] box in
         self?.model.edit { edited, _ in edited.quarantined = box.state != .on }
     }
     private var securityRow: NSView?
@@ -106,6 +106,7 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
 
     private func build() {
         nameField.onChange = { [weak self] text in self?.model.edit { edited, _ in edited.name = text } }
+        nameField.field.setAccessibleName(L10n.tr("Name"))
         let headerValue: NSView = isMulti ? headerLabel : nameField
         let header = NSView()
         header.translatesAutoresizingMaskIntoConstraints = false
@@ -122,7 +123,7 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
         ])
         form.add(header)
         form.separator()
-        form.row(isMulti ? "Type:" : (model.subject == .file ? "Type of file:" : "Type:"), typeValue)
+        form.row(isMulti ? L10n.tr("Type:") : (model.subject == .file ? L10n.tr("Type of file:") : L10n.tr("Type:")), typeValue)
         if model.subject == .file {
             let openWith = hstack([openWithIcon, openWithName], spacing: 6)
             let row = NSView()
@@ -137,13 +138,13 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
                 changeButton.centerYAnchor.constraint(equalTo: row.centerYAnchor),
                 row.heightAnchor.constraint(equalToConstant: 24),
             ])
-            openWithRow = form.row("Opens with:", row)
+            openWithRow = form.row(L10n.tr("Opens with:"), row)
         }
-        if model.subject == .package { versionRow = form.row("Version:", versionValue) }
+        if model.subject == .package { versionRow = form.row(L10n.tr("Version:"), versionValue) }
         form.separator()
-        form.row("Location:", locationValue)
-        form.row("Size:", sizeValue)
-        form.row("Size on disk:", onDiskValue)
+        form.row(L10n.tr("Location:"), locationValue)
+        form.row(L10n.tr("Size:"), sizeValue)
+        form.row(L10n.tr("Size on disk:"), onDiskValue)
         if needsScan {
             let contains = NSView()
             contains.translatesAutoresizingMaskIntoConstraints = false
@@ -158,14 +159,14 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
                 stopButton.centerYAnchor.constraint(equalTo: contains.centerYAnchor),
                 contains.heightAnchor.constraint(equalToConstant: 24),
             ])
-            containsRow = form.row("Contains:", contains)
+            containsRow = form.row(L10n.tr("Contains:"), contains)
         }
         if !isMulti {
             form.separator()
-            form.row("Created:", createdValue)
+            form.row(L10n.tr("Created:"), createdValue)
             if model.subject != .folder {
-                modifiedRow = form.row("Modified:", modifiedValue)
-                accessedRow = form.row("Accessed:", accessedValue)
+                modifiedRow = form.row(L10n.tr("Modified:"), modifiedValue)
+                accessedRow = form.row(L10n.tr("Accessed:"), accessedValue)
             }
         }
         form.separator()
@@ -185,7 +186,7 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
             advanced.trailingAnchor.constraint(equalTo: attributes.trailingAnchor),
             advanced.topAnchor.constraint(equalTo: attributes.topAnchor, constant: -3),
         ])
-        form.row("Attributes:", attributes, alignTop: true)
+        form.row(L10n.tr("Attributes:"), attributes, alignTop: true)
         form.add(indented(attributeNote))
         if model.subject == .file {
             let unblockBox = NSView()
@@ -202,12 +203,12 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
             ])
             form.separator()
             securitySeparator = form.stack.arrangedSubviews.last
-            securityRow = form.row("Security:", unblockBox, alignTop: true)
+            securityRow = form.row(L10n.tr("Security:"), unblockBox, alignTop: true)
             securityRow?.isHidden = true
             securitySeparator?.isHidden = true
         }
         page.embed(form.stack)
-        page.setAccessibilityLabel("General")
+        page.setAccessibilityLabel(L10n.tr("General"))
     }
 
     private func indented(_ v: NSView) -> NSView {
@@ -307,11 +308,11 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
                 openWithName.stringValue = displayName(of: app).replacingOccurrences(of: ".app", with: "")
             } else {
                 openWithIcon.image = nil
-                openWithName.stringValue = "No app is set to open this file"
+                openWithName.stringValue = L10n.tr("No app is set to open this file")
             }
             if let bundle = info.bundle {
                 versionValue.stringValue = [bundle.version, bundle.build.map { "(\($0))" }].compactMap { $0 }.joined(separator: " ")
-                if versionValue.stringValue.isEmpty { versionValue.stringValue = "Unknown" }
+                if versionValue.stringValue.isEmpty { versionValue.stringValue = L10n.tr("Unknown") }
             }
             createdValue.stringValue = info.created.map { PropertyFormat.longDate($0) } ?? "Unknown"
             modifiedValue.stringValue = info.modified.map { PropertyFormat.longDate($0) } ?? "Unknown"
@@ -334,9 +335,9 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
     }
 
     private func noteText(allDot: Bool) -> String {
-        var text = "Read-only is macOS's Locked setting: the item can't be changed, renamed or moved to the Trash until it's turned off."
-        if model.subject == .folder { text = "Read-only locks the folder itself (Finder: Locked): items can't be added, removed or renamed inside it." }
-        if allDot { text += " Names that start with “.” are always hidden." }
+        var text = L10n.tr("Read-only is macOS's Locked setting: the item can't be changed, renamed or moved to the Trash until it's turned off.")
+        if model.subject == .folder { text = L10n.tr("Read-only locks the folder itself (Finder: Locked): items can't be added, removed or renamed inside it.") }
+        if allDot { text += L10n.tr(" Names that start with “.” are always hidden.") }
         return text
     }
 
@@ -397,7 +398,7 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
 enum AdvancedAttributesSheet {
     static func show(for model: PropertiesModel, over window: NSWindow) {
         let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 360), styleMask: [.titled], backing: .buffered, defer: false)
-        sheet.title = "Advanced Attributes"
+        sheet.title = L10n.tr("Advanced Attributes")
         let content = ThemeBackgroundView(SheetColors.windowBackground)
         content.translatesAutoresizingMaskIntoConstraints = true
         let stack = NSStackView()
@@ -409,30 +410,30 @@ enum AdvancedAttributesSheet {
             stack.addArrangedSubview(v)
             v.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         }
-        add(SheetLabel.wrapping("Choose the settings you want for \(model.single == nil ? "these items" : "this item").", secondary: false))
-        add(SheetLabel.make("File attributes:", bold: true))
-        let archive = SheetCheckbox("File is ready for archiving")
+        add(SheetLabel.wrapping((model.single == nil ? L10n.tr("Choose the settings you want for these items.") : L10n.tr("Choose the settings you want for this item.")), secondary: false))
+        add(SheetLabel.make(L10n.tr("File attributes:"), bold: true))
+        let archive = SheetCheckbox(L10n.tr("File is ready for archiving"))
         archive.isEnabled = false
         add(archive)
-        let tm = SheetLabel.wrapping("macOS has no archive bit. Time Machine backs up changed files automatically.", small: true)
+        let tm = SheetLabel.wrapping(L10n.tr("macOS has no archive bit. Time Machine backs up changed files automatically."), small: true)
         add(tm)
-        let index = SheetCheckbox("Allow contents to be indexed (Spotlight)")
+        let index = SheetCheckbox(L10n.tr("Allow contents to be indexed (Spotlight)"))
         index.state = .on
         index.isEnabled = false
         add(index)
-        add(SheetLabel.wrapping("Spotlight indexes files automatically. To exclude a folder, add it under Spotlight › Search Privacy in System Settings.", small: true))
-        add(SheetLabel.make("Compress or Encrypt attributes:", bold: true))
-        let compress = SheetCheckbox("Compress contents to save disk space")
+        add(SheetLabel.wrapping(L10n.tr("Spotlight indexes files automatically. To exclude a folder, add it under Spotlight › Search Privacy in System Settings."), small: true))
+        add(SheetLabel.make(L10n.tr("Compress or Encrypt attributes:"), bold: true))
+        let compress = SheetCheckbox(L10n.tr("Compress contents to save disk space"))
         compress.isEnabled = false
         add(compress)
-        let encrypt = SheetCheckbox("Encrypt contents to secure data")
+        let encrypt = SheetCheckbox(L10n.tr("Encrypt contents to secure data"))
         encrypt.isEnabled = false
         add(encrypt)
-        add(SheetLabel.wrapping("APFS has no per-file compression or encryption switch. Whole disks are encrypted with FileVault (System Settings › Privacy & Security).", small: true))
-        let spotlight = SheetButton("Spotlight Settings…") { _ in
+        add(SheetLabel.wrapping(L10n.tr("APFS has no per-file compression or encryption switch. Whole disks are encrypted with FileVault (System Settings › Privacy & Security)."), small: true))
+        let spotlight = SheetButton(L10n.tr("Spotlight Settings…")) { _ in
             SystemOpen.open(URL(string: "x-apple.systempreferences:com.apple.Spotlight-Settings.extension")!)
         }
-        let ok = SheetButton("OK", isDefault: true) { [weak window, weak sheet] _ in
+        let ok = SheetButton(L10n.tr("OK"), isDefault: true) { [weak window, weak sheet] _ in
             if let sheet { window?.endSheet(sheet) }
         }
         let buttons = hstack([spotlight, NSView(), ok])
@@ -449,7 +450,7 @@ enum AdvancedAttributesSheet {
             DispatchQueue.global(qos: .utility).async { [weak tm] in
                 guard let url = model.single?.url, let excluded = TimeMachineStatus.isExcluded(url) else { return }
                 DispatchQueue.main.async {
-                    tm?.stringValue = "macOS has no archive bit. Time Machine backs up changed files automatically"
+                    tm?.stringValue = L10n.tr("macOS has no archive bit. Time Machine backs up changed files automatically")
                         + (excluded ? "; this item is excluded from Time Machine backups." : "; this item is included in backups.")
                 }
             }
@@ -470,7 +471,7 @@ enum OpenWithChooser {
         let content = ThemeBackgroundView(SheetColors.windowBackground)
         content.translatesAutoresizingMaskIntoConstraints = true
         let ext = url.pathExtension.isEmpty ? "this file" : ".\(url.pathExtension) files"
-        let heading = SheetLabel.make("Select an app to open \(ext) from now on", bold: true)
+        let heading = SheetLabel.make(L10n.format("Select an app to open %@ from now on", "\(ext)"), bold: true)
         let list = SheetScrollList()
         let box = SheetBox()
         box.addSubview(list)
@@ -488,9 +489,9 @@ enum OpenWithChooser {
             list.add(row)
         }
         rebuild()
-        let note = SheetLabel.wrapping(contentType == nil ? "This file's type is unknown, so only this file will change." : "Every file of this type will open with the app you choose.", small: true)
+        let note = SheetLabel.wrapping(contentType == nil ? L10n.tr("This file's type is unknown, so only this file will change.") : L10n.tr("Every file of this type will open with the app you choose."), small: true)
         var more: SheetButton!
-        more = SheetButton("Look for another app on this Mac…") { [weak sheet] _ in
+        more = SheetButton(L10n.tr("Look for another app on this Mac…")) { [weak sheet] _ in
             guard let sheet else { return }
             let panel = NSOpenPanel()
             panel.directoryURL = URL(fileURLWithPath: "/Applications")
@@ -506,13 +507,13 @@ enum OpenWithChooser {
                 rebuild()
             }
         }
-        let ok = SheetButton("OK", isDefault: true) { [weak window, weak sheet] _ in
+        let ok = SheetButton(L10n.tr("OK"), isDefault: true) { [weak window, weak sheet] _ in
             guard let sheet else { return }
             window?.endSheet(sheet)
             guard let app = chosen, app != current else { return }
             let finish: (Error?) -> Void = { error in
                 DispatchQueue.main.async {
-                    if let error { NSAlert.show("The default app couldn't be changed.", error.localizedDescription, in: window) }
+                    if let error { NSAlert.show(L10n.tr("The default app couldn't be changed."), error.localizedDescription, in: window) }
                     done()
                 }
             }
@@ -522,7 +523,7 @@ enum OpenWithChooser {
                 SystemOpen.setDefaultApplication(at: app, toOpenFileAt: url, completion: finish)
             }
         }
-        let cancel = SheetButton("Cancel") { [weak window, weak sheet] _ in if let sheet { window?.endSheet(sheet) } }
+        let cancel = SheetButton(L10n.tr("Cancel")) { [weak window, weak sheet] _ in if let sheet { window?.endSheet(sheet) } }
         let buttons = hstack([NSView(), ok, cancel])
         for v in [heading, box, note, more!, buttons] as [NSView] { content.addSubview(v) }
         list.translatesAutoresizingMaskIntoConstraints = false

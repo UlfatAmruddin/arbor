@@ -81,7 +81,7 @@ enum PromiseDrop {
         do {
             staging = try FileManager.default.url(for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: destination, create: true)
         } catch {
-            ArchiveFeature.alert("The items couldn't be received.", error.localizedDescription, in: window)
+            ArchiveFeature.alert(L10n.tr("The items couldn't be received."), error.localizedDescription, in: window)
             return
         }
         let queue = OperationQueue()
@@ -107,7 +107,7 @@ enum PromiseDrop {
             let sources = collected.received.filter { $0.deletingLastPathComponent().standardizedFileURL == staging.standardizedFileURL }
             guard !sources.isEmpty else {
                 try? FileManager.default.removeItem(at: staging)
-                if !errors.isEmpty { ArchiveFeature.alert("The items couldn't be received.", errors.prefix(4).joined(separator: "\n"), in: window) }
+                if !errors.isEmpty { ArchiveFeature.alert(L10n.tr("The items couldn't be received."), errors.prefix(4).joined(separator: "\n"), in: window) }
                 return
             }
             // A copy (a clone on APFS) rather than a move, so Undo never points into the deleted staging folder.

@@ -14,10 +14,10 @@ final class CompressOptionsDialog: FileOpsDialog {
     private let formatPopup = NSPopUpButton()
     private let methodPopup = NSPopUpButton()
     private let levelPopup = NSPopUpButton()
-    private let hidden = NSButton(checkboxWithTitle: "Include hidden files and folders (names starting with “.”)", target: nil, action: nil)
+    private let hidden = NSButton(checkboxWithTitle: L10n.tr("Include hidden files and folders (names starting with “.”)"), target: nil, action: nil)
     private let note = FileOpsStyle.label("", font: FileOpsStyle.captionFont, color: Theme.secondaryText, wraps: true)
     private let problem = FileOpsStyle.label("", font: FileOpsStyle.captionFont, color: SheetColors.failure, wraps: true)
-    private lazy var create = WinButton("Create", accent: true) { [weak self] in self?.createArchive() }
+    private lazy var create = WinButton(L10n.tr("Create"), accent: true) { [weak self] in self?.createArchive() }
     private let formats: [ArchiveOutputFormat]
     /// The name last proposed; while the user hasn't typed their own, changing the format proposes anew.
     private var suggestedName = ""
@@ -37,7 +37,7 @@ final class CompressOptionsDialog: FileOpsDialog {
                 items.append(.separator())
                 let urls = ctx.selection.map(\.url)
                 weak let browser = ctx.window
-                items.append(ClosureMenuItem("Additional options") { show(urls, browser: browser) })
+                items.append(ClosureMenuItem(L10n.tr("Additional options")) { show(urls, browser: browser) })
                 return items
             }
         }
@@ -62,9 +62,9 @@ final class CompressOptionsDialog: FileOpsDialog {
         formats = ArchiveOutputFormat.available(forSingleFile: single)
         let base = Self.suggestedName(for: .zip, sources: sources)
         options = ArchiveCreateOptions(name: base, destinationFolder: folder)
-        super.init(title: "Create archive", width: 520)
+        super.init(title: L10n.tr("Create archive"), width: 520)
 
-        let heading = FileOpsStyle.label("Choose how to compress \(sources.count == 1 ? "“\(sources[0].lastPathComponent)”" : StatusText.items(sources.count))",
+        let heading = FileOpsStyle.label(L10n.format("Choose how to compress %@", "\(sources.count == 1 ? "“\(sources[0].lastPathComponent)”" : StatusText.items(sources.count))"),
                                          font: FileOpsStyle.instructionFont, wraps: true)
         heading.preferredMaxLayoutWidth = 480
         destinationField.stringValue = folder.path
@@ -77,7 +77,7 @@ final class CompressOptionsDialog: FileOpsDialog {
         nameField.font = FileOpsStyle.bodyFont
         nameField.target = self
         nameField.action = #selector(fieldsChanged)
-        let browse = WinButton("Browse…") { [weak self] in self?.browse() }
+        let browse = WinButton(L10n.tr("Browse…")) { [weak self] in self?.browse() }
         for popup in [formatPopup, methodPopup, levelPopup] {
             popup.font = FileOpsStyle.bodyFont
             popup.target = self
@@ -93,15 +93,26 @@ final class CompressOptionsDialog: FileOpsDialog {
         note.preferredMaxLayoutWidth = 480
         problem.preferredMaxLayoutWidth = 480
 
-        func caption(_ text: String) -> NSTextField { FileOpsStyle.label(text, color: Theme.secondaryText) }
+        func caption(_ text: String) -> NSTextField {
+            // Shown whole: the fields give way when a translation is longer than the English caption.
+            let label = FileOpsStyle.label(text, color: Theme.secondaryText)
+            label.lineBreakMode = .byClipping
+            label.setContentCompressionResistancePriority(.required, for: .horizontal)
+            return label
+        }
         let destinationRow = NSStackView(views: [destinationField, browse])
+        destinationField.setAccessibleName(L10n.tr("Destination"))
+        nameField.setAccessibleName(L10n.tr("Archive name"))
+        formatPopup.setAccessibleName(L10n.tr("Archive format"))
+        methodPopup.setAccessibleName(L10n.tr("Compression method"))
+        levelPopup.setAccessibleName(L10n.tr("Compression level"))
         destinationRow.spacing = 8
         let grid = NSGridView(views: [
-            [caption("Destination:"), destinationRow],
-            [caption("Archive name:"), nameField],
-            [caption("Archive format:"), formatPopup],
-            [caption("Compression method:"), methodPopup],
-            [caption("Compression level:"), levelPopup],
+            [caption(L10n.tr("Destination:")), destinationRow],
+            [caption(L10n.tr("Archive name:")), nameField],
+            [caption(L10n.tr("Archive format:")), formatPopup],
+            [caption(L10n.tr("Compression method:")), methodPopup],
+            [caption(L10n.tr("Compression level:")), levelPopup],
         ])
         grid.rowSpacing = 10
         grid.columnSpacing = 12
@@ -109,15 +120,18 @@ final class CompressOptionsDialog: FileOpsDialog {
         grid.rowAlignment = .firstBaseline
         grid.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            destinationField.widthAnchor.constraint(equalToConstant: 250),
-            nameField.widthAnchor.constraint(equalToConstant: 354),
+            destinationField.widthAnchor.constraint(lessThanOrEqualToConstant: 250),
+            destinationField.widthAnchor.constraint(greaterThanOrEqualToConstant: 150),
+            nameField.widthAnchor.constraint(lessThanOrEqualToConstant: 354),
+            nameField.widthAnchor.constraint(greaterThanOrEqualToConstant: 250),
+            nameField.trailingAnchor.constraint(equalTo: browse.trailingAnchor),
             formatPopup.widthAnchor.constraint(equalToConstant: 240),
             methodPopup.widthAnchor.constraint(equalToConstant: 240),
             levelPopup.widthAnchor.constraint(equalToConstant: 240),
         ])
         let body = setBody([heading, grid, hidden, note, problem], spacing: 12)
         body.setCustomSpacing(16, after: heading)
-        setButtons([create, WinButton("Cancel") { [weak self] in self?.dismiss() }])
+        setButtons([create, WinButton(L10n.tr("Cancel")) { [weak self] in self?.dismiss() }])
         syncPopups()
     }
 
@@ -165,7 +179,7 @@ final class CompressOptionsDialog: FileOpsDialog {
         let levels = format.levels
         levelPopup.removeAllItems()
         if levels.isEmpty || options.method == .store {
-            levelPopup.addItem(withTitle: levels.isEmpty ? "None (TAR doesn't compress)" : "None")
+            levelPopup.addItem(withTitle: levels.isEmpty ? L10n.tr("None (TAR doesn't compress)") : L10n.tr("None"))
             levelPopup.isEnabled = false
         } else {
             levelPopup.addItems(withTitles: levels.map(\.title))
@@ -175,12 +189,12 @@ final class CompressOptionsDialog: FileOpsDialog {
         hidden.isEnabled = !format.isSingleFile
         var text: String
         switch format {
-        case .zip: text = "ZIP opens everywhere, including Windows. Mac-only properties (Finder tags, resource forks) aren't stored; Compress to ▸ ZIP File keeps them for a single item."
+        case .zip: text = L10n.tr("ZIP opens everywhere, including Windows. Mac-only properties (Finder tags, resource forks) aren't stored; Compress to ▸ ZIP File keeps them for a single item.")
         case .sevenZip: text = "7z usually makes the smallest archives. Windows 11 opens it."
-        case .tar, .tarGzip, .tarBzip2, .tarXz: text = "TAR keeps Unix permissions and links. Windows 11 opens .tar, .tar.gz, .tar.bz2 and .tar.xz."
-        case .gzip, .bzip2, .xz: text = "Compresses this one file on its own, without an archive around it."
+        case .tar, .tarGzip, .tarBzip2, .tarXz: text = L10n.tr("TAR keeps Unix permissions and links. Windows 11 opens .tar, .tar.gz, .tar.bz2 and .tar.xz.")
+        case .gzip, .bzip2, .xz: text = L10n.tr("Compresses this one file on its own, without an archive around it.")
         }
-        text += " Items you selected are always included."
+        text += " " + L10n.tr("Items you selected are always included.")
         note.stringValue = text
         validate()
     }
@@ -190,7 +204,7 @@ final class CompressOptionsDialog: FileOpsDialog {
         options.name = nameField.stringValue.trimmingCharacters(in: .whitespaces)
         options.destinationFolder = URL(fileURLWithPath: (destinationField.stringValue as NSString).expandingTildeInPath)
         var message = options.problem(for: sources)
-        if message == nil, !FileOps.isPlainFolder(options.destinationFolder) { message = "The destination folder doesn't exist." }
+        if message == nil, !FileOps.isPlainFolder(options.destinationFolder) { message = L10n.tr("The destination folder doesn't exist.") }
         problem.stringValue = message ?? ""
         problem.isHidden = message == nil
         create.isEnabled = message == nil
@@ -266,9 +280,9 @@ final class CompressOptionsDialog: FileOpsDialog {
                     if Location.folder(folder) == browser.location {
                         browser.refreshSelecting([url.lastPathComponent])
                     }
-                    browser.statusBar.setMessage("Created “\(url.lastPathComponent)” in “\(displayName(of: folder))”.")
+                    browser.statusBar.setMessage(L10n.format("Created “%@” in “%@”.", "\(url.lastPathComponent)", "\(displayName(of: folder))"))
                 case .failure(let error):
-                    ArchiveJobs.show(error, title: "Couldn't create “\(options.name)”.", window: browser?.window)
+                    ArchiveJobs.show(error, title: L10n.format("Couldn't create “%@”.", "\(options.name)"), window: browser?.window)
                 }
             }
         }

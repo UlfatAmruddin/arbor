@@ -304,7 +304,9 @@ final class NetworkTileView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         let rect = bounds.insetBy(dx: 1, dy: 1)
         if isSelected {
-            fillRounded(rect, radius: Theme.cornerRadius, hovered ? Theme.selectionHover : Theme.selection)
+            // Accent while the tiles have focus in the active window, grey otherwise (SelectionEmphasis).
+            let focused = superview.map(SelectionEmphasis.hasFocus) ?? false
+            fillRounded(rect, radius: Theme.cornerRadius, SelectionEmphasis.fill(focused: focused, hovered: hovered))
         } else if hovered {
             fillRounded(rect, radius: Theme.cornerRadius, Theme.hover)
         }
@@ -369,6 +371,14 @@ final class TileSectionsView: NSView {
 
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
+    private lazy var emphasisObserver = SelectionEmphasis.Observer { [weak self] in self?.selected?.needsDisplay = true }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        emphasisObserver.attach(to: window)
+    }
+    override func becomeFirstResponder() -> Bool { selected?.needsDisplay = true; return true }
+    override func resignFirstResponder() -> Bool { selected?.needsDisplay = true; return true }
 
     override func viewDidMoveToSuperview() {
         super.viewDidMoveToSuperview()
@@ -398,7 +408,10 @@ final class TileSectionsView: NSView {
             headers[section.id] = header
             addSubview(header)
             for tile in section.tiles {
-                tile.onSelect = { [weak self] tile, _ in self?.select(tile) }
+                tile.onSelect = { [weak self] tile, event in
+                    if event != nil, let self { self.window?.makeFirstResponder(self) }
+                    self?.select(tile)
+                }
                 addSubview(tile)
                 if tile.identifier2 == previous { select(tile, notify: false) }
             }

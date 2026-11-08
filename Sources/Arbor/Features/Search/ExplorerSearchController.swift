@@ -48,10 +48,10 @@ final class ExplorerSearchController: SearchController {
     func placeholder(for location: Location) -> String {
         syncProgress(location)
         if case .search(let r) = location {
-            if let origin = r.origin { return "Search " + Self.title(of: origin) }
-            return "Search " + (r.scope.map { Self.title(of: .folder($0)) } ?? "This Mac")
+            if let origin = r.origin { return L10n.tr("Search ") + Self.title(of: origin) }
+            return L10n.tr("Search ") + (r.scope.map { Self.title(of: .folder($0)) } ?? "This Mac")
         }
-        return "Search \(Self.title(of: location))"
+        return L10n.format("Search %@", "\(Self.title(of: location))")
     }
 
     /// The name the tab and breadcrumb use ("iCloud Drive", a volume's name), not the folder's name on disk.
@@ -410,7 +410,7 @@ final class SearchHistoryDropdown {
             list.bottomAnchor.constraint(equalTo: background.bottomAnchor),
         ])
         background.setAccessibilityRole(.list)
-        background.setAccessibilityLabel("Recent searches")
+        background.setAccessibilityLabel(L10n.tr("Recent searches"))
         panel.contentView = background
         if AppDelegate.isHeadless {
             panel.alphaValue = 0
@@ -440,7 +440,7 @@ final class SearchHistoryDropdown {
 
     private func rebuild(width: CGFloat) {
         list.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        let header = NSTextField(labelWithString: "Recent searches")
+        let header = NSTextField(labelWithString: L10n.tr("Recent searches"))
         header.font = .systemFont(ofSize: 11, weight: .semibold)
         header.textColor = Theme.secondaryText
         let headerRow = NSStackView(views: [header])
@@ -459,7 +459,7 @@ final class SearchHistoryDropdown {
             row.widthAnchor.constraint(equalToConstant: width - 8).isActive = true
             row.menu = {
                 let m = NSMenu()
-                m.addItem(ClosureMenuItem("Remove from history") { [weak self] in
+                m.addItem(ClosureMenuItem(L10n.tr("Remove from history")) { [weak self] in
                     self?.onRemove(entry)
                     self?.entries.removeAll { $0 == entry }
                     if self?.entries.isEmpty == true { self?.hide() } else { self?.rebuild(width: width) }
@@ -471,7 +471,7 @@ final class SearchHistoryDropdown {
         separator.translatesAutoresizingMaskIntoConstraints = false
         list.addArrangedSubview(separator)
         separator.widthAnchor.constraint(equalToConstant: width - 8).isActive = true
-        let clear = ChromeButton(symbol: "trash", title: "Clear search history", tooltip: "Remove all recent searches")
+        let clear = ChromeButton(symbol: "trash", title: L10n.tr("Clear search history"), tooltip: "Remove all recent searches")
         clear.symbolSize = 12
         clear.fixedHeight = 30
         clear.horizontalPadding = 10

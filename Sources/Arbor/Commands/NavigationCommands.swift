@@ -64,15 +64,15 @@ enum NavigationCommands {
             fm.urls(for: dir, in: .userDomainMask).first.map { .folder($0) }
         }
         r.register([
-            place("home", "Home", .home, Shortcut("h", [.command, .shift]), 10),
-            place("thisMac", "This Mac", .thisMac, Shortcut("c", [.command, .shift]), 15),
-            place("desktop", "Desktop", folder(.desktopDirectory), Shortcut("d", [.command, .shift]), 20),
-            place("documents", "Documents", folder(.documentDirectory), Shortcut("o", [.command, .shift]), 30),
-            place("downloads", "Downloads", folder(.downloadsDirectory), Shortcut("l", [.command, .option]), 40),
-            place("userFolder", "Home Folder", .folder(fm.homeDirectoryForCurrentUser), nil, 45),
-            place("applications", "Applications", .folder(URL(fileURLWithPath: "/Applications")), Shortcut("a", [.command, .shift]), 50),
-            place("network", "Network", .network, Shortcut("k", [.command, .shift]), 60),
-            place("trash", "Trash", .trash, nil, 70),
+            place("home", L10n.tr("Home"), .home, Shortcut("h", [.command, .shift]), 10),
+            place("thisMac", L10n.tr("This Mac"), .thisMac, Shortcut("c", [.command, .shift]), 15),
+            place("desktop", L10n.tr("Desktop"), folder(.desktopDirectory), Shortcut("d", [.command, .shift]), 20),
+            place("documents", L10n.tr("Documents"), folder(.documentDirectory), Shortcut("o", [.command, .shift]), 30),
+            place("downloads", L10n.tr("Downloads"), folder(.downloadsDirectory), Shortcut("l", [.command, .option]), 40),
+            place("userFolder", L10n.tr("Home Folder"), .folder(fm.homeDirectoryForCurrentUser), nil, 45),
+            place("applications", L10n.tr("Applications"), .folder(URL(fileURLWithPath: L10n.tr("/Applications"))), Shortcut("a", [.command, .shift]), 50),
+            place("network", L10n.tr("Network"), .network, Shortcut("k", [.command, .shift]), 60),
+            place("trash", L10n.tr("Trash"), .trash, nil, 70),
         ])
     }
 }
@@ -140,7 +140,7 @@ enum TabCommands {
         ])
         for n in 1...9 {
             r.register(ExplorerCommand(
-                id: n == 9 ? "tab.selectLast" : "tab.select\(n)", title: n == 9 ? "Show Last Tab" : "Show Tab \(n)",
+                id: n == 9 ? "tab.selectLast" : "tab.select\(n)", title: n == 9 ? L10n.tr("Show Last Tab") : L10n.format("Show Tab %@", "\(n)"),
                 shortcut: Shortcut("\(n)"),
                 placements: [.mainMenu("Window", .window, Double(n))],
                 isEnabled: { ctx in n == 9 ? ctx.window != nil : n <= (ctx.window?.tabs.count ?? 0) },

@@ -9,8 +9,8 @@ final class MapNetworkDriveSheet: NSWindowController, NSComboBoxDelegate, NSComb
     private static var current: MapNetworkDriveSheet?
     private weak var browser: BrowserWindowController?
     let folderField = NSComboBox()
-    let reconnect = NSButton(checkboxWithTitle: "Reconnect at sign-in", target: nil, action: nil)
-    let differentCredentials = NSButton(checkboxWithTitle: "Connect using different credentials", target: nil, action: nil)
+    let reconnect = NSButton(checkboxWithTitle: L10n.tr("Reconnect at sign-in"), target: nil, action: nil)
+    let differentCredentials = NSButton(checkboxWithTitle: L10n.tr("Connect using different credentials"), target: nil, action: nil)
     private let message = NSTextField(wrappingLabelWithString: "")
     private let spinner = NSProgressIndicator()
     private var finishButton: FluentButton!
@@ -35,7 +35,7 @@ final class MapNetworkDriveSheet: NSWindowController, NSComboBoxDelegate, NSComb
     init(browser: BrowserWindowController) {
         self.browser = browser
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 600, height: 380), styleMask: [.titled, .docModalWindow], backing: .buffered, defer: false)
-        panel.title = "Map Network Drive"
+        panel.title = L10n.tr("Map Network Drive")
         super.init(window: panel)
         build(in: panel)
     }
@@ -55,35 +55,36 @@ final class MapNetworkDriveSheet: NSWindowController, NSComboBoxDelegate, NSComb
         panel.contentView = root
 
         let titleIcon = NSImageView(image: NetworkIcons.drive(32))
-        let heading = label("What network folder would you like to map?", size: 17, weight: .regular, color: Theme.rgb(0x1A5FB4))
+        titleIcon.hideFromAccessibility()
+        let heading = label(L10n.tr("What network folder would you like to map?"), size: 17, weight: .regular, color: Theme.rgb(0x1A5FB4))
         heading.textColor = NSColor(name: nil) { Theme.isDark($0) ? Theme.rgb(0x8CC2FF) : Theme.rgb(0x1A5FB4) }
         let headRow = NSStackView(views: [titleIcon, heading])
         headRow.spacing = 10
-        let intro = label("Specify the folder that you want to connect to:")
+        let intro = label(L10n.tr("Specify the folder that you want to connect to:"))
 
-        let driveTitle = label("Drive:")
-        let driveValue = label("Macs don't use drive letters. The drive appears under This Mac by its name, such as “Media (\\\\server)”.",
+        let driveTitle = label(L10n.tr("Drive:"))
+        let driveValue = label(L10n.tr("Macs don't use drive letters. The drive appears under This Mac by its name, such as “Media (\\\\server)”."),
                                size: 12, color: Theme.secondaryText)
 
-        let folderTitle = label("Folder:")
+        let folderTitle = label(L10n.tr("Folder:"))
         folderField.usesDataSource = true
         folderField.dataSource = self
         folderField.delegate = self
         folderField.completes = false
-        folderField.placeholderString = "\\\\server\\share"
+        folderField.placeholderString = L10n.tr("\\\\server\\share")
         folderField.font = Theme.bodyFont
         folderField.translatesAutoresizingMaskIntoConstraints = false
-        folderField.setAccessibilityLabel("Folder")
+        folderField.setAccessibilityLabel(L10n.tr("Folder"))
         suggestions = Self.suggestionList()
-        let browse = FluentButton("Browse…") { [weak self] in self?.browse() }
+        let browse = FluentButton(L10n.tr("Browse…")) { [weak self] in self?.browse() }
         let folderRow = NSStackView(views: [folderField, browse])
         folderRow.spacing = 8
-        let example = label("Example: \\\\server\\share  or  smb://server/share", size: 12, color: Theme.secondaryText)
+        let example = label(L10n.tr("Example: \\\\server\\share  or  smb://server/share"), size: 12, color: Theme.secondaryText)
 
         reconnect.state = .on
         reconnect.font = Theme.bodyFont
         differentCredentials.font = Theme.bodyFont
-        differentCredentials.toolTip = "macOS asks for a user name and password. You can save them in your Keychain."
+        differentCredentials.toolTip = L10n.tr("macOS asks for a user name and password. You can save them in your Keychain.")
 
         spinner.style = .spinning
         spinner.controlSize = .small
@@ -111,9 +112,9 @@ final class MapNetworkDriveSheet: NSWindowController, NSComboBoxDelegate, NSComb
         form.row(at: 3).topPadding = 6
         form.translatesAutoresizingMaskIntoConstraints = false
 
-        finishButton = FluentButton("Finish", primary: true) { [weak self] in self?.finish() }
+        finishButton = FluentButton(L10n.tr("Finish"), primary: true) { [weak self] in self?.finish() }
         finishButton.keyEquivalent = "\r"
-        cancelButton = FluentButton("Cancel") { [weak self] in self?.cancel() }
+        cancelButton = FluentButton(L10n.tr("Cancel")) { [weak self] in self?.cancel() }
         cancelButton.keyEquivalent = "\u{1b}"
         let buttons = NSStackView(views: [finishButton, cancelButton])
         buttons.spacing = 8
@@ -177,7 +178,7 @@ final class MapNetworkDriveSheet: NSWindowController, NSComboBoxDelegate, NSComb
             let devices = NetworkDiscoveryModel.devices(from: discovery.services).filter { $0.preferredScheme != nil }
             let menu = NSMenu()
             if devices.isEmpty {
-                let item = NSMenuItem(title: discovery.state == .needsPermission ? "Local Network access is off for Arbor" : "No computers found", action: nil, keyEquivalent: "")
+                let item = NSMenuItem(title: discovery.state == .needsPermission ? L10n.tr("Local Network access is off for Arbor") : L10n.tr("No computers found"), action: nil, keyEquivalent: "")
                 item.isEnabled = false
                 menu.addItem(item)
             }
@@ -209,7 +210,7 @@ final class MapNetworkDriveSheet: NSWindowController, NSComboBoxDelegate, NSComb
                     }
                     self.popUp(menu)
                 case .failure(let error):
-                    self.showMessage(error.localizedDescription + " Type the share name after the server name.", error: true)
+                    self.showMessage(error.localizedDescription + L10n.tr(" Type the share name after the server name."), error: true)
                 }
             }
         }
@@ -297,19 +298,19 @@ enum NetworkDisconnect {
     /// Unmounts one share; a busy volume explains why and offers to force it, like Explorer.
     static func disconnect(_ share: MountedShare, window: BrowserWindowController, force: Bool = false) {
         let name = NetworkCenter.shared.mappedDrive(for: share)?.label ?? share.address?.driveLabel ?? share.volumeName
-        window.statusBar.setMessage("Disconnecting “\(name)”…")
+        window.statusBar.setMessage(L10n.format("Disconnecting “%@”…", "\(name)"))
         NetworkCenter.shared.disconnect(share, force: force) { [weak window] result in
             guard let window else { return }
             switch result {
             case .success:
-                window.statusBar.setMessage("“\(name)” was disconnected.")
+                window.statusBar.setMessage(L10n.format("“%@” was disconnected.", "\(name)"))
             case .failure(.busy):
-                window.statusBar.setMessage("“\(name)” is in use.", isError: true)
+                window.statusBar.setMessage(L10n.format("“%@” is in use.", "\(name)"), isError: true)
                 let alert = NSAlert()
-                alert.messageText = "There are open files on “\(name)”."
-                alert.informativeText = "Close any files, folders or apps that use the drive, then try again. If you disconnect anyway, apps lose access and unsaved changes in open files may be lost."
-                alert.addButton(withTitle: "Cancel")
-                alert.addButton(withTitle: "Disconnect Anyway")
+                alert.messageText = L10n.format("There are open files on “%@”.", "\(name)")
+                alert.informativeText = L10n.tr("Close any files, folders or apps that use the drive, then try again. If you disconnect anyway, apps lose access and unsaved changes in open files may be lost.")
+                alert.addButton(withTitle: L10n.tr("Cancel"))
+                alert.addButton(withTitle: L10n.tr("Disconnect Anyway"))
                 alert.buttons[1].hasDestructiveAction = true
                 let handle: (NSApplication.ModalResponse) -> Void = { response in
                     if response == .alertSecondButtonReturn { disconnect(share, window: window, force: true) }
@@ -340,7 +341,7 @@ final class DisconnectDrivesSheet: NSWindowController {
     init(browser: BrowserWindowController) {
         self.browser = browser
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 520, height: 300), styleMask: [.titled, .docModalWindow], backing: .buffered, defer: false)
-        panel.title = "Disconnect Network Drives"
+        panel.title = L10n.tr("Disconnect Network Drives")
         super.init(window: panel)
         build(panel)
     }
@@ -350,7 +351,7 @@ final class DisconnectDrivesSheet: NSWindowController {
     private func build(_ panel: NSPanel) {
         let root = ThemeBackgroundView(Theme.contentBackground)
         panel.contentView = root
-        let intro = NSTextField(wrappingLabelWithString: "Select the network drives you want to disconnect, then click OK.")
+        let intro = NSTextField(wrappingLabelWithString: L10n.tr("Select the network drives you want to disconnect, then click OK."))
         intro.font = Theme.bodyFont
         intro.textColor = Theme.primaryText
         let list = NSStackView()
@@ -375,15 +376,15 @@ final class DisconnectDrivesSheet: NSWindowController {
             add(box, share: share, drive: nil, to: list)
         }
         if rows.isEmpty {
-            let none = NSTextField(labelWithString: "There are no network drives to disconnect.")
+            let none = NSTextField(labelWithString: L10n.tr("There are no network drives to disconnect."))
             none.font = Theme.bodyFont
             none.textColor = Theme.secondaryText
             list.addArrangedSubview(none)
         }
-        let ok = FluentButton("OK", primary: true) { [weak self] in self?.confirm() }
+        let ok = FluentButton(L10n.tr("OK"), primary: true) { [weak self] in self?.confirm() }
         ok.keyEquivalent = "\r"
         ok.isEnabled = !rows.isEmpty
-        let cancel = FluentButton("Cancel") { [weak self] in self?.dismiss() }
+        let cancel = FluentButton(L10n.tr("Cancel")) { [weak self] in self?.dismiss() }
         cancel.keyEquivalent = "\u{1b}"
         let buttons = NSStackView(views: [ok, cancel])
         buttons.spacing = 8

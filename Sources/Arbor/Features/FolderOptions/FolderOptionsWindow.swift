@@ -35,9 +35,9 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
     private var buttons: [String: [NSButton]] = [:]
     private var notes: [String: NSTextField] = [:]
     private var openToPopup: NSPopUpButton?
-    private let applyButton = DialogButton("Apply", target: nil, action: nil)
-    private let applyToFoldersButton = DialogButton("Apply to Folders", target: nil, action: nil)
-    private let resetFoldersButton = DialogButton("Reset Folders", target: nil, action: nil)
+    private let applyButton = DialogButton(L10n.tr("Apply"), target: nil, action: nil)
+    private let applyToFoldersButton = DialogButton(L10n.tr("Apply to Folders"), target: nil, action: nil)
+    private let resetFoldersButton = DialogButton(L10n.tr("Reset Folders"), target: nil, action: nil)
     private let folderInfo = NSTextField(wrappingLabelWithString: "")
     private let historyNote = NSTextField(labelWithString: "")
     private var observer: NSObjectProtocol?
@@ -47,7 +47,7 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
         draft = FolderOptionsDraft(current: FolderOptionsPrefs.current(), disabledKeys: FolderOptionsPrefs.runtimeDisabledKeys)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 452, height: 590), styleMask: [.titled, .closable],
                               backing: .buffered, defer: false)
-        window.title = "Folder Options"
+        window.title = L10n.tr("Folder Options")
         window.isReleasedWhenClosed = false
         window.backgroundColor = DialogStyle.background
         super.init(window: window)
@@ -97,10 +97,10 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
             pages[tab] = page
         }
 
-        let ok = DialogButton("OK", target: self, action: #selector(okPressed(_:)))
+        let ok = DialogButton(L10n.tr("OK"), target: self, action: #selector(okPressed(_:)))
         ok.isDefaultButton = true
         ok.keyEquivalent = "\r"
-        let cancel = DialogButton("Cancel", target: self, action: #selector(cancelPressed(_:)))
+        let cancel = DialogButton(L10n.tr("Cancel"), target: self, action: #selector(cancelPressed(_:)))
         cancel.keyEquivalent = "\u{1b}"
         applyButton.target = self
         applyButton.action = #selector(applyPressed(_:))
@@ -192,7 +192,7 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
     }
 
     private func pageStack(_ views: [NSView], restoreTab: FolderOptionsTab) -> NSView {
-        let restore = DialogButton("Restore Defaults", target: self, action: #selector(restoreDefaults(_:)))
+        let restore = DialogButton(L10n.tr("Restore Defaults"), target: self, action: #selector(restoreDefaults(_:)))
         let spacer = NSView()
         spacer.setContentHuggingPriority(.init(1), for: .vertical)
         let bottom = NSStackView(views: [NSView(), restore])
@@ -221,21 +221,21 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
         openRow.spacing = 8
         openTo.widthAnchor.constraint(equalToConstant: 170).isActive = true
 
-        let browse = GroupBoxView(title: "Browse folders", symbol: "macwindow.on.rectangle")
+        let browse = GroupBoxView(title: L10n.tr("Browse folders"), symbol: "macwindow.on.rectangle")
         radios(items["browseFolders"]!, width: Width.groupWithIcon).forEach(browse.content.addArrangedSubview)
 
-        let click = GroupBoxView(title: "Click items as follows", symbol: "cursorarrow.click.2")
+        let click = GroupBoxView(title: L10n.tr("Click items as follows"), symbol: "cursorarrow.click.2")
         let clickRadios = radios(items["clickItems"]!, width: Width.groupWithIcon)
         click.content.addArrangedSubview(clickRadios[0])
         radios(items["underlineTitles"]!, width: Width.groupWithIcon).forEach(click.content.addArrangedSubview)
         click.content.addArrangedSubview(clickRadios[1])
 
-        let privacy = GroupBoxView(title: "Privacy", symbol: "hand.raised")
+        let privacy = GroupBoxView(title: L10n.tr("Privacy"), symbol: "hand.raised")
         for key in ["showRecentFiles", "showFrequentFolders", "accountInsights"] { privacy.content.addArrangedSubview(checkbox(items[key]!, width: Width.groupWithIcon)) }
-        let clear = DialogButton("Clear", target: self, action: #selector(clearHistory(_:)))
+        let clear = DialogButton(L10n.tr("Clear"), target: self, action: #selector(clearHistory(_:)))
         historyNote.font = DialogStyle.noteFont
         historyNote.textColor = Theme.secondaryText
-        let clearRow = NSStackView(views: [label("Clear Arbor history", width: 140), clear, historyNote])
+        let clearRow = NSStackView(views: [label(L10n.tr("Clear Arbor history"), width: 140), clear, historyNote])
         clearRow.spacing = 10
         privacy.content.addArrangedSubview(clearRow)
         privacy.content.setCustomSpacing(10, after: privacy.content.arrangedSubviews[privacy.content.arrangedSubviews.count - 2])
@@ -244,8 +244,8 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
     }
 
     private func buildView() -> NSView {
-        let views = GroupBoxView(title: "Folder views", symbol: "rectangle.grid.2x2")
-        views.content.addArrangedSubview(label("You can apply this view (such as Details or Icons) to all folders of this type.",
+        let views = GroupBoxView(title: L10n.tr("Folder views"), symbol: "rectangle.grid.2x2")
+        views.content.addArrangedSubview(label(L10n.tr("You can apply this view (such as Details or Icons) to all folders of this type."),
                                                width: Width.groupWithIcon))
         applyToFoldersButton.target = self
         applyToFoldersButton.action = #selector(applyToFolders(_:))
@@ -261,7 +261,7 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
         views.content.addArrangedSubview(folderInfo)
         if let first = views.content.arrangedSubviews.first { views.content.setCustomSpacing(10, after: first) }
 
-        let advanced = label("Advanced settings:")
+        let advanced = label(L10n.tr("Advanced settings:"))
         let list = buildAdvancedList()
         list.heightAnchor.constraint(equalToConstant: 306).isActive = true
         let stack = pageStack([views, advanced, list], restoreTab: .view)
@@ -332,7 +332,7 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
 
     private func libraryNote() -> NSView? {
         guard !FolderOptionsPrefs.librariesAvailable else { return nil }
-        let note = label("Libraries aren't part of this build of Arbor yet.", width: Width.list - 56,
+        let note = label(L10n.tr("Libraries aren't part of this build of Arbor yet."), width: Width.list - 56,
                          font: DialogStyle.noteFont, color: Theme.secondaryText)
         notes["showLibraries"] = note
         let wrap = NSStackView(views: [note])
@@ -342,13 +342,13 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
 
     private func buildSearch() -> NSView {
         let items = Dictionary(uniqueKeysWithValues: FolderOptionsCatalog.search.map { ($0.key, $0) })
-        let how = GroupBoxView(title: "How to search", symbol: "magnifyingglass")
+        let how = GroupBoxView(title: L10n.tr("How to search"), symbol: "magnifyingglass")
         how.content.addArrangedSubview(checkbox(items["searchWithoutIndex"]!, width: Width.groupWithIcon))
-        let nonIndexed = GroupBoxView(title: "When searching non-indexed locations", symbol: nil)
+        let nonIndexed = GroupBoxView(title: L10n.tr("When searching non-indexed locations"), symbol: nil)
         for key in ["searchIncludeSystemDirectories", "searchIncludeCompressedFiles", "searchFileContents"] {
             nonIndexed.content.addArrangedSubview(checkbox(items[key]!, width: Width.group))
         }
-        let note = label("“The index” is Spotlight on the Mac. Choose which folders Spotlight indexes in System Settings › Spotlight.",
+        let note = label(L10n.tr("“The index” is Spotlight on the Mac. Choose which folders Spotlight indexes in System Settings › Spotlight."),
                          width: Width.page, font: DialogStyle.noteFont, color: Theme.secondaryText)
         return pageStack([how, nonIndexed, note], restoreTab: .search)
     }
@@ -398,11 +398,11 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
         applyToFoldersButton.isEnabled = info != nil
         resetFoldersButton.isEnabled = FolderViews.shared.hasSavedViews
         if let info {
-            let type = info.chosen ? "\(info.template.title) (set in Properties)" : "\(info.template.title) folder type"
+            let type = info.chosen ? L10n.format("%@ (set in Properties)", "\(info.template.title)") : L10n.format("%@ folder type", "\(info.template.title)")
             let source = info.source == .template(info.template, applied: false) ? "default view for this type" : info.source.description
-            folderInfo.stringValue = "This folder: “\(info.name)” · \(type) · \(source)"
+            folderInfo.stringValue = L10n.format("This folder: “%@” · %@ · %@", "\(info.name)", "\(type)", "\(source)")
         } else {
-            folderInfo.stringValue = "Open Folder Options from a folder window to apply its view to similar folders."
+            folderInfo.stringValue = L10n.tr("Open Folder Options from a folder window to apply its view to similar folders.")
         }
     }
 
@@ -435,10 +435,10 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
     private func confirmShowProtected(_ sender: NSButton) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Warning"
-        alert.informativeText = "You have chosen to display protected operating system files (files macOS uses to keep track of folders, volumes and Spotlight, such as .DS_Store, and the system folders at the top of the startup disk). Deleting or editing them can make files or apps stop working. Are you sure you want to display these files?"
-        alert.addButton(withTitle: "Yes")
-        alert.addButton(withTitle: "No")
+        alert.messageText = L10n.tr("Warning")
+        alert.informativeText = L10n.tr("You have chosen to display protected operating system files (files macOS uses to keep track of folders, volumes and Spotlight, such as .DS_Store, and the system folders at the top of the startup disk). Deleting or editing them can make files or apps stop working. Are you sure you want to display these files?")
+        alert.addButton(withTitle: L10n.tr("Yes"))
+        alert.addButton(withTitle: L10n.tr("No"))
         alert.buttons[0].keyEquivalent = ""          // the safe answer, No, is the default
         alert.buttons[1].keyEquivalent = "\r"
         present(alert) { [weak self] response in
@@ -473,16 +473,16 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
 
     @objc private func clearHistory(_ sender: Any?) {
         let count = FolderOptionsHistory.clear()
-        historyNote.stringValue = count > 0 ? "History cleared." : "There's no history to clear."
+        historyNote.stringValue = count > 0 ? L10n.tr("History cleared.") : L10n.tr("There's no history to clear.")
     }
 
     @objc private func applyToFolders(_ sender: Any?) {
         guard let origin, let info = FolderViews.shared.info(for: origin) else { return }
         let alert = NSAlert()
-        alert.messageText = "Folder Views"
-        alert.informativeText = "Do you want all folders of this type to match this folder's view settings?\n\nEvery “\(info.template.title)” folder will use the view of “\(info.name)”. Folders of this type with their own saved view are reset to it. Your files aren't changed."
-        alert.addButton(withTitle: "Yes")
-        alert.addButton(withTitle: "No")
+        alert.messageText = L10n.tr("Folder Views")
+        alert.informativeText = L10n.format("Do you want all folders of this type to match this folder's view settings?\n\nEvery “%@” folder will use the view of “%@”. Folders of this type with their own saved view are reset to it. Your files aren't changed.", "\(info.template.title)", "\(info.name)")
+        alert.addButton(withTitle: L10n.tr("Yes"))
+        alert.addButton(withTitle: L10n.tr("No"))
         present(alert) { [weak self] response in
             guard response == .alertFirstButtonReturn, let self, let origin = self.origin else { return }
             FolderViews.shared.applyToFolders(from: origin)
@@ -492,11 +492,13 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
 
     @objc private func resetFolders(_ sender: Any?) {
         let alert = NSAlert()
-        alert.messageText = "Folder Views"
+        alert.messageText = L10n.tr("Folder Views")
         let count = FolderViews.shared.savedCount
-        alert.informativeText = "Do you want to reset all folders to their default view settings?\n\nArbor forgets the saved views of \(count == 1 ? "1 folder" : "\(count) folders") and any view applied to a folder type. Your files aren't changed."
-        alert.addButton(withTitle: "Yes")
-        alert.addButton(withTitle: "No")
+        alert.informativeText = count == 1
+            ? L10n.tr("Do you want to reset all folders to their default view settings?\n\nArbor forgets the saved view of 1 folder and any view applied to a folder type. Your files aren't changed.")
+            : L10n.format("Do you want to reset all folders to their default view settings?\n\nArbor forgets the saved views of %@ folders and any view applied to a folder type. Your files aren't changed.", "\(count)")
+        alert.addButton(withTitle: L10n.tr("Yes"))
+        alert.addButton(withTitle: L10n.tr("No"))
         present(alert) { [weak self] response in
             guard response == .alertFirstButtonReturn else { return }
             FolderViews.shared.resetFolders()

@@ -1,4 +1,5 @@
 import AppKit
+import ArborCore
 
 /// Code-drawn Trash icons, empty and full (original artwork, DEC-018): a translucent grey-blue bin,
 /// with paper sheets showing over the rim when it holds items.
@@ -12,7 +13,7 @@ enum TrashIcon {
             draw(in: rect, full: full)
             return true
         }
-        image.accessibilityDescription = full ? "Trash (contains items)" : "Trash (empty)"
+        image.accessibilityDescription = full ? L10n.tr("Trash (contains items)") : L10n.tr("Trash (empty)")
         cache.setObject(image, forKey: key)
         return image
     }

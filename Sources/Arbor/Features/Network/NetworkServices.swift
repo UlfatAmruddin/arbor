@@ -21,21 +21,21 @@ enum NetworkError: Error, LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .unreachable(let what):
-            return "Arbor can't reach \(what). The computer may be turned off, asleep, or not on this network, or the name may be misspelled."
+            return L10n.format("Arbor can't reach %@. The computer may be turned off, asleep, or not on this network, or the name may be misspelled.", "\(what)")
         case .authenticationFailed(let what):
-            return "\(what) didn't accept the user name or password. Try again with different credentials."
+            return L10n.format("%@ didn't accept the user name or password. Try again with different credentials.", "\(what)")
         case .timedOut(let what):
-            return "\(what) didn't respond in time. It may be busy, asleep, or on a slow connection."
+            return L10n.format("%@ didn't respond in time. It may be busy, asleep, or on a slow connection.", "\(what)")
         case .cancelled:
-            return "The connection was cancelled."
+            return L10n.tr("The connection was cancelled.")
         case .noShares(let what):
-            return "\(what) has no shared folders you can open."
+            return L10n.format("%@ has no shared folders you can open.", "\(what)")
         case .busy(let what):
-            return "“\(what)” is in use. Close any files, folders or apps that use it, then try again."
+            return L10n.format("“%@” is in use. Close any files, folders or apps that use it, then try again.", "\(what)")
         case .listingUnsupported(let what):
-            return "Arbor can't list the shared folders on \(what) by itself. Use Connect… to choose a shared folder."
+            return L10n.format("Arbor can't list the shared folders on %@ by itself. Use Connect… to choose a shared folder.", "\(what)")
         case .localNetworkDenied:
-            return "Arbor isn't allowed to look for computers on your network."
+            return L10n.tr("Arbor isn't allowed to look for computers on your network.")
         case .failed(let message, let code):
             return code == 0 ? message : "\(message) (error \(code))"
         }

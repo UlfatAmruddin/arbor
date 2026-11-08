@@ -8,7 +8,7 @@ enum Shortcuts {
     enum Failure: LocalizedError {
         case cannotCreate(String, String)
         var errorDescription: String? {
-            switch self { case .cannotCreate(let name, let why): return "Couldn't create a shortcut to “\(name)”: \(why)" }
+            switch self { case .cannotCreate(let name, let why): return L10n.format("Couldn't create a shortcut to “%@”: %@", "\(name)", "\(why)") }
         }
     }
 
@@ -58,7 +58,7 @@ enum Shortcuts {
             do { created.append(try createAlias(to: target, in: folder)) } catch { problems.append(error.localizedDescription) }
         }
         if !created.isEmpty { registerUndoCreate(created, name: "Create Shortcut") }
-        if !problems.isEmpty { NSAlert.show("Some shortcuts couldn't be created.", problems.joined(separator: "\n"), in: window?.window) }
+        if !problems.isEmpty { NSAlert.show(L10n.tr("Some shortcuts couldn't be created."), problems.joined(separator: "\n"), in: window?.window) }
         return created
     }
 
@@ -154,21 +154,21 @@ enum Shortcuts {
     static func showProblem(alias: FileItem, targetName: String?, window: BrowserWindowController) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Problem with Shortcut"
+        alert.messageText = L10n.tr("Problem with Shortcut")
         let what = targetName.map { "The item “\($0)”" } ?? "The item"
-        alert.informativeText = "\(what) that this shortcut refers to has been changed or moved, so this shortcut will no longer work properly.\n\nDo you want to delete this shortcut?"
-        alert.addButton(withTitle: "Yes")
-        alert.addButton(withTitle: "No")
+        alert.informativeText = L10n.format("%@ that this shortcut refers to has been changed or moved, so this shortcut will no longer work properly.\n\nDo you want to delete this shortcut?", "\(what)")
+        alert.addButton(withTitle: L10n.tr("Yes"))
+        alert.addButton(withTitle: L10n.tr("No"))
         alert.buttons[1].keyEquivalent = "\u{1b}"
         let finish: (NSApplication.ModalResponse) -> Void = { [weak window] response in
             guard response == .alertFirstButtonReturn, let window else { return }
             do {
                 let trashed = try SystemTrash.trash(alias.url)
                 OperationCenter.shared.registerUndoTrash([(alias.url, trashed)])
-                window.statusBar.setMessage("Shortcut moved to the Trash. Press ⌘Z to undo.")
+                window.statusBar.setMessage(L10n.tr("Shortcut moved to the Trash. Press ⌘Z to undo."))
                 window.refreshSelecting([])
             } catch {
-                NSAlert.show("Couldn't delete “\(alias.name)”.", error.localizedDescription, in: window.window)
+                NSAlert.show(L10n.format("Couldn't delete “%@”.", "\(alias.name)"), error.localizedDescription, in: window.window)
             }
         }
         AlertSheets.present(alert, in: window.window, completion: finish)

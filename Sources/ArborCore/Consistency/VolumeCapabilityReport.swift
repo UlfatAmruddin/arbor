@@ -29,17 +29,17 @@ public struct VolumeCapabilityReport: Equatable, Sendable {
         if format.kind == .ntfs {
             return "macOS can read NTFS drives but can't write to them, so files on this drive can't be changed, renamed or deleted here. To change them, copy them to another drive, or reformat the drive as exFAT (which erases it)."
         }
-        if format.isNetwork { return "The server shares this folder read-only, or your account can only read it." }
-        return "This drive is mounted read-only. Files can be opened and copied, but not changed."
+        if format.isNetwork { return L10n.tr("The server shares this folder read-only, or your account can only read it.") }
+        return L10n.tr("This drive is mounted read-only. Files can be opened and copied, but not changed.")
     }
 
     /// Label and value rows in display order.
     public var rows: [(label: String, value: String)] {
-        func yesNo(_ value: Bool?) -> String { value.map { $0 ? "Yes" : "No" } ?? "Unknown" }
+        func yesNo(_ value: Bool?) -> String { value.map { $0 ? L10n.tr("Yes") : L10n.tr("No") } ?? L10n.tr("Unknown") }
         var rows: [(String, String)] = [
             ("File system:", formatDescription.flatMap { $0.caseInsensitiveCompare(format.displayName) == .orderedSame ? nil : $0 }
                 .map { "\(format.displayName) (\($0))" } ?? format.displayName),
-            ("Access:", format.isReadOnly ? "Read-only" : "Read and write"),
+            (L10n.tr("Access:"), format.isReadOnly ? L10n.tr("Read-only") : L10n.tr("Read and write")),
             ("Case-sensitive names:", yesNo(caseSensitive)),
             ("Case-preserving names:", yesNo(casePreserving)),
             ("Supports the Trash:", yesNo(supportsTrash)),
@@ -70,10 +70,10 @@ public struct VolumeCapabilityReport: Equatable, Sendable {
     }
 
     static func sizeText(_ bytes: Int64?) -> String {
-        guard let bytes, bytes > 0 else { return "No practical limit" }
+        guard let bytes, bytes > 0 else { return L10n.tr("No practical limit") }
         // Volumes report huge powers of two when there is no real limit.
-        if bytes >= 1 << 60 { return "No practical limit" }
-        if bytes == 4_294_967_295 { return "4 GB (minus 1 byte)" }
+        if bytes >= 1 << 60 { return L10n.tr("No practical limit") }
+        if bytes == 4_294_967_295 { return L10n.tr("4 GB (minus 1 byte)") }
         return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 

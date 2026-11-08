@@ -5,12 +5,12 @@ import ArborCore
 /// main thread, with plain-language limits (read-only NTFS, FAT32's 4 GB files, no Trash…) so nothing
 /// in Arbor promises what the drive can't deliver. A Mac addition: Windows shows only the format name.
 final class FileSystemTab: PropertiesTab, PropertiesTabDebug {
-    let title = "File System"
+    let title = L10n.tr("File System")
     let view: NSView
     private let model: PropertiesModel
     private let page = SheetPage()
     private let form = SheetForm(labelWidth: 230)
-    private let status = SheetLabel.wrapping("Reading the drive's capabilities…", secondary: true)
+    private let status = SheetLabel.wrapping(L10n.tr("Reading the drive's capabilities…"), secondary: true)
     private var values: [NSTextField] = []
     private let notes = SheetLabel.wrapping("", secondary: false)
     private var work: DispatchWorkItem?
@@ -19,7 +19,7 @@ final class FileSystemTab: PropertiesTab, PropertiesTabDebug {
     init(model: PropertiesModel) {
         self.model = model
         view = page
-        form.add(SheetLabel.make("File system capabilities", bold: true))
+        form.add(SheetLabel.make(L10n.tr("File system capabilities"), bold: true))
         form.add(status)
         form.separator()
         // Rows are built once with placeholder values so the layout doesn't jump when values arrive.
@@ -47,11 +47,11 @@ final class FileSystemTab: PropertiesTab, PropertiesTabDebug {
     private func show(_ report: VolumeCapabilityReport?) {
         self.report = report
         guard let report else {
-            status.stringValue = "The drive's capabilities couldn't be read. It may have been disconnected."
-            values.forEach { $0.stringValue = "Unknown" }
+            status.stringValue = L10n.tr("The drive's capabilities couldn't be read. It may have been disconnected.")
+            values.forEach { $0.stringValue = L10n.tr("Unknown") }
             return
         }
-        status.stringValue = report.isReadOnly ? "This drive is read-only." : "What this drive's format supports:"
+        status.stringValue = report.isReadOnly ? L10n.tr("This drive is read-only.") : L10n.tr("What this drive's format supports:")
         for (field, row) in zip(values, report.rows) { field.stringValue = row.value }
         let list = report.notes
         notes.stringValue = list.isEmpty ? "No limits worth noting." : list.map { "• " + $0 }.joined(separator: "\n")

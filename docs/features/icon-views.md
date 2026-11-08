@@ -21,10 +21,12 @@ tests in `Tests/ArborCoreTests/IconViewLogicTests.swift`.
 | FE-242 | Stale completion / lifecycle | implemented | results checked against request generation and in-flight identity; key includes path + mtime + size; loader reset on folder change and deinit |
 | FE-243 | Decoded-image memory budget | implemented | one app-wide LRU by decoded bytes (64 MB default, `ARBOR_THUMBNAIL_BUDGET_MB` for tests), memory-pressure trim; scripted with a 3 MB budget: stays under budget, no regeneration loop |
 
-Also: hover highlight and rounded selection from `Theme` (accent tint when focused, grey when not); keyboard focus
+Also: hover highlight and rounded selection from `Theme` (accent tint while the grid has focus in the active window,
+grey otherwise, the same rule as Details and the tiles: `SelectionEmphasis`, DEC-parity-8); keyboard focus
 outline after arrow keys; names centered under icons, wrapped to 2 lines (3 for Extra large) and shortened in the middle
 (DEC-013); the selected item expands to its full name (Explorer); infotip with name/type/size/date; type-to-select (1 s
-buffer, repeated letter cycles, case/diacritic-insensitive); Return/⌘Return open; double-click opens; middle-click a
+buffer, repeated letter cycles, case/diacritic/width-insensitive; typed through the input method, so Japanese, Chinese
+and Korean names can be composed, DEC-accessibility-9); Return/⌘Return open; double-click opens; middle-click a
 folder opens a tab; right-click selects the target first and shows the registry context menu; F2 / slow second click
 renames with the base name selected (multi-line box under large icons); cut and hidden items at 50 %; drag source
 (copy/move/link) and drop target on folders or the background with `DropPolicy`, with autoscroll; "Always show icons,
@@ -76,4 +78,5 @@ vs 182 MB for Details on the same folder.
   accessibility area's job.
 - Drag and drop was verified by code review and build only (DropPolicy shared with Details); headless runs can't drive a
   real drag session.
-- Small 16 pt file icons come from `IconProvider` (system icons), which reads the icon per file on the main thread.
+- Small 16 pt file icons come from `IconProvider` (system icons). Ordinary files use their type's icon; a custom Finder icon
+  is found by a background check of the files on screen and replaces it a moment later (docs/features/performance.md).

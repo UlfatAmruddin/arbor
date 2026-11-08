@@ -26,9 +26,9 @@ public enum ImageRotationError: Error, LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .unsupported(let kind): return "\(kind) images can't be rotated here."
-        case .unreadable: return "The image couldn't be read."
-        case .writeFailed: return "The rotated image couldn't be saved."
+        case .unsupported(let kind): return L10n.format("%@ images can't be rotated here.", "\(kind)")
+        case .unreadable: return L10n.tr("The image couldn't be read.")
+        case .writeFailed: return L10n.tr("The rotated image couldn't be saved.")
         }
     }
 }

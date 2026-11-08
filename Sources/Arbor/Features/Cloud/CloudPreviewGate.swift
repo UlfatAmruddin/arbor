@@ -83,7 +83,7 @@ final class CloudPreviewGateView: ThemeBackgroundView {
     private let icon = NSImageView()
     private let title = NSTextField(wrappingLabelWithString: "")
     private let detail = NSTextField(wrappingLabelWithString: "")
-    private let button = NSButton(title: "Download to preview", target: nil, action: nil)
+    private let button = NSButton(title: L10n.tr("Download to preview"), target: nil, action: nil)
     private let spinner = NSProgressIndicator()
     private var item: FileItem?
     private var root: CloudRoot?
@@ -118,7 +118,7 @@ final class CloudPreviewGateView: ThemeBackgroundView {
             title.widthAnchor.constraint(lessThanOrEqualToConstant: 260),
             detail.widthAnchor.constraint(lessThanOrEqualToConstant: 260),
         ])
-        setAccessibilityLabel("Preview")
+        setAccessibilityLabel(L10n.tr("Preview"))
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -139,16 +139,16 @@ final class CloudPreviewGateView: ThemeBackgroundView {
         icon.image = CloudGlyph.image(status ?? .unknown, size: 40)
         switch status {
         case nil:
-            title.stringValue = "Checking “\(item.name)”…"
-            detail.stringValue = "Arbor checks whether the file is on this Mac before previewing it."
+            title.stringValue = L10n.format("Checking “%@”…", "\(item.name)")
+            detail.stringValue = L10n.tr("Arbor checks whether the file is on this Mac before previewing it.")
             button.isHidden = true
         case .downloading?:
-            title.stringValue = "“\(item.name)” is downloading"
-            detail.stringValue = "The preview appears when \(root.provider) finishes downloading it."
+            title.stringValue = L10n.format("“%@” is downloading", "\(item.name)")
+            detail.stringValue = L10n.format("The preview appears when %@ finishes downloading it.", "\(root.provider)")
             button.isHidden = true
         default:
-            title.stringValue = "“\(item.name)” is available when online"
-            detail.stringValue = "Previewing it downloads the file from \(root.displayName) to this Mac."
+            title.stringValue = L10n.format("“%@” is available when online", "\(item.name)")
+            detail.stringValue = L10n.format("Previewing it downloads the file from %@ to this Mac.", "\(root.displayName)")
             button.isHidden = false
         }
     }
@@ -159,16 +159,16 @@ final class CloudPreviewGateView: ThemeBackgroundView {
             try FileManager.default.startDownloadingUbiquitousItem(at: item.url)
         } catch {
             icon.image = CloudGlyph.image(.error(""), size: 40)
-            title.stringValue = "“\(item.name)” couldn't be downloaded"
-            detail.stringValue = "\(root.displayName) reported: \(error.localizedDescription)"
+            title.stringValue = L10n.format("“%@” couldn't be downloaded", "\(item.name)")
+            detail.stringValue = L10n.format("%@ reported: %@", "\(root.displayName)", "\(error.localizedDescription)")
             button.isHidden = true
             return
         }
         downloadingURL = item.url
         started = Date()
         icon.image = CloudGlyph.image(.downloading, size: 40)
-        title.stringValue = "Downloading “\(item.name)”…"
-        detail.stringValue = "Selecting another item stops waiting here; macOS may still finish the download."
+        title.stringValue = L10n.format("Downloading “%@”…", "\(item.name)")
+        detail.stringValue = L10n.tr("Selecting another item stops waiting here; macOS may still finish the download.")
         button.isHidden = true
         spinner.startAnimation(nil)
         poll = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.check() }
@@ -185,14 +185,14 @@ final class CloudPreviewGateView: ThemeBackgroundView {
                 self.onReady?()
             case .error(let message):
                 self.reset()
-                self.title.stringValue = "“\(url.lastPathComponent)” couldn't be downloaded"
+                self.title.stringValue = L10n.format("“%@” couldn't be downloaded", "\(url.lastPathComponent)")
                 self.detail.stringValue = message
                 self.icon.image = CloudGlyph.image(status, size: 40)
             default:
                 if Date().timeIntervalSince(self.started) > 300 {
                     self.reset()
-                    self.title.stringValue = "Still downloading “\(url.lastPathComponent)”"
-                    self.detail.stringValue = "Select the file again later to preview it."
+                    self.title.stringValue = L10n.format("Still downloading “%@”", "\(url.lastPathComponent)")
+                    self.detail.stringValue = L10n.tr("Select the file again later to preview it.")
                 }
             }
         }

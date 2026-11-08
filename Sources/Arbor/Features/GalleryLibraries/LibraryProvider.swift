@@ -107,7 +107,7 @@ final class LibraryProvider: LocationProvider {
                 completion(.success(.items(result.items)))
                 if !result.unavailable.isEmpty {
                     let list = DisplayPath.quotedList(result.unavailable.map(\.folder))
-                    host?.showStatusMessage("Some folders in this library aren't available, so it may be incomplete: \(list)", isError: true)
+                    host?.showStatusMessage(L10n.format("Some folders in this library aren't available, so it may be incomplete: %@", "\(list)"), isError: true)
                 }
             }
         }
@@ -132,8 +132,8 @@ final class LibraryProvider: LocationProvider {
     func allowsItemEditing(in location: Location) -> Bool { Self.name(location) != LibraryLogic.rootName }
 
     func emptyText(for location: Location) -> String {
-        guard let name = Self.name(location), let library = LibraryStore.definition(name) else { return "This library is empty." }
-        return library.folders.isEmpty ? "This library doesn't include any folders. Use Manage library to include one." : "This library is empty."
+        guard let name = Self.name(location), let library = LibraryStore.definition(name) else { return L10n.tr("This library is empty.") }
+        return library.folders.isEmpty ? L10n.tr("This library doesn't include any folders. Use Manage library to include one.") : L10n.tr("This library is empty.")
     }
 }
 
@@ -211,7 +211,7 @@ final class LibrariesPageController: NSViewController, LocationPageStatus {
     }
 
     private func tile(_ library: LibraryDefinition) -> NSView {
-        let tile = TileButton(icon: LibraryStore.icon(for: library.name, size: 40), title: library.name, subtitle: "Library")
+        let tile = TileButton(icon: LibraryStore.icon(for: library.name, size: 40), title: library.name, subtitle: L10n.tr("Library"))
         tile.toolTip = library.folders.joined(separator: "\n")
         let location = Location.library(library.name)
         tile.onClick = { [weak self] in self?.host?.navigate(to: location, select: []) }

@@ -99,7 +99,7 @@ final class DetailsPane: NSView, SidePaneProvider {
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        setAccessibilityLabel("Details pane")
+        setAccessibilityLabel(L10n.tr("Details pane"))
         icon.imageScaling = .scaleProportionallyUpOrDown
         icon.translatesAutoresizingMaskIntoConstraints = false
         name.font = .systemFont(ofSize: 15, weight: .semibold)
@@ -137,23 +137,23 @@ final class DetailsPane: NSView, SidePaneProvider {
         if selection.count == 1, let item = selection.first {
             icon.image = item.isFolder ? IconProvider.shared.icon(for: item, size: 64) : IconProvider.shared.fileIcon(item.url, size: 64)
             name.stringValue = item.name
-            var lines = ["Type: \(item.typeDescription)"]
-            if let size = item.size { lines.append("Size: \(StatusText.bytes(size))") }
-            if let modified = item.modified { lines.append("Date modified: \(dates.string(from: modified))") }
+            var lines = [L10n.format("Type: %@", "\(item.typeDescription)")]
+            if let size = item.size { lines.append(L10n.format("Size: %@", "\(StatusText.bytes(size))")) }
+            if let modified = item.modified { lines.append(L10n.format("Date modified: %@", "\(dates.string(from: modified))")) }
             if let created = try? item.url.resourceValues(forKeys: [.creationDateKey]).creationDate {
-                lines.append("Date created: \(dates.string(from: created))")
+                lines.append(L10n.format("Date created: %@", "\(dates.string(from: created))"))
             }
-            lines.append("Location: \(item.url.deletingLastPathComponent().path)")
+            lines.append(L10n.format("Location: %@", "\(item.url.deletingLastPathComponent().path)"))
             info.stringValue = lines.joined(separator: "\n")
         } else if selection.count > 1 {
             icon.image = IconProvider.shared.folderIcon(size: 64)
-            name.stringValue = "\(selection.count) items selected"
+            name.stringValue = L10n.format("%@ items selected", "\(selection.count)")
             let sizes = selection.compactMap(\.size)
-            info.stringValue = sizes.count == selection.count ? "Total size: \(StatusText.bytes(sizes.reduce(0, +)))" : ""
+            info.stringValue = sizes.count == selection.count ? L10n.format("Total size: %@", "\(StatusText.bytes(sizes.reduce(0, +)))") : ""
         } else if let location {
             icon.image = IconProvider.shared.icon(for: location, size: 64)
             name.stringValue = LocationRegistry.provider(for: location).title(for: location)
-            info.stringValue = "Select a single file to see more details."
+            info.stringValue = L10n.tr("Select a single file to see more details.")
         } else {
             icon.image = nil
             name.stringValue = ""

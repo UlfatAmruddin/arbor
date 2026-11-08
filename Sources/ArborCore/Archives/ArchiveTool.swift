@@ -115,9 +115,9 @@ public enum ArchiveError: Error, LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .toolFailed(let text): return text
-        case .encrypted: return "This archive is password-protected. Like Windows, Arbor can't open password-protected archives."
-        case .cancelled: return "The operation was cancelled."
-        case .nothingToExtract: return "There's nothing in the archive that can be extracted safely."
+        case .encrypted: return L10n.tr("This archive is password-protected. Like Windows, Arbor can't open password-protected archives.")
+        case .cancelled: return L10n.tr("The operation was cancelled.")
+        case .nothingToExtract: return L10n.tr("There's nothing in the archive that can be extracted safely.")
         case .unreadable(let text): return text
         }
     }

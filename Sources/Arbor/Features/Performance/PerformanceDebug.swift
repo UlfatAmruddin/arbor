@@ -64,14 +64,27 @@ enum PerformanceDebug {
             recorder.reset()
             return 0
         }
-        DebugScript.registerStep("timecmd") { arg, window in
+        // timecmd:label:/path:command — time until the command's result is on screen; a sort that runs in the
+        // background (FE-228) is waited for, and the main thread's own share is logged as `main_ms`.
+        DebugScript.registerWaitStep("timecmd") { arg, window, elapsed in
             let (label, rest) = split(arg)
             let (path, command) = split(rest)
-            let start = CFAbsoluteTimeGetCurrent()
-            window?.perform(command)
-            window?.window?.displayIfNeeded()
-            append(String(format: "time %@ ms=%.1f", label, (CFAbsoluteTimeGetCurrent() - start) * 1000), to: path)
-            return 0.2
+            guard let window else { return true }
+            if elapsed == 0 {
+                let start = CFAbsoluteTimeGetCurrent()
+                window.perform(command)
+                window.window?.displayIfNeeded()
+                waitState["timecmd.start"] = start
+                waitState["timecmd.main"] = CFAbsoluteTimeGetCurrent() - start
+                if window.activeTab.isSorting { return false }
+            } else if window.activeTab.isSorting, elapsed < 30 {
+                return false
+            }
+            window.window?.displayIfNeeded()
+            let start = waitState["timecmd.start"] as? CFAbsoluteTime ?? CFAbsoluteTimeGetCurrent()
+            let main = waitState["timecmd.main"] as? CFAbsoluteTime ?? 0
+            append(String(format: "time %@ ms=%.1f main_ms=%.1f", label, (CFAbsoluteTimeGetCurrent() - start) * 1000, main * 1000), to: path)
+            return true
         }
         DebugScript.registerStep("newwindow") { arg, _ in
             if let delegate = NSApp.delegate as? AppDelegate {

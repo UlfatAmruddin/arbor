@@ -9,13 +9,13 @@ public enum FocusRegion: String, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .tabs: return "Tabs"
-        case .address: return "Address bar"
-        case .search: return "Search box"
-        case .commandBar: return "Command bar"
-        case .navigationPane: return "Navigation pane"
-        case .items: return "Items"
-        case .sidePane: return "Side pane"
+        case .tabs: return L10n.tr("Tabs")
+        case .address: return L10n.tr("Address bar")
+        case .search: return L10n.tr("Search box")
+        case .commandBar: return L10n.tr("Command bar")
+        case .navigationPane: return L10n.tr("Navigation pane")
+        case .items: return L10n.tr("Items")
+        case .sidePane: return L10n.tr("Side pane")
         }
     }
 }
@@ -115,10 +115,10 @@ public enum TextSizeLevel: Int, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .standard: return "Default (100%)"
-        case .larger: return "Larger (115%)"
-        case .large: return "Large (130%)"
-        case .largest: return "Largest (150%)"
+        case .standard: return L10n.tr("Default (100%)")
+        case .larger: return L10n.tr("Larger (115%)")
+        case .large: return L10n.tr("Large (130%)")
+        case .largest: return L10n.tr("Largest (150%)")
         }
     }
 

@@ -40,20 +40,20 @@ final class PermissionsEditorSheet: NSObject {
     private let groups: [(id: gid_t, name: String)]
 
     private let list = SheetScrollList()
-    private let emptyList = SheetLabel.make("No access-list entries. Only the owner, group and everyone else permissions apply.", secondary: true)
+    private let emptyList = SheetLabel.make(L10n.tr("No access-list entries. Only the owner, group and everyone else permissions apply."), secondary: true)
     private let ownerLabel = SheetLabel.make("")
     private let groupPopup = NSPopUpButton()
-    private lazy var addButton = SheetButton("Add…") { [weak self] _ in self?.showAddForm(true) }
-    private lazy var removeButton = SheetButton("Remove") { [weak self] _ in self?.stageRemove() }
-    private lazy var undoButton = SheetButton("Undo last change") { [weak self] _ in self?.undo() }
-    private lazy var changeOwner = SheetButton("Change…") { _ in }
+    private lazy var addButton = SheetButton(L10n.tr("Add…")) { [weak self] _ in self?.showAddForm(true) }
+    private lazy var removeButton = SheetButton(L10n.tr("Remove")) { [weak self] _ in self?.stageRemove() }
+    private lazy var undoButton = SheetButton(L10n.tr("Undo last change")) { [weak self] _ in self?.undo() }
+    private lazy var changeOwner = SheetButton(L10n.tr("Change…")) { _ in }
     private let addForm = NSStackView()
     private let kindPopup = NSPopUpButton()
     private let namePicker = NSComboBox()
     private let verdictPopup = NSPopUpButton()
     private let levelPopup = NSPopUpButton()
-    private let inherit = SheetCheckbox("Also apply to new files and folders inside")
-    private lazy var stageAdd = SheetButton("Add") { [weak self] _ in self?.stageAddition() }
+    private let inherit = SheetCheckbox(L10n.tr("Also apply to new files and folders inside"))
+    private lazy var stageAdd = SheetButton(L10n.tr("Add")) { [weak self] _ in self?.stageAddition() }
     private let confirmBox = NSStackView()
     private let confirmText = SheetLabel.wrapping("", secondary: false)
     private let status = SheetLabel.wrapping("", small: true)
@@ -75,7 +75,7 @@ final class PermissionsEditorSheet: NSObject {
         groups = ACLEditor.currentUserGroups()
         sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 520), styleMask: [.titled], backing: .buffered, defer: false)
         super.init()
-        sheet.title = "Permissions for \(url.lastPathComponent)"
+        sheet.title = L10n.format("Permissions for %@", "\(url.lastPathComponent)")
         build()
         reload()
     }
@@ -97,21 +97,21 @@ final class PermissionsEditorSheet: NSObject {
         }
         let object = SheetLabel.make(url.path, selectable: true)
         object.toolTip = url.path
-        let objectLabel = SheetLabel.make("Object name:")
+        let objectLabel = SheetLabel.make(L10n.tr("Object name:"))
         objectLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
         add(hstack([objectLabel, object], spacing: 6))
 
         // Owner (explained, not editable) and group (the owner's own groups).
         changeOwner.isEnabled = ACLEditor.canChangeOwner
         changeOwner.toolTip = ACLEditor.ownerChangeExplanation
-        add(hstack([SheetLabel.make("Owner:", bold: true), ownerLabel, NSView(), changeOwner]), gap: 12)
+        add(hstack([SheetLabel.make(L10n.tr("Owner:"), bold: true), ownerLabel, NSView(), changeOwner]), gap: 12)
         add(SheetLabel.wrapping(ACLEditor.ownerChangeExplanation, small: true))
         groupPopup.font = SheetColors.font
         groupPopup.target = self
         groupPopup.action = #selector(groupChosen)
-        add(hstack([SheetLabel.make("Group:", bold: true), groupPopup, NSView()]), gap: 10)
+        add(hstack([SheetLabel.make(L10n.tr("Group:"), bold: true), groupPopup, NSView()]), gap: 10)
 
-        add(SheetLabel.make("Access-list entries:", bold: true), gap: 12)
+        add(SheetLabel.make(L10n.tr("Access-list entries:"), bold: true), gap: 12)
         let box = SheetBox()
         box.addSubview(list)
         box.addSubview(emptyList)
@@ -131,7 +131,7 @@ final class PermissionsEditorSheet: NSObject {
         add(hstack([NSView(), addButton, removeButton]))
 
         // Add form: who, allow/deny, level, inheritance.
-        kindPopup.addItems(withTitles: ["Group", "User"])
+        kindPopup.addItems(withTitles: [L10n.tr("Group"), L10n.tr("User")])
         kindPopup.target = self
         kindPopup.action = #selector(kindChanged)
         namePicker.font = SheetColors.font
@@ -139,17 +139,17 @@ final class PermissionsEditorSheet: NSObject {
         namePicker.numberOfVisibleItems = 12
         namePicker.translatesAutoresizingMaskIntoConstraints = false
         namePicker.widthAnchor.constraint(equalToConstant: 170).isActive = true
-        verdictPopup.addItems(withTitles: ["Allow", "Deny"])
+        verdictPopup.addItems(withTitles: [L10n.tr("Allow"), L10n.tr("Deny")])
         levelPopup.addItems(withTitles: ACLPermissionLevel.allCases.map(\.title))
         levelPopup.selectItem(at: ACLPermissionLevel.allCases.firstIndex(of: .read) ?? 0)
         for p in [kindPopup, verdictPopup, levelPopup] { p.font = SheetColors.font }
         inherit.isHidden = !isFolder
         inherit.state = isFolder ? .on : .off
-        let cancelAdd = SheetButton("Cancel") { [weak self] _ in self?.showAddForm(false) }
+        let cancelAdd = SheetButton(L10n.tr("Cancel")) { [weak self] _ in self?.showAddForm(false) }
         addForm.orientation = .vertical
         addForm.alignment = .leading
         addForm.spacing = 6
-        addForm.setViews([SheetLabel.make("Add an entry", bold: true),
+        addForm.setViews([SheetLabel.make(L10n.tr("Add an entry"), bold: true),
                           hstack([kindPopup, namePicker, NSView()]),
                           hstack([verdictPopup, levelPopup, NSView()]),
                           inherit,
@@ -162,16 +162,16 @@ final class PermissionsEditorSheet: NSObject {
         confirmBox.orientation = .vertical
         confirmBox.alignment = .leading
         confirmBox.spacing = 6
-        let apply = SheetButton("Apply", isDefault: true) { [weak self] _ in self?.applyStaged() }
-        let back = SheetButton("Back") { [weak self] _ in self?.unstage() }
-        confirmBox.setViews([SheetLabel.make("Apply this change?", bold: true), confirmText, hstack([NSView(), apply, back])], in: .top)
+        let apply = SheetButton(L10n.tr("Apply"), isDefault: true) { [weak self] _ in self?.applyStaged() }
+        let back = SheetButton(L10n.tr("Back")) { [weak self] _ in self?.unstage() }
+        confirmBox.setViews([SheetLabel.make(L10n.tr("Apply this change?"), bold: true), confirmText, hstack([NSView(), apply, back])], in: .top)
         for v in confirmBox.arrangedSubviews { v.widthAnchor.constraint(equalTo: confirmBox.widthAnchor).isActive = true }
         confirmBox.isHidden = true
         add(confirmBox)
 
         add(SheetSeparator(), gap: 10)
         add(status)
-        let close = SheetButton("Close", isDefault: false) { [weak self] _ in self?.close() }
+        let close = SheetButton(L10n.tr("Close"), isDefault: false) { [weak self] _ in self?.close() }
         add(hstack([undoButton, NSView(), close]))
 
         content.addSubview(stack)
@@ -213,7 +213,7 @@ final class PermissionsEditorSheet: NSObject {
             let symbol = entry.kind == .group ? "person.2.fill" : "person.fill"
             let image = fixedImage(NSImage(systemSymbolName: symbol, accessibilityDescription: nil), 14)
             image.contentTintColor = Theme.iconTint
-            let verdict = SheetLabel.make(entry.allow ? "Allow" : "Deny", bold: true)
+            let verdict = SheetLabel.make(entry.allow ? L10n.tr("Allow") : L10n.tr("Deny"), bold: true)
             verdict.textColor = entry.allow ? SheetColors.success : SheetColors.failure
             verdict.widthAnchor.constraint(equalToConstant: 38).isActive = true
             let text = SheetLabel.make("\(entry.name)\(entry.isInherited ? " (inherited)" : ""): \(entry.levelTitle(isFolder: isFolder))")
@@ -242,7 +242,7 @@ final class PermissionsEditorSheet: NSObject {
         undoButton.isEnabled = canEdit && !busy && lastChange != nil
         undoButton.toolTip = lastChange.map { "Undo: \($0.summary)" }
         if !canEdit {
-            status.stringValue = "Only the owner of this item or an administrator can change its permissions, so this list is read-only."
+            status.stringValue = L10n.tr("Only the owner of this item or an administrator can change its permissions, so this list is read-only.")
         }
         fit()
     }
@@ -287,7 +287,7 @@ final class PermissionsEditorSheet: NSObject {
                            inherit: isFolder && inherit.state == .on)
         var summary = "Add: \(rule.summary)."
         if !rule.allow {
-            summary += " Deny entries win over Allow entries, also for you. You keep the right to see and change these permissions."
+            summary += L10n.tr(" Deny entries win over Allow entries, also for you. You keep the right to see and change these permissions.")
         }
         stage(.add(rule), summary: summary)
     }
@@ -295,13 +295,13 @@ final class PermissionsEditorSheet: NSObject {
     private func stageRemove() {
         guard let i = selected, entries.indices.contains(i) else { return }
         let e = entries[i]
-        stage(.remove(i, e.name), summary: "Remove: \(e.allow ? "Allow" : "Deny") \(e.name) (\(e.kind == .group ? "group" : "user")): \(e.levelTitle(isFolder: isFolder)).")
+        stage(.remove(i, e.name), summary: L10n.format("Remove: %@ %@ (%@): %@.", "\(e.allow ? "Allow" : "Deny")", "\(e.name)", "\(e.kind == .group ? "group" : "user")", "\(e.levelTitle(isFolder: isFolder))"))
     }
 
     @objc private func groupChosen() {
         guard let title = groupPopup.titleOfSelectedItem, let group = groups.first(where: { $0.name == title }),
               let security = try? ItemSecurity.read(url), group.id != security.groupID else { return }
-        stage(.group(group.id, group.name), summary: "Change the group from \(security.groupName) to \(group.name). Group permissions then apply to members of \(group.name).")
+        stage(.group(group.id, group.name), summary: L10n.format("Change the group from %@ to %@. Group permissions then apply to members of %@.", "\(security.groupName)", "\(group.name)", "\(group.name)"))
     }
 
     private func applyStaged() {
@@ -319,11 +319,11 @@ final class PermissionsEditorSheet: NSObject {
             case .group(let gid, let name):
                 let before = try ItemSecurity.read(url)
                 try ACLEditor.changeGroup(url, to: gid)
-                lastChange = .group(url, from: before.groupID, to: gid, summary: "Group changed from \(before.groupName) to \(name)")
+                lastChange = .group(url, from: before.groupID, to: gid, summary: L10n.format("Group changed from %@ to %@", "\(before.groupName)", "\(name)"))
             }
-            status.stringValue = "Done. \(lastChange?.summary ?? "")"
+            status.stringValue = L10n.format("Done. %@", "\(lastChange?.summary ?? "")")
         } catch {
-            status.stringValue = "Not changed: \(error.localizedDescription)"
+            status.stringValue = L10n.format("Not changed: %@", "\(error.localizedDescription)")
         }
         self.staged = nil
         confirmBox.isHidden = true
@@ -341,10 +341,10 @@ final class PermissionsEditorSheet: NSObject {
                 guard (try? ItemSecurity.read(url))?.groupID == to else { throw ACLEditError.changedSinceEdit }
                 try ACLEditor.changeGroup(url, to: from)
             }
-            status.stringValue = "Undone: \(change.summary)"
+            status.stringValue = L10n.format("Undone: %@", "\(change.summary)")
             lastChange = nil
         } catch {
-            status.stringValue = "Couldn't undo: \(error.localizedDescription)"
+            status.stringValue = L10n.format("Couldn't undo: %@", "\(error.localizedDescription)")
         }
         reload()
         PropertiesFeature.itemsChanged(old: url, new: url)

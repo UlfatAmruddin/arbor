@@ -8,10 +8,10 @@ public enum NameValidationError: Error, Equatable, LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .empty: return "A name can't be empty."
-        case .reserved(let name): return "“\(name)” is reserved by the system. Choose a different name."
-        case .containsSlash: return "A name can't contain “/”."
-        case .tooLong: return "That name is too long. Names are limited to 255 bytes."
+        case .empty: return L10n.tr("A name can't be empty.")
+        case .reserved(let name): return L10n.format("“%@” is reserved by the system. Choose a different name.", "\(name)")
+        case .containsSlash: return L10n.tr("A name can't contain “/”.")
+        case .tooLong: return L10n.tr("That name is too long. Names are limited to 255 bytes.")
         }
     }
 }
@@ -60,10 +60,10 @@ public enum NameRules {
 
     /// "New folder", then "New folder (2)".
     public static func newFolderName(isTaken: (String) -> Bool) -> String {
-        if !isTaken("New folder") { return "New folder" }
+        if !isTaken("New folder") { return L10n.tr("New folder") }
         var n = 2
         while isTaken("New folder (\(n))") { n += 1 }
-        return "New folder (\(n))"
+        return L10n.format("New folder (%@)", "\(n)")
     }
 
     public static func validate(_ name: String) -> NameValidationError? {

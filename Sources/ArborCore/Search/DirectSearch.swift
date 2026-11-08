@@ -218,7 +218,7 @@ public final class DirectSearch: @unchecked Sendable {
                 name: name, folderPath: folderPath, isFolder: isFolder, isPackage: isPackage, isSymbolicLink: isSymlink,
                 size: isFolder ? nil : values.fileSize.map(Int64.init), modified: values.contentModificationDate,
                 created: values.creationDate, typeIdentifier: values.typeIdentifier,
-                typeDescription: values.localizedTypeDescription ?? (keySet.contains(.localizedTypeDescriptionKey) ? (isFolder ? "Folder" : "Document") : nil),
+                typeDescription: values.localizedTypeDescription ?? (keySet.contains(.localizedTypeDescriptionKey) ? (isFolder ? L10n.tr("Folder") : L10n.tr("Document")) : nil),
                 tags: keySet.contains(.tagNamesKey) ? (values.tagNames ?? []) : nil,
                 authors: nil,
                 contentContains: content.map { c in { c.contains($0) } })

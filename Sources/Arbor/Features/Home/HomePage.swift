@@ -23,17 +23,17 @@ enum HomeSection: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .quickAccess: return "Quick access"
-        case .favorites: return "Favorites"
-        case .recent: return "Recent"
+        case .quickAccess: return L10n.tr("Quick access")
+        case .favorites: return L10n.tr("Favorites")
+        case .recent: return L10n.tr("Recent")
         }
     }
 
     var emptyText: String {
         switch self {
-        case .quickAccess: return "Pin folders to Quick access, or visit some folders, and they'll show up here."
-        case .favorites: return "After you’ve favorited some files, we’ll show them here."
-        case .recent: return "After you’ve opened some files, we’ll show the most recent ones here."
+        case .quickAccess: return L10n.tr("Pin folders to Quick access, or visit some folders, and they'll show up here.")
+        case .favorites: return L10n.tr("After you’ve favorited some files, we’ll show them here.")
+        case .recent: return L10n.tr("After you’ve opened some files, we’ll show the most recent ones here.")
         }
     }
 }
@@ -46,6 +46,7 @@ final class FolderTileView: TileView {
         self.tile = tile
         super.init(frame: .zero)
         let icon = NSImageView(image: IconProvider.shared.folderIcon(IconProvider.shared.folderKind(for: tile.url), size: 48))
+        icon.hideFromAccessibility()   // the tile reads the folder name
         icon.translatesAutoresizingMaskIntoConstraints = false
         let name = NSTextField(labelWithString: tile.name)
         name.font = Theme.bodyFont
@@ -61,7 +62,8 @@ final class FolderTileView: TileView {
         line.spacing = 4
         if tile.isPinned {
             let pin = NSImageView()
-            pin.image = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: "Pinned")?
+            pin.hideFromAccessibility()   // "pinned" is part of the tile name
+            pin.image = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: L10n.tr("Pinned"))?
                 .withSymbolConfiguration(.init(pointSize: 9, weight: .regular))
             pin.contentTintColor = Theme.secondaryText
             line.addArrangedSubview(pin)
@@ -84,7 +86,7 @@ final class FolderTileView: TileView {
         ])
         toolTip = tile.url.path
         titleField = name
-        setAccessibilityLabel(tile.isPinned ? "\(tile.name), \(tile.subtitle), pinned" : "\(tile.name), \(tile.subtitle)")
+        setAccessibilityLabel(tile.isPinned ? L10n.format("%@, %@, pinned", "\(tile.name)", "\(tile.subtitle)") : "\(tile.name), \(tile.subtitle)")
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -94,8 +96,8 @@ final class ExplorerHomePage: NSViewController, LocationPageStatus, LocationPage
     weak var host: LocationHost?
     private(set) var snapshot: HomeSnapshot
     private let grid = TileGridView(sectionID: HomeSection.quickAccess.rawValue)
-    private let favorites = HomeFileList(sectionID: HomeSection.favorites.rawValue, dateTitle: "Date modified")
-    private let recent = HomeFileList(sectionID: HomeSection.recent.rawValue, dateTitle: "Date accessed")
+    private let favorites = HomeFileList(sectionID: HomeSection.favorites.rawValue, dateTitle: L10n.tr("Date modified"))
+    private let recent = HomeFileList(sectionID: HomeSection.recent.rawValue, dateTitle: L10n.tr("Date accessed"))
     private var headers: [HomeSection: SectionHeaderView] = [:]
     private var emptyLabels: [HomeSection: NSTextField] = [:]
     private var bodies: [HomeSection: NSView] = [:]
@@ -164,7 +166,7 @@ final class ExplorerHomePage: NSViewController, LocationPageStatus, LocationPage
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         grid.delegate = self
-        grid.setAccessibilityLabel("Quick access")
+        grid.setAccessibilityLabel(L10n.tr("Quick access"))
         favorites.delegate = self
         recent.delegate = self
         let sectionBodies: [HomeSection: NSView] = [.quickAccess: grid, .favorites: favorites, .recent: recent]
@@ -209,7 +211,7 @@ final class ExplorerHomePage: NSViewController, LocationPageStatus, LocationPage
             stack.trailingAnchor.constraint(equalTo: document.trailingAnchor),
             stack.bottomAnchor.constraint(equalTo: document.bottomAnchor),
         ])
-        root.setAccessibilityLabel("Home")
+        root.setAccessibilityLabel(L10n.tr("Home"))
         view = root
         // Tab moves between the sections.
         grid.nextKeyView = favorites.table

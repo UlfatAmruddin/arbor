@@ -64,7 +64,7 @@ enum ConsistentSorting {
         }
         values["archive.passwordProtected"] = { item in
             guard !item.isFolder else { return .unsupported }
-            return archiveEntry(item).map { .text($0.isEncrypted ? "Yes" : "No") } ?? .unknown
+            return archiveEntry(item).map { .text($0.isEncrypted ? L10n.tr("Yes") : L10n.tr("No")) } ?? .unknown
         }
         values["archive.ratio"] = { item in
             guard !item.isFolder, let e = archiveEntry(item), let size = e.size, let packed = e.compressedSize else { return .unknown }

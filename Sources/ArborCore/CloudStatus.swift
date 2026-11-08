@@ -19,27 +19,27 @@ public enum CloudStatus: Equatable, Hashable, Sendable {
     /// Windows wording where one exists ("Available on this device", "Available when online").
     public var title: String {
         switch self {
-        case .availableOnDevice: return "Available on this device"
-        case .onlineOnly: return "Available when online"
-        case .downloading: return "Syncing (downloading)"
-        case .uploading: return "Syncing (uploading)"
-        case .syncPending: return "Sync pending"
-        case .conflict: return "Sync conflict"
-        case .error(let message): return message.isEmpty ? "Sync error" : "Sync error: \(message)"
-        case .unknown: return "Status unknown"
+        case .availableOnDevice: return L10n.tr("Available on this device")
+        case .onlineOnly: return L10n.tr("Available when online")
+        case .downloading: return L10n.tr("Syncing (downloading)")
+        case .uploading: return L10n.tr("Syncing (uploading)")
+        case .syncPending: return L10n.tr("Sync pending")
+        case .conflict: return L10n.tr("Sync conflict")
+        case .error(let message): return message.isEmpty ? L10n.tr("Sync error") : L10n.format("Sync error: %@", "\(message)")
+        case .unknown: return L10n.tr("Status unknown")
         }
     }
 
     /// Short label for narrow places.
     public var shortTitle: String {
         switch self {
-        case .availableOnDevice: return "Available"
-        case .onlineOnly: return "Online-only"
-        case .downloading, .uploading: return "Syncing"
-        case .syncPending: return "Sync pending"
-        case .conflict: return "Conflict"
-        case .error: return "Error"
-        case .unknown: return "Unknown"
+        case .availableOnDevice: return L10n.tr("Available")
+        case .onlineOnly: return L10n.tr("Online-only")
+        case .downloading, .uploading: return L10n.tr("Syncing")
+        case .syncPending: return L10n.tr("Sync pending")
+        case .conflict: return L10n.tr("Conflict")
+        case .error: return L10n.tr("Error")
+        case .unknown: return L10n.tr("Unknown")
         }
     }
 

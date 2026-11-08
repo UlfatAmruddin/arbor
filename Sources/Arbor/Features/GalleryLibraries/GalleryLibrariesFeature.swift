@@ -136,7 +136,7 @@ enum GalleryLibrariesFeature {
             return item
         }
         if !items.isEmpty { items.append(.separator()) }
-        items.append(ClosureMenuItem("Manage collection…", image: NSImage(systemSymbolName: "folder.badge.gearshape", accessibilityDescription: nil)) {
+        items.append(ClosureMenuItem(L10n.tr("Manage collection…"), image: NSImage(systemSymbolName: "folder.badge.gearshape", accessibilityDescription: nil)) {
             LocationsDialog(mode: .gallery).present(in: BrowserWindowController.active?.window)
         })
         return items
@@ -200,7 +200,7 @@ enum GalleryLibrariesFeature {
             do {
                 try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
             } catch {
-                NSAlert.show("Couldn't create a folder in “\(displayName(of: folder))”.", error.localizedDescription, in: window.window)
+                NSAlert.show(L10n.format("Couldn't create a folder in “%@”.", "\(displayName(of: folder))"), error.localizedDescription, in: window.window)
                 return
             }
             OperationCenter.shared.registerUndoNewFolder(url)
@@ -224,15 +224,15 @@ enum GalleryLibrariesFeature {
         switch resolution {
         case .folder(let url, let isFallback):
             if isFallback {
-                ctx.window?.statusBar.setMessage("The save location isn't available, so “\(url.lastPathComponent)” is used instead.")
+                ctx.window?.statusBar.setMessage(L10n.format("The save location isn't available, so “%@” is used instead.", "\(url.lastPathComponent)"))
             }
             return url
         case .unavailable(let reason):
             let alert = NSAlert()
-            alert.messageText = "This library has no save location."
+            alert.messageText = L10n.tr("This library has no save location.")
             alert.informativeText = reason
-            alert.addButton(withTitle: "Manage library")
-            alert.addButton(withTitle: "Cancel")
+            alert.addButton(withTitle: L10n.tr("Manage library"))
+            alert.addButton(withTitle: L10n.tr("Cancel"))
             let open = { (response: NSApplication.ModalResponse) in
                 if response == .alertFirstButtonReturn { LocationsDialog(mode: .library(name)).present(in: ctx.window?.window) }
             }
@@ -244,13 +244,13 @@ enum GalleryLibrariesFeature {
     static func renameInGallery(_ ctx: CommandContext) {
         guard let item = ctx.single, let window = ctx.window, let host = window.window, host.attachedSheet == nil else { NSSound.beep(); return }
         let alert = NSAlert()
-        alert.messageText = "Rename"
-        alert.informativeText = "Enter a new name for “\(item.name)”. The file keeps its place in “\(item.url.deletingLastPathComponent().lastPathComponent)”."
+        alert.messageText = L10n.tr("Rename")
+        alert.informativeText = L10n.format("Enter a new name for “%@”. The file keeps its place in “%@”.", "\(item.name)", "\(item.url.deletingLastPathComponent().lastPathComponent)")
         let field = NSTextField(string: item.name)
         field.frame = NSRect(x: 0, y: 0, width: 320, height: 24)
         alert.accessoryView = field
-        alert.addButton(withTitle: "Rename")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: L10n.tr("Rename"))
+        alert.addButton(withTitle: L10n.tr("Cancel"))
         alert.window.initialFirstResponder = field
         alert.beginSheetModal(for: host) { [weak window] response in
             guard response == .alertFirstButtonReturn, let window else { return }

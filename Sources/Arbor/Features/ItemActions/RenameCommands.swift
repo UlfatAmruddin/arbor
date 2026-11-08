@@ -27,7 +27,7 @@ enum RenameCommands {
             ExplorerCommand(
                 id: "file.batchRename", title: "Batch rename…", symbol: "pencil.and.list.clipboard",
                 placements: [.itemContextMenu(.organize, 15), .seeMore(.selection, 40), .mainMenu("Edit", .organize, 15)],
-                dynamicTitle: ItemActionsFeature.title("Batch rename…", mac: "Batch Rename…"),
+                dynamicTitle: ItemActionsFeature.title(L10n.tr("Batch rename…"), mac: L10n.tr("Batch Rename…")),
                 isAvailable: { $0.surface != .itemContextMenu || $0.selection.count > 1 },
                 isEnabled: { $0.hasSelection && $0.allowsEditing },
                 perform: { ctx in
@@ -58,7 +58,7 @@ enum RenameCommands {
         view.beginRename(named: items[0].name, text: nil)
         // Explorer keeps the whole batch selected while the first name is edited.
         if view.isEditingName { view.select(urls: items.map(\.url)) }
-        window.statusBar.setMessage("Type a name for all \(items.count) items. Each gets a number: “Name (1)”, “Name (2)”…")
+        window.statusBar.setMessage(L10n.format("Type a name for all %@ items. Each gets a number: “Name (1)”, “Name (2)”…", "\(items.count)"))
     }
 
     /// Commit hook: performs the multi-item rename for an active session, else lets the core rename.
@@ -71,7 +71,7 @@ enum RenameCommands {
         }
         let base = MultiRename.base(fromTyped: typed, editedName: item.name, editedIsFolder: item.isFolder)
         if let problem = NameRules.validate(base) ?? (base.trimmingCharacters(in: .whitespaces).isEmpty ? .empty : nil) {
-            NSAlert.show("Couldn't rename these items.", problem.errorDescription ?? "", in: nil)
+            NSAlert.show(L10n.tr("Couldn't rename these items."), problem.errorDescription ?? "", in: nil)
             return false
         }
         var members: [URL: Set<String>] = [:]
@@ -84,10 +84,10 @@ enum RenameCommands {
             sessions[key] = nil
             registerUndo(applied)
             window.navigate(to: window.location, select: names)
-            window.statusBar.setMessage("Renamed \(StatusText.items(session.items.count)). Press ⌘Z to undo.")
+            window.statusBar.setMessage(L10n.format("Renamed %@. Press ⌘Z to undo.", "\(StatusText.items(session.items.count))"))
             return true
         } catch {
-            NSAlert.show("Couldn't rename these items.", error.localizedDescription + "\n\nNothing was renamed.", in: nil)
+            NSAlert.show(L10n.tr("Couldn't rename these items.L10n.tr("), error.localizedDescription + ")\n\nNothing was renamed.", in: nil)
             return false
         }
     }
@@ -102,10 +102,10 @@ enum RenameCommands {
                 let reverted = try BatchRenamer.apply(BatchRenamer.reversePlan(applied))
                 registerUndo(reverted)
             } catch {
-                NSAlert.show("Couldn't undo the rename.", error.localizedDescription + "\n\nNothing was changed.", in: NSApp.keyWindow)
+                NSAlert.show(L10n.tr("Couldn't undo the rename.L10n.tr("), error.localizedDescription + ")\n\nNothing was changed.", in: NSApp.keyWindow)
             }
         }
-        center.undoManager.setActionName("Rename")
+        center.undoManager.setActionName(L10n.tr("Rename"))
     }
 }
 
@@ -126,13 +126,13 @@ final class BatchRenameDialog: NSObject, NSTableViewDataSource, NSTableViewDeleg
 
     private let find = NSTextField()
     private let replace = NSTextField()
-    private let regex = NSButton(checkboxWithTitle: "Use regular expressions", target: nil, action: nil)
-    private let matchCase = NSButton(checkboxWithTitle: "Match case", target: nil, action: nil)
-    private let includeExt = NSButton(checkboxWithTitle: "Include extension", target: nil, action: nil)
+    private let regex = NSButton(checkboxWithTitle: L10n.tr("Use regular expressions"), target: nil, action: nil)
+    private let matchCase = NSButton(checkboxWithTitle: L10n.tr("Match case"), target: nil, action: nil)
+    private let includeExt = NSButton(checkboxWithTitle: L10n.tr("Include extension"), target: nil, action: nil)
     private let prefix = NSTextField()
     private let suffix = NSTextField()
     private let caseStyle = NSPopUpButton()
-    private let numbering = NSButton(checkboxWithTitle: "Add numbers", target: nil, action: nil)
+    private let numbering = NSButton(checkboxWithTitle: L10n.tr("Add numbers"), target: nil, action: nil)
     private let start = NSTextField()
     private let step = NSTextField()
     private let digits = NSTextField()
@@ -142,8 +142,8 @@ final class BatchRenameDialog: NSObject, NSTableViewDataSource, NSTableViewDeleg
     private let newExtension = NSTextField()
     private let table = NSTableView()
     private let summary = NSTextField(labelWithString: "")
-    private let renameButton = NSButton(title: "Rename", target: nil, action: nil)
-    private let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
+    private let renameButton = NSButton(title: L10n.tr("Rename"), target: nil, action: nil)
+    private let cancelButton = NSButton(title: L10n.tr("Cancel"), target: nil, action: nil)
 
     static func run(items: [FileItem], window: BrowserWindowController) {
         guard let host = window.window, !items.isEmpty else { return }
@@ -159,7 +159,7 @@ final class BatchRenameDialog: NSObject, NSTableViewDataSource, NSTableViewDeleg
         self.browser = browser
         sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 600), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         super.init()
-        sheet.title = "Batch rename"
+        sheet.title = L10n.tr("Batch rename")
         sheet.minSize = NSSize(width: 640, height: 480)
         build()
         recompute()
@@ -197,7 +197,7 @@ final class BatchRenameDialog: NSObject, NSTableViewDataSource, NSTableViewDeleg
         let content = ThemeBackgroundView(Theme.contentBackground)
         sheet.contentView = content
 
-        let heading = NSTextField(labelWithString: "Rename \(StatusText.items(items.count))")
+        let heading = NSTextField(labelWithString: L10n.format("Rename %@", "\(StatusText.items(items.count))"))
         heading.font = .systemFont(ofSize: 17, weight: .semibold)
 
         for f in [find, replace, prefix, suffix, start, step, digits, separator, newExtension] {
@@ -205,33 +205,44 @@ final class BatchRenameDialog: NSObject, NSTableViewDataSource, NSTableViewDeleg
             f.delegate = self
             f.cell?.usesSingleLineMode = true
         }
-        find.placeholderString = "Text to find"
-        replace.placeholderString = "Replace with"
-        prefix.placeholderString = "Before the name"
-        suffix.placeholderString = "After the name"
+        find.placeholderString = L10n.tr("Text to find")
+        replace.placeholderString = L10n.tr("Replace with")
+        prefix.placeholderString = L10n.tr("Before the name")
+        suffix.placeholderString = L10n.tr("After the name")
         start.stringValue = "1"
         step.stringValue = "1"
         digits.stringValue = "1"
         separator.stringValue = " "
-        newExtension.placeholderString = "ext"
-        find.setAccessibilityLabel("Find")
-        replace.setAccessibilityLabel("Replace with")
+        newExtension.placeholderString = L10n.tr("ext")
+        find.setAccessibleName(L10n.tr("Find"))
+        replace.setAccessibleName(L10n.tr("Replace with"))
+        // VoiceOver names for the controls whose visible labels sit beside them in the grid.
+        prefix.setAccessibleName(L10n.tr("Text before the name"))
+        suffix.setAccessibleName(L10n.tr("Text after the name"))
+        caseStyle.setAccessibleName(L10n.tr("Change case"))
+        start.setAccessibleName(L10n.tr("Start"))
+        step.setAccessibleName(L10n.tr("Step"))
+        digits.setAccessibleName(L10n.tr("Digits"))
+        separator.setAccessibleName(L10n.tr("Separator"))
+        position.setAccessibleName(L10n.tr("Number position"))
+        extensionMode.setAccessibleName(L10n.tr("Extension"))
+        newExtension.setAccessibleName(L10n.tr("New extension"))
         for b in [regex, matchCase, includeExt, numbering] { b.target = self; b.action = #selector(controlChanged) }
         caseStyle.addItems(withTitles: RenameCaseStyle.allCases.map(\.title))
-        position.addItems(withTitles: ["After the name", "Before the name"])
-        extensionMode.addItems(withTitles: ["Keep", "lowercase", "UPPERCASE", "Remove", "Change to:"])
+        position.addItems(withTitles: [L10n.tr("After the name"), L10n.tr("Before the name")])
+        extensionMode.addItems(withTitles: [L10n.tr("Keep"), L10n.tr("lowercase"), L10n.tr("UPPERCASE"), L10n.tr("Remove"), L10n.tr("Change to:")])
         for p in [caseStyle, position, extensionMode] { p.target = self; p.action = #selector(controlChanged) }
 
         let grid = NSGridView(views: [
-            [label("Find:"), find],
-            [label("Replace with:"), replace],
+            [label(L10n.tr("Find:")), find],
+            [label(L10n.tr("Replace with:")), replace],
             [NSGridCell.emptyContentView, NSStackView(views: [regex, matchCase, includeExt])],
-            [label("Insert text:"), NSStackView(views: [prefix, label("and"), suffix])],
-            [label("Change case:"), caseStyle],
-            [label("Numbers:"), NSStackView(views: [numbering, label("Start"), small(start, 54), label("Step"), small(step, 44),
-                                                     label("Digits"), small(digits, 36), position])],
-            [NSGridCell.emptyContentView, NSStackView(views: [label("Separator"), small(separator, 54)])],
-            [label("Extension:"), NSStackView(views: [extensionMode, small(newExtension, 90)])],
+            [label(L10n.tr("Insert text:")), NSStackView(views: [prefix, label(L10n.tr("and")), suffix])],
+            [label(L10n.tr("Change case:")), caseStyle],
+            [label(L10n.tr("Numbers:")), NSStackView(views: [numbering, label(L10n.tr("Start")), small(start, 54), label(L10n.tr("Step")), small(step, 44),
+                                                     label(L10n.tr("Digits")), small(digits, 36), position])],
+            [NSGridCell.emptyContentView, NSStackView(views: [label(L10n.tr("Separator")), small(separator, 54)])],
+            [label(L10n.tr("Extension:")), NSStackView(views: [extensionMode, small(newExtension, 90)])],
         ])
         grid.column(at: 0).xPlacement = .trailing
         grid.rowSpacing = 8
@@ -242,10 +253,10 @@ final class BatchRenameDialog: NSObject, NSTableViewDataSource, NSTableViewDeleg
         prefix.widthAnchor.constraint(equalToConstant: 180).isActive = true
         suffix.widthAnchor.constraint(equalToConstant: 180).isActive = true
 
-        for (id, title, width) in [("old", "Current name", 260.0), ("new", "New name", 260.0), ("status", "Status", 150.0)] {
+        for (id, title, width) in [("old", L10n.tr("Current name"), 260.0), ("new", L10n.tr("New name"), 260.0), ("status", L10n.tr("Status"), 150.0)] {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id))
             column.title = title
-            column.headerCell.attributedStringValue = NSAttributedString(string: title, attributes: [
+            column.headerCell.attributedStringValue = NSAttributedString(string: L10n.tr(title), attributes: [
                 .font: Theme.headerFont, .foregroundColor: Theme.secondaryText])
             column.width = width
             column.minWidth = 80
@@ -259,14 +270,14 @@ final class BatchRenameDialog: NSObject, NSTableViewDataSource, NSTableViewDeleg
         table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         table.dataSource = self
         table.delegate = self
-        table.setAccessibilityLabel("Preview")
+        table.setAccessibilityLabel(L10n.tr("Preview"))
         let scroll = NSScrollView()
         scroll.documentView = table
         scroll.hasVerticalScroller = true
         scroll.borderType = .lineBorder
         scroll.translatesAutoresizingMaskIntoConstraints = false
 
-        let previewLabel = NSTextField(labelWithString: "Preview")
+        let previewLabel = NSTextField(labelWithString: L10n.tr("Preview"))
         previewLabel.font = .systemFont(ofSize: 13, weight: .semibold)
 
         summary.font = Theme.bodyFont
@@ -372,7 +383,7 @@ final class BatchRenameDialog: NSObject, NSTableViewDataSource, NSTableViewDeleg
         }
         guard let preview else { return }
         guard existing != nil else {
-            summary.stringValue = "Checking names in the folder…"
+            summary.stringValue = L10n.tr("Checking names in the folder…")
             summary.textColor = Theme.secondaryText
             renameButton.isEnabled = false
             return
@@ -380,9 +391,9 @@ final class BatchRenameDialog: NSObject, NSTableViewDataSource, NSTableViewDeleg
         let problems = preview.problemCount
         let text: String
         if problems > 0 {
-            text = (problems == 1 ? "1 name has a problem." : "\(problems) names have problems.") + " Change the options to rename."
+            text = (problems == 1 ? L10n.tr("1 name has a problem.") : L10n.format("%@ names have problems.", "\(problems)")) + L10n.tr(" Change the options to rename.")
         } else {
-            text = preview.changeCount == 0 ? "No names change." : "\(preview.changeCount) of \(StatusText.items(items.count)) will be renamed."
+            text = preview.changeCount == 0 ? L10n.tr("No names change.") : L10n.format("%@ of %@ will be renamed.", "\(preview.changeCount)", "\(StatusText.items(items.count))")
         }
         summary.stringValue = text
         summary.textColor = problems > 0 ? .systemRed : Theme.secondaryText
@@ -423,10 +434,10 @@ final class BatchRenameDialog: NSObject, NSTableViewDataSource, NSTableViewDeleg
                 let renamed = Set(applied.map(\.to.lastPathComponent))
                 let selection = preview.rows.map { renamed.contains($0.newName) ? $0.newName : $0.item.name }
                 browser.navigate(to: browser.location, select: selection)
-                browser.statusBar.setMessage("Renamed \(StatusText.items(applied.count)). Press ⌘Z to undo.")
+                browser.statusBar.setMessage(L10n.format("Renamed %@. Press ⌘Z to undo.", "\(StatusText.items(applied.count))"))
             }
         } catch {
-            NSAlert.show("Couldn't rename the items.", error.localizedDescription + "\n\nNothing was renamed.", in: sheet)
+            NSAlert.show(L10n.tr("Couldn't rename the items.L10n.tr("), error.localizedDescription + ")\n\nNothing was renamed.", in: sheet)
         }
     }
 

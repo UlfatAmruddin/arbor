@@ -42,17 +42,17 @@ enum HomeFeature {
                 placements: [.itemContextMenu(.pin, 20)],
                 dynamicTitle: { ctx in
                     let list = files(ctx)
-                    return !list.isEmpty && list.allSatisfy { HomeStore.isFavorite($0.url) } ? "Remove from Favorites" : "Add to Favorites"
+                    return !list.isEmpty && list.allSatisfy { HomeStore.isFavorite($0.url) } ? L10n.tr("Remove from Favorites") : L10n.tr("Add to Favorites")
                 },
                 isAvailable: { ctx in ctx.hasSelection && files(ctx).count == ctx.selection.count },
                 perform: { ctx in
                     let urls = files(ctx).map(\.url)
                     if urls.allSatisfy(HomeStore.isFavorite) {
                         HomeStore.removeFavorites(urls)
-                        ctx.window?.statusBar.setMessage("Removed from Favorites. The file itself wasn't changed.")
+                        ctx.window?.statusBar.setMessage(L10n.tr("Removed from Favorites. The file itself wasn't changed."))
                     } else {
                         HomeStore.addFavorites(urls)
-                        ctx.window?.statusBar.setMessage(urls.count == 1 ? "Added to Favorites." : "\(urls.count) files added to Favorites.")
+                        ctx.window?.statusBar.setMessage(urls.count == 1 ? L10n.tr("Added to Favorites.") : L10n.format("%@ files added to Favorites.", "\(urls.count)"))
                     }
                 }),
             ExplorerCommand(
@@ -62,7 +62,7 @@ enum HomeFeature {
                 perform: { ctx in
                     // Changes history only (FE-239): the file stays where it is.
                     HomeStore.removeFromRecent(ctx.selection.map(\.url))
-                    ctx.window?.statusBar.setMessage("Removed from Recent. The file itself wasn't changed.")
+                    ctx.window?.statusBar.setMessage(L10n.tr("Removed from Recent. The file itself wasn't changed."))
                 }),
             ExplorerCommand(
                 id: "home.removeFrequent", title: "Remove from Quick access", symbol: "pin.slash",
@@ -93,7 +93,7 @@ enum HomeFeature {
                 isAvailable: { $0.location == .home },
                 perform: { ctx in
                     HomeStore.clearHistory()
-                    ctx.window?.statusBar.setMessage("History cleared. Pinned folders, favorites and files weren't changed.")
+                    ctx.window?.statusBar.setMessage(L10n.tr("History cleared. Pinned folders, favorites and files weren't changed."))
                 }),
         ])
     }

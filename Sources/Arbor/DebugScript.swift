@@ -243,7 +243,7 @@ enum DebugScript {
         case "sort": menu = CommandDispatcher.shared.menu(for: .sortMenu, context: c.context(surface: .commandBar, sender: nil))
         case "view": menu = CommandDispatcher.shared.menu(for: .viewMenu, context: c.context(surface: .commandBar, sender: nil))
         case "seemore": menu = CommandDispatcher.shared.menu(for: .seeMore, context: c.context(surface: .commandBar, sender: nil))
-        case "main": menu = NSApp.mainMenu?.item(withTitle: arg)?.submenu
+        case "main": menu = (NSApp.mainMenu?.item(withTitle: arg) ?? NSApp.mainMenu?.item(withTitle: MainMenu.shownTitle(arg)))?.submenu
         default: menu = nil
         }
         append("menu \(which):\n" + menuTitles(menu) + "\n---\n", to: path)

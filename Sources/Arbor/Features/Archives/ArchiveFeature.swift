@@ -112,9 +112,9 @@ enum ArchiveFeature {
                     SystemOpen.open(url)
                 }
                 lastExtraction = url
-                weakWindow?.statusBar.setMessage("Opened a read-only copy of “\(ref.name)”. Changes won't be saved back to “\(ref.archive.lastPathComponent)”.")
+                weakWindow?.statusBar.setMessage(L10n.format("Opened a read-only copy of “%@”. Changes won't be saved back to “%@”.", "\(ref.name)", "\(ref.archive.lastPathComponent)"))
             case .failure(let error):
-                ArchiveJobs.show(error, title: "“\(ref.name)” couldn't be opened.", window: weakWindow?.window)
+                ArchiveJobs.show(error, title: L10n.format("“%@” couldn't be opened.", "\(ref.name)"), window: weakWindow?.window)
             }
         }
     }
@@ -138,10 +138,10 @@ enum ArchiveFeature {
             switch result {
             case .success(let outcome):
                 FileClipboard.shared.write(outcome.placed, kind: .copy)
-                window?.statusBar.setMessage("\(StatusText.items(outcome.placed.count)) copied.")
+                window?.statusBar.setMessage(L10n.format("%@ copied.", "\(StatusText.items(outcome.placed.count))"))
                 ArchiveJobs.reportSkipped(outcome, window: window?.window)
             case .failure(let error):
-                ArchiveJobs.show(error, title: "The items couldn't be copied.", window: window?.window)
+                ArchiveJobs.show(error, title: L10n.tr("The items couldn't be copied."), window: window?.window)
             }
         }
     }
@@ -157,7 +157,7 @@ enum ArchiveFeature {
                 placements: [.commandBarContextual(10), .itemContextMenu(.open, 45), .backgroundContextMenu(.open, 10),
                              .mainMenu("File", .archive, 10)],
                 showsTitle: true,
-                dynamicTitle: { $0.surface == .commandBar ? "Extract all" : "Extract All…" },
+                dynamicTitle: { $0.surface == .commandBar ? L10n.tr("Extract all") : L10n.tr("Extract All…") },
                 isAvailable: { $0.surface == .menuBar || extractTarget($0) != nil },
                 isEnabled: { extractTarget($0) != nil },
                 perform: { ctx in
@@ -178,7 +178,7 @@ enum ArchiveFeature {
             ExplorerCommand(
                 id: "archive.newZip", title: "Compressed (zipped) Folder", symbol: "doc.zipper",
                 placements: [.newMenu(.newFileTypes, 20), .mainMenu("File", .new, 40)],
-                dynamicTitle: { $0.surface == .menuBar ? "New Compressed (zipped) Folder" : "Compressed (zipped) Folder" },
+                dynamicTitle: { $0.surface == .menuBar ? L10n.tr("New Compressed (zipped) Folder") : L10n.tr("Compressed (zipped) Folder") },
                 isEnabled: { $0.targetFolder != nil && $0.allowsEditing },
                 perform: { ctx in
                     guard let folder = ctx.targetFolder, let window = ctx.window else { return }
@@ -271,7 +271,7 @@ enum ArchiveFeature {
                 DetailsColumnSpec(id: "archive.compressedSize", title: "Compressed size", width: 120, alignment: .right,
                                   cell: text("archive.compressedSize", .right) { entry($0)?.compressedSize.map(ExplorerSize.detailsColumn) ?? "" }),
                 DetailsColumnSpec(id: "archive.passwordProtected", title: "Password protected", width: 130,
-                                  cell: text("archive.passwordProtected", .left) { entry($0).map { $0.isEncrypted ? "Yes" : "No" } ?? "" }),
+                                  cell: text("archive.passwordProtected", .left) { entry($0).map { $0.isEncrypted ? L10n.tr("Yes") : L10n.tr("No") } ?? "" }),
                 DetailsColumnSpec(id: "archive.ratio", title: "Ratio", width: 70, alignment: .right,
                                   cell: text("archive.ratio", .right) { item in
                                       guard let e = entry(item), let size = e.size, let packed = e.compressedSize else { return "" }

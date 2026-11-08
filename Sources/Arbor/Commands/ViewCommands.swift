@@ -16,7 +16,7 @@ enum ViewCommands {
             if mode == .largeIcons { placements.append(.statusBarTrailing(2)) }
             r.register(ExplorerCommand(
                 id: "view.mode.\(mode.rawValue)", title: mode.title, symbol: mode.symbolName,
-                tooltip: mode == .details ? "Display information about each item in the window" : mode.title,
+                tooltip: mode == .details ? L10n.tr("Display information about each item in the window") : mode.title,
                 shortcut: Shortcut("\(n)", [.command, .shift]),
                 keyBindings: [KeyBinding(digitKeyCodes[n - 1], [.command, .shift], scope: .window)],
                 placements: placements,
@@ -43,7 +43,7 @@ enum ViewCommands {
                 shortcut: Shortcut("P", [.command, .option]),   // ⇧⌥⌘P = Alt+Shift+P
                 placements: [.showMenu(.main, 20), .commandBarTrailing(10)],
                 showsTitle: true,
-                dynamicTitle: { $0.surface == .commandBar ? "Details" : "Details Pane" },
+                dynamicTitle: { $0.surface == .commandBar ? L10n.tr("Details") : L10n.tr("Details Pane") },
                 isEnabled: { $0.window != nil },
                 state: { _ in Prefs.sidePane == "details" ? .on : .off },
                 perform: { $0.window?.toggleSidePane("details") }),
@@ -97,7 +97,7 @@ enum ViewCommands {
         }
         for ascending in [true, false] {
             r.register(ExplorerCommand(
-                id: ascending ? "sort.ascending" : "sort.descending", title: ascending ? "Ascending" : "Descending",
+                id: ascending ? "sort.ascending" : "sort.descending", title: ascending ? L10n.tr("Ascending") : L10n.tr("Descending"),
                 placements: [.sortMenu(.view, ascending ? 10 : 20)],
                 isEnabled: { $0.tab != nil },
                 state: { ctx in ctx.tab?.sortOrder.ascending == ascending ? .on : .off },

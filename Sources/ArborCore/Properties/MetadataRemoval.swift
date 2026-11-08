@@ -20,10 +20,10 @@ public enum MetadataRemoval {
 
         public var errorDescription: String? {
             switch self {
-            case .unsupported: return "Properties can only be removed from JPEG, PNG, HEIC and TIFF images."
-            case .unreadable: return "The image couldn't be read."
-            case .destinationExists: return "A file with the copy's name already exists."
-            case .writeFailed: return "The copy couldn't be written."
+            case .unsupported: return L10n.tr("Properties can only be removed from JPEG, PNG, HEIC and TIFF images.")
+            case .unreadable: return L10n.tr("The image couldn't be read.")
+            case .destinationExists: return L10n.tr("A file with the copy's name already exists.")
+            case .writeFailed: return L10n.tr("The copy couldn't be written.")
             }
         }
     }

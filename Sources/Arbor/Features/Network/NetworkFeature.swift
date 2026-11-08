@@ -30,7 +30,7 @@ enum NetworkFeature {
         BrowserWindowController.volumeUnmountHandler = { window, tab, _ in
             NetworkCenter.shared.invalidateMounts()
             guard let url = tab.location.folderURL, NetworkCenter.shared.disconnectedShare(containing: url) != nil else { return false }
-            if tab === window.activeTab { window.statusBar.setMessage("The network share was disconnected.", isError: true) }
+            if tab === window.activeTab { window.statusBar.setMessage(L10n.tr("The network share was disconnected."), isError: true) }
             window.request(.reload, tab: tab)
             return true
         }
@@ -87,7 +87,7 @@ enum NetworkFeature {
     // MARK: Breadcrumbs: Network › NAS-01 › Media › Movies
 
     static func crumbs(for location: Location) -> [Crumb]? {
-        let network = Crumb(title: "Network", location: .network, children: { [] })
+        let network = Crumb(title: L10n.tr("Network"), location: .network, children: { [] })
         switch location {
         case .server(let address):
             var crumbs = [network, serverCrumb(address.server)]
@@ -175,7 +175,7 @@ enum NetworkFeature {
             ExplorerCommand(
                 id: "network.mapDrive", title: "Map network drive", symbol: "externaldrive.badge.plus",
                 placements: [.seeMore(section, 10), .treeContextMenu(section, 10), .mainMenu("Go", .tools, 25)],
-                dynamicTitle: { ctx in ctx.surface == .menuBar ? "Map Network Drive…" : "Map network drive" },
+                dynamicTitle: { ctx in ctx.surface == .menuBar ? L10n.tr("Map Network Drive…") : L10n.tr("Map network drive") },
                 isAvailable: { ctx in
                     switch ctx.surface {
                     case .treeContextMenu: return ctx.treeLocation == .thisMac || ctx.treeLocation == .network

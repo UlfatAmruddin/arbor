@@ -262,7 +262,7 @@ final class JobPanelView: NSView {
             if let browser = BrowserWindowController.active { browser.openTab(.folder(url)) }
         }
         let caption = { (text: String) -> NSTextField in FileOpsStyle.label(text, color: Theme.secondaryText) }
-        grid = NSGridView(views: [[caption("Name:"), nameValue], [caption("Time remaining:"), timeValue], [caption("Items remaining:"), itemsValue]])
+        grid = NSGridView(views: [[caption(L10n.tr("Name:")), nameValue], [caption(L10n.tr("Time remaining:")), timeValue], [caption(L10n.tr("Items remaining:")), itemsValue]])
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
         grid.rowSpacing = 4
@@ -276,8 +276,8 @@ final class JobPanelView: NSView {
         }
         pause.onClick = { [weak self] _ in self?.togglePause() }
         cancel.onClick = { [weak self] _ in self?.cancelJob() }
-        pause.setAccessibilityLabel("Pause")
-        cancel.setAccessibilityLabel("Cancel")
+        pause.setAccessibilityLabel(L10n.tr("Pause"))
+        cancel.setAccessibilityLabel(L10n.tr("Cancel"))
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let percentRow = NSStackView(views: [percent, spacer, pause, cancel])
@@ -337,19 +337,19 @@ final class JobPanelView: NSView {
 
     private var percentText: String {
         let p = job.progress
-        if job.monitor.isCancelling || job.transfer.isCancelled { return "Cancelling…" }
-        if let status = JobPanelExtras.statusText(for: job) { return job.transfer.isPaused ? "Paused - \(status)" : status }
-        if p.phase == .discovering { return "Discovering items…" }
-        let pct = "\(Int(((p.fraction ?? 0) * 100).rounded(.down)))% complete"
-        if job.transfer.isPaused { return "Paused - \(pct)" }
+        if job.monitor.isCancelling || job.transfer.isCancelled { return L10n.tr("Cancelling…") }
+        if let status = JobPanelExtras.statusText(for: job) { return job.transfer.isPaused ? L10n.format("Paused - %@", "\(status)") : status }
+        if p.phase == .discovering { return L10n.tr("Discovering items…") }
+        let pct = L10n.format("%@%% complete", "\(Int(((p.fraction ?? 0) * 100).rounded(.down)))")
+        if job.transfer.isPaused { return L10n.format("Paused - %@", "\(pct)") }
         return pct
     }
 
     var windowTitle: String {
         let p = job.progress
         if let status = JobPanelExtras.statusText(for: job) { return status }
-        if p.phase == .discovering { return "Discovering items…" }
-        return "\(Int(((p.fraction ?? 0) * 100).rounded(.down)))% complete"
+        if p.phase == .discovering { return L10n.tr("Discovering items…") }
+        return L10n.format("%@%% complete", "\(Int(((p.fraction ?? 0) * 100).rounded(.down)))")
     }
 
     func refresh() {
@@ -357,8 +357,8 @@ final class JobPanelView: NSView {
         let paused = job.transfer.isPaused
         percent.stringValue = percentText
         pause.symbolName = paused ? "play.fill" : "pause.fill"
-        pause.toolTip = paused ? "Resume" : "Pause"
-        pause.setAccessibilityLabel(paused ? "Resume" : "Pause")
+        pause.toolTip = paused ? L10n.tr("Resume") : L10n.tr("Pause")
+        pause.setAccessibilityLabel(paused ? L10n.tr("Resume") : L10n.tr("Pause"))
         let verifying = JobVerification.progress(job) != nil
         pause.isEnabled = !job.transfer.isCancelled && (p.phase != .finishing || verifying)
         cancel.isEnabled = !job.transfer.isCancelled
@@ -371,8 +371,8 @@ final class JobPanelView: NSView {
         graph.paused = paused
         nameValue.stringValue = p.currentName ?? ""
         if p.phase == .discovering {
-            timeValue.stringValue = "Calculating…"
-            itemsValue.stringValue = "Calculating… (\(StatusText.items(p.itemsDone)) found)"
+            timeValue.stringValue = L10n.tr("Calculating…")
+            itemsValue.stringValue = L10n.format("Calculating… (%@ found)", "\(StatusText.items(p.itemsDone))")
         } else {
             timeValue.stringValue = paused ? "Paused" : (job.monitor.secondsRemaining.map(TransferRateEstimator.describeRemaining) ?? "Calculating…")
             if let items = p.itemsRemaining {
@@ -382,7 +382,7 @@ final class JobPanelView: NSView {
                 itemsValue.stringValue = "\(max(0, p.total - p.completed).formatted())"
             }
         }
-        setAccessibilityLabel("\(job.transfer.kind.progressVerb) \(percentText)")
+        setAccessibilityLabel(L10n.format("%@ %@", TransferWords.localized(job.transfer.kind.progressVerb), percentText))
     }
 
     var debugText: String {
@@ -427,7 +427,7 @@ final class SpeedGraphView: NSView {
         super.init(frame: frame)
         translatesAutoresizingMaskIntoConstraints = false
         setAccessibilityRole(.image)
-        setAccessibilityLabel("Speed graph")
+        setAccessibilityLabel(L10n.tr("Speed graph"))
     }
     required init?(coder: NSCoder) { fatalError() }
 
@@ -486,7 +486,7 @@ final class SpeedGraphView: NSView {
             rule.move(to: NSPoint(x: plot.minX, y: y)); rule.line(to: NSPoint(x: plot.maxX, y: y))
             rule.lineWidth = 1
             rule.stroke()
-            let text = "Speed: \(TransferRateEstimator.describeSpeed(speed))" as NSString
+            let text = L10n.format("Speed: %@", "\(TransferRateEstimator.describeSpeed(speed))") as NSString
             let attrs: [NSAttributedString.Key: Any] = [.font: FileOpsStyle.captionFont, .foregroundColor: Theme.primaryText]
             let size = text.size(withAttributes: attrs)
             let textY = min(y + 2, plot.maxY - size.height - 1)

@@ -25,17 +25,17 @@ public enum NewItemTemplates {
     /// "New Bitmap image.bmp": a valid 1×1 white 24-bit BMP (Windows writes a zero-byte file, which
     /// most Mac image apps refuse to open).
     public static let bitmap = NewItemTemplate(
-        id: "bmp", menuTitle: "Bitmap image", baseName: "New Bitmap image", fileExtension: "bmp",
+        id: "bmp", menuTitle: L10n.tr("Bitmap image"), baseName: L10n.tr("New Bitmap image"), fileExtension: "bmp",
         contents: bitmapData(width: 1, height: 1))
 
     /// "New Rich Text Document.rtf": a minimal, valid RTF document with one empty paragraph.
     public static let richText = NewItemTemplate(
-        id: "rtf", menuTitle: "Rich Text Document", baseName: "New Rich Text Document", fileExtension: "rtf",
+        id: "rtf", menuTitle: L10n.tr("Rich Text Document"), baseName: L10n.tr("New Rich Text Document"), fileExtension: "rtf",
         contents: Data(#"{\rtf1\ansi\ansicpg1252\deff0{\fonttbl{\f0\fswiss Helvetica;}}\f0\fs24\par}"#.utf8))
 
     /// "New Text Document.txt": an empty plain-text file, like Explorer.
     public static let text = NewItemTemplate(
-        id: "txt", menuTitle: "Text Document", baseName: "New Text Document", fileExtension: "txt", contents: Data())
+        id: "txt", menuTitle: L10n.tr("Text Document"), baseName: L10n.tr("New Text Document"), fileExtension: "txt", contents: Data())
 
     /// In Windows order (alphabetical by display name). "Compressed (zipped) Folder" belongs between
     /// Bitmap image and Rich Text Document and is registered by the archives feature.

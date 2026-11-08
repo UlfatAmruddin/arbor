@@ -43,6 +43,31 @@ public enum ThumbnailPolicy {
         return type.conforms(to: .movie) || (type.conforms(to: .audiovisualContent) && !type.conforms(to: .audio))
     }
 
+    /// What the Details pane's large preview area shows for one selected item.
+    public enum PanePreview: Equatable, Sendable {
+        /// The type (or custom) icon: folders, packages, and text whose thumbnail would be a nearly blank page.
+        case icon
+        /// A picture, video frame or PDF/office page from the system's thumbnail generator.
+        case thumbnail
+        /// A rendered document page (PDF, office, iWork, e-book): drawn with a border so a white page stays
+        /// visible on the white pane.
+        case page
+    }
+
+    /// Explorer's Details pane shows a thumbnail where a thumbnail handler exists (pictures, videos,
+    /// documents) and the type's icon otherwise; plain text, source code, CSV, JSON, Markdown and logs show
+    /// their icon. (A text "thumbnail" is a white page with a few tiny lines, which looked blank.)
+    public static func panePreview(_ item: FileItem, iconsOnly: Bool) -> PanePreview {
+        guard !iconsOnly, !item.isFolder, !item.isPackage else { return .icon }
+        if wantsThumbnail(item, iconPoints: 128, iconsOnly: false) {
+            let type = UTType(filenameExtension: item.url.pathExtension)
+            return type?.conforms(to: .pdf) == true ? .page : .thumbnail
+        }
+        let ext = item.url.pathExtension
+        guard !ext.isEmpty, let type = UTType(filenameExtension: ext), !type.conforms(to: .text) else { return .icon }
+        return type.conforms(to: .compositeContent) ? .page : .icon
+    }
+
     /// Image types whose pixel dimensions the Content layout shows.
     public static func hasDimensions(_ item: FileItem) -> Bool {
         guard !item.isFolder, let type = UTType(filenameExtension: item.url.pathExtension) else { return false }

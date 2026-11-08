@@ -16,10 +16,24 @@ public enum L10n {
     public static var bundle: Bundle = .main
 
     /// The localized text for an English key.
+    ///
+    /// Under pseudo-localization only keys that are in the string table are transformed (when the bundle has
+    /// one): text that was routed but never extracted, and names passed through by mistake (files, folders),
+    /// stay plain, so the screenshots show exactly what a translator would miss.
     public static func tr(_ key: String) -> String {
         guard !key.isEmpty else { return key }
-        let value = bundle.localizedString(forKey: key, value: key, table: nil)
-        return pseudo ? PseudoLocalization.transform(value) : value
+        guard pseudo else { return bundle.localizedString(forKey: key, value: key, table: nil) }
+        let value = bundle.localizedString(forKey: key, value: missing, table: nil)
+        if value == missing { return hasTable ? key : PseudoLocalization.transform(key) }
+        return PseudoLocalization.transform(value)
+    }
+
+    private static let missing = "\u{1}missing"
+    private static var hasTable: Bool { bundle.path(forResource: "Localizable", ofType: "strings") != nil }
+
+    /// Whether the string table has an entry for `key` (scripted checks and the string-table test).
+    public static func hasEntry(_ key: String) -> Bool {
+        bundle.localizedString(forKey: key, value: missing, table: nil) != missing
     }
 
     /// A localized format string filled with arguments (`%@`, `%d`, `%1$@`…).

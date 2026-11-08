@@ -6,7 +6,7 @@ import ArborCore
 /// Skip (when skipping makes sense) and Cancel. The job waits; nothing is retried automatically.
 final class FailureDialog: FileOpsDialog {
     private let completion: (FailureDecision) -> Void
-    private let applyAll = NSButton(checkboxWithTitle: "Do this for all current items", target: nil, action: nil)
+    private let applyAll = NSButton(checkboxWithTitle: L10n.tr("Do this for all current items"), target: nil, action: nil)
     private var answered = false
 
     static func resolve(_ failure: TransferFailure, job: OperationCenter.Job) async -> FailureDecision {
@@ -35,9 +35,9 @@ final class FailureDialog: FileOpsDialog {
         applyAll.isHidden = !failure.allowsSkip
         let body = setBody([header, instruction, item, hint, applyAll], spacing: 10)
         body.setCustomSpacing(16, after: instruction)
-        var buttons: [NSView] = [WinButton("Try Again", accent: true) { [weak self] in self?.answer(.retry) }]
-        if failure.allowsSkip { buttons.append(WinButton("Skip") { [weak self] in self?.answer(.skip) }) }
-        buttons.append(WinButton("Cancel") { [weak self] in self?.answer(.cancel) })
+        var buttons: [NSView] = [WinButton(L10n.tr("Try Again"), accent: true) { [weak self] in self?.answer(.retry) }]
+        if failure.allowsSkip { buttons.append(WinButton(L10n.tr("Skip")) { [weak self] in self?.answer(.skip) }) }
+        buttons.append(WinButton(L10n.tr("Cancel")) { [weak self] in self?.answer(.cancel) })
         setButtons(buttons)
     }
 
@@ -51,8 +51,8 @@ final class FailureDialog: FileOpsDialog {
         var lines = [FileOpsStyle.label(url.lastPathComponent, font: .systemFont(ofSize: 13, weight: .semibold))]
         if let item {
             var facts: [String] = []
-            if let size = item.size { facts.append("Size: \(StatusText.bytes(size))") }
-            if let date = item.modified { facts.append("Date modified: \(ConflictFlow.dates.string(from: date))") }
+            if let size = item.size { facts.append(L10n.format("Size: %@", "\(StatusText.bytes(size))")) }
+            if let date = item.modified { facts.append(L10n.format("Date modified: %@", "\(ConflictFlow.dates.string(from: date))")) }
             if !facts.isEmpty { lines.append(FileOpsStyle.label(facts.joined(separator: "   "), font: FileOpsStyle.captionFont, color: Theme.secondaryText)) }
         }
         let text = NSStackView(views: lines)

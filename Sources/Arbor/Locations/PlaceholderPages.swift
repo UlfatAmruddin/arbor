@@ -33,10 +33,10 @@ final class PlaceholderPageController: NSViewController, LocationPageStatus {
     override func loadView() {
         let root = ThemeBackgroundView(Theme.contentBackground)
         let icon = NSImageView(image: IconProvider.shared.icon(for: location, size: 48))
-        let title = NSTextField(labelWithString: "\(location.displayName) isn't available yet")
+        let title = NSTextField(labelWithString: L10n.format("%@ isn't available yet", "\(location.displayName)"))
         title.font = .systemFont(ofSize: 17, weight: .semibold)
         title.textColor = Theme.primaryText
-        let detail = NSTextField(wrappingLabelWithString: "This part of Arbor hasn't been built yet. It's tracked in docs/FEATURE-STATUS.md.")
+        let detail = NSTextField(wrappingLabelWithString: L10n.tr("This part of Arbor hasn't been built yet. It's tracked in docs/FEATURE-STATUS.md."))
         detail.font = Theme.bodyFont
         detail.textColor = Theme.secondaryText
         detail.alignment = .center
@@ -50,7 +50,7 @@ final class PlaceholderPageController: NSViewController, LocationPageStatus {
             stack.centerYAnchor.constraint(equalTo: root.centerYAnchor, constant: -30),
             detail.widthAnchor.constraint(lessThanOrEqualToConstant: 360),
         ])
-        root.setAccessibilityLabel("\(location.displayName) isn't available yet")
+        root.setAccessibilityLabel(L10n.format("%@ isn't available yet", "\(location.displayName)"))
         view = root
     }
 }
@@ -96,13 +96,13 @@ final class HomePageController: NSViewController, LocationPageStatus {
         let document = FlippedView()
         document.translatesAutoresizingMaskIntoConstraints = false
 
-        let header = sectionHeader("Quick access")
+        let header = sectionHeader(L10n.tr("Quick access"))
         grid.orientation = .vertical
         grid.alignment = .leading
         grid.spacing = 4
         grid.translatesAutoresizingMaskIntoConstraints = false
-        let recent = sectionHeader("Recent")
-        let recentNote = NSTextField(labelWithString: "Recent files appear here.")
+        let recent = sectionHeader(L10n.tr("Recent"))
+        let recentNote = NSTextField(labelWithString: L10n.tr("Recent files appear here."))
         recentNote.font = Theme.bodyFont
         recentNote.textColor = Theme.secondaryText
 
@@ -157,7 +157,7 @@ final class HomePageController: NSViewController, LocationPageStatus {
 
     private func tile(_ url: URL) -> NSView {
         let tile = TileButton(icon: IconProvider.shared.folderIcon(IconProvider.shared.folderKind(for: url), size: 40),
-                              title: displayName(of: url), subtitle: QuickAccess.isPinned(url) ? "Pinned" : "")
+                              title: displayName(of: url), subtitle: QuickAccess.isPinned(url) ? L10n.tr("Pinned") : "")
         tile.toolTip = url.path
         tile.onClick = { [weak self] in self?.host?.navigate(to: .folder(url), select: []) }
         tile.onMiddleClick = { [weak self] in self?.host?.openInNewTab(.folder(url)) }
@@ -255,7 +255,7 @@ final class ThisMacProvider: LocationProvider {
     }
 
     func allowsItemEditing(in location: Location) -> Bool { false }
-    func emptyText(for location: Location) -> String { "No drives are connected." }
+    func emptyText(for location: Location) -> String { L10n.tr("No drives are connected.") }
 
     static func volumes() -> [FileItem] {
         let keys: [URLResourceKey] = [.volumeLocalizedNameKey, .volumeIsLocalKey, .volumeIsInternalKey, .volumeIsRemovableKey,

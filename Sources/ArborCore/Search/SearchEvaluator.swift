@@ -61,10 +61,10 @@ public enum SearchReason: Hashable, Sendable, Comparable {
 
     public var label: String {
         switch self {
-        case .name: return "Name"
-        case .contents: return "Contents"
+        case .name: return L10n.tr("Name")
+        case .contents: return L10n.tr("Contents")
         case .property(let p): return p.label
-        case .archiveEntry(let path): return "In archive: \(path)"
+        case .archiveEntry(let path): return L10n.format("In archive: %@", "\(path)")
         }
     }
 

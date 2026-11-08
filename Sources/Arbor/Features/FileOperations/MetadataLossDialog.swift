@@ -7,7 +7,7 @@ import ArborCore
 /// fork, other extended attributes or access list (FAT32, exFAT, SMB shares without named streams).
 final class MetadataLossDialog: FileOpsDialog {
     private let completion: (MetadataLossDecision) -> Void
-    private let applyAll = NSButton(checkboxWithTitle: "Do this for all current items", target: nil, action: nil)
+    private let applyAll = NSButton(checkboxWithTitle: L10n.tr("Do this for all current items"), target: nil, action: nil)
     private var answered = false
     let loss: MetadataLoss
 
@@ -28,13 +28,13 @@ final class MetadataLossDialog: FileOpsDialog {
     init(_ loss: MetadataLoss, job: OperationCenter.Job, completion: @escaping (MetadataLossDecision) -> Void) {
         self.loss = loss
         self.completion = completion
-        super.init(title: "Property Loss", width: 470)
+        super.init(title: L10n.tr("Property Loss"), width: 470)
         let transfer = job.transfer
         let header = fromToLine(verb: transfer.kind.progressVerb, count: transfer.sources.count,
                                 source: transfer.sources.first?.deletingLastPathComponent(), destination: transfer.destination,
                                 open: ConflictFlow.open)
         let isFolder = FileOps.isPlainFolder(loss.source)
-        let instruction = FileOpsStyle.label("Are you sure you want to copy this \(isFolder ? "folder" : "file") without its properties?",
+        let instruction = FileOpsStyle.label(isFolder ? L10n.tr("Are you sure you want to copy this folder without its properties?") : L10n.tr("Are you sure you want to copy this file without its properties?"),
                                              font: FileOpsStyle.instructionFont, wraps: true)
         instruction.preferredMaxLayoutWidth = 430
         let item = FailureDialog.itemRow(loss.source)
@@ -43,9 +43,9 @@ final class MetadataLossDialog: FileOpsDialog {
         applyAll.font = FileOpsStyle.bodyFont
         let body = setBody([header, instruction, item, hint, applyAll], spacing: 10)
         body.setCustomSpacing(16, after: instruction)
-        setButtons([WinButton("Yes", accent: true) { [weak self] in self?.answer(.copyWithout) },
-                    WinButton("Skip") { [weak self] in self?.answer(.skip) },
-                    WinButton("Cancel") { [weak self] in self?.answer(.cancel) }])
+        setButtons([WinButton(L10n.tr("Yes"), accent: true) { [weak self] in self?.answer(.copyWithout) },
+                    WinButton(L10n.tr("Skip")) { [weak self] in self?.answer(.skip) },
+                    WinButton(L10n.tr("Cancel")) { [weak self] in self?.answer(.cancel) }])
     }
 
     /// Names the drive, its format and what can't be kept, in plain words.
@@ -58,7 +58,7 @@ final class MetadataLossDialog: FileOpsDialog {
         if !attributes.isEmpty {
             text += " macOS keeps Mac-only properties in hidden “._” files there, which Windows and other devices ignore or delete."
         }
-        if loss.lost.contains(.accessList) { text += " Access-list permissions are left out." }
+        if loss.lost.contains(.accessList) { text += L10n.tr(" Access-list permissions are left out.") }
         return text
     }
 

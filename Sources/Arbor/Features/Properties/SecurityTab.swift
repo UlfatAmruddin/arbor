@@ -5,7 +5,7 @@ import ArborCore
 /// permissions, any ACL entries, and the current user's access *tested* with access(2). Windows'
 /// Allow/Deny grid is kept only where it is real: POSIX has no Deny, ACL entries do.
 final class SecurityTab: PropertiesTab, PropertiesTabDebug {
-    let title = "Security"
+    let title = L10n.tr("Security")
     let view: NSView
     private let model: PropertiesModel
     private let page = SheetPage()
@@ -15,8 +15,8 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
     private let namesScroll = SheetScrollList()
     private var namesList: NSStackView { namesScroll.stack }
     private let permissionsTitle = SheetLabel.make("", bold: true)
-    private let allowHeader = SheetLabel.make("Allow")
-    private let denyHeader = SheetLabel.make("Deny")
+    private let allowHeader = SheetLabel.make(L10n.tr("Allow"))
+    private let denyHeader = SheetLabel.make(L10n.tr("Deny"))
     private let grid = NSStackView()
     private let modeLabel = SheetLabel.make("")
     private let accessGrid = NSStackView()
@@ -33,10 +33,10 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
 
         var title: String {
             switch self {
-            case .role(.owner, let name): return "\(name) (Owner)"
-            case .role(.group, let name): return "\(name) (Group)"
-            case .role(.everyone, _): return "Everyone else"
-            case .acl(let e): return "\(e.name) (\(e.kind == .group ? "group" : "user"), access list\(e.isInherited ? ", inherited" : ""))"
+            case .role(.owner, let name): return L10n.format("%@ (Owner)", "\(name)")
+            case .role(.group, let name): return L10n.format("%@ (Group)", "\(name)")
+            case .role(.everyone, _): return L10n.tr("Everyone else")
+            case .acl(let e): return L10n.format("%@ (%@, access list%@)", "\(e.name)", "\(e.kind == .group ? "group" : "user")", "\(e.isInherited ? ", inherited" : "")")
             }
         }
 
@@ -68,12 +68,12 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
             v.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
             if let spacing, let prev = stack.arrangedSubviews.dropLast().last { stack.setCustomSpacing(spacing, after: prev) }
         }
-        let objectLabel = SheetLabel.make("Object name:")
+        let objectLabel = SheetLabel.make(L10n.tr("Object name:"))
         objectLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
         objectLabel.setContentHuggingPriority(.required, for: .horizontal)
         let objectRow = hstack([objectLabel, objectName], spacing: 6)
         add(objectRow)
-        add(SheetLabel.make("Group or user names:"), after: 12)
+        add(SheetLabel.make(L10n.tr("Group or user names:")), after: 12)
         namesList.orientation = .vertical
         namesList.alignment = .leading
         namesList.spacing = 0
@@ -87,8 +87,8 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
         ])
         add(namesBox)
         // Explorer: "To change permissions, click Edit." [Edit…] (access-list entries, group).
-        let edit = SheetButton("Edit…") { [weak self] _ in self?.openEditor() }
-        let editHint = SheetLabel.make("To change permissions, click Edit.")
+        let edit = SheetButton(L10n.tr("Edit…")) { [weak self] _ in self?.openEditor() }
+        let editHint = SheetLabel.make(L10n.tr("To change permissions, click Edit."))
         editHint.setContentCompressionResistancePriority(.required, for: .horizontal)
         add(hstack([editHint, NSView(), edit]))
         let header = NSView()
@@ -119,7 +119,7 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
         ])
         add(gridBox)
         add(modeLabel)
-        add(SheetLabel.make("Your access (tested on this Mac):", bold: true), after: 12)
+        add(SheetLabel.make(L10n.tr("Your access (tested on this Mac):"), bold: true), after: 12)
         accessGrid.orientation = .horizontal
         accessGrid.spacing = 14
         accessGrid.translatesAutoresizingMaskIntoConstraints = false
@@ -160,7 +160,7 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
     private func rebuild() {
         guard let security else {
             namesList.arrangedSubviews.forEach { $0.removeFromSuperview() }
-            ownership.stringValue = "The permissions of this item couldn't be read."
+            ownership.stringValue = L10n.tr("The permissions of this item couldn't be read.")
             return
         }
         principals = [.role(.owner, security.ownerName), .role(.group, security.groupName), .role(.everyone, "")]
@@ -191,12 +191,12 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
         var note: String
         let fullName = ItemSecurity.fullName(security.ownerID).map { "\($0) (\(security.ownerName))" } ?? security.ownerName
         if security.currentUserCanChangePermissions {
-            note = "You own this item, so you can change these permissions. Changes are applied with Apply or OK."
+            note = L10n.tr("You own this item, so you can change these permissions. Changes are applied with Apply or OK.")
         } else {
-            note = "Owner: \(fullName). Only the owner or an administrator can change these permissions."
+            note = L10n.format("Owner: %@. Only the owner or an administrator can change these permissions.", "\(fullName)")
         }
-        if security.flags.isLocked { note += " The item is Locked (Read-only on the General tab), which blocks changes even where permissions allow them." }
-        if !security.acl.isEmpty { note += " To add or remove access-list entries, click Edit." }
+        if security.flags.isLocked { note += L10n.tr(" The item is Locked (Read-only on the General tab), which blocks changes even where permissions allow them.") }
+        if !security.acl.isEmpty { note += L10n.tr(" To add or remove access-list entries, click Edit.") }
         ownership.stringValue = note
     }
 
@@ -204,7 +204,7 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
         guard let security, principals.indices.contains(selected) else { return }
         grid.arrangedSubviews.forEach { $0.removeFromSuperview() }
         let principal = principals[selected]
-        permissionsTitle.stringValue = "Permissions for \(principal.title.replacingOccurrences(of: " (Owner)", with: "").replacingOccurrences(of: " (Group)", with: ""))"
+        permissionsTitle.stringValue = L10n.format("Permissions for %@", "\(principal.title.replacingOccurrences(of: " (Owner)", with: "").replacingOccurrences(of: " (Group)", with: ""))")
         let canEdit = security.currentUserCanChangePermissions
         switch principal {
         case .role(let role, _):
@@ -217,15 +217,15 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
                 let allow = SheetCheckbox("")
                 allow.state = values[i] ? .on : .off
                 allow.isEnabled = canEdit
-                allow.setAccessibilityLabel("Allow \(label)")
+                allow.setAccessibilityLabel(L10n.format("Allow %@", "\(label)"))
                 allow.onChange = { [weak self] box in self?.setBit(role: role, index: i, on: box.state == .on) }
                 let deny = SheetCheckbox("")
                 deny.isEnabled = false
-                deny.setAccessibilityLabel("Deny \(label) (POSIX permissions have no Deny)")
-                deny.toolTip = "POSIX permissions have no Deny. Use an access-list entry to deny access."
+                deny.setAccessibilityLabel(L10n.format("Deny %@ (POSIX permissions have no Deny)", "\(label)"))
+                deny.toolTip = L10n.tr("POSIX permissions have no Deny. Use an access-list entry to deny access.")
                 gridRow(label, allow, deny)
             }
-            modeLabel.stringValue = "Mode: \(editedPermissions.octal) (\(editedPermissions.symbolic)) · \(bits.summary(isFolder: security.isFolder))"
+            modeLabel.stringValue = L10n.format("Mode: %@ (%@) · %@", "\(editedPermissions.octal)", "\(editedPermissions.symbolic)", "\(bits.summary(isFolder: security.isFolder))")
         case .acl(let entry):
             for permission in entry.permissions {
                 let allow = SheetCheckbox("")
@@ -236,7 +236,7 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
                 deny.isEnabled = false
                 gridRow(ACLEntry.permissionLabels[permission] ?? permission, allow, deny)
             }
-            modeLabel.stringValue = entry.flags.isEmpty ? "Access-list entry" : "Access-list entry · \(entry.flags.joined(separator: ", "))"
+            modeLabel.stringValue = entry.flags.isEmpty ? L10n.tr("Access-list entry") : L10n.format("Access-list entry · %@", "\(entry.flags.joined(separator: ", "))")
         }
     }
 

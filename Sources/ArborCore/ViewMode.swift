@@ -7,14 +7,14 @@ public enum ViewMode: String, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .extraLargeIcons: return "Extra large icons"
-        case .largeIcons: return "Large icons"
-        case .mediumIcons: return "Medium icons"
-        case .smallIcons: return "Small icons"
-        case .list: return "List"
-        case .details: return "Details"
-        case .tiles: return "Tiles"
-        case .content: return "Content"
+        case .extraLargeIcons: return L10n.tr("Extra large icons")
+        case .largeIcons: return L10n.tr("Large icons")
+        case .mediumIcons: return L10n.tr("Medium icons")
+        case .smallIcons: return L10n.tr("Small icons")
+        case .list: return L10n.tr("List")
+        case .details: return L10n.tr("Details")
+        case .tiles: return L10n.tr("Tiles")
+        case .content: return L10n.tr("Content")
         }
     }
 

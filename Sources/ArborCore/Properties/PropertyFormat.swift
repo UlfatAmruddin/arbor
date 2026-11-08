@@ -16,7 +16,7 @@ public enum PropertyFormat {
     /// switching unit at 1000 so a value never shows four integer digits ("0.99 MB", not "1015 KB").
     /// `0 bytes`, `512 bytes`, `1.23 KB`, `14.2 MB`, `431 GB`.
     public static func adaptiveSize(_ bytes: Int64) -> String {
-        if bytes < 1000 { return "\(grouped(max(bytes, 0))) bytes" }
+        if bytes < 1000 { return L10n.format("%@ bytes", "\(grouped(max(bytes, 0)))") }
         let units = ["KB", "MB", "GB", "TB", "PB", "EB"]
         var value = Double(bytes) / 1024
         var unit = 0
@@ -37,8 +37,8 @@ public enum PropertyFormat {
 
     /// Properties' size line: `1.23 KB (1,264 bytes)`; below 1000 bytes just `512 bytes`.
     public static func propertiesSize(_ bytes: Int64) -> String {
-        if bytes < 1000 { return "\(grouped(max(bytes, 0))) bytes" }
-        return "\(adaptiveSize(bytes)) (\(grouped(bytes)) bytes)"
+        if bytes < 1000 { return L10n.format("%@ bytes", "\(grouped(max(bytes, 0)))") }
+        return L10n.format("%@ (%@ bytes)", "\(adaptiveSize(bytes))", "\(grouped(bytes))")
     }
 
     /// "Saturday, November 7, 2026, 10:21:33 AM": long date plus time with seconds.
@@ -177,16 +177,25 @@ public struct SelectionSummary: Equatable {
 
     public var typeText: String {
         switch type {
-        case .same(let t): return "All of type \(t)"
-        case .mixed: return "Multiple types"
+        case .same(let t): return L10n.format("All of type %@", "\(t)")
+        case .mixed: return L10n.tr("Multiple types")
+        case .none: return ""
+        }
+    }
+
+    /// The common folder alone ("/Users/ana"), or "Multiple locations" (the Details pane's Location row).
+    public var locationValue: String {
+        switch parent {
+        case .same(let p): return p
+        case .mixed: return L10n.tr("Multiple locations")
         case .none: return ""
         }
     }
 
     public var locationText: String {
         switch parent {
-        case .same(let p): return "All in \(p)"
-        case .mixed: return "Multiple locations"
+        case .same(let p): return L10n.format("All in %@", "\(p)")
+        case .mixed: return L10n.tr("Multiple locations")
         case .none: return ""
         }
     }

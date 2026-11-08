@@ -253,10 +253,12 @@ final class TabStripView: NSView {
             + " back=\(scrollLeftButton.isEnabled) forward=\(scrollRightButton.isEnabled)"
     }
 
-    /// Converts a document x position to the slot index a dragged tab would land in.
-    fileprivate func slot(forDocumentX x: CGFloat) -> Int {
-        let index = Int(floor(x / max(tabWidth, 1)))
-        return min(max(index, 0), max(items.count - 1, 0))
+    /// Scripted checks: drop tab `index` (0-based) after dragging it `dx` points along the row, as the mouse does.
+    func scriptDrag(_ index: Int, by dx: CGFloat) {
+        guard tabViews.indices.contains(index) else { return }
+        let view = tabViews[index]
+        let maxX = max(0, document.bounds.width - view.frame.width)
+        finishDrag(of: view, at: min(max(view.frame.minX + dx, 0), maxX), detachedFromStrip: false)
     }
 
     fileprivate func finishDrag(of view: TabItemView, at x: CGFloat, detachedFromStrip: Bool) {
@@ -267,7 +269,10 @@ final class TabStripView: NSView {
             delegate?.tabStripDetach(from)
             return
         }
-        let to = slot(forDocumentX: x + tabWidth / 2)
+        // Counted from the leading edge, which is the right one in a right-to-left layout (FE-204).
+        let to = TabStripGeometry.reorderSlot(tabMinX: x, tabWidth: tabWidth, viewWidth: view.frame.width,
+                                              contentWidth: document.bounds.width, count: items.count,
+                                              rightToLeft: RightToLeft.isActive(self))
         needsLayout = true
         if to != from { delegate?.tabStripMove(from: from, to: to) }
     }
@@ -346,7 +351,8 @@ final class TabItemView: NSView {
 
     override func layout() {
         super.layout()
-        closeButton.frame = NSRect(x: body.maxX - 28, y: (bounds.height - 22) / 2, width: 22, height: 22)
+        let closeX = RightToLeft.isActive(self) ? body.minX + 6 : body.maxX - 28   // FE-204: ✕ on the trailing (left) side
+        closeButton.frame = NSRect(x: closeX, y: (bounds.height - 22) / 2, width: 22, height: 22)
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -357,20 +363,24 @@ final class TabItemView: NSView {
         } else if isHovered {
             fillRounded(NSRect(x: b.minX + 2, y: b.minY + 2, width: b.width - 4, height: b.height - 6), radius: 6, Theme.hover)
         }
+        // Right to left (FE-204): icon and title start at the right, the ✕ and the separator sit on the left.
+        let rtl = RightToLeft.isActive(self)
         if showsTrailingSeparator {
             Theme.tabSeparator.setFill()
-            NSRect(x: b.maxX - 0.5, y: b.minY + 9, width: 1, height: b.height - 18).fill(using: .sourceOver)
+            NSRect(x: (rtl ? b.minX : b.maxX) - 0.5, y: b.minY + 9, width: 1, height: b.height - 18).fill(using: .sourceOver)
         }
-        let iconRect = NSRect(x: b.minX + 12, y: (b.height - 16) / 2, width: 16, height: 16)
+        let iconRect = NSRect(x: rtl ? b.maxX - 28 : b.minX + 12, y: (b.height - 16) / 2, width: 16, height: 16)
         item.icon.drawFlippedAware(in: iconRect)
-        let textRight = b.maxX - ((isSelected || isHovered) ? 32 : 10)
+        let closeRoom: CGFloat = (isSelected || isHovered) ? 32 : 10
         let attrs: [NSAttributedString.Key: Any] = [
             .font: Theme.tabFont,
             .foregroundColor: isSelected ? Theme.primaryText : Theme.secondaryText,
-            .paragraphStyle: { let p = NSMutableParagraphStyle(); p.lineBreakMode = .byTruncatingTail; return p }(),
+            .paragraphStyle: { let p = NSMutableParagraphStyle(); p.lineBreakMode = .byTruncatingTail; p.alignment = rtl ? .right : .left; return p }(),
         ]
         let titleHeight = ceil(Theme.tabFont.ascender - Theme.tabFont.descender)
-        let titleRect = NSRect(x: iconRect.maxX + 8, y: (b.height - titleHeight) / 2, width: max(0, textRight - iconRect.maxX - 8), height: titleHeight)
+        let titleLeft = rtl ? b.minX + closeRoom : iconRect.maxX + 8
+        let titleRight = rtl ? iconRect.minX - 8 : b.maxX - closeRoom
+        let titleRect = NSRect(x: titleLeft, y: (b.height - titleHeight) / 2, width: max(0, titleRight - titleLeft), height: titleHeight)
         (item.title as NSString).draw(with: titleRect, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], attributes: attrs)
         if hasKeyboardFocus { FocusVisual.draw(in: NSRect(x: b.minX + 1, y: b.minY + 1, width: b.width - 2, height: b.height - 3), radius: 6) }
     }

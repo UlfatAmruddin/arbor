@@ -25,7 +25,7 @@ final class GalleryProvider: LocationProvider {
         GalleryWatch(onChange: onChange)
     }
 
-    func title(for location: Location) -> String { "Gallery" }
+    func title(for location: Location) -> String { L10n.tr("Gallery") }
     /// Items are real files: rename and Trash act on them. New/Paste have no meaning here (no target folder).
     func allowsItemEditing(in location: Location) -> Bool { true }
     func targetFolder(for location: Location) -> URL? { nil }

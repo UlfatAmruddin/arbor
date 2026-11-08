@@ -29,7 +29,7 @@ enum VisualParityFeature {
     private static func registerMenuWording() {
         CommandDispatcher.menuTitleHook = { command, title, context in
             guard context.surface != .menuBar else { return title }   // the Mac menu bar keeps title case
-            if command.id == "view.detailsPane", title == "Details" { return "Details pane" }   // the button says "Details"
+            if command.id == "view.detailsPane", title == L10n.tr("Details") { return L10n.tr("Details paneL10n.tr(") }   // the button says ")Details"
             return ExplorerMenuWording.inWindowTitle(title)
         }
         // Background menu (§4.4): View › · Sort by › · Group by › · Refresh, then Undo / Paste, then New ›,
@@ -88,6 +88,26 @@ enum VisualParityFeature {
         DebugScript.registerStep("droppreview") { arg, window in
             window?.tabStrip.showDropMarker(at: Int(arg).map { $0 - 1 })
             return 0.5
+        }
+        // dragtab:N:DX — drag tab N (1-based) DX points along the row and drop it there (negative = left).
+        DebugScript.registerStep("dragtab") { arg, window in
+            let parts = arg.split(separator: ":").compactMap { Double($0) }
+            guard let window, parts.count == 2 else { return 0.5 }
+            window.tabStrip.scriptDrag(Int(parts[0]) - 1, by: CGFloat(parts[1]))
+            return 0.6
+        }
+        // windowactive:0|1 — draw as if the window were inactive / active (headless windows are never key).
+        DebugScript.registerStep("windowactive") { arg, _ in
+            SelectionEmphasis.headlessWindowActive = arg != "0"
+            return 0.4
+        }
+        DebugScript.registerLogger { window in
+            // Which selection style the file list draws now: accent (focused, active window) or grey.
+            let responder = window.window?.firstResponder as? NSView
+            let inItems = window.itemView.map { responder?.isDescendant(of: $0.view) ?? false } ?? false
+            let focused = inItems && responder.map(SelectionEmphasis.hasFocus) == true
+            return "selection emphasis: window=\(SelectionEmphasis.windowIsActive(window.window) ? "active" : "inactive") items="
+                + (focused ? "accent" : "grey")
         }
         DebugScript.registerLogger { window in
             let all = controllers.enumerated().map { i, c in

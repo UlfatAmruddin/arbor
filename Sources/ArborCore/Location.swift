@@ -93,7 +93,7 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
         case .network: return L10n.tr("Network")
         case .trash: return L10n.tr("Trash")
         case .search(let request):
-            if let origin = request.origin { return "Search Results in \(origin.displayName)" }
+            if let origin = request.origin { return L10n.format("Search Results in %@", "\(origin.displayName)") }
             let scope = request.scope.map { Location.folder($0).displayName }
             return scope.map { L10n.format("Search Results in %@", $0) } ?? L10n.tr("Search Results")
         case .archive(let url, let inner):

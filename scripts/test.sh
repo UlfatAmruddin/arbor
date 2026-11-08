@@ -2,6 +2,8 @@
 # Runs the unit tests. Works with full Xcode or with only the Command Line Tools.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# The English string table must list every routed string (FE-204).
+scripts/extract-strings.sh --check
 EXTRA=()
 if ! xcodebuild -version >/dev/null 2>&1; then
   # Command Line Tools ship Swift Testing outside the default search paths.

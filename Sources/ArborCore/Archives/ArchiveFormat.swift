@@ -37,16 +37,16 @@ public enum ArchiveFormat: String, Sendable, CaseIterable {
     /// Explorer's Type column wording for the archive file itself.
     public var typeName: String {
         switch self {
-        case .zip: return "Compressed (zipped) Folder"
-        case .sevenZip: return "7Z File"
-        case .tar: return "TAR File"
-        case .tarGzip: return "GZ File"
-        case .tarBzip2: return "BZ2 File"
-        case .tarXz: return "XZ File"
-        case .tarZstd: return "ZST File"
-        case .rar: return "RAR File"
-        case .cpio: return "CPIO File"
-        case .iso: return "Disc Image File"
+        case .zip: return L10n.tr("Compressed (zipped) Folder")
+        case .sevenZip: return L10n.tr("7Z File")
+        case .tar: return L10n.tr("TAR File")
+        case .tarGzip: return L10n.tr("GZ File")
+        case .tarBzip2: return L10n.tr("BZ2 File")
+        case .tarXz: return L10n.tr("XZ File")
+        case .tarZstd: return L10n.tr("ZST File")
+        case .rar: return L10n.tr("RAR File")
+        case .cpio: return L10n.tr("CPIO File")
+        case .iso: return L10n.tr("Disc Image File")
         }
     }
 
@@ -69,9 +69,9 @@ public enum ArchiveCreateFormat: String, Sendable, CaseIterable {
     /// Menu title under Compress to ▸.
     public var menuTitle: String {
         switch self {
-        case .zip: return "ZIP File"
-        case .sevenZip: return "7z File"
-        case .tar: return "TAR File"
+        case .zip: return L10n.tr("ZIP File")
+        case .sevenZip: return L10n.tr("7z File")
+        case .tar: return L10n.tr("TAR File")
         }
     }
 
@@ -79,7 +79,7 @@ public enum ArchiveCreateFormat: String, Sendable, CaseIterable {
     public var bsdtarFormat: String {
         switch self {
         case .zip: return "zip"
-        case .sevenZip: return "7zip"
+        case .sevenZip: return L10n.tr("7zip")
         case .tar: return "paxr"   // ustar when it fits, pax headers only for long or non-ASCII names
         }
     }

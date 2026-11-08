@@ -6,16 +6,16 @@ import ArborCore
 /// Embedded and indexed metadata is read-only; Finder tags and comments, which macOS stores next to
 /// the file rather than inside it, are editable in their own clearly labelled group.
 final class DetailsTab: PropertiesTab, PropertiesTabDebug {
-    let title = "Details"
+    let title = L10n.tr("Details")
     let view: NSView
     private let model: PropertiesModel
     private weak var controller: PropertiesWindowController?
     private let page = SheetPage()
     private let list = SheetScrollList()
-    private let tagsField = SheetTextField(placeholder: "Add a tag")
-    private let commentField = SheetTextField(placeholder: "Add comments")
+    private let tagsField = SheetTextField(placeholder: L10n.tr("Add a tag"))
+    private let commentField = SheetTextField(placeholder: L10n.tr("Add comments"))
     private lazy var removeLink: NSButton = {
-        let b = NSButton(title: "Remove Properties and Personal Information", target: self, action: #selector(removeProperties))
+        let b = NSButton(title: L10n.tr("Remove Properties and Personal Information"), target: self, action: #selector(removeProperties))
         b.isBordered = false
         b.attributedTitle = NSAttributedString(string: b.title, attributes: [.foregroundColor: SheetColors.accent, .font: SheetColors.font])
         b.translatesAutoresizingMaskIntoConstraints = false
@@ -41,8 +41,8 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
     private func build() {
         let header = NSView()
         header.translatesAutoresizingMaskIntoConstraints = false
-        let p = SheetLabel.make("Property", secondary: true)
-        let v = SheetLabel.make("Value", secondary: true)
+        let p = SheetLabel.make(L10n.tr("Property"), secondary: true)
+        let v = SheetLabel.make(L10n.tr("Value"), secondary: true)
         let line = SheetSeparator()
         for x in [p, v, line] as [NSView] { header.addSubview(x) }
         NSLayoutConstraint.activate([
@@ -88,14 +88,14 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let type = (try? url.resourceValues(forKeys: [.contentTypeKey]))?.contentType
             var rows = SpotlightMetadata.rows(for: url, isImage: type?.conforms(to: .image) ?? false)
-            rows.removeAll { $0.label == "Where from" }
+            rows.removeAll { $0.label == L10n.tr("Where from") }
             let whereFrom = FinderMetadata.whereFroms(of: url)
-            if !whereFrom.isEmpty { rows.append(MetadataRow(group: "Origin", label: "Where from", value: whereFrom.joined(separator: "; "))) }
+            if !whereFrom.isEmpty { rows.append(MetadataRow(group: L10n.tr("Origin"), label: L10n.tr("Where from"), value: whereFrom.joined(separator: "; "))) }
             if item.isPackage, let bundle = BundleInfo.read(url) {
                 let app: [(String, String?)] = [("Product name", bundle.name), ("Product version", bundle.version), ("Build", bundle.build),
                                                 ("Bundle identifier", bundle.identifier), ("Minimum macOS", bundle.minimumSystem),
                                                 ("Architecture", bundle.architectureText), ("Copyright", bundle.copyright)]
-                rows += app.compactMap { label, value in value.map { MetadataRow(group: "Application", label: label, value: $0) } }
+                rows += app.compactMap { label, value in value.map { MetadataRow(group: L10n.tr("Application"), label: label, value: $0) } }
             }
             rows += Self.fileRows(url: url, item: item)
             DispatchQueue.main.async {
@@ -116,20 +116,20 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
         if FinderMetadata.isQuarantined(url) { attributes.append("Quarantined") }
         let security = try? ItemSecurity.read(url)
         var rows: [MetadataRow] = [
-            MetadataRow(group: "File", label: "Name", value: url.lastPathComponent),
-            MetadataRow(group: "File", label: "Item type", value: item.isSymbolicLink ? item.typeDescription
+            MetadataRow(group: L10n.tr("File"), label: L10n.tr("Name"), value: url.lastPathComponent),
+            MetadataRow(group: L10n.tr("File"), label: L10n.tr("Item type"), value: item.isSymbolicLink ? item.typeDescription
                         : ExplorerTypeName.name(localized: v?.localizedTypeDescription ?? item.typeDescription, typeIdentifier: nil,
                                                 isFolder: item.isFolder)),
-            MetadataRow(group: "File", label: "Folder path", value: url.deletingLastPathComponent().path),
+            MetadataRow(group: L10n.tr("File"), label: L10n.tr("Folder path"), value: url.deletingLastPathComponent().path),
         ]
-        if let d = v?.creationDate { rows.append(MetadataRow(group: "File", label: "Date created", value: PropertyFormat.shortDate(d))) }
-        if let d = v?.contentModificationDate { rows.append(MetadataRow(group: "File", label: "Date modified", value: PropertyFormat.shortDate(d))) }
+        if let d = v?.creationDate { rows.append(MetadataRow(group: L10n.tr("File"), label: L10n.tr("Date created"), value: PropertyFormat.shortDate(d))) }
+        if let d = v?.contentModificationDate { rows.append(MetadataRow(group: L10n.tr("File"), label: L10n.tr("Date modified"), value: PropertyFormat.shortDate(d))) }
         if !item.isFolder && !item.isPackage {
-            rows.append(MetadataRow(group: "File", label: "Size", value: PropertyFormat.adaptiveSize(SizeScanner.entrySizes(url).size)))
+            rows.append(MetadataRow(group: L10n.tr("File"), label: L10n.tr("Size"), value: PropertyFormat.adaptiveSize(SizeScanner.entrySizes(url).size)))
         }
-        rows.append(MetadataRow(group: "File", label: "Attributes", value: attributes.isEmpty ? "None" : attributes.joined(separator: ", ")))
-        if let s = security { rows.append(MetadataRow(group: "File", label: "Owner", value: "\(s.ownerName) (\(s.groupName))")) }
-        rows.append(MetadataRow(group: "File", label: "Computer", value: Host.current().localizedName ?? "This Mac"))
+        rows.append(MetadataRow(group: L10n.tr("File"), label: L10n.tr("Attributes"), value: attributes.isEmpty ? "None" : attributes.joined(separator: ", ")))
+        if let s = security { rows.append(MetadataRow(group: L10n.tr("File"), label: L10n.tr("Owner"), value: "\(s.ownerName) (\(s.groupName))")) }
+        rows.append(MetadataRow(group: L10n.tr("File"), label: L10n.tr("Computer"), value: Host.current().localizedName ?? "This Mac"))
         return rows
     }
 
@@ -185,9 +185,9 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
         }
         // Finder's own metadata first: it is what the user can edit here.
         addGroup("Finder tags and comments")
-        addRow("Tags", tagsField)
-        addRow("Comments", commentField)
-        let note = SheetLabel.wrapping("Stored by macOS alongside the file, not inside it. Other computers and some cloud services may not keep them.", small: true)
+        addRow(L10n.tr("Tags"), tagsField)
+        addRow(L10n.tr("Comments"), commentField)
+        let note = SheetLabel.wrapping(L10n.tr("Stored by macOS alongside the file, not inside it. Other computers and some cloud services may not keep them."), small: true)
         let noteRow = NSView()
         noteRow.translatesAutoresizingMaskIntoConstraints = false
         noteRow.addSubview(note)
@@ -208,7 +208,7 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
             addRow(row.label, value)
         }
         if !rows.contains(where: { !["File", "Application", "Origin"].contains($0.group) }) {
-            let none = SheetLabel.wrapping("This file has no embedded properties that Spotlight or ImageIO can read.", small: true)
+            let none = SheetLabel.wrapping(L10n.tr("This file has no embedded properties that Spotlight or ImageIO can read."), small: true)
             let r = NSView()
             r.translatesAutoresizingMaskIntoConstraints = false
             r.addSubview(none)
@@ -226,13 +226,13 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
     @objc private func removeProperties() {
         guard let entry = model.single else { return }
         let alert = NSAlert()
-        alert.messageText = "Remove Properties"
+        alert.messageText = L10n.tr("Remove Properties")
         let copyName = NameRules.duplicateName(for: entry.url.lastPathComponent, treatAsFolder: false) {
             FileManager.default.fileExists(atPath: entry.url.deletingLastPathComponent().appendingPathComponent($0).path)
         }
-        alert.informativeText = "Create a copy with all possible properties removed?\n\nCamera details, dates, location (GPS), authors, keywords and copyright are left out. The copy is saved as “\(copyName)”. The original isn't changed."
-        alert.addButton(withTitle: "Create Copy")
-        alert.addButton(withTitle: "Cancel")
+        alert.informativeText = L10n.format("Create a copy with all possible properties removed?\n\nCamera details, dates, location (GPS), authors, keywords and copyright are left out. The copy is saved as “%@”. The original isn't changed.", "\(copyName)")
+        alert.addButton(withTitle: L10n.tr("Create Copy"))
+        alert.addButton(withTitle: L10n.tr("Cancel"))
         let window = controller?.window
         PropertiesWindowController.present(alert, window: window) { response in
             guard response == .alertFirstButtonReturn else { return }
@@ -241,7 +241,7 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
                 PropertiesFeature.itemsChanged(old: copy, new: copy)
             } catch {
                 DispatchQueue.main.async {
-                    PropertiesWindowController.present(message: "The copy couldn't be created.", info: error.localizedDescription, window: window)
+                    PropertiesWindowController.present(message: L10n.tr("The copy couldn't be created."), info: error.localizedDescription, window: window)
                 }
             }
         }

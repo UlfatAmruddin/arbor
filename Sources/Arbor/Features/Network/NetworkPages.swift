@@ -99,14 +99,14 @@ class NetworkTilesPage: NSViewController, LocationPageStatus {
                 tile.menuProvider = { [weak self] in self?.menu(NetworkMenus.connectedDriveItems(share, drive: drive, window: window)) }
             case .connecting:
                 tile = NetworkTileView(id: "drive/\(drive.id)", icon: NetworkIcons.drive(48, disconnected: true), title: drive.label,
-                                       caption: "Connecting…")
+                                       caption: L10n.tr("Connecting…"))
             case .disconnected(let reason):
-                let link = LinkButton("Reconnect") { [weak window] in
+                let link = LinkButton(L10n.tr("Reconnect")) { [weak window] in
                     guard let window else { return }
                     _ = NetworkConnectFlow.open(drive.address, in: window)
                 }
                 tile = NetworkTileView(id: "drive/\(drive.id)", icon: NetworkIcons.drive(48, disconnected: true), title: drive.label,
-                                       caption: reason == nil ? "Disconnected" : "Unavailable", link: link)
+                                       caption: reason == nil ? L10n.tr("Disconnected") : L10n.tr("Unavailable"), link: link)
                 tile.toolTip = reason
                 tile.onOpen = { [weak window] in window.map { _ = NetworkConnectFlow.open(drive.address, in: $0) } }
                 tile.menuProvider = { [weak self] in self?.menu(NetworkMenus.disconnectedDriveItems(drive, window: window)) }
@@ -131,10 +131,10 @@ extension NetworkTilesPage {
         let tile: NetworkTileView
         if let cap = NetworkCenter.shared.capacity(of: share) {
             tile = NetworkTileView(id: id, icon: NetworkIcons.drive(48), title: title,
-                                   caption: "\(StatusText.bytes(cap.free)) free of \(StatusText.bytes(cap.total))",
+                                   caption: L10n.format("%@ free of %@", "\(StatusText.bytes(cap.free))", "\(StatusText.bytes(cap.total))"),
                                    capacity: Double(cap.total - cap.free) / Double(cap.total))
         } else {
-            tile = NetworkTileView(id: id, icon: NetworkIcons.drive(48), title: title, caption: "Network drive")
+            tile = NetworkTileView(id: id, icon: NetworkIcons.drive(48), title: title, caption: L10n.tr("Network drive"))
         }
         tile.toolTip = share.mountPoint.path
         return tile
@@ -185,12 +185,12 @@ final class NetworkPageController: NetworkTilesPage {
         switch discovery.state {
         case .needsPermission:
             bannerViews.append(InfoBarView(
-                severity: .warning, title: "Network discovery is turned off.",
-                message: "Arbor can't see computers on this network until you allow Local Network access in System Settings › Privacy & Security › Local Network. You can still type \\\\server\\share in the address bar.",
-                actions: [FluentButton("Open Settings") { NetworkFeature.openLocalNetworkSettings() }]))
+                severity: .warning, title: L10n.tr("Network discovery is turned off."),
+                message: L10n.tr("Arbor can't see computers on this network until you allow Local Network access in System Settings › Privacy & Security › Local Network. You can still type \\\\server\\share in the address bar."),
+                actions: [FluentButton(L10n.tr("Open Settings")) { NetworkFeature.openLocalNetworkSettings() }]))
         case .failed(let message):
-            bannerViews.append(InfoBarView(severity: .error, title: "Looking for computers failed.", message: message,
-                                           actions: [FluentButton("Try Again") { [weak self] in self?.restartDiscovery() }]))
+            bannerViews.append(InfoBarView(severity: .error, title: L10n.tr("Looking for computers failed."), message: message,
+                                           actions: [FluentButton(L10n.tr("Try Again")) { [weak self] in self?.restartDiscovery() }]))
         default:
             break
         }
@@ -200,7 +200,7 @@ final class NetworkPageController: NetworkTilesPage {
             case .searching, .idle:
                 grid.emptyView = searchingView()
             case .ready:
-                grid.emptyView = emptyLabel("No computers were found on this network. Type \\\\server\\share in the address bar, or use Map network drive in the “…” menu.")
+                grid.emptyView = emptyLabel(L10n.tr("No computers were found on this network. Type \\\\server\\share in the address bar, or use Map network drive in the “…” menu."))
             default:
                 grid.emptyView = nil
             }
@@ -215,7 +215,7 @@ final class NetworkPageController: NetworkTilesPage {
         spinner.style = .spinning
         spinner.controlSize = .small
         spinner.startAnimation(nil)
-        let row = NSStackView(views: [spinner, emptyLabel("Looking for computers and devices on this network…")])
+        let row = NSStackView(views: [spinner, emptyLabel(L10n.tr("Looking for computers and devices on this network…"))])
         row.spacing = 8
         return row
     }
@@ -234,10 +234,10 @@ final class NetworkPageController: NetworkTilesPage {
             tile.menuProvider = { [weak self] in
                 guard let self else { return nil }
                 return self.menu([
-                    ClosureMenuItem("Open") { [weak self] in self?.open(device, newTab: false) },
-                    ClosureMenuItem("Open in new tab") { [weak self] in self?.open(device, newTab: true) },
+                    ClosureMenuItem(L10n.tr("Open")) { [weak self] in self?.open(device, newTab: false) },
+                    ClosureMenuItem(L10n.tr("Open in new tab")) { [weak self] in self?.open(device, newTab: true) },
                     .separator(),
-                    ClosureMenuItem("Map network drive…") { [weak self] in
+                    ClosureMenuItem(L10n.tr("Map network drive…")) { [weak self] in
                         guard let self, let window = self.window else { return }
                         NetworkCenter.shared.services.resolve(device) { address in
                             MapNetworkDriveSheet.present(in: window, folder: address.map { $0.unc + "\\" })
@@ -246,8 +246,8 @@ final class NetworkPageController: NetworkTilesPage {
                 ])
             }
         } else {
-            tile.toolTip = "\(device.name) is a network device without shared folders."
-            tile.onOpen = { [weak self] in self?.host?.showStatusMessage("“\(device.name)” doesn't share folders.", isError: false) }
+            tile.toolTip = L10n.format("%@ is a network device without shared folders.", "\(device.name)")
+            tile.onOpen = { [weak self] in self?.host?.showStatusMessage(L10n.format("“%@” doesn't share folders.", "\(device.name)"), isError: false) }
         }
         return tile
     }
@@ -255,12 +255,12 @@ final class NetworkPageController: NetworkTilesPage {
     /// Resolves the Bonjour name to a host, then shows its shared folders.
     func open(_ device: NetworkDevice, newTab: Bool) {
         resolving = device.id
-        host?.showStatusMessage("Connecting to \(device.name)…", isError: false)
+        host?.showStatusMessage(L10n.format("Connecting to %@…", "\(device.name)"), isError: false)
         NetworkCenter.shared.services.resolve(device) { [weak self] address in
             guard let self, self.resolving == device.id else { return }
             self.resolving = nil
             guard let address else {
-                self.host?.showStatusMessage("Arbor can't find the address of “\(device.name)”. It may have left the network.", isError: true)
+                self.host?.showStatusMessage(L10n.format("Arbor can't find the address of “%@”. It may have left the network.", "\(device.name)"), isError: true)
                 return
             }
             self.host?.showStatusMessage(nil, isError: false)
@@ -314,7 +314,7 @@ final class ServerPageController: NetworkTilesPage {
         spinner.style = .spinning
         spinner.controlSize = .small
         spinner.startAnimation(nil)
-        let row = NSStackView(views: [spinner, emptyLabel("Looking for shared folders on \(server.hostDisplayName)…")])
+        let row = NSStackView(views: [spinner, emptyLabel(L10n.format("Looking for shared folders on %@…", "\(server.hostDisplayName)"))])
         row.spacing = 8
         grid.emptyView = row
         // FE-179: a server that never answers gets a timeout with Retry; the UI stays usable meanwhile.
@@ -343,20 +343,20 @@ final class ServerPageController: NetworkTilesPage {
         state = "error: \(error.localizedDescription)"
         grid.setSections([])
         grid.emptyView = nil
-        var actions: [NSView] = [FluentButton("Retry", primary: true) { [weak self] in self?.load() }]
+        var actions: [NSView] = [FluentButton(L10n.tr("Retry"), primary: true) { [weak self] in self?.load() }]
         switch error {
         case .authenticationFailed, .listingUnsupported, .noShares:
             // The system's own sign-in and share chooser (NetFS), credentials stay in the Keychain.
-            actions.insert(FluentButton("Connect…") { [weak self] in self?.connectWithSystemChooser() }, at: 0)
+            actions.insert(FluentButton(L10n.tr("Connect…")) { [weak self] in self?.connectWithSystemChooser() }, at: 0)
         default:
             break
         }
         let title: String
         switch error {
         case .timedOut: title = "\(server.hostDisplayName) isn't responding."
-        case .authenticationFailed: title = "Sign in to see the shared folders on \(server.hostDisplayName)."
-        case .listingUnsupported: title = "Shared folders on \(server.hostDisplayName) can't be listed."
-        default: title = "Arbor can't access \(server.unc)."
+        case .authenticationFailed: title = L10n.format("Sign in to see the shared folders on %@.", "\(server.hostDisplayName)")
+        case .listingUnsupported: title = L10n.format("Shared folders on %@ can't be listed.", "\(server.hostDisplayName)")
+        default: title = L10n.format("Arbor can't access %@.", "\(server.unc)")
         }
         setBanner([InfoBarView(severity: error == .listingUnsupported(server.unc) ? .informational : .error,
                                title: title, message: error.localizedDescription, actions: actions)])
@@ -376,20 +376,20 @@ final class ServerPageController: NetworkTilesPage {
             let address = server.appending(share.name)
             let mounted = center.existingMount(for: address)
             let tile = NetworkTileView(id: "share/\(share.name)", icon: NetworkIcons.share(48), title: share.name,
-                                       caption: mounted != nil ? "Connected" : "Shared folder",
+                                       caption: mounted != nil ? L10n.tr("Connected") : L10n.tr("Shared folder"),
                                        caption2: share.comment.isEmpty ? nil : share.comment)
             tile.onOpen = { [weak window] in window.map { _ = NetworkConnectFlow.open(address, in: $0) } }
             tile.onOpenInNewTab = { [weak window] in window.map { _ = NetworkConnectFlow.open(address, in: $0, newTab: true) } }
             tile.menuProvider = { [weak self] in
                 guard let self else { return nil }
                 var items: [NSMenuItem] = [
-                    ClosureMenuItem("Open") { [weak window] in window.map { _ = NetworkConnectFlow.open(address, in: $0) } },
-                    ClosureMenuItem("Open in new tab") { [weak window] in window.map { _ = NetworkConnectFlow.open(address, in: $0, newTab: true) } },
+                    ClosureMenuItem(L10n.tr("Open")) { [weak window] in window.map { _ = NetworkConnectFlow.open(address, in: $0) } },
+                    ClosureMenuItem(L10n.tr("Open in new tab")) { [weak window] in window.map { _ = NetworkConnectFlow.open(address, in: $0, newTab: true) } },
                     .separator(),
-                    ClosureMenuItem("Map network drive…") { [weak window] in window.map { MapNetworkDriveSheet.present(in: $0, folder: address.unc) } },
-                    ClosureMenuItem("Copy network path") {
+                    ClosureMenuItem(L10n.tr("Map network drive…")) { [weak window] in window.map { MapNetworkDriveSheet.present(in: $0, folder: address.unc) } },
+                    ClosureMenuItem(L10n.tr("Copy network path")) {
                         FileClipboard.shared.writePaths(address.unc)
-                        window.statusBar.setMessage("Copied path: \"\(address.unc)\"")
+                        window.statusBar.setMessage(L10n.format("Copied path: \"%@\"", "\(address.unc)"))
                     },
                 ]
                 if let mounted { items += NetworkMenus.disconnectItems(mounted, window: window) }
@@ -398,7 +398,7 @@ final class ServerPageController: NetworkTilesPage {
             return tile
         }
         grid.setSections([TileSection(id: "shares", title: "Shared folders", tiles: tiles)])
-        grid.emptyView = tiles.isEmpty ? emptyLabel("\(server.hostDisplayName) has no shared folders you can see.") : nil
+        grid.emptyView = tiles.isEmpty ? emptyLabel(L10n.format("%@ has no shared folders you can see.", "\(server.hostDisplayName)")) : nil
         window.updateChrome()
     }
 
@@ -412,21 +412,21 @@ final class ServerPageController: NetworkTilesPage {
 
 enum NetworkMenus {
     static func connectedDriveItems(_ share: MountedShare, drive: MappedDrive?, window: BrowserWindowController) -> [NSMenuItem] {
-        [ClosureMenuItem("Open") { [weak window] in window?.navigate(to: .folder(share.mountPoint)) },
-         ClosureMenuItem("Open in new tab") { [weak window] in window?.openTab(.folder(share.mountPoint)) },
+        [ClosureMenuItem(L10n.tr("Open")) { [weak window] in window?.navigate(to: .folder(share.mountPoint)) },
+         ClosureMenuItem(L10n.tr("Open in new tab")) { [weak window] in window?.openTab(.folder(share.mountPoint)) },
          .separator()] + disconnectItems(share, window: window)
     }
 
     static func disconnectItems(_ share: MountedShare, window: BrowserWindowController) -> [NSMenuItem] {
-        [ClosureMenuItem("Disconnect") { [weak window] in window.map { NetworkDisconnect.disconnect(share, window: $0) } }]
+        [ClosureMenuItem(L10n.tr("Disconnect")) { [weak window] in window.map { NetworkDisconnect.disconnect(share, window: $0) } }]
     }
 
     static func disconnectedDriveItems(_ drive: MappedDrive, window: BrowserWindowController) -> [NSMenuItem] {
-        [ClosureMenuItem("Reconnect") { [weak window] in window.map { _ = NetworkConnectFlow.open(drive.address, in: $0) } },
-         ClosureMenuItem("Reconnect using different credentials…") { [weak window] in
+        [ClosureMenuItem(L10n.tr("Reconnect")) { [weak window] in window.map { _ = NetworkConnectFlow.open(drive.address, in: $0) } },
+         ClosureMenuItem(L10n.tr("Reconnect using different credentials…")) { [weak window] in
              window.map { _ = NetworkConnectFlow.open(drive.address, in: $0, differentCredentials: true) }
          },
          .separator(),
-         ClosureMenuItem("Disconnect") { NetworkCenter.shared.disconnect(drive) }]
+         ClosureMenuItem(L10n.tr("Disconnect")) { NetworkCenter.shared.disconnect(drive) }]
     }
 }

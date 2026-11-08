@@ -11,7 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Theme.applyEnvironmentAppearance()
         Features.registerAll()
         NSApp.mainMenu = MainMenu.build()
-        NSApp.windowsMenu = NSApp.mainMenu?.item(withTitle: "Window")?.submenu
+        NSApp.windowsMenu = NSApp.mainMenu?.item(withTitle: L10n.tr("Window"))?.submenu
         didLaunch = true
         if !pendingOpen.isEmpty {
             application(NSApp, open: pendingOpen)
@@ -108,10 +108,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard OperationCenter.shared.hasActiveJobs else { return .terminateNow }
         let alert = NSAlert()
-        alert.messageText = "Files are still being copied or moved."
-        alert.informativeText = "If you quit now, the file being copied is removed and the rest is not copied. Items that already finished are kept, originals are never removed before their copy completes, and Arbor lists what didn't finish the next time it opens."
-        alert.addButton(withTitle: "Keep Working")
-        alert.addButton(withTitle: "Quit Anyway")
+        alert.messageText = L10n.tr("Files are still being copied or moved.")
+        alert.informativeText = L10n.tr("If you quit now, the file being copied is removed and the rest is not copied. Items that already finished are kept, originals are never removed before their copy completes, and Arbor lists what didn't finish the next time it opens.")
+        alert.addButton(withTitle: L10n.tr("Keep Working"))
+        alert.addButton(withTitle: L10n.tr("Quit Anyway"))
         if alert.runModal() == .alertSecondButtonReturn {
             // Stop cleanly (no partial file left) and keep the jobs' journals for review next launch.
             OperationCenter.shared.cancelAllForQuit { NSApp.reply(toApplicationShouldTerminate: true) }

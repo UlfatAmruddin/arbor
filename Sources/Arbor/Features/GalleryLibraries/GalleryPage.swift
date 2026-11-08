@@ -39,13 +39,13 @@ final class GalleryPageController: NSViewController, LocationPageStatus, Locatio
     var statusSummary: String {
         let store = GalleryStore.shared
         var text = StatusText.explorerSummary(visible: grid.itemCount, total: grid.itemCount, query: "", selected: selectedItems)
-        if store.isScanning { text += "  Looking for photos and videos…" }
+        if store.isScanning { text += L10n.tr("  Looking for photos and videos…") }
         return text
     }
 
     static func fileItem(_ item: GalleryItem) -> FileItem {
         FileItem(url: item.url, name: item.url.lastPathComponent, isFolder: false, size: item.size, modified: item.modified,
-                 typeDescription: item.kind == .video ? "Video" : "Image")
+                 typeDescription: item.kind == .video ? L10n.tr("Video") : L10n.tr("Image"))
     }
 
     // MARK: View
@@ -90,7 +90,7 @@ final class GalleryPageController: NSViewController, LocationPageStatus, Locatio
             emptyLabel.topAnchor.constraint(equalTo: root.topAnchor, constant: 64),
             emptyLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 420),
         ])
-        root.setAccessibilityLabel("Gallery")
+        root.setAccessibilityLabel(L10n.tr("Gallery"))
         view = root
 
         let nc = NotificationCenter.default
@@ -160,22 +160,22 @@ final class GalleryPageController: NSViewController, LocationPageStatus, Locatio
         let collection = GalleryPrefs.collection
         if months.isEmpty {
             if !filterText.isEmpty, !store.items.isEmpty {
-                emptyLabel.stringValue = "No items match “\(filterText)”."
+                emptyLabel.stringValue = L10n.format("No items match “%@”.", "\(filterText)")
             } else if collection.sources.isEmpty {
-                emptyLabel.stringValue = "Your collection doesn't include any folders. Use Collection ▾ › Manage collection to add one."
+                emptyLabel.stringValue = L10n.tr("Your collection doesn't include any folders. Use Collection ▾ › Manage collection to add one.")
             } else if !collection.sources.contains(where: \.included) {
-                emptyLabel.stringValue = "Every folder in the collection is turned off. Turn one on in Collection ▾."
+                emptyLabel.stringValue = L10n.tr("Every folder in the collection is turned off. Turn one on in Collection ▾.")
             } else if store.isScanning {
-                emptyLabel.stringValue = "Looking for photos and videos…"
+                emptyLabel.stringValue = L10n.tr("Looking for photos and videos…")
             } else {
-                emptyLabel.stringValue = "No photos or videos were found in the collection's folders."
+                emptyLabel.stringValue = L10n.tr("No photos or videos were found in the collection's folders.")
             }
         }
         emptyLabel.isHidden = !months.isEmpty
         rail.isHidden = months.isEmpty
         if !store.unavailable.isEmpty, !store.isScanning {
             let names = DisplayPath.quotedList(store.unavailable)
-            host?.showStatusMessage("Some folders in the collection aren't available, so Gallery may be incomplete: \(names)", isError: true)
+            host?.showStatusMessage(L10n.format("Some folders in the collection aren't available, so Gallery may be incomplete: %@", "\(names)"), isError: true)
             showsPartialCoverage = true
         } else if store.unavailable.isEmpty, showsPartialCoverage {
             host?.showStatusMessage(nil, isError: false)
@@ -291,6 +291,11 @@ final class GalleryGridView: NSView, NSDraggingSource {
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
     override var isOpaque: Bool { true }
+    private lazy var emphasisObserver = SelectionEmphasis.Observer { [weak self] in self?.needsDisplay = true }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        emphasisObserver.attach(to: window)
+    }
 
     var itemCount: Int { tiles.count }
     var allItems: [GalleryItem] { tiles.map(\.item) }
@@ -371,6 +376,7 @@ final class GalleryGridView: NSView, NSDraggingSource {
         }
         let scale = window?.backingScaleFactor ?? 2
         let checkboxes = Prefs.itemCheckBoxes
+        let focused = SelectionEmphasis.hasFocus(self)
         for (index, tile) in tiles.enumerated() where tile.rect.intersects(dirtyRect) {
             let rect = tile.rect
             let path = NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4)
@@ -395,7 +401,8 @@ final class GalleryGridView: NSView, NSDraggingSource {
             NSGraphicsContext.restoreGraphicsState()
             if tile.item.kind == .video { drawVideoBadge(in: rect) }
             if selected {
-                Theme.accent.setStroke()
+                // Accent ring while the grid has focus in the active window, grey otherwise (SelectionEmphasis).
+                (focused ? Theme.accent : SelectionEmphasis.inactiveMark).setStroke()
                 let ring = NSBezierPath(roundedRect: rect.insetBy(dx: 1, dy: 1), xRadius: 4, yRadius: 4)
                 ring.lineWidth = 2
                 ring.stroke()
@@ -405,7 +412,7 @@ final class GalleryGridView: NSView, NSDraggingSource {
                 inner.stroke()
             }
             if selected || index == hoverIndex || checkboxes { drawCheckbox(in: rect, checked: selected) }
-            if index == focusIndex, window?.firstResponder === self, !selected {
+            if index == focusIndex, focused, !selected {
                 Theme.primaryText.withAlphaComponent(0.6).setStroke()
                 let ring = NSBezierPath(roundedRect: rect.insetBy(dx: 1, dy: 1), xRadius: 4, yRadius: 4)
                 ring.lineWidth = 1
@@ -648,7 +655,7 @@ final class GalleryGridView: NSView, NSDraggingSource {
     override func resignFirstResponder() -> Bool { needsDisplay = true; return true }
 
     override func accessibilityRole() -> NSAccessibility.Role? { .list }
-    override func accessibilityLabel() -> String? { "Gallery, \(StatusText.items(tiles.count))" }
+    override func accessibilityLabel() -> String? { L10n.format("Gallery, %@", "\(StatusText.items(tiles.count))") }
     override func isAccessibilityElement() -> Bool { true }
 }
 

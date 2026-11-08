@@ -9,11 +9,11 @@ public enum ListingError: Error, Equatable, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .notFound(let path):
-            return "“\(path)” doesn't exist or is no longer available."
+            return L10n.format("“%@” doesn't exist or is no longer available.", "\(path)")
         case .permissionDenied(let path):
-            return "You don't have permission to see the contents of “\(path)”. You can grant access in System Settings → Privacy & Security."
+            return L10n.format("You don't have permission to see the contents of “%@”. You can grant access in System Settings → Privacy & Security.", "\(path)")
         case .notAFolder(let path):
-            return "“\(path)” is not a folder."
+            return L10n.format("“%@” is not a folder.", "\(path)")
         case .other(_, let message):
             return message
         }
@@ -40,7 +40,7 @@ public enum DirectoryLister {
                                                           if failure == nil { failure = error as NSError }
                                                           return false
                                                       }) else {
-            throw ListingError.other(path: path, message: "“\(path)” couldn't be read.")
+            throw ListingError.other(path: path, message: L10n.format("“%@” couldn't be read.", "\(path)"))
         }
         var items: [FileItem] = []
         var done = false

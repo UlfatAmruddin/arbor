@@ -49,6 +49,7 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         setAccessibilityLabel(L10n.tr("Address"))
 
         iconView.imageScaling = .scaleProportionallyDown
+        iconView.hideFromAccessibility()
         addSubview(iconView)
 
         field.isBordered = false

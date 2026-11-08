@@ -53,14 +53,14 @@ enum SendToCommands {
         }
 
         if let zip = CommandRegistry.shared.command(zipCommandID), zip.isAvailable(ctx) {
-            let item = ClosureMenuItem("Compressed (zipped) folder", image: icon(IconProvider.shared.icon(for: .archive(URL(fileURLWithPath: "/"), innerPath: ""), size: 16))) {
+            let item = ClosureMenuItem(L10n.tr("Compressed (zipped) folder"), image: icon(IconProvider.shared.icon(for: .archive(URL(fileURLWithPath: "/"), innerPath: ""), size: 16))) {
                 CommandRegistry.shared.perform(zipCommandID, context: ctx)
             }
             item.isEnabled = zip.isEnabled(ctx)
             menu.append(item)
         }
         if let desktop = specialFolder("Desktop", .desktopDirectory) {
-            menu.append(ClosureMenuItem("Desktop (create shortcut)", image: icon(IconProvider.shared.folderIcon(.desktop, size: 16))) {
+            menu.append(ClosureMenuItem(L10n.tr("Desktop (create shortcut)"), image: icon(IconProvider.shared.folderIcon(.desktop, size: 16))) {
                 let created = Shortcuts.createShortcuts(to: urls, in: desktop, window: window)
                 if !created.isEmpty {
                     window?.statusBar.setMessage(created.count == 1 ? "Created “\(created[0].lastPathComponent)” on the Desktop."
@@ -69,14 +69,14 @@ enum SendToCommands {
             })
         }
         if let documents = specialFolder("Documents", .documentDirectory) {
-            menu.append(ClosureMenuItem("Documents", image: icon(IconProvider.shared.folderIcon(.documents, size: 16))) {
+            menu.append(ClosureMenuItem(L10n.tr("Documents"), image: icon(IconProvider.shared.folderIcon(.documents, size: 16))) {
                 window?.startTransfer(.copy, DragSources.deduplicated(urls), to: documents)
             })
         }
         if !ctx.selection.contains(where: \.isFolder), let mail = NSSharingService(named: .composeEmail), mail.canPerform(withItems: urls) {
-            menu.append(ClosureMenuItem("Mail recipient", image: icon(mail.image)) {
+            menu.append(ClosureMenuItem(L10n.tr("Mail recipient"), image: icon(mail.image)) {
                 if AppDelegate.isHeadless {
-                    window?.statusBar.setMessage("Mail recipient: \(urls.count) attachment(s) (not sent in test runs).")
+                    window?.statusBar.setMessage(L10n.format("Mail recipient: %@ attachment(s) (not sent in test runs).", "\(urls.count)"))
                 }
                 SystemOpen.perform(mail, items: urls)
             })
@@ -89,7 +89,7 @@ enum SendToCommands {
             })
         }
         if menu.isEmpty {
-            let none = NSMenuItem(title: "No destinations available", action: nil, keyEquivalent: "")
+            let none = NSMenuItem(title: L10n.tr("No destinations available"), action: nil, keyEquivalent: "")
             none.isEnabled = false
             menu.append(none)
         }

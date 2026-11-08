@@ -25,6 +25,7 @@ final class TabState {
             if let old = oldValue, old.count >= 10_000 { BackgroundRelease.drop(old) }
             if let cache = visibleCache, cache.items.count >= 10_000 { BackgroundRelease.drop(cache.items) }
             visibleCache = nil
+            listingGeneration += 1
             if let items { TabState.touch(self, cost: CacheBudgets.listingCost(items)) } else { TabState.forget(self) }
         }
     }
@@ -68,7 +69,8 @@ final class TabState {
     /// Filtered and sorted rows, cached until the listing, query or order changes.
     var visibleItems: [FileItem] {
         guard let items else { return [] }
-        if let cache = visibleCache, cache.query == searchText, cache.order == sortOrder { return cache.items }
+        // While a background sort runs, the rows keep their previous order (FE-228).
+        if let cache = visibleCache, cache.query == searchText, cache.order == sortOrder || isSorting { return cache.items }
         var filtered = FileFilter.apply(items, query: searchText)
         if let hook = TabState.visibleItemsFilter { filtered = hook(self, filtered) }
         let result = FileSorter.sorted(filtered, by: sortOrder)
@@ -82,6 +84,37 @@ final class TabState {
 
     /// Drops the cached rows (a filter or a sort column's metadata changed).
     func invalidateVisibleItems() { visibleCache = nil }
+
+    private var sortGeneration = 0
+    private var listingGeneration = 0
+    /// A background sort for this tab is running (scripted timing waits for it).
+    private(set) var isSorting = false
+
+    /// Sorts a large listing off the main thread when the rows for the current query and order aren't cached
+    /// (FE-228). Returns false when the rows can be computed right away; otherwise the old order stays on screen
+    /// and `ready` runs on the main thread once the new rows are cached. A newer request, query or listing
+    /// makes an older result stale; it is dropped.
+    func sortInBackground(then ready: @escaping () -> Void) -> Bool {
+        guard let items else { return false }
+        if let cache = visibleCache, cache.query == searchText, cache.order == sortOrder { return false }
+        var filtered = FileFilter.apply(items, query: searchText)
+        if let hook = TabState.visibleItemsFilter { filtered = hook(self, filtered) }
+        guard BackgroundSort.shouldSortInBackground(filtered.count, sortOrder) else { return false }
+        sortGeneration += 1
+        let generation = sortGeneration, query = searchText, order = sortOrder, listing = listingGeneration
+        isSorting = true
+        BackgroundSort.sort(filtered, by: order, isCurrent: { [weak self] in
+            guard let self else { return false }
+            let current = self.sortGeneration == generation
+            if current { self.isSorting = false }
+            return current && self.searchText == query && self.sortOrder == order && self.listingGeneration == listing
+        }, completion: { [weak self] sorted in
+            guard let self else { return }
+            self.visibleCache = (query, order, sorted)
+            ready()
+        })
+        return true
+    }
 
     // MARK: Bounded listing cache shared by all tabs (spec §15.3, FE-251)
 

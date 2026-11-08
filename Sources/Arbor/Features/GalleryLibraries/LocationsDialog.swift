@@ -20,8 +20,8 @@ final class LocationsDialog: NSObject, NSTableViewDataSource, NSTableViewDelegat
     private(set) var saveLocation: String?
     let sheet: NSWindow
     private let table = NSTableView()
-    private let removeButton = NSButton(title: "Remove", target: nil, action: nil)
-    private let saveButton = NSButton(title: "Set save location", target: nil, action: nil)
+    private let removeButton = NSButton(title: L10n.tr("Remove"), target: nil, action: nil)
+    private let saveButton = NSButton(title: L10n.tr("Set save location"), target: nil, action: nil)
     private weak var parent: NSWindow?
     private static var open: [LocationsDialog] = []
 
@@ -46,8 +46,8 @@ final class LocationsDialog: NSObject, NSTableViewDataSource, NSTableViewDelegat
 
     var title: String {
         switch mode {
-        case .library(let name): return "\(name) Library Locations"
-        case .gallery: return "Gallery Locations"
+        case .library(let name): return L10n.format("%@ Library Locations", "\(name)")
+        case .gallery: return L10n.tr("Gallery Locations")
         }
     }
 
@@ -67,7 +67,7 @@ final class LocationsDialog: NSObject, NSTableViewDataSource, NSTableViewDelegat
             : "Photos and videos in these folders and their subfolders appear in Gallery. Files stay where they are; removing a folder from the collection doesn't delete anything. Photos libraries are never scanned.")
         info.font = Theme.bodyFont
         info.textColor = Theme.secondaryText
-        let listTitle = NSTextField(labelWithString: isLibrary ? "Library locations" : "Gallery locations")
+        let listTitle = NSTextField(labelWithString: isLibrary ? L10n.tr("Library locations") : L10n.tr("Gallery locations"))
         listTitle.font = Theme.bodyFont
         listTitle.textColor = Theme.primaryText
 
@@ -88,12 +88,12 @@ final class LocationsDialog: NSObject, NSTableViewDataSource, NSTableViewDelegat
         scroll.borderType = .lineBorder
         scroll.translatesAutoresizingMaskIntoConstraints = false
 
-        let add = NSButton(title: "Add…", target: self, action: #selector(addFolder(_:)))
+        let add = NSButton(title: L10n.tr("Add…"), target: self, action: #selector(addFolder(_:)))
         removeButton.target = self
         removeButton.action = #selector(removeFolder(_:))
         saveButton.target = self
         saveButton.action = #selector(setSaveLocation(_:))
-        let restore = NSButton(title: "Restore defaults", target: self, action: #selector(restoreDefaults(_:)))
+        let restore = NSButton(title: L10n.tr("Restore defaults"), target: self, action: #selector(restoreDefaults(_:)))
         let side = NSStackView(views: isLibrary ? [add, removeButton, saveButton] : [add, removeButton])
         side.orientation = .vertical
         side.alignment = .leading
@@ -101,9 +101,9 @@ final class LocationsDialog: NSObject, NSTableViewDataSource, NSTableViewDelegat
         side.translatesAutoresizingMaskIntoConstraints = false
         side.arrangedSubviews.forEach { ($0 as? NSButton)?.widthAnchor.constraint(equalToConstant: 140).isActive = true }
 
-        let ok = NSButton(title: "OK", target: self, action: #selector(confirm(_:)))
+        let ok = NSButton(title: L10n.tr("OK"), target: self, action: #selector(confirm(_:)))
         ok.keyEquivalent = "\r"
-        let cancel = NSButton(title: "Cancel", target: self, action: #selector(dismiss(_:)))
+        let cancel = NSButton(title: L10n.tr("Cancel"), target: self, action: #selector(dismiss(_:)))
         cancel.keyEquivalent = "\u{1b}"
         let bottom = NSStackView(views: [restore, NSView(), ok, cancel])
         bottom.orientation = .horizontal
@@ -227,8 +227,8 @@ final class LocationsDialog: NSObject, NSTableViewDataSource, NSTableViewDelegat
     func add(_ url: URL) -> Bool {
         let path = Location.normalizedKey(url)
         if GalleryScanRules.isExcluded(path: path) {
-            NSAlert.show("“\(url.lastPathComponent)” can't be included.",
-                         "Photos libraries are managed by the Photos app and are never scanned. Choose a regular folder instead.",
+            NSAlert.show(L10n.format("“%@” can't be included.", "\(url.lastPathComponent)"),
+                         L10n.tr("Photos libraries are managed by the Photos app and are never scanned. Choose a regular folder instead."),
                          in: sheet)
             return false
         }

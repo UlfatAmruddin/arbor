@@ -168,7 +168,7 @@ final class ColumnFilterViewController: NSViewController {
         stack.alignment = .leading
         stack.spacing = 6
         stack.edgeInsets = NSEdgeInsets(top: 10, left: 12, bottom: 10, right: 16)
-        stack.setAccessibilityLabel("Filter by \(ColumnCatalog.title(column))")
+        stack.setAccessibilityLabel(L10n.format("Filter by %@", "\(ColumnCatalog.title(column))"))
         view = stack
         reload()
     }
@@ -183,7 +183,7 @@ final class ColumnFilterViewController: NSViewController {
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         let (choices, checked) = optionsProvider()
         if choices.isEmpty {
-            stack.addArrangedSubview(NSTextField(labelWithString: "No values to filter by."))
+            stack.addArrangedSubview(NSTextField(labelWithString: L10n.tr("No values to filter by.")))
         }
         for bucket in choices.prefix(200) {
             let box = NSButton(checkboxWithTitle: bucket.title, target: self, action: #selector(toggled(_:)))

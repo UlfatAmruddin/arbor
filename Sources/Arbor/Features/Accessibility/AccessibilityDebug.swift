@@ -65,7 +65,14 @@ enum AccessibilityDebug {
             if let editor = c?.window?.firstResponder as? NSTextView {
                 editor.setMarkedText(text, selectedRange: NSRange(location: (text as NSString).length, length: 0),
                                      replacementRange: NSRange(location: NSNotFound, length: 0))
+            } else if let input = listTextInput(c) {
+                input.scriptCompose(text)   // type-to-select in the file list (FE-068)
             }
+            return 0.4
+        }
+        // composecommit:かな — the input method commits text typed into the file list.
+        DebugScript.registerStep("composecommit") { text, c in
+            listTextInput(c)?.scriptCommit(text)
             return 0.4
         }
         DebugScript.registerStep("announcements") { path, _ in
@@ -87,6 +94,8 @@ enum AccessibilityDebug {
         }
         DebugScript.registerLogger { c in
             "accessibility: focus=\(FocusRegions.current(in: c)?.rawValue ?? "none") textSize=\(TextSize.level.rawValue)"
+                + " typeSelect=\(listTextInput(c)?.debugText ?? "-")"
+                + ((c.window?.firstResponder as? FileTableView).map { " detailsFocus=\($0.focusRow.map(String.init) ?? "-")" } ?? "")
                 + " contrast=\(Theme.increasedContrast) rtl=\(NSApp.userInterfaceLayoutDirection == .rightToLeft) pseudo=\(L10n.pseudo)"
         }
     }
@@ -102,6 +111,15 @@ enum AccessibilityDebug {
         return NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
                                 windowNumber: window.windowNumber, context: nil, characters: key.characters,
                                 charactersIgnoringModifiers: key.characters, isARepeat: false, keyCode: key.code)
+    }
+
+    /// The type-to-select input of the focused file list (Details or an icon layout).
+    static func listTextInput(_ c: BrowserWindowController?) -> TypeSelectInput? {
+        switch c?.window?.firstResponder {
+        case let table as FileTableView: return table.typeSelect?.input
+        case let grid as ItemGridView: return grid.typeSelectInputForScripts
+        default: return nil
+        }
     }
 
     static func append(_ text: String, to path: String) {

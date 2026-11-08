@@ -8,7 +8,7 @@ public enum RenameError: Error, Equatable, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .invalid(let reason): return reason.errorDescription
-        case .alreadyExists(let name): return "An item named “\(name)” already exists in this folder."
+        case .alreadyExists(let name): return L10n.format("An item named “%@” already exists in this folder.", "\(name)")
         case .failed(let message): return message
         }
     }

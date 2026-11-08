@@ -72,6 +72,22 @@ final class NavOutlineView: NSOutlineView {
         frame.origin.x += 4
         return frame
     }
+
+    // The separator lines between groups are decoration: VoiceOver skips them instead of reading empty rows.
+    override func accessibilityChildren() -> [Any]? { super.accessibilityChildren()?.filter { !isSeparatorElement($0) } }
+
+    private func isSeparatorElement(_ element: Any) -> Bool {
+        var row = -1
+        if let view = element as? NSView {
+            row = self.row(for: view)
+        } else if let object = element as? NSObject {
+            // AppKit's row proxies only answer the attribute-based API.
+            let getter = NSSelectorFromString("accessibilityAttributeValue:")
+            if object.responds(to: getter),
+               let index = object.perform(getter, with: "AXIndex")?.takeUnretainedValue() as? NSNumber { row = index.intValue }
+        }
+        return row >= 0 && row < numberOfRows && (item(atRow: row) as? NavNode)?.kind == .separator
+    }
 }
 
 /// Navigation pane (FE-007) styled like Explorer: Home, Gallery, pinned folders, This Mac, Network.
@@ -233,6 +249,7 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
     func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
         let row = ExplorerRowView()
         row.style = .navigation
+        if (item as? NavNode)?.kind == .separator { row.setAccessibilityElement(false) }   // decoration only
         return row
     }
 
@@ -253,7 +270,7 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
         cell.textField?.toolTip = node.url?.path ?? node.title
         cell.imageView?.image = node.icon
         cell.pin.isHidden = node.kind != .favorite
-        cell.setAccessibilityLabel(node.kind == .favorite ? "\(node.title), pinned" : node.title)
+        cell.setAccessibilityLabel(node.kind == .favorite ? L10n.format("%@, pinned", "\(node.title)") : node.title)
         NavigationPaneHooks.decorateCell?(cell, node)
         return cell
     }
@@ -304,7 +321,7 @@ final class NavCellView: NSTableCellView {
         label.lineBreakMode = .byTruncatingTail
         label.translatesAutoresizingMaskIntoConstraints = false
         label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        pin.image = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: "Pinned")?
+        pin.image = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: L10n.tr("Pinned"))?
             .withSymbolConfiguration(.init(pointSize: 9, weight: .regular))
         pin.contentTintColor = Theme.secondaryText
         pin.translatesAutoresizingMaskIntoConstraints = false

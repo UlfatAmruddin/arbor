@@ -51,13 +51,13 @@ public enum EditableField: String, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .name: return "Name"
-        case .locked: return "Read-only (Locked)"
-        case .hidden: return "Hidden"
-        case .mode: return "Permissions"
-        case .tags: return "Tags"
-        case .comment: return "Comments"
-        case .quarantine: return "Unblock"
+        case .name: return L10n.tr("Name")
+        case .locked: return L10n.tr("Read-only (Locked)")
+        case .hidden: return L10n.tr("Hidden")
+        case .mode: return L10n.tr("Permissions")
+        case .tags: return L10n.tr("Tags")
+        case .comment: return L10n.tr("Comments")
+        case .quarantine: return L10n.tr("Unblock")
         }
     }
 }

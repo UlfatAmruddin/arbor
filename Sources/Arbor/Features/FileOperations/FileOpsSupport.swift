@@ -72,7 +72,7 @@ extension OperationCenter {
             // background check finishes.
             let box = UndoCopyResult()
             center.undoManager.registerUndo(withTarget: center) { c in c.redoCopy(box) }
-            center.undoManager.setActionName("Copy")
+            center.undoManager.setActionName(L10n.tr("Copy"))
             DispatchQueue.global(qos: .userInitiated).async {
                 let plan = CopyUndo.plan(copies)
                 var trashed: [(original: URL, trashed: URL, fingerprint: ItemFingerprint)] = []
@@ -98,7 +98,7 @@ extension OperationCenter {
                 }
             }
         }
-        undoManager.setActionName("Copy")
+        undoManager.setActionName(L10n.tr("Copy"))
     }
 
     private func redoCopy(_ box: UndoCopyResult) {
@@ -113,8 +113,8 @@ extension OperationCenter {
             } catch { skipped.append(item.original.lastPathComponent) }
         }
         if !skipped.isEmpty {
-            NSAlert.show("Some copies couldn't be put back.",
-                         "Their location is taken or they're no longer in the Trash:\n" + skipped.joined(separator: ", "), in: NSApp.keyWindow)
+            NSAlert.show(L10n.tr("Some copies couldn't be put back."),
+                         L10n.tr("Their location is taken or they're no longer in the Trash:\n") + skipped.joined(separator: ", "), in: NSApp.keyWindow)
         }
         BrowserWindowController.active?.reload()
         registerUndoCopy(restored)

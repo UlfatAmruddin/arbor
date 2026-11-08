@@ -163,11 +163,11 @@ extension DetailsViewController {
         guard let g = headerIndex(atRow: row) else { return nil }
         let menu = NSMenu(title: "Group")
         let collapsed = isCollapsed(g)
-        menu.addItem(ClosureMenuItem(collapsed ? "Expand Group" : "Collapse Group") { [weak self] in
+        menu.addItem(ClosureMenuItem(collapsed ? L10n.tr("Expand Group") : L10n.tr("Collapse Group")) { [weak self] in
             self?.setGroup(g, collapsed: !collapsed)
         })
-        menu.addItem(ClosureMenuItem("Collapse All Groups") { [weak self] in self?.setAllGroups(collapsed: true) })
-        menu.addItem(ClosureMenuItem("Expand All Groups") { [weak self] in self?.setAllGroups(collapsed: false) })
+        menu.addItem(ClosureMenuItem(L10n.tr("Collapse All Groups")) { [weak self] in self?.setAllGroups(collapsed: true) })
+        menu.addItem(ClosureMenuItem(L10n.tr("Expand All Groups")) { [weak self] in self?.setAllGroups(collapsed: false) })
         return menu
     }
 
@@ -221,7 +221,7 @@ extension DetailsViewController {
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id.rawValue))
         column.title = title
         column.headerCell.alignment = alignment
-        column.headerCell.attributedStringValue = NSAttributedString(string: title, attributes: [
+        column.headerCell.attributedStringValue = NSAttributedString(string: L10n.tr(title), attributes: [
             .font: Theme.headerFont, .foregroundColor: Theme.secondaryText,
             .paragraphStyle: { let p = NSMutableParagraphStyle(); p.alignment = alignment; p.lineBreakMode = .byTruncatingTail; return p }(),
         ])
@@ -379,11 +379,11 @@ extension DetailsViewController {
     func buildHeaderMenu(_ menu: NSMenu) {
         menu.removeAllItems()
         let clicked = headerColumnUnderMouse
-        let fitOne = ClosureMenuItem("Size Column to Fit") { [weak self] in self?.sizeColumnToFit(clicked) }
+        let fitOne = ClosureMenuItem(L10n.tr("Size Column to Fit")) { [weak self] in self?.sizeColumnToFit(clicked) }
         fitOne.isEnabled = clicked >= 0
         menu.autoenablesItems = false
         menu.addItem(fitOne)
-        menu.addItem(ClosureMenuItem("Size All Columns to Fit") { [weak self] in self?.sizeColumnsToFit(nil) })
+        menu.addItem(ClosureMenuItem(L10n.tr("Size All Columns to Fit")) { [weak self] in self?.sizeColumnsToFit(nil) })
         menu.addItem(.separator())
         let shown = Set(shownColumnIDs)
         for d in ColumnCatalog.all where d.isCommon {
@@ -395,9 +395,9 @@ extension DetailsViewController {
         }
         menu.addItem(.separator())
         if let o = hostOptions, !o.filters.isEmpty {
-            menu.addItem(ClosureMenuItem("Clear Filters") { [weak self] in self.map { DetailsDepth.clearFilters($0.hostTab) } })
+            menu.addItem(ClosureMenuItem(L10n.tr("Clear Filters")) { [weak self] in self.map { DetailsDepth.clearFilters($0.hostTab) } })
         }
-        menu.addItem(ClosureMenuItem("More…") { [weak self] in self?.presentChooseDetails() })
+        menu.addItem(ClosureMenuItem(L10n.tr("More…")) { [weak self] in self?.presentChooseDetails() })
     }
 
     func presentChooseDetails() {

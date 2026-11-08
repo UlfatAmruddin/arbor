@@ -149,7 +149,13 @@ final class TileGridView: NSView, SectionTagged, NSDraggingSource {
     override var acceptsFirstResponder: Bool { true }
 
     /// The grid has keyboard focus in the key window (selection is drawn in the accent tint).
-    var isActive: Bool { window?.firstResponder === self }
+    var isActive: Bool { SelectionEmphasis.hasFocus(self) }
+    private lazy var emphasisObserver = SelectionEmphasis.Observer { [weak self] in self?.tiles.forEach { $0.needsDisplay = true } }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        emphasisObserver.attach(to: window)
+    }
 
     override func becomeFirstResponder() -> Bool { tiles.forEach { $0.needsDisplay = true }; return true }
     override func resignFirstResponder() -> Bool {

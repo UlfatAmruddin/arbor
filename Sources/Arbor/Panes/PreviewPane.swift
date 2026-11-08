@@ -19,7 +19,7 @@ final class PreviewPane: NSView, SidePaneProvider {
     override init(frame: NSRect) {
         super.init(frame: frame)
         translatesAutoresizingMaskIntoConstraints = false
-        setAccessibilityLabel("Preview pane")
+        setAccessibilityLabel(L10n.tr("Preview pane"))
         placeholder.alignment = .center
         placeholder.textColor = Theme.secondaryText
         placeholder.font = Theme.bodyFont
@@ -31,7 +31,7 @@ final class PreviewPane: NSView, SidePaneProvider {
             placeholder.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, constant: -32),
             widthAnchor.constraint(greaterThanOrEqualToConstant: 220),
         ])
-        placeholder.stringValue = "Select a file to preview."
+        placeholder.stringValue = L10n.tr("Select a file to preview.")
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -58,12 +58,12 @@ final class PreviewPane: NSView, SidePaneProvider {
             return
         }
         guard PreviewPolicy.showsPreviewHandlers() else {
-            showPlaceholder("No preview available.\nPreviews are turned off in Folder Options (Show preview handlers in preview pane).")
+            showPlaceholder(L10n.tr("No preview available.\nPreviews are turned off in Folder Options (Show preview handlers in preview pane)."))
             return
         }
         if let values = try? item.url.resourceValues(forKeys: [.isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey]),
            values.isUbiquitousItem == true, values.ubiquitousItemDownloadingStatus != .current {
-            showPlaceholder("This file is stored in iCloud and isn't downloaded. Open it to download it.")
+            showPlaceholder(L10n.tr("This file is stored in iCloud and isn't downloaded. Open it to download it."))
             return
         }
         guard shownURL != item.url else { return }

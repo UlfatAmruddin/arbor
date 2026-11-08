@@ -95,7 +95,7 @@ final class PropertiesModel {
     func apply(in window: NSWindow?, completion: @escaping (Bool) -> Void) {
         let check = refreshFromDisk()
         if !check.missing.isEmpty {
-            PropertiesWindowController.present(message: "“\(check.missing[0])” can't be found.",
+            PropertiesWindowController.present(message: L10n.format("“%@” can't be found.", "\(check.missing[0])"),
                                                info: "It may have been moved, renamed or deleted by another app. Close this window and try again.",
                                                window: window)
             completion(false)
@@ -103,10 +103,10 @@ final class PropertiesModel {
         }
         if let first = check.conflicts.first {
             let alert = NSAlert()
-            alert.messageText = "“\(first.name)” was changed by another app while this window was open."
-            alert.informativeText = "Changed: \(first.fields.map(\.title).joined(separator: ", ")). Apply your changes anyway and replace those values?"
-            alert.addButton(withTitle: "Apply Anyway")
-            alert.addButton(withTitle: "Cancel")
+            alert.messageText = L10n.format("“%@” was changed by another app while this window was open.", "\(first.name)")
+            alert.informativeText = L10n.format("Changed: %@. Apply your changes anyway and replace those values?", "\(first.fields.map(\.title).joined(separator: ", "))")
+            alert.addButton(withTitle: L10n.tr("Apply Anyway"))
+            alert.addButton(withTitle: L10n.tr("Cancel"))
             PropertiesWindowController.present(alert, window: window) { [weak self] response in
                 guard let self, response == .alertFirstButtonReturn else { completion(false); return }
                 completion(self.write(in: window))
@@ -149,7 +149,7 @@ final class PropertiesModel {
         }
         notify()
         if !failures.isEmpty {
-            PropertiesWindowController.present(message: "Some properties couldn't be changed.", info: failures.joined(separator: "\n"), window: window)
+            PropertiesWindowController.present(message: L10n.tr("Some properties couldn't be changed."), info: failures.joined(separator: "\n"), window: window)
             return false
         }
         return true

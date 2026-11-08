@@ -26,9 +26,9 @@ final class PropertiesWindowController: NSWindowController, NSWindowDelegate {
     private let tabBar = SheetTabBar()
     private let panel = SheetPanel()
     private(set) var selectedTab = 0
-    private let ok = SheetButton("OK", isDefault: true)
-    private let cancel = SheetButton("Cancel")
-    private let applyButton = SheetButton("Apply")
+    private let ok = SheetButton(L10n.tr("OK"), isDefault: true)
+    private let cancel = SheetButton(L10n.tr("Cancel"))
+    private let applyButton = SheetButton(L10n.tr("Apply"))
     private let key: String
 
     static func show(_ items: [FileItem], relativeTo parent: NSWindow?) {
@@ -148,7 +148,7 @@ final class PropertiesWindowController: NSWindowController, NSWindowDelegate {
         } else {
             name = model.entries.first.map { $0.url.lastPathComponent + ", …" } ?? ""
         }
-        window?.title = "\(name) Properties"
+        window?.title = L10n.format("%@ Properties", "\(name)")
     }
 
     // MARK: Buttons

@@ -100,7 +100,7 @@ final class ReplaceOrSkipDialog: FileOpsDialog {
     private let conflicts: [Conflict]
     private let job: OperationCenter.Job
     private let completion: ([ConflictDecision]?) -> Void
-    private let applyAll = NSButton(checkboxWithTitle: "Do this for all current items", target: nil, action: nil)
+    private let applyAll = NSButton(checkboxWithTitle: L10n.tr("Do this for all current items"), target: nil, action: nil)
     private let details = NSStackView()
     private var answered = false
 
@@ -108,28 +108,28 @@ final class ReplaceOrSkipDialog: FileOpsDialog {
         self.conflicts = conflicts
         self.job = job
         self.completion = completion
-        super.init(title: "Replace or Skip Files", width: 470)
+        super.init(title: L10n.tr("Replace or Skip Files"), width: 470)
         let many = conflicts.count > 1
         let transfer = job.transfer
         let header = fromToLine(verb: job.presentedAs?.progressVerb ?? transfer.kind.progressVerb, count: transfer.sources.count,
                                 source: job.presentedAs?.source ?? conflicts.first?.source.deletingLastPathComponent(),
                                 destination: conflicts.first?.destination.deletingLastPathComponent(), open: ConflictFlow.open)
         let instruction = FileOpsStyle.label(
-            many ? "The destination has \(conflicts.count) files with the same names"
-                 : "The destination already has a file named “\(conflicts[0].destination.lastPathComponent)”",
+            many ? L10n.format("The destination has %@ files with the same names", "\(conflicts.count)")
+                 : L10n.format("The destination already has a file named “%@”", "\(conflicts[0].destination.lastPathComponent)"),
             font: FileOpsStyle.instructionFont, wraps: true)
         instruction.preferredMaxLayoutWidth = 430
         let replace = CommandLinkButton(symbol: "checkmark",
-                                        title: many ? "Replace the files in the destination" : "Replace the file in the destination",
-                                        detail: many ? "The existing files go to the Trash." : "The existing file goes to the Trash.") { [weak self] in
+                                        title: many ? L10n.tr("Replace the files in the destination") : L10n.tr("Replace the file in the destination"),
+                                        detail: many ? L10n.tr("The existing files go to the Trash.") : L10n.tr("The existing file goes to the Trash.")) { [weak self] in
             self?.answer(conflicts.map { _ in .replace })
         }
         let skip = CommandLinkButton(symbol: "arrowshape.turn.up.right",
-                                     title: many ? "Skip these files" : "Skip this file") { [weak self] in
+                                     title: many ? L10n.tr("Skip these files") : L10n.tr("Skip this file")) { [weak self] in
             self?.answer(conflicts.map { _ in .skip })
         }
         let decide = CommandLinkButton(symbol: "rectangle.on.rectangle",
-                                       title: many ? "Let me decide for each file" : "Compare info for both files") { [weak self] in
+                                       title: many ? L10n.tr("Let me decide for each file") : L10n.tr("Compare info for both files")) { [weak self] in
             self?.compare()
         }
         applyAll.font = FileOpsStyle.bodyFont
@@ -142,7 +142,7 @@ final class ReplaceOrSkipDialog: FileOpsDialog {
             details.addArrangedSubview(FileOpsStyle.label(text, font: FileOpsStyle.captionFont, color: Theme.secondaryText))
         }
         if conflicts.count > 6 {
-            details.addArrangedSubview(FileOpsStyle.label("…and \(conflicts.count - 6) more", font: FileOpsStyle.captionFont, color: Theme.secondaryText))
+            details.addArrangedSubview(FileOpsStyle.label(L10n.format("…and %@ more", "\(conflicts.count - 6)"), font: FileOpsStyle.captionFont, color: Theme.secondaryText))
         }
         let options = NSStackView(views: [replace, skip, decide])
         options.orientation = .vertical
@@ -161,7 +161,7 @@ final class ReplaceOrSkipDialog: FileOpsDialog {
 
     static func describe(_ stamp: FileStamp?) -> String {
         guard let stamp else { return "unavailable" }
-        return "\(StatusText.bytes(stamp.size)), modified \(ConflictFlow.dates.string(from: stamp.modified))"
+        return L10n.format("%@, modified %@", "\(StatusText.bytes(stamp.size))", "\(ConflictFlow.dates.string(from: stamp.modified))")
     }
 
     private func answer(_ choices: [ConflictChoice]) {
@@ -201,7 +201,7 @@ final class CompareDialog: FileOpsDialog, NSTableViewDataSource, NSTableViewDele
     private let sourceHeader: NSButton
     private let existingHeader: NSButton
     private let skipSame: NSButton
-    private let continueButton = WinButton("Continue", accent: true)
+    private let continueButton = WinButton(L10n.tr("Continue"), accent: true)
     private let sameIndices: Set<Int>
     private var answered = false
 
@@ -217,14 +217,15 @@ final class CompareDialog: FileOpsDialog, NSTableViewDataSource, NSTableViewDele
         let source = job.presentedAs.map { $0.source.lastPathComponent }
             ?? conflicts.first.map { displayName(of: $0.source.deletingLastPathComponent()) } ?? ""
         let destination = conflicts.first.map { displayName(of: $0.destination.deletingLastPathComponent()) } ?? ""
-        sourceHeader = NSButton(checkboxWithTitle: "Files from \(source)", target: nil, action: nil)
-        existingHeader = NSButton(checkboxWithTitle: "Files already in \(destination)", target: nil, action: nil)
-        skipSame = NSButton(checkboxWithTitle: "Skip \(sameIndices.count) \(sameIndices.count == 1 ? "file" : "files") with the same date and size",
+        sourceHeader = NSButton(checkboxWithTitle: L10n.format("Files from %@", "\(source)"), target: nil, action: nil)
+        existingHeader = NSButton(checkboxWithTitle: L10n.format("Files already in %@", "\(destination)"), target: nil, action: nil)
+        skipSame = NSButton(checkboxWithTitle: sameIndices.count == 1 ? L10n.tr("Skip 1 file with the same date and size")
+                                                               : L10n.format("Skip %@ files with the same date and size", "\(sameIndices.count)"),
                             target: nil, action: nil)
         super.init(title: conflicts.count == 1 ? "1 File Conflict" : "\(conflicts.count) File Conflicts", width: 620)
 
-        let heading = FileOpsStyle.label("Which files do you want to keep?", font: FileOpsStyle.instructionFont)
-        let hint = FileOpsStyle.label("If you select both versions, the copied file will have a number added to its name.",
+        let heading = FileOpsStyle.label(L10n.tr("Which files do you want to keep?"), font: FileOpsStyle.instructionFont)
+        let hint = FileOpsStyle.label(L10n.tr("If you select both versions, the copied file will have a number added to its name."),
                                       font: FileOpsStyle.captionFont, color: Theme.secondaryText, wraps: true)
         hint.preferredMaxLayoutWidth = 580
         for box in [sourceHeader, existingHeader, skipSame] {
@@ -264,7 +265,7 @@ final class CompareDialog: FileOpsDialog, NSTableViewDataSource, NSTableViewDele
         setBody([heading, hint, headers, scroll, skipSame], spacing: 10)
 
         continueButton.onPress = { [weak self] in self?.finish() }
-        let cancel = WinButton("Cancel") { [weak self] in self?.cancelled() }
+        let cancel = WinButton(L10n.tr("Cancel")) { [weak self] in self?.cancelled() }
         setButtons([continueButton, cancel])
         refreshState()
     }
@@ -381,7 +382,7 @@ final class ConflictPairRow: NSView {
         box.tag = tag
         box.state = checked ? .on : .off
         box.isEnabled = !disabled
-        box.setAccessibilityLabel(tag == 0 ? "Keep the file being copied" : "Keep the existing file")
+        box.setAccessibilityLabel(tag == 0 ? L10n.tr("Keep the file being copied") : L10n.tr("Keep the existing file"))
         let icon = NSImageView(image: ConflictFlow.icon(for: url, isFolder: false, size: 32))
         icon.translatesAutoresizingMaskIntoConstraints = false
         icon.widthAnchor.constraint(equalToConstant: 32).isActive = true
@@ -407,29 +408,39 @@ final class ConflictPairRow: NSView {
 /// are merged and files with the same names are asked about separately, never replaced silently.
 final class FolderMergeDialog: FileOpsDialog {
     private let completion: (ConflictDecision) -> Void
-    private let applyAll = NSButton(checkboxWithTitle: "Do this for all current items", target: nil, action: nil)
+    private let applyAll = NSButton(checkboxWithTitle: L10n.tr("Do this for all current items"), target: nil, action: nil)
     private var answered = false
 
     init(_ conflict: Conflict, job: OperationCenter.Job, completion: @escaping (ConflictDecision) -> Void) {
         self.completion = completion
-        super.init(title: "Confirm Folder Replace", width: 470)
+        super.init(title: L10n.tr("Confirm Folder Replace"), width: 470)
         let name = conflict.destination.lastPathComponent
-        let instruction = FileOpsStyle.label("This destination already contains a folder named “\(name)”.",
+        let instruction = FileOpsStyle.label(L10n.format("This destination already contains a folder named “%@”.", "\(name)"),
                                              font: FileOpsStyle.instructionFont, wraps: true)
         instruction.preferredMaxLayoutWidth = 430
         let explain = FileOpsStyle.label(
-            "If the files in the existing folder have the same names as files in the folder you're \(job.presentedAs?.gerund ?? (job.transfer.kind == .copy ? "copying" : "moving")), you'll be asked whether to replace them. Do you still want to \(job.presentedAs?.verb ?? job.transfer.kind.verb) the folder?",
+            Self.mergeExplanation(extracting: job.presentedAs != nil, copying: job.transfer.kind == .copy),
             wraps: true)
         explain.preferredMaxLayoutWidth = 430
-        let existing = Self.folderRow(conflict.destination, conflict.destinationStamp, caption: "Existing folder")
-        let incoming = Self.folderRow(conflict.source, conflict.sourceStamp, caption: "Folder being \(job.presentedAs?.pastVerb ?? job.transfer.kind.pastVerb)")
+        let existing = Self.folderRow(conflict.destination, conflict.destinationStamp, caption: L10n.tr("Existing folder"))
+        let incoming = Self.folderRow(conflict.source, conflict.sourceStamp, caption: L10n.format("Folder being %@", TransferWords.localized(job.presentedAs?.pastVerb ?? job.transfer.kind.pastVerb)))
         applyAll.font = FileOpsStyle.bodyFont
         let body = setBody([instruction, explain, existing, incoming, applyAll], spacing: 10)
         body.setCustomSpacing(16, after: explain)
-        let yes = WinButton("Yes", accent: true) { [weak self] in self?.answer(.merge) }
-        let no = WinButton("No") { [weak self] in self?.answer(.skip) }
-        let cancel = WinButton("Cancel") { [weak self] in self?.answer(.cancel) }
+        let yes = WinButton(L10n.tr("Yes"), accent: true) { [weak self] in self?.answer(.merge) }
+        let no = WinButton(L10n.tr("No")) { [weak self] in self?.answer(.skip) }
+        let cancel = WinButton(L10n.tr("Cancel")) { [weak self] in self?.answer(.cancel) }
         setButtons([yes, no, cancel])
+    }
+
+    /// One whole sentence per operation, so translations don't assemble verbs.
+    static func mergeExplanation(extracting: Bool, copying: Bool) -> String {
+        if extracting {
+            return L10n.tr("If the files in the existing folder have the same names as files in the folder you're extracting, you'll be asked whether to replace them. Do you still want to extract the folder?")
+        }
+        return copying
+            ? L10n.tr("If the files in the existing folder have the same names as files in the folder you're copying, you'll be asked whether to replace them. Do you still want to copy the folder?")
+            : L10n.tr("If the files in the existing folder have the same names as files in the folder you're moving, you'll be asked whether to replace them. Do you still want to move the folder?")
     }
 
     static func folderRow(_ url: URL, _ stamp: FileStamp?, caption: String) -> NSView {
@@ -467,31 +478,33 @@ final class FolderMergeDialog: FileOpsDialog {
 /// so the choices are to keep both (the incoming item gets a number) or skip it.
 final class NameClashDialog: FileOpsDialog {
     private let completion: (ConflictDecision) -> Void
-    private let applyAll = NSButton(checkboxWithTitle: "Do this for all current items", target: nil, action: nil)
+    private let applyAll = NSButton(checkboxWithTitle: L10n.tr("Do this for all current items"), target: nil, action: nil)
     private var answered = false
 
     init(_ conflict: Conflict, job: OperationCenter.Job, completion: @escaping (ConflictDecision) -> Void) {
         self.completion = completion
-        super.init(title: "Replace or Skip Files", width: 470)
+        super.init(title: L10n.tr("Replace or Skip Files"), width: 470)
         let existingIsFolder = conflict.destinationStamp?.isFolder ?? FileOps.isPlainFolder(conflict.destination)
         let name = conflict.destination.lastPathComponent
         let header = fromToLine(verb: job.presentedAs?.progressVerb ?? job.transfer.kind.progressVerb, count: job.transfer.sources.count,
                                 source: job.presentedAs?.source ?? conflict.source.deletingLastPathComponent(),
                                 destination: conflict.destination.deletingLastPathComponent(), open: ConflictFlow.open)
-        let instruction = FileOpsStyle.label("The destination already has a \(existingIsFolder ? "folder" : "file") named “\(name)”",
+        let instruction = FileOpsStyle.label((existingIsFolder ? L10n.format("The destination already has a folder named “%@”", name) : L10n.format("The destination already has a file named “%@”", name)),
                                              font: FileOpsStyle.instructionFont, wraps: true)
         instruction.preferredMaxLayoutWidth = 430
-        let explain = FileOpsStyle.label("A file and a folder can't replace each other.", color: Theme.secondaryText)
+        let explain = FileOpsStyle.label(L10n.tr("A file and a folder can't replace each other."), color: Theme.secondaryText)
         let newName = NameRules.keepBothName(for: conflict.source.lastPathComponent, treatAsFolder: !existingIsFolder) { _ in false }
-        let keep = CommandLinkButton(symbol: "plus.square.on.square", title: "Keep both",
-                                     detail: "The \(existingIsFolder ? "file" : "folder") being \(job.presentedAs?.pastVerb ?? job.transfer.kind.pastVerb) will be named “\(newName)”.") { [weak self] in
+        let keep = CommandLinkButton(symbol: "plus.square.on.square", title: L10n.tr("Keep both"),
+                                     detail: existingIsFolder
+                                         ? L10n.format("The file being %@ will be named “%@”.", TransferWords.localized(job.presentedAs?.pastVerb ?? job.transfer.kind.pastVerb), newName)
+                                         : L10n.format("The folder being %@ will be named “%@”.", TransferWords.localized(job.presentedAs?.pastVerb ?? job.transfer.kind.pastVerb), newName)) { [weak self] in
             self?.answer(.keepBoth)
         }
-        let skip = CommandLinkButton(symbol: "arrowshape.turn.up.right", title: "Skip this item") { [weak self] in self?.answer(.skip) }
+        let skip = CommandLinkButton(symbol: "arrowshape.turn.up.right", title: L10n.tr("Skip this item")) { [weak self] in self?.answer(.skip) }
         for option in [keep, skip] { option.widthAnchor.constraint(equalToConstant: 430).isActive = true }
         applyAll.font = FileOpsStyle.bodyFont
         setBody([header, instruction, explain, keep, skip, applyAll], spacing: 8)
-        setButtons([WinButton("Cancel") { [weak self] in self?.answer(.cancel) }])
+        setButtons([WinButton(L10n.tr("Cancel")) { [weak self] in self?.answer(.cancel) }])
     }
 
     private func answer(_ choice: ConflictChoice) {

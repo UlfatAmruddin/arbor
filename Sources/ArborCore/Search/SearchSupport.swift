@@ -101,8 +101,8 @@ public struct SavedSearch: Codable, Equatable, Sendable {
         case newerVersion(Int)
         public var errorDescription: String? {
             switch self {
-            case .notASavedSearch: return "This file isn't an Arbor saved search."
-            case .newerVersion(let v): return "This saved search was made by a newer version of Arbor (format \(v))."
+            case .notASavedSearch: return L10n.tr("This file isn't an Arbor saved search.")
+            case .newerVersion(let v): return L10n.format("This saved search was made by a newer version of Arbor (format %@).", "\(v)")
             }
         }
     }
@@ -216,15 +216,15 @@ public struct SearchCoverage: Equatable, Sendable {
     /// One short phrase for the status bar: "Searching…", "Search complete", "Search incomplete: …".
     public var statusLine: String {
         switch phase {
-        case .searching: return "Searching…"
+        case .searching: return L10n.tr("Searching…")
         case .failed(let message):
             // The status bar gets the first sentence; the empty view shows the whole explanation.
             let first = message.range(of: ". ").map { String(message[..<$0.lowerBound]) + "." } ?? message
-            return "Search couldn't run: \(first)"
+            return L10n.format("Search couldn't run: %@", "\(first)")
         case .finished, .stopped:
             let g = gaps
-            if g.isEmpty { return "Search complete" }
-            let lead = phase == .stopped ? "Search stopped" : "Search incomplete"
+            if g.isEmpty { return L10n.tr("Search complete") }
+            let lead = phase == .stopped ? L10n.tr("Search stopped") : L10n.tr("Search incomplete")
             let rest = g.filter { $0 != "the search was stopped before it finished" }
             guard let first = rest.first else { return lead }
             return "\(lead): \(first)" + (rest.count > 1 ? " (+\(rest.count - 1) more)" : "")

@@ -18,12 +18,12 @@ final class CreateShortcutWizard: NSObject, NSTextFieldDelegate {
     private let intro = NSTextField(wrappingLabelWithString: "")
     private let fieldLabel = NSTextField(labelWithString: "")
     private let field = NSTextField()
-    private let browse = NSButton(title: "Browse…", target: nil, action: nil)
+    private let browse = NSButton(title: L10n.tr("Browse…"), target: nil, action: nil)
     private let error = NSTextField(wrappingLabelWithString: "")
     private let footnote = NSTextField(labelWithString: "")
-    private let back = NSButton(title: "Back", target: nil, action: nil)
-    private let next = NSButton(title: "Next", target: nil, action: nil)
-    private let cancel = NSButton(title: "Cancel", target: nil, action: nil)
+    private let back = NSButton(title: L10n.tr("Back"), target: nil, action: nil)
+    private let next = NSButton(title: L10n.tr("Next"), target: nil, action: nil)
+    private let cancel = NSButton(title: L10n.tr("Cancel"), target: nil, action: nil)
     private var page = 1
     private var location = ""
     private var target: Target?
@@ -43,7 +43,7 @@ final class CreateShortcutWizard: NSObject, NSTextFieldDelegate {
         self.browser = browser
         sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 560, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
         super.init()
-        sheet.title = "Create Shortcut"
+        sheet.title = L10n.tr("Create Shortcut")
         build()
         showPage(1)
     }
@@ -52,7 +52,7 @@ final class CreateShortcutWizard: NSObject, NSTextFieldDelegate {
         let content = ThemeBackgroundView(Theme.contentBackground)
         sheet.contentView = content
 
-        let title = NSTextField(labelWithString: "Create Shortcut")
+        let title = NSTextField(labelWithString: L10n.tr("Create Shortcut"))
         title.font = .systemFont(ofSize: 12)
         title.textColor = Theme.secondaryText
         heading.font = .systemFont(ofSize: 17, weight: .semibold)
@@ -65,7 +65,7 @@ final class CreateShortcutWizard: NSObject, NSTextFieldDelegate {
         field.delegate = self
         field.lineBreakMode = .byTruncatingMiddle
         field.cell?.usesSingleLineMode = true
-        field.setAccessibilityLabel("Location or name")
+        field.setAccessibilityLabel(L10n.tr("Location or name"))
         error.font = .systemFont(ofSize: 12)
         error.textColor = .systemRed
         error.isHidden = true
@@ -129,26 +129,26 @@ final class CreateShortcutWizard: NSObject, NSTextFieldDelegate {
         page = n
         error.isHidden = true
         if n == 1 {
-            heading.stringValue = "What item would you like to create a shortcut for?"
-            intro.stringValue = "This wizard helps you to create shortcuts to files, folders, disks, servers or internet addresses."
+            heading.stringValue = L10n.tr("What item would you like to create a shortcut for?")
+            intro.stringValue = L10n.tr("This wizard helps you to create shortcuts to files, folders, disks, servers or internet addresses.")
             intro.isHidden = false
-            fieldLabel.stringValue = "Type the location of the item:"
+            fieldLabel.stringValue = L10n.tr("Type the location of the item:")
             field.stringValue = location
-            field.placeholderString = "/Users/you/Documents/Report.pdf"
+            field.placeholderString = L10n.tr("/Users/you/Documents/Report.pdf")
             browse.isHidden = false
-            footnote.stringValue = "Click Next to continue."
+            footnote.stringValue = L10n.tr("Click Next to continue.")
             back.isHidden = true
-            next.title = "Next"
+            next.title = L10n.tr("Next")
         } else {
-            heading.stringValue = "What would you like to name the shortcut?"
+            heading.stringValue = L10n.tr("What would you like to name the shortcut?")
             intro.isHidden = true
-            fieldLabel.stringValue = "Type a name for this shortcut:"
+            fieldLabel.stringValue = L10n.tr("Type a name for this shortcut:")
             field.stringValue = defaultName()
             field.placeholderString = nil
             browse.isHidden = true
-            footnote.stringValue = "Click Finish to create the shortcut."
+            footnote.stringValue = L10n.tr("Click Finish to create the shortcut.")
             back.isHidden = false
-            next.title = "Finish"
+            next.title = L10n.tr("Finish")
         }
         updateNextEnabled()
         sheet.makeFirstResponder(field)
@@ -187,7 +187,7 @@ final class CreateShortcutWizard: NSObject, NSTextFieldDelegate {
         panel.resolvesAliases = false
         panel.directoryURL = folder
         panel.prompt = "OK"
-        panel.message = "Choose the item you want the shortcut to point to."
+        panel.message = L10n.tr("Choose the item you want the shortcut to point to.")
         panel.beginSheetModal(for: sheet) { [weak self] response in
             guard response == .OK, let url = panel.url, let self else { return }
             self.field.stringValue = url.path
@@ -235,7 +235,7 @@ final class CreateShortcutWizard: NSObject, NSTextFieldDelegate {
             if let browser, Location.folder(folder) == browser.location {
                 browser.refreshSelecting([created.lastPathComponent])
             }
-            browser?.statusBar.setMessage("Created “\(created.lastPathComponent)”.")
+            browser?.statusBar.setMessage(L10n.format("Created “%@”.", "\(created.lastPathComponent)"))
         } catch {
             showError(error.localizedDescription)
         }

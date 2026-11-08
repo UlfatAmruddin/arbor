@@ -13,7 +13,7 @@ enum ImageCommands {
                 id: "image.setBackground", title: "Set as background", symbol: "photo.on.rectangle",
                 placements: [.commandBarContextual(5), .itemContextMenu(.imageActions, 10)],
                 showsTitle: true,
-                dynamicTitle: { $0.surface == .commandBar ? "Set as background" : "Set as desktop background" },
+                dynamicTitle: { $0.surface == .commandBar ? L10n.tr("Set as background") : L10n.tr("Set as desktop background") },
                 isAvailable: { ctx in ctx.single.map { !$0.isFolder && ImageRotator.isImage($0.url) } ?? false },
                 perform: setBackground),
             ExplorerCommand(
@@ -40,7 +40,7 @@ enum ImageCommands {
     static func rotate(_ ctx: CommandContext, clockwise: Bool) {
         let urls = ctx.selection.map(\.url)
         guard !urls.isEmpty, let window = ctx.window else { return }
-        window.statusBar.setMessage("Rotating \(StatusText.items(urls.count))…")
+        window.statusBar.setMessage(L10n.format("Rotating %@…", "\(StatusText.items(urls.count))"))
         DispatchQueue.global(qos: .userInitiated).async {
             var done: [URL] = []
             var problems: [String] = []
@@ -50,7 +50,7 @@ enum ImageCommands {
                 }
             }
             DispatchQueue.main.async { [weak window] in
-                if !done.isEmpty { registerUndo(done, clockwise: clockwise, actionName: clockwise ? "Rotate Right" : "Rotate Left") }
+                if !done.isEmpty { registerUndo(done, clockwise: clockwise, actionName: clockwise ? L10n.tr("Rotate Right") : L10n.tr("Rotate Left")) }
                 IconProvider.shared.purgeFileIcons()
                 guard let window else { return }
                 window.refreshSelecting(urls: urls)
@@ -75,7 +75,7 @@ enum ImageCommands {
             IconProvider.shared.purgeFileIcons()
             if !back.isEmpty { registerUndo(back, clockwise: !clockwise, actionName: actionName) }
             if back.count != urls.count {
-                NSAlert.show("Some images couldn't be turned back.", "They were moved, changed or removed.", in: NSApp.keyWindow)
+                NSAlert.show(L10n.tr("Some images couldn't be turned back."), L10n.tr("They were moved, changed or removed."), in: NSApp.keyWindow)
             }
         }
         center.undoManager.setActionName(actionName)
@@ -86,7 +86,7 @@ enum ImageCommands {
     static func setBackground(_ ctx: CommandContext) {
         guard let item = ctx.single, let window = ctx.window else { return }
         if AppDelegate.isHeadless {
-            window.statusBar.setMessage("Desktop background: “\(item.name)” (not applied in test runs).")
+            window.statusBar.setMessage(L10n.format("Desktop background: “%@” (not applied in test runs).", "\(item.name)"))
             return
         }
         var failure: Error?
@@ -94,9 +94,9 @@ enum ImageCommands {
             do { try SystemOpen.setDesktopImage(item.url, for: screen) } catch { failure = error }
         }
         if let failure {
-            NSAlert.show("Couldn't set “\(item.name)” as the desktop background.", failure.localizedDescription, in: window.window)
+            NSAlert.show(L10n.format("Couldn't set “%@” as the desktop background.", "\(item.name)"), failure.localizedDescription, in: window.window)
         } else {
-            window.statusBar.setMessage("“\(item.name)” is now the desktop background.")
+            window.statusBar.setMessage(L10n.format("“%@” is now the desktop background.", "\(item.name)"))
         }
     }
 }

@@ -5,10 +5,10 @@ public enum SortKey: String, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .name: return "Name"
-        case .dateModified: return "Date modified"
-        case .type: return "Type"
-        case .size: return "Size"
+        case .name: return L10n.tr("Name")
+        case .dateModified: return L10n.tr("Date modified")
+        case .type: return L10n.tr("Type")
+        case .size: return L10n.tr("Size")
         }
     }
 }

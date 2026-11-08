@@ -23,7 +23,7 @@ final class ThisMacPageProvider: LocationProvider {
     func watch(_ location: Location, onChange: @escaping () -> Void) -> AnyObject? { VolumeWatcher(onChange: onChange) }
     func allowsItemEditing(in location: Location) -> Bool { false }
     func targetFolder(for location: Location) -> URL? { nil }
-    func emptyText(for location: Location) -> String { "No drives are connected." }
+    func emptyText(for location: Location) -> String { L10n.tr("No drives are connected.") }
 }
 
 /// A drive tile: icon, name, capacity bar and "X GB free of Y GB".
@@ -35,6 +35,7 @@ final class DriveTileView: TileView {
         self.volume = volume
         super.init(frame: .zero)
         let icon = NSImageView(image: VolumeCatalog.iconOverride?(volume, 48) ?? VolumeCatalog.icon(for: volume.kind, size: 48))
+        icon.hideFromAccessibility()   // the tile reads the drive name
         icon.translatesAutoresizingMaskIntoConstraints = false
         let name = NSTextField(labelWithString: volume.name)
         name.font = Theme.bodyFont
@@ -86,12 +87,12 @@ final class DriveTileView: TileView {
 
     static func tooltip(_ v: VolumeSummary) -> String {
         var lines = [v.kind.typeName]
-        if let fs = v.fileSystem, !fs.isEmpty { lines.append("File system: \(fs)") }
+        if let fs = v.fileSystem, !fs.isEmpty { lines.append(L10n.format("File system: %@", "\(fs)")) }
         if let total = v.total, total > 0 {
-            if let free = v.free { lines.append("Free space: \(CapacityText.size(free))") }
-            lines.append("Total size: \(CapacityText.size(total))")
+            if let free = v.free { lines.append(L10n.format("Free space: %@", "\(CapacityText.size(free))")) }
+            lines.append(L10n.format("Total size: %@", "\(CapacityText.size(total))"))
         }
-        if v.isReadOnly { lines.append("Read-only") }
+        if v.isReadOnly { lines.append(L10n.tr("Read-only")) }
         lines.append(v.url.path)
         return lines.joined(separator: "\n")
     }
@@ -187,7 +188,7 @@ final class ThisMacPage: NSViewController, LocationPageStatus, LocationPageSelec
             grids.append((section.title, grid, section.volumes, header))
         }
         if sections.isEmpty {
-            let empty = NSTextField(labelWithString: "No drives are connected.")
+            let empty = NSTextField(labelWithString: L10n.tr("No drives are connected."))
             empty.font = Theme.bodyFont
             empty.textColor = Theme.secondaryText
             stack.addArrangedSubview(empty)
@@ -210,7 +211,7 @@ final class ThisMacPage: NSViewController, LocationPageStatus, LocationPageSelec
             stack.trailingAnchor.constraint(equalTo: document.trailingAnchor),
             stack.bottomAnchor.constraint(equalTo: document.bottomAnchor),
         ])
-        root.setAccessibilityLabel("This Mac")
+        root.setAccessibilityLabel(L10n.tr("This Mac"))
         view = root
         observers.append(NotificationCenter.default.addObserver(forName: Prefs.changed, object: nil, queue: .main) { [weak self] note in
             if note.userInfo?["key"] as? String == HomePrefKeys.hideEmptyDrives { self?.host?.reloadLocation() }

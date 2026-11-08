@@ -56,6 +56,8 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
     /// Draw the keyboard focus outline (after arrow keys, not after clicks).
     private(set) var showsFocus = false
     private var typeSelect = TypeSelect()
+    /// Typed text reaches type-to-select through the input method (FE-068).
+    private lazy var typeSelectText = TypeSelectInput(view: self) { [weak self] text in self?.typeSelectInput(text) }
     private var pendingScrollStart: Int?
     private var visibleWorkScheduled = false
     private var slowRename: DispatchWorkItem?
@@ -84,7 +86,7 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
             self?.scheduleVisibleWork()
         }
         setAccessibilityRole(.list)
-        setAccessibilityLabel("Items")
+        setAccessibilityLabel(L10n.tr("Items"))
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -376,9 +378,9 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
     var location: Location?
 
     static func infotip(_ item: FileItem, location: Location? = nil) -> String {
-        var lines = [item.name, "Type: \(item.typeDescription)"]
-        if let size = item.size, !item.isFolder { lines.append("Size: \(StatusText.bytes(size))") }
-        if let date = item.modified { lines.append("Date modified: \(ItemGridView.dateFormatter.string(from: date))") }
+        var lines = [item.name, L10n.format("Type: %@", "\(item.typeDescription)")]
+        if let size = item.size, !item.isFolder { lines.append(L10n.format("Size: %@", "\(StatusText.bytes(size))")) }
+        if let date = item.modified { lines.append(L10n.format("Date modified: %@", "\(ItemGridView.dateFormatter.string(from: date))")) }
         if let detail = InteractionHooks.itemDetail?(item, location) { lines.append("\(detail.label) \(detail.value)") }
         return lines.joined(separator: "\n")
     }
@@ -580,6 +582,7 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
 
     override func keyDown(with event: NSEvent) {
         cancelSlowRename()
+        if typeSelectText.hasMarkedText(), typeSelectText.handle(event, typeSelectActive: true) { return }
         let mods = event.modifierFlags.intersection([.command, .option, .shift, .control])
         let move: ItemFlowLayout.Move?
         switch event.keyCode {
@@ -616,11 +619,7 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
             break
         }
         if host?.gridKey(event) == true { return }
-        if mods.subtracting(.shift).isEmpty, let chars = event.characters, !chars.isEmpty,
-           chars.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) && !(0xF700...0xF8FF).contains($0.value) }) {
-            typeSelectInput(chars)
-            return
-        }
+        if typeSelectText.handle(event, typeSelectActive: typeSelect.isActive(at: Date())) { return }
         super.keyDown(with: event)
     }
 
@@ -631,16 +630,20 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
 
     override func resignFirstResponder() -> Bool {
         canvas.needsDisplay = true
+        typeSelectText.reset()
         return true
     }
+
+    /// Scripted checks of input-method type-to-select.
+    var typeSelectInputForScripts: TypeSelectInput { typeSelectText }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         windowObservers.forEach { NotificationCenter.default.removeObserver($0) }
         windowObservers = []
         guard let window else { return }
-        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
-            windowObservers.append(NotificationCenter.default.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification, SelectionEmphasis.changed] {
+            windowObservers.append(NotificationCenter.default.addObserver(forName: name, object: name == SelectionEmphasis.changed ? nil : window, queue: .main) { [weak self] _ in
                 self?.canvas.needsDisplay = true
             })
         }
@@ -650,7 +653,7 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
     /// Selection is drawn in the accent tint while the grid has focus in the key window.
     var isActive: Bool {
         guard let window else { return false }
-        return window.firstResponder === self && (window.isKeyWindow || AppDelegate.isHeadless)
+        return window.firstResponder === self && SelectionEmphasis.windowIsActive(window)
     }
 
     // MARK: Drag source

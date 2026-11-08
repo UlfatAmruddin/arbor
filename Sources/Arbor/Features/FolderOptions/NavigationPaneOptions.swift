@@ -26,7 +26,7 @@ enum NavigationPaneOptions {
         if Prefs.navShowAllFolders, let index = roots.firstIndex(where: { $0.kind == .thisMac }) {
             let home = FileManager.default.homeDirectoryForCurrentUser
             var extra = [NavNode(kind: .folder, title: displayName(of: home), location: .folder(home))]
-            if !roots.contains(where: { $0.location == .trash }) { extra.append(NavNode(kind: .place, title: "Trash", location: .trash)) }
+            if !roots.contains(where: { $0.location == .trash }) { extra.append(NavNode(kind: .place, title: L10n.tr("Trash"), location: .trash)) }
             roots.insert(contentsOf: extra, at: index + 1)
         }
         return roots
@@ -63,15 +63,15 @@ enum NavigationPaneOptions {
     // MARK: Availability status
 
     private static func decorate(_ cell: NavCellView, _ node: NavNode) {
-        let pinImage = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: "Pinned")?
+        let pinImage = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: L10n.tr("Pinned"))?
             .withSymbolConfiguration(.init(pointSize: 9, weight: .regular))
         cell.pin.image = pinImage
         cell.pin.toolTip = nil
         guard node.kind != .favorite, Prefs.navShowAvailabilityStatus, let url = node.url,
               let provider = SyncProviderDetector.provider(forPath: url.path, home: NSHomeDirectory()) else { return }
-        cell.pin.image = NSImage(systemSymbolName: "icloud", accessibilityDescription: "Synced by \(provider.name)")?
+        cell.pin.image = NSImage(systemSymbolName: "icloud", accessibilityDescription: L10n.format("Synced by %@", "\(provider.name)"))?
             .withSymbolConfiguration(.init(pointSize: 10, weight: .regular))
-        cell.pin.toolTip = "Synced by \(provider.name)"
+        cell.pin.toolTip = L10n.format("Synced by %@", "\(provider.name)")
         cell.pin.isHidden = false
     }
 }

@@ -103,6 +103,6 @@ public enum ExplorerTypeName {
         // Finder calls aliases "Alias"; the identifier isn't always fetched, so match the word too.
         if localized == "Alias" { return shortcut }
         if let localized, !localized.isEmpty { return localized }
-        return isFolder ? "Folder" : "Document"
+        return isFolder ? L10n.tr("Folder") : L10n.tr("Document")
     }
 }

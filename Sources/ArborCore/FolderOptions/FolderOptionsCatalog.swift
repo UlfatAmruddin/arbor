@@ -6,9 +6,9 @@ public enum FolderOptionsTab: String, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .general: return "General"
-        case .view: return "View"
-        case .search: return "Search"
+        case .general: return L10n.tr("General")
+        case .view: return L10n.tr("View")
+        case .search: return L10n.tr("Search")
         }
     }
 }
@@ -107,84 +107,84 @@ public struct FolderOptionItem: Sendable {
 /// Keys are preference names. A few map onto older preferences with the opposite meaning in the app
 /// (`hideExtensions` ↔ `showExtensions`, `hiddenFiles` ↔ `showHidden`); the app bridges those.
 public enum FolderOptionsCatalog {
-    public static let files = "Files and Folders"
-    public static let navigation = "Navigation pane"
+    public static let files = L10n.tr("Files and Folders")
+    public static let navigation = L10n.tr("Navigation pane")
 
     public static let general: [FolderOptionItem] = [
-        FolderOptionItem("openTo", "Open Arbor to:", kind: .popup([OptionChoice("home", "Home"), OptionChoice("thismac", "This Mac")]),
+        FolderOptionItem("openTo", L10n.tr("Open Arbor to:"), kind: .popup([OptionChoice("home", L10n.tr("Home")), OptionChoice("thismac", L10n.tr("This Mac"))]),
                          default: .string("home"), tab: .general, section: ""),
-        FolderOptionItem("browseFolders", "Browse folders", kind: .radio([
-            OptionChoice("same", "Open each folder in the same window"),
-            OptionChoice("own", "Open each folder in its own window"),
-        ]), default: .string("same"), tab: .general, section: "Browse folders"),
-        FolderOptionItem("clickItems", "Click items as follows", kind: .radio([
-            OptionChoice("single", "Single-click to open an item (point to select)"),
-            OptionChoice("double", "Double-click to open an item (single-click to select)"),
-        ]), default: .string("double"), tab: .general, section: "Click items as follows"),
+        FolderOptionItem("browseFolders", L10n.tr("Browse folders"), kind: .radio([
+            OptionChoice("same", L10n.tr("Open each folder in the same window")),
+            OptionChoice("own", L10n.tr("Open each folder in its own window")),
+        ]), default: .string("same"), tab: .general, section: L10n.tr("Browse folders")),
+        FolderOptionItem("clickItems", L10n.tr("Click items as follows"), kind: .radio([
+            OptionChoice("single", L10n.tr("Single-click to open an item (point to select)")),
+            OptionChoice("double", L10n.tr("Double-click to open an item (single-click to select)")),
+        ]), default: .string("double"), tab: .general, section: L10n.tr("Click items as follows")),
         // Shown nested under "Single-click to open an item" like Windows.
-        FolderOptionItem("underlineTitles", "Underline icon titles", kind: .radio([
-            OptionChoice("always", "Underline icon titles consistent with my browser", level: 1, enabledWhen: ("clickItems", "single")),
-            OptionChoice("hover", "Underline icon titles only when I point at them", level: 1, enabledWhen: ("clickItems", "single")),
-        ]), default: .string("hover"), tab: .general, section: "Click items as follows"),
-        FolderOptionItem("showRecentFiles", "Show recently used files", default: .bool(true), tab: .general, section: "Privacy"),
-        FolderOptionItem("showFrequentFolders", "Show frequently used folders", default: .bool(true), tab: .general, section: "Privacy"),
-        FolderOptionItem("accountInsights", "Include account-based insights, recent, favorite, and recommended files",
-                         default: nil, tab: .general, section: "Privacy",
-                         unavailable: "Arbor doesn't connect to Microsoft accounts or Office.com."),
+        FolderOptionItem("underlineTitles", L10n.tr("Underline icon titles"), kind: .radio([
+            OptionChoice("always", L10n.tr("Underline icon titles consistent with my browser"), level: 1, enabledWhen: ("clickItems", "single")),
+            OptionChoice("hover", L10n.tr("Underline icon titles only when I point at them"), level: 1, enabledWhen: ("clickItems", "single")),
+        ]), default: .string("hover"), tab: .general, section: L10n.tr("Click items as follows")),
+        FolderOptionItem("showRecentFiles", L10n.tr("Show recently used files"), default: .bool(true), tab: .general, section: L10n.tr("Privacy")),
+        FolderOptionItem("showFrequentFolders", L10n.tr("Show frequently used folders"), default: .bool(true), tab: .general, section: L10n.tr("Privacy")),
+        FolderOptionItem("accountInsights", L10n.tr("Include account-based insights, recent, favorite, and recommended files"),
+                         default: nil, tab: .general, section: L10n.tr("Privacy"),
+                         unavailable: L10n.tr("Arbor doesn't connect to Microsoft accounts or Office.com.")),
     ]
 
     public static let advanced: [FolderOptionItem] = [
         FolderOptionItem("group.files", files, kind: .group, default: nil, tab: .view, section: files),
-        check("alwaysShowIcons", "Always show icons, never thumbnails", false),
-        check("alwaysShowMenus", "Always show menus", nil, unavailable: "The Mac menu bar is always shown."),
-        check("compactView", "Decrease space between items (compact view)", false),
-        check("fileIconOnThumbnails", "Display file icon on thumbnails", nil,
-              unavailable: "Arbor's thumbnails don't carry a file-type badge yet."),
-        check("folderTipSizes", "Display file size information in folder tips", nil,
-              unavailable: "Folder sizes need a full scan, so Arbor shows them in Properties instead."),
-        check("fullPathInTitleBar", "Display the full path in the title bar", false),
-        FolderOptionItem("hiddenFiles", "Hidden files and folders", kind: .radio([
-            OptionChoice("hide", "Don't show hidden files, folders, or drives"),
-            OptionChoice("show", "Show hidden files, folders, and drives"),
+        check("alwaysShowIcons", L10n.tr("Always show icons, never thumbnails"), false),
+        check("alwaysShowMenus", L10n.tr("Always show menus"), nil, unavailable: L10n.tr("The Mac menu bar is always shown.")),
+        check("compactView", L10n.tr("Decrease space between items (compact view)"), false),
+        check("fileIconOnThumbnails", L10n.tr("Display file icon on thumbnails"), nil,
+              unavailable: L10n.tr("Arbor's thumbnails don't carry a file-type badge yet.")),
+        check("folderTipSizes", L10n.tr("Display file size information in folder tips"), nil,
+              unavailable: L10n.tr("Folder sizes need a full scan, so Arbor shows them in Properties instead.")),
+        check("fullPathInTitleBar", L10n.tr("Display the full path in the title bar"), false),
+        FolderOptionItem("hiddenFiles", L10n.tr("Hidden files and folders"), kind: .radio([
+            OptionChoice("hide", L10n.tr("Don't show hidden files, folders, or drives")),
+            OptionChoice("show", L10n.tr("Show hidden files, folders, and drives")),
         ]), default: .string("hide"), tab: .view, section: files),
-        check("hideEmptyDrives", "Hide empty drives", true),
+        check("hideEmptyDrives", L10n.tr("Hide empty drives"), true),
         // Arbor shows extensions by default (DEC-008), so its default differs from Windows'.
-        check("hideExtensions", "Hide extensions for known file types", false),
-        check("hideFolderMergeConflicts", "Hide folder merge conflicts", true),
-        check("hideProtectedSystemFiles", "Hide protected operating system files (Recommended)", true),
-        check("separateProcess", "Launch folder windows in a separate process", nil,
-              unavailable: "Arbor runs every window in one process to keep memory use low."),
-        check("restorePreviousWindows", "Restore previous folder windows at launch", false),
-        check("showDriveLetters", "Show drive letters", nil, unavailable: "Mac volumes have names, not drive letters."),
-        check("showCompressedInColor", "Show encrypted or compressed NTFS files in color", nil,
-              unavailable: "Mac volumes have no NTFS compression or encryption attributes."),
-        check("showPopupDescriptions", "Show pop-up description for folder and desktop items", true),
-        check("showPreviewHandlers", "Show preview handlers in preview pane", true),
-        check("showStatusBar", "Show status bar", true),
-        check("showSyncProviderNotifications", "Show sync provider notifications", true),
-        check("itemCheckBoxes", "Use check boxes to select items", false),
-        check("sharingWizard", "Use Sharing Wizard (Recommended)", nil,
-              unavailable: "Sharing is set up in System Settings › General › Sharing."),
-        FolderOptionItem("typingMode", "When typing into list view", kind: .radio([
-            OptionChoice("search", "Automatically type into the Search Box"),
-            OptionChoice("select", "Select the typed item in the view"),
+        check("hideExtensions", L10n.tr("Hide extensions for known file types"), false),
+        check("hideFolderMergeConflicts", L10n.tr("Hide folder merge conflicts"), true),
+        check("hideProtectedSystemFiles", L10n.tr("Hide protected operating system files (Recommended)"), true),
+        check("separateProcess", L10n.tr("Launch folder windows in a separate process"), nil,
+              unavailable: L10n.tr("Arbor runs every window in one process to keep memory use low.")),
+        check("restorePreviousWindows", L10n.tr("Restore previous folder windows at launch"), false),
+        check("showDriveLetters", L10n.tr("Show drive letters"), nil, unavailable: L10n.tr("Mac volumes have names, not drive letters.")),
+        check("showCompressedInColor", L10n.tr("Show encrypted or compressed NTFS files in color"), nil,
+              unavailable: L10n.tr("Mac volumes have no NTFS compression or encryption attributes.")),
+        check("showPopupDescriptions", L10n.tr("Show pop-up description for folder and desktop items"), true),
+        check("showPreviewHandlers", L10n.tr("Show preview handlers in preview pane"), true),
+        check("showStatusBar", L10n.tr("Show status bar"), true),
+        check("showSyncProviderNotifications", L10n.tr("Show sync provider notifications"), true),
+        check("itemCheckBoxes", L10n.tr("Use check boxes to select items"), false),
+        check("sharingWizard", L10n.tr("Use Sharing Wizard (Recommended)"), nil,
+              unavailable: L10n.tr("Sharing is set up in System Settings › General › Sharing.")),
+        FolderOptionItem("typingMode", L10n.tr("When typing into list view"), kind: .radio([
+            OptionChoice("search", L10n.tr("Automatically type into the Search Box")),
+            OptionChoice("select", L10n.tr("Select the typed item in the view")),
         ]), default: .string("select"), tab: .view, section: files),
         FolderOptionItem("group.navigation", navigation, kind: .group, default: nil, tab: .view, section: navigation),
-        nav("navShowAvailabilityStatus", "Always show availability status", false),
-        nav("navExpandToOpenFolder", "Expand to open folder", false),
-        nav("navShowAllFolders", "Show all folders", false),
-        nav("showLibraries", "Show libraries", false),
+        nav("navShowAvailabilityStatus", L10n.tr("Always show availability status"), false),
+        nav("navExpandToOpenFolder", L10n.tr("Expand to open folder"), false),
+        nav("navShowAllFolders", L10n.tr("Show all folders"), false),
+        nav("showLibraries", L10n.tr("Show libraries"), false),
     ]
 
     public static let search: [FolderOptionItem] = [
-        FolderOptionItem("searchWithoutIndex", "Don't use the index when searching in file folders for system files (searches might take longer)",
-                         default: .bool(false), tab: .search, section: "How to search"),
-        FolderOptionItem("searchIncludeSystemDirectories", "Include system directories",
-                         default: .bool(true), tab: .search, section: "When searching non-indexed locations"),
-        FolderOptionItem("searchIncludeCompressedFiles", "Include compressed files (ZIP, CAB...)",
-                         default: .bool(false), tab: .search, section: "When searching non-indexed locations"),
-        FolderOptionItem("searchFileContents", "Always search file names and contents (this might take several minutes)",
-                         default: .bool(false), tab: .search, section: "When searching non-indexed locations"),
+        FolderOptionItem("searchWithoutIndex", L10n.tr("Don't use the index when searching in file folders for system files (searches might take longer)"),
+                         default: .bool(false), tab: .search, section: L10n.tr("How to search")),
+        FolderOptionItem("searchIncludeSystemDirectories", L10n.tr("Include system directories"),
+                         default: .bool(true), tab: .search, section: L10n.tr("When searching non-indexed locations")),
+        FolderOptionItem("searchIncludeCompressedFiles", L10n.tr("Include compressed files (ZIP, CAB...)"),
+                         default: .bool(false), tab: .search, section: L10n.tr("When searching non-indexed locations")),
+        FolderOptionItem("searchFileContents", L10n.tr("Always search file names and contents (this might take several minutes)"),
+                         default: .bool(false), tab: .search, section: L10n.tr("When searching non-indexed locations")),
     ]
 
     private static func check(_ key: String, _ title: String, _ value: Bool?, unavailable: String? = nil) -> FolderOptionItem {

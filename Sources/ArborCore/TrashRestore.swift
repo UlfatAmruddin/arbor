@@ -76,8 +76,8 @@ public enum TrashRestoreError: Error, LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .destinationTaken(let path): return "“\(path)” is already taken."
-        case .notInTrash(let name): return "“\(name)” is no longer in the Trash."
+        case .destinationTaken(let path): return L10n.format("“%@” is already taken.", "\(path)")
+        case .notInTrash(let name): return L10n.format("“%@” is no longer in the Trash.", "\(name)")
         }
     }
 }

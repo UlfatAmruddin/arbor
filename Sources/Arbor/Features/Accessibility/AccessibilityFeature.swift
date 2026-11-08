@@ -14,6 +14,8 @@ enum AccessibilityFeature {
         DisplayOptions.install()
         TextSize.register()
         AccessibilityDebug.register()
+        LocalizationAudit.register()
+        AccessibilityAudit.register()
         CommandRegistry.shared.register(ExplorerCommand(
             id: "focus.nextRegion", title: "Move Focus to Next Area", shortcut: Shortcut.function(NSF6FunctionKey, []),
             placements: [.mainMenu("Go", .tools, 80)],

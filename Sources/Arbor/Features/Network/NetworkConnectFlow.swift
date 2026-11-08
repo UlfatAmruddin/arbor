@@ -11,7 +11,7 @@ enum NetworkConnectFlow {
                      differentCredentials: Bool = false, done: ((Bool) -> Void)? = nil) -> NetworkCancellable {
         let target = tab ?? window.activeTab
         let shown = address.shareRoot?.unc ?? address.unc
-        let slow = DispatchWorkItem { [weak window] in window?.statusBar.setMessage("Connecting to \(shown)…") }
+        let slow = DispatchWorkItem { [weak window] in window?.statusBar.setMessage(L10n.format("Connecting to %@…", "\(shown)")) }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: slow)
         return NetworkCenter.shared.connect(address, options: MountOptions(differentCredentials: differentCredentials)) { [weak window, weak target] result in
             slow.cancel()
@@ -58,12 +58,12 @@ enum NetworkConnectFlow {
     static func presentFailure(_ error: NetworkError, address: NetworkAddress, window: BrowserWindowController,
                                choice: @escaping (FailureChoice) -> Void) {
         let alert = NSAlert()
-        alert.messageText = "Arbor can't access \(address.shareRoot?.unc ?? address.unc)"
+        alert.messageText = L10n.format("Arbor can't access %@", "\(address.shareRoot?.unc ?? address.unc)")
         alert.informativeText = (error.errorDescription ?? "") + (error.isAuthentication ? "" : "\n\nCheck the name and that the computer is on, or ask the person who manages it.")
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "Retry")
-        if error.isAuthentication { alert.addButton(withTitle: "Use Different Credentials…") }
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: L10n.tr("Retry"))
+        if error.isAuthentication { alert.addButton(withTitle: L10n.tr("Use Different Credentials…")) }
+        alert.addButton(withTitle: L10n.tr("Cancel"))
         let handle: (NSApplication.ModalResponse) -> Void = { response in
             switch response {
             case .alertFirstButtonReturn: choice(.retry)

@@ -13,9 +13,9 @@ public enum ZipDirectory {
 
         public var errorDescription: String? {
             switch self {
-            case .notZip: return "The file isn't a valid ZIP archive."
-            case .truncated: return "The ZIP archive is damaged or incomplete."
-            case .tooManyEntries: return "The ZIP archive lists more entries than Arbor can show."
+            case .notZip: return L10n.tr("The file isn't a valid ZIP archive.")
+            case .truncated: return L10n.tr("The ZIP archive is damaged or incomplete.")
+            case .tooManyEntries: return L10n.tr("The ZIP archive lists more entries than Arbor can show.")
             }
         }
     }

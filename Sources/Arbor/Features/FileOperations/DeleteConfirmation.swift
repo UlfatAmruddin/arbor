@@ -18,7 +18,7 @@ final class DeleteConfirmation: FileOpsDialog {
     init(_ items: [FileItem], mode: Mode, completion: @escaping (Bool) -> Void) {
         self.completion = completion
         let single = items.count == 1 ? items[0] : nil
-        let title = single.map { $0.isFolder ? "Delete Folder" : "Delete File" } ?? "Delete Multiple Items"
+        let title = single.map { $0.isFolder ? L10n.tr("Delete Folder") : L10n.tr("Delete File") } ?? L10n.tr("Delete Multiple Items")
         super.init(title: title, width: 470)
         let noun = single.map { $0.isFolder ? "folder" : "file" }
         let text: String
@@ -38,11 +38,11 @@ final class DeleteConfirmation: FileOpsDialog {
         var views: [NSView] = [message]
         if let single { views.append(Self.details(single)) }
         if mode != .trash {
-            views.append(FileOpsStyle.label("This can't be undone.", font: FileOpsStyle.captionFont, color: Theme.secondaryText))
+            views.append(FileOpsStyle.label(L10n.tr("This can't be undone."), font: FileOpsStyle.captionFont, color: Theme.secondaryText))
         }
         setBody(views, spacing: 14, insets: NSEdgeInsets(top: 20, left: 22, bottom: 20, right: 22))
-        let yes = WinButton("Yes", accent: mode == .trash) { [weak self] in self?.answer(true) }
-        let no = WinButton("No", accent: mode != .trash) { [weak self] in self?.answer(false) }
+        let yes = WinButton(L10n.tr("Yes"), accent: mode == .trash) { [weak self] in self?.answer(true) }
+        let no = WinButton(L10n.tr("No"), accent: mode != .trash) { [weak self] in self?.answer(false) }
         if mode != .trash { yes.keyEquivalent = "" }   // Return answers No for destructive deletes
         setButtons([yes, no])
     }
@@ -55,9 +55,9 @@ final class DeleteConfirmation: FileOpsDialog {
         icon.heightAnchor.constraint(equalToConstant: 48).isActive = true
         var lines = [FileOpsStyle.label(item.name, font: .systemFont(ofSize: 13, weight: .semibold))]
         let caption = { (text: String) in FileOpsStyle.label(text, font: FileOpsStyle.captionFont, color: Theme.secondaryText) }
-        lines.append(caption("Type: \(item.typeDescription)"))
-        if let size = item.size { lines.append(caption("Size: \(StatusText.bytes(size))")) }
-        if let date = item.modified { lines.append(caption("Date modified: \(ConflictFlow.dates.string(from: date))")) }
+        lines.append(caption(L10n.format("Type: %@", "\(item.typeDescription)")))
+        if let size = item.size { lines.append(caption(L10n.format("Size: %@", "\(StatusText.bytes(size))"))) }
+        if let date = item.modified { lines.append(caption(L10n.format("Date modified: %@", "\(ConflictFlow.dates.string(from: date))"))) }
         let text = NSStackView(views: lines)
         text.orientation = .vertical
         text.alignment = .leading
@@ -123,7 +123,7 @@ enum DeleteCommands {
         }
         if !trashed.isEmpty {
             OperationCenter.shared.registerUndoTrash(trashed)
-            window.statusBar.setMessage("\(StatusText.items(trashed.count)) moved to the Trash. Press ⌘Z to undo.")
+            window.statusBar.setMessage(L10n.format("%@ moved to the Trash. Press ⌘Z to undo.", "\(StatusText.items(trashed.count))"))
         }
         window.refreshSelecting(urls: nextSelection.map { [$0] } ?? [])
         // Never silently turn "move to Trash" into a permanent delete (spec §9.5): ask.
@@ -146,7 +146,7 @@ enum DeleteCommands {
                     guard let window else { return }
                     window.refreshSelecting(urls: next.map { [$0] } ?? [])
                     if !failures.isEmpty {
-                        NSAlert.show("Some items couldn't be deleted.", failures.joined(separator: "\n"), in: window.window)
+                        NSAlert.show(L10n.tr("Some items couldn't be deleted."), failures.joined(separator: "\n"), in: window.window)
                     }
                 }
             }

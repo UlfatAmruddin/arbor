@@ -88,10 +88,10 @@ public struct PermissionBits: Equatable, Sendable {
     public func summary(isFolder: Bool) -> String {
         var text: String
         switch (read, write) {
-        case (true, true): text = "Read & Write"
-        case (true, false): text = "Read only"
-        case (false, true): text = isFolder ? "Write only (Drop Box)" : "Write only"
-        case (false, false): text = "No Access"
+        case (true, true): text = L10n.tr("Read & Write")
+        case (true, false): text = L10n.tr("Read only")
+        case (false, true): text = isFolder ? L10n.tr("Write only (Drop Box)") : L10n.tr("Write only")
+        case (false, false): text = L10n.tr("No Access")
         }
         if isFolder {
             if !execute, read || write { text += " (can't open)" }

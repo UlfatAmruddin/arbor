@@ -42,8 +42,8 @@ enum FolderOptionsFeature {
                 id: "view.folderViewSource", title: "Folder view",
                 placements: [.viewMenu(.viewSource, 10), .mainMenu("View", .viewSource, 10)],
                 dynamicTitle: { ctx in
-                    guard let window = ctx.window, let info = FolderViews.shared.info(for: window) else { return "Folder view: not a folder" }
-                    return "Folder view: \(info.source.description) (\(info.template.title))"
+                    guard let window = ctx.window, let info = FolderViews.shared.info(for: window) else { return L10n.tr("Folder view: not a folder") }
+                    return L10n.format("Folder view: %@ (%@)", "\(info.source.description)", "\(info.template.title)")
                 },
                 isAvailable: { ctx in ctx.location?.isFolder ?? false },
                 isEnabled: { _ in false }),
@@ -99,7 +99,7 @@ enum FolderOptionsFeature {
         guard lastProviderRoot[id] != provider.root else { return }
         lastProviderRoot[id] = provider.root
         guard Prefs.showSyncProviderNotifications else { return }
-        window.statusBar.setMessage("This folder is synced by \(provider.name). Files stored only online download when you open them.")
+        window.statusBar.setMessage(L10n.format("This folder is synced by %@. Files stored only online download when you open them.", "\(provider.name)"))
     }
 
     private static func prefsChanged(_ key: String?) {

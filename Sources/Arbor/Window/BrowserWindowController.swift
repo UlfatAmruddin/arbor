@@ -198,7 +198,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         for tab in tabs {
             guard let url = tab.location.folderURL, FileOps.isSameOrInside(url, volume) else { continue }
             if let handler = Self.volumeUnmountHandler, handler(self, tab, volume) { continue }
-            if tab === activeTab { statusBar.setMessage("“\(displayName(of: volume))” was disconnected.", isError: true) }
+            if tab === activeTab { statusBar.setMessage(L10n.format("“%@” was disconnected.", "\(displayName(of: volume))"), isError: true) }
             request(.visit(.thisMac, select: [], selectURLs: []), tab: tab)
         }
     }
@@ -488,7 +488,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         tab.pendingLoad?.cancel()
         let slow = DispatchWorkItem { [weak self, weak tab] in
             guard let self, let tab, tab.loadToken == token, tab === self.activeTab else { return }
-            self.statusBar.setMessage("Loading “\(provider.title(for: target))”…")
+            self.statusBar.setMessage(L10n.format("Loading “%@”…", "\(provider.title(for: target))"))
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: slow)
         let context = LocationLoadContext(showHidden: Prefs.showHidden, host: self)
@@ -581,7 +581,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
             // The folder we were showing went away: walk up to the nearest one that still exists.
             var parent = url
             while !FileManager.default.fileExists(atPath: parent.path), let up = NavigationHistory.parent(of: parent) { parent = up }
-            if isActive { statusBar.setMessage("“\(url.lastPathComponent)” is no longer available.", isError: true) }
+            if isActive { statusBar.setMessage(L10n.format("“%@” is no longer available.", "\(url.lastPathComponent)"), isError: true) }
             if parent != url { self.request(.visit(.folder(parent), select: [], selectURLs: []), tab: tab) }
             return
         }
@@ -591,7 +591,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
             return
         }
         if isActive {
-            NSAlert.show("Can't open “\(LocationRegistry.provider(for: target).title(for: target))”", error.localizedDescription, in: window)
+            NSAlert.show(L10n.format("Can't open “%@”", "\(LocationRegistry.provider(for: target).title(for: target))"), error.localizedDescription, in: window)
         }
     }
 
@@ -697,7 +697,16 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
     func setSortOrder(_ order: FileSortOrder) {
         activeTab.sortOrder = order
         Prefs.sortOrder = order
-        if !activeTab.showsPage { display(activeTab, select: nil, top: nil, locationChanged: false) }
+        if !activeTab.showsPage {
+            // Large listings sort in the background; the rows (and the selection) update when they're ready.
+            let tab = activeTab
+            let deferred = tab.sortInBackground { [weak self] in
+                guard let self, tab === self.activeTab, !tab.showsPage else { return }
+                self.display(tab, select: nil, top: nil, locationChanged: false)
+                self.updateChrome()
+            }
+            if !deferred { display(activeTab, select: nil, top: nil, locationChanged: false) }
+        }
         updateChrome()
         WindowHooks.viewStateChanged.forEach { $0(self, activeTab) }
     }
@@ -819,7 +828,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
             addressBar.endEditing()
             if let handler = Self.networkAddressHandler, handler(self, url) { itemView?.focus(); return }
             SystemOpen.open(url)
-            statusBar.setMessage("Connecting to \(url.host ?? url.absoluteString)… The share will appear under This Mac once it's mounted.")
+            statusBar.setMessage(L10n.format("Connecting to %@… The share will appear under This Mac once it's mounted.", "\(url.host ?? url.absoluteString)"))
             itemView?.focus()
         case .failure(let error):
             statusBar.setMessage(error.localizedDescription, isError: true)
@@ -861,9 +870,9 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
                 self.navigate(to: self.location, select: landedHere.map(\.lastPathComponent))
             }
             if report.wasCancelled {
-                self.statusBar.setMessage("Transfer cancelled. Items already \(report.kind.pastVerb) were kept.")
+                self.statusBar.setMessage(L10n.format("Transfer cancelled. Items already %@ were kept.", TransferWords.localized(report.kind.pastVerb)))
             } else if report.problems.isEmpty, !report.committed.isEmpty {
-                self.statusBar.setMessage("\(StatusText.items(report.committed.count)) \(report.kind.pastVerb) to “\(displayName(of: report.destination))”.")
+                self.statusBar.setMessage(L10n.format("%@ %@ to “%@”.", "\(StatusText.items(report.committed.count))", TransferWords.localized(report.kind.pastVerb), "\(displayName(of: report.destination))"))
             }
         }
     }
@@ -942,10 +951,10 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
             let newExt = NameRules.splitExtension(newName, treatAsFolder: false).ext?.lowercased()
             if oldExt != newExt {
                 let alert = NSAlert()
-                alert.messageText = "Change the file name extension?"
-                alert.informativeText = "If you change “.\(oldExt ?? "")” to “.\(newExt ?? "")”, the file might open in a different app or stop opening."
-                alert.addButton(withTitle: "Use .\(newExt ?? "(none)")")
-                alert.addButton(withTitle: "Cancel")
+                alert.messageText = L10n.tr("Change the file name extension?")
+                alert.informativeText = L10n.format("If you change “.%@” to “.%@”, the file might open in a different app or stop opening.", "\(oldExt ?? "")", "\(newExt ?? "")")
+                alert.addButton(withTitle: L10n.format("Use .%@", "\(newExt ?? "(none)")"))
+                alert.addButton(withTitle: L10n.tr("Cancel"))
                 // A sheet on this window. The view reopens the name field with the typed text underneath
                 // (returning false); Cancel leaves it there to edit, Use closes it and renames.
                 AlertSheets.present(alert, in: window) { [weak self] response in
@@ -968,7 +977,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
             refreshSelecting(urls: [newURL])
             return true
         } catch {
-            NSAlert.show("Couldn't rename “\(item.name)”.", error.localizedDescription, in: window)
+            NSAlert.show(L10n.format("Couldn't rename “%@”.", "\(item.name)"), error.localizedDescription, in: window)
             if reopenOnFailure { itemView?.beginRename(named: item.name, text: newName) }
             return false
         }

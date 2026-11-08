@@ -289,7 +289,7 @@ public struct AQSParser {
     static func example(for property: SearchProperty) -> String {
         switch property.valueType {
         case .size: return "size:>1MB or size:large"
-        case .date: return "\(property.keyword):today or \(property.keyword):1/1/2026..1/31/2026"
+        case .date: return L10n.format("%@:today or %@:1/1/2026..1/31/2026", "\(property.keyword)", "\(property.keyword)")
         case .kind: return "kind:picture"
         case .text: return property == .fileExtension ? "ext:pdf" : "\(property.keyword):report"
         }

@@ -18,15 +18,15 @@ public enum PathResolutionError: Error, Equatable, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .empty:
-            return "Type a folder path."
+            return L10n.tr("Type a folder path.")
         case .windowsDriveLetter(let input):
-            return "“\(input)” is a Windows drive path. Macs don't use drive letters; other disks appear under /Volumes."
+            return L10n.format("“%@” is a Windows drive path. Macs don't use drive letters; other disks appear under /Volumes.", "\(input)")
         case .notFound(let path):
-            return "Can't find “\(path)”. Check the spelling and try again."
+            return L10n.format("Can't find “%@”. Check the spelling and try again.", "\(path)")
         case .unsupportedScheme(let input):
-            return "“\(input)” isn't a supported address. Use a folder path, a file:// URL, or a server address such as smb://server/share."
+            return L10n.format("“%@” isn't a supported address. Use a folder path, a file:// URL, or a server address such as smb://server/share.", "\(input)")
         case .invalidAddress(let input):
-            return "“\(input)” isn't a valid address."
+            return L10n.format("“%@” isn't a valid address.", "\(input)")
         }
     }
 }

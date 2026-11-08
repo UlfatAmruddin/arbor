@@ -177,7 +177,7 @@ final class TrashProvider: LocationProvider {
                 case .items(let entries, let unreadable, _):
                     completion(.success(.items(entries.map(\.item))))
                     if !unreadable.isEmpty {
-                        host?.showStatusMessage("The Trash on \(unreadable.map { "“\($0.volumeName)”" }.joined(separator: ", ")) couldn't be read.", isError: true)
+                        host?.showStatusMessage(L10n.format("The Trash on %@ couldn't be read.", "\(unreadable.map { "“\($0.volumeName)”" }.joined(separator: ", "))"), isError: true)
                     }
                 case .denied(let url):
                     completion(.success(.custom(TrashAccessPage(trashURL: url, host: host))))
@@ -188,7 +188,7 @@ final class TrashProvider: LocationProvider {
     }
 
     func watch(_ location: Location, onChange: @escaping () -> Void) -> AnyObject? { TrashWatcher(onChange: onChange) }
-    func title(for location: Location) -> String { "Trash" }
+    func title(for location: Location) -> String { L10n.tr("Trash") }
     func icon(for location: Location, size: CGFloat) -> NSImage { TrashIcon.image(full: TrashStore.isFull == true, size: size) }
     func targetFolder(for location: Location) -> URL? { nil }
     func allowsItemEditing(in location: Location) -> Bool { false }
@@ -234,20 +234,20 @@ final class TrashAccessPage: NSViewController, LocationPageStatus {
     override func loadView() {
         let root = ThemeBackgroundView(Theme.contentBackground)
         let icon = NSImageView(image: TrashIcon.image(full: false, size: 64))
-        let title = NSTextField(labelWithString: "Arbor needs permission to show the Trash")
+        let title = NSTextField(labelWithString: L10n.tr("Arbor needs permission to show the Trash"))
         title.font = .systemFont(ofSize: 17, weight: .semibold)
         title.textColor = Theme.primaryText
         let detail = NSTextField(wrappingLabelWithString:
-            "macOS protects the Trash folder. To see, restore and empty items here, turn on Arbor in System Settings → Privacy & Security → Full Disk Access, then come back and select Try Again.")
+            L10n.tr("macOS protects the Trash folder. To see, restore and empty items here, turn on Arbor in System Settings → Privacy & Security → Full Disk Access, then come back and select Try Again."))
         detail.font = Theme.bodyFont
         detail.textColor = Theme.secondaryText
         detail.alignment = .center
-        let open = NSButton(title: "Open Full Disk Access Settings", target: self, action: #selector(openSettings))
+        let open = NSButton(title: L10n.tr("Open Full Disk Access Settings"), target: self, action: #selector(openSettings))
         open.bezelStyle = .rounded
         open.keyEquivalent = "\r"
-        let retry = NSButton(title: "Try Again", target: self, action: #selector(retry))
+        let retry = NSButton(title: L10n.tr("Try Again"), target: self, action: #selector(retry))
         retry.bezelStyle = .rounded
-        let finder = NSButton(title: "Show the Trash in Finder", target: self, action: #selector(showInFinder))
+        let finder = NSButton(title: L10n.tr("Show the Trash in Finder"), target: self, action: #selector(showInFinder))
         finder.bezelStyle = .rounded
         let buttons = NSStackView(views: [open, retry, finder])
         buttons.spacing = 8
@@ -265,7 +265,7 @@ final class TrashAccessPage: NSViewController, LocationPageStatus {
             detail.widthAnchor.constraint(lessThanOrEqualToConstant: 440),
             stack.leadingAnchor.constraint(greaterThanOrEqualTo: root.leadingAnchor, constant: 24),
         ])
-        root.setAccessibilityLabel("Arbor needs permission to show the Trash")
+        root.setAccessibilityLabel(L10n.tr("Arbor needs permission to show the Trash"))
         view = root
     }
 

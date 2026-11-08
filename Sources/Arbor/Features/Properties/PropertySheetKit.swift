@@ -504,7 +504,7 @@ final class PieChartView: NSView {
             y -= 1
         }
         drawPie(in: top, used: SheetColors.usedSpace, free: SheetColors.freeSpace)
-        setAccessibilityLabel("\(Int((fraction * 100).rounded()))% used")
+        setAccessibilityLabel(L10n.format("%@%% used", "\(Int((fraction * 100).rounded()))"))
     }
 
     private func drawPie(in rect: NSRect, used: NSColor, free: NSColor) {
@@ -548,6 +548,7 @@ func fixedImage(_ image: NSImage?, _ side: CGFloat) -> NSImageView {
     v.image = image
     v.imageScaling = .scaleProportionallyUpOrDown
     v.translatesAutoresizingMaskIntoConstraints = false
+    v.hideFromAccessibility()   // icons beside a name or heading VoiceOver already reads
     NSLayoutConstraint.activate([v.widthAnchor.constraint(equalToConstant: side), v.heightAnchor.constraint(equalToConstant: side)])
     return v
 }

@@ -20,10 +20,10 @@ final class TimeMachineVersionsView: NSStackView {
     private var rows: [SheetListRow] = []
     private var token = 0
     private let list = SheetScrollList()
-    private let message = SheetLabel.wrapping("Looking for this item in Time Machine backups…")
-    private lazy var openButton = SheetButton("Open") { [weak self] _ in self?.openVersion() }
-    private lazy var restoreButton = SheetButton("Restore…") { [weak self] _ in self?.confirmRestore() }
-    private lazy var privacyButton = SheetButton("Privacy Settings…") { _ in
+    private let message = SheetLabel.wrapping(L10n.tr("Looking for this item in Time Machine backups…"))
+    private lazy var openButton = SheetButton(L10n.tr("Open")) { [weak self] _ in self?.openVersion() }
+    private lazy var restoreButton = SheetButton(L10n.tr("Restore…")) { [weak self] _ in self?.confirmRestore() }
+    private lazy var privacyButton = SheetButton(L10n.tr("Privacy Settings…")) { _ in
         if AppDelegate.isHeadless { TimeMachineVersionsView.lastOpened = "settings: Full Disk Access"; return }
         SystemOpen.open(TimeMachineBackups.fullDiskAccessSettingsURL)
     }
@@ -42,7 +42,7 @@ final class TimeMachineVersionsView: NSStackView {
         translatesAutoresizingMaskIntoConstraints = false
         let header = NSView()
         header.translatesAutoresizingMaskIntoConstraints = false
-        let n = SheetLabel.make("Backup", secondary: true), d = SheetLabel.make("Date modified", secondary: true)
+        let n = SheetLabel.make(L10n.tr("Backup"), secondary: true), d = SheetLabel.make(L10n.tr("Date modified"), secondary: true)
         header.addSubview(n)
         header.addSubview(d)
         NSLayoutConstraint.activate([
@@ -69,7 +69,7 @@ final class TimeMachineVersionsView: NSStackView {
         ])
         message.alignment = .center
         message.preferredMaxLayoutWidth = 300
-        let title = SheetLabel.make("Copies in Time Machine backups:")
+        let title = SheetLabel.make(L10n.tr("Copies in Time Machine backups:"))
         for v in [title, box, hstack([privacyButton, NSView(), openButton, restoreButton])] as [NSView] {
             addArrangedSubview(v)
             v.widthAnchor.constraint(equalTo: widthAnchor).isActive = true
@@ -140,12 +140,12 @@ final class TimeMachineVersionsView: NSStackView {
         }
         let text: String
         switch state {
-        case .loading: text = "Looking for this item in Time Machine backups…"
+        case .loading: text = L10n.tr("Looking for this item in Time Machine backups…")
         case .versions: text = ""
-        case .none: text = "No Time Machine backup has a copy of this item."
-        case .notConfigured: text = "Time Machine isn't set up, so there are no backups to restore from."
-        case .needsAccess: text = "Arbor needs Full Disk Access to look inside Time Machine backups. Turn it on for Arbor in System Settings › Privacy & Security › Full Disk Access, then reopen this tab."
-        case .unavailable(let why): text = "Time Machine backups can't be read right now. \(why)"
+        case .none: text = L10n.tr("No Time Machine backup has a copy of this item.")
+        case .notConfigured: text = L10n.tr("Time Machine isn't set up, so there are no backups to restore from.")
+        case .needsAccess: text = L10n.tr("Arbor needs Full Disk Access to look inside Time Machine backups. Turn it on for Arbor in System Settings › Privacy & Security › Full Disk Access, then reopen this tab.")
+        case .unavailable(let why): text = L10n.format("Time Machine backups can't be read right now. %@", "\(why)")
         }
         message.stringValue = text
         message.isHidden = state == .versions
@@ -194,7 +194,7 @@ final class TimeMachineVersionsView: NSStackView {
                 SystemOpen.open(target)
             }
         } catch {
-            PropertiesWindowController.present(message: "The version couldn't be opened.", info: error.localizedDescription, window: controller?.window)
+            PropertiesWindowController.present(message: L10n.tr("The version couldn't be opened."), info: error.localizedDescription, window: controller?.window)
         }
     }
 
@@ -202,10 +202,10 @@ final class TimeMachineVersionsView: NSStackView {
         guard let version = current, let item else { return }
         let folder = item.deletingLastPathComponent()
         let alert = NSAlert()
-        alert.messageText = "Restore “\(item.lastPathComponent)” from the backup of \(PropertyFormat.shortDate(version.date))?"
-        alert.informativeText = "Arbor copies the backed-up version into “\(displayName(of: folder))”. If an item with the same name is there, you choose whether to replace it (it goes to the Trash), skip, or keep both."
-        alert.addButton(withTitle: "Restore")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = L10n.format("Restore “%@” from the backup of %@?", "\(item.lastPathComponent)", "\(PropertyFormat.shortDate(version.date))")
+        alert.informativeText = L10n.format("Arbor copies the backed-up version into “%@”. If an item with the same name is there, you choose whether to replace it (it goes to the Trash), skip, or keep both.", "\(displayName(of: folder))")
+        alert.addButton(withTitle: L10n.tr("Restore"))
+        alert.addButton(withTitle: L10n.tr("Cancel"))
         PropertiesWindowController.present(alert, window: controller?.window) { response in
             guard response == .alertFirstButtonReturn, let browser = BrowserWindowController.active else { return }
             browser.startTransfer(.copy, [version.url], to: folder)

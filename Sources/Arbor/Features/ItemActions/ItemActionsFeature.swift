@@ -54,7 +54,7 @@ enum NewItemCommands {
                 id: "file.new.\(template.id)", title: template.menuTitle,
                 symbol: symbol(for: template),
                 placements: [.newMenu(.newFileTypes, orders[template.id] ?? 50)],
-                dynamicTitle: ItemActionsFeature.title(template.menuTitle, mac: "New \(template.menuTitle)"),
+                dynamicTitle: ItemActionsFeature.title(template.menuTitle, mac: L10n.format("New %@", "\(template.menuTitle)")),
                 isEnabled: { ItemActionsFeature.writableFolder($0) != nil },
                 perform: { ctx in create(template, ctx) }))
         }
@@ -78,7 +78,7 @@ enum NewItemCommands {
                 window.refreshSelecting([url.lastPathComponent], rename: url.lastPathComponent)
             }
         } catch {
-            NSAlert.show("Couldn't create a \(template.menuTitle.lowercased()) in “\(displayName(of: folder))”.",
+            NSAlert.show(L10n.format("Couldn't create a %@ in “%@”.", "\(template.menuTitle.lowercased())", "\(displayName(of: folder))"),
                          error.localizedDescription, in: window.window)
         }
     }
@@ -93,7 +93,7 @@ enum ShortcutCommands {
             ExplorerCommand(
                 id: "file.newShortcut", title: "Shortcut", symbol: "arrow.up.forward.square",
                 placements: [.newMenu(.main, 20), .mainMenu("File", .new, 25)],
-                dynamicTitle: ItemActionsFeature.title("Shortcut", mac: "New Shortcut…"),
+                dynamicTitle: ItemActionsFeature.title(L10n.tr("Shortcut"), mac: L10n.tr("New Shortcut…")),
                 isEnabled: { ItemActionsFeature.writableFolder($0) != nil },
                 perform: { ctx in
                     guard let folder = ItemActionsFeature.writableFolder(ctx), let window = ctx.window else { return }
@@ -102,7 +102,7 @@ enum ShortcutCommands {
             ExplorerCommand(
                 id: "file.createShortcut", title: "Create shortcut", symbol: "arrow.up.forward.square",
                 placements: [.itemContextMenu(.sendTo, 20), .mainMenu("File", .new, 30)],
-                dynamicTitle: ItemActionsFeature.title("Create shortcut", mac: "Create Shortcut"),
+                dynamicTitle: ItemActionsFeature.title(L10n.tr("Create shortcut"), mac: L10n.tr("Create Shortcut")),
                 isAvailable: { $0.surface != .itemContextMenu || $0.hasSelection },
                 isEnabled: { ctx in ctx.hasSelection && ItemActionsFeature.writableFolder(ctx) != nil },
                 perform: { ctx in
@@ -116,7 +116,7 @@ enum ShortcutCommands {
             ExplorerCommand(
                 id: "edit.pasteShortcut", title: "Paste shortcut", symbol: "arrow.up.forward.app",
                 placements: [.backgroundContextMenu(.clipboard, 15), .mainMenu("Edit", .clipboard, 35)],
-                dynamicTitle: ItemActionsFeature.title("Paste shortcut", mac: "Paste Shortcut"),
+                dynamicTitle: ItemActionsFeature.title(L10n.tr("Paste shortcut"), mac: L10n.tr("Paste Shortcut")),
                 isEnabled: { ctx in FileClipboard.shared.canPaste && ItemActionsFeature.writableFolder(ctx) != nil },
                 perform: { ctx in
                     guard let folder = ItemActionsFeature.writableFolder(ctx), let window = ctx.window else { return }
@@ -137,14 +137,14 @@ enum ShortcutCommands {
                     var created: [URL] = []
                     for item in ctx.selection {
                         do { created.append(try Shortcuts.createSymbolicLink(to: item.url, in: folder)) } catch {
-                            NSAlert.show("Couldn't create a symbolic link to “\(item.name)”.", error.localizedDescription, in: window.window)
+                            NSAlert.show(L10n.format("Couldn't create a symbolic link to “%@”.", "\(item.name)"), error.localizedDescription, in: window.window)
                             break
                         }
                     }
                     guard !created.isEmpty else { return }
                     Shortcuts.registerUndoCreate(created, name: "Create Symbolic Link")
                     window.refreshSelecting(created.map(\.lastPathComponent))
-                    window.statusBar.setMessage("Created \(StatusText.items(created.count)) as symbolic links. Unlike shortcuts, they stop working if the original moves.")
+                    window.statusBar.setMessage(L10n.format("Created %@ as symbolic links. Unlike shortcuts, they stop working if the original moves.", "\(StatusText.items(created.count))"))
                 }),
         ])
     }
@@ -162,7 +162,7 @@ enum SelectionCommands {
                 id: "edit.selectAll", title: "Select All", symbol: "checklist", shortcut: Shortcut("a"),
                 placements: [.mainMenu("Edit", .selection, 10), .seeMore(.selection, 10)],
                 menuAction: #selector(NSResponder.selectAll(_:)),
-                dynamicTitle: ItemActionsFeature.title("Select all", mac: "Select All"),
+                dynamicTitle: ItemActionsFeature.title(L10n.tr("Select all"), mac: L10n.tr("Select All")),
                 isEnabled: { $0.window?.itemView != nil && !($0.window?.visibleItems.isEmpty ?? true) },
                 perform: { ctx in
                     guard let window = ctx.window, let view = window.itemView else { return }
@@ -171,13 +171,13 @@ enum SelectionCommands {
             ExplorerCommand(
                 id: "edit.selectNone", title: "Select None", symbol: "square.dashed",
                 placements: [.mainMenu("Edit", .selection, 20), .seeMore(.selection, 20)],
-                dynamicTitle: ItemActionsFeature.title("Select none", mac: "Select None"),
+                dynamicTitle: ItemActionsFeature.title(L10n.tr("Select none"), mac: L10n.tr("Select None")),
                 isEnabled: { $0.hasSelection },
                 perform: { $0.window?.itemView?.select(names: []) }),
             ExplorerCommand(
                 id: "edit.invertSelection", title: "Invert Selection", symbol: "arrow.left.arrow.right.square",
                 placements: [.mainMenu("Edit", .selection, 30), .seeMore(.selection, 30)],
-                dynamicTitle: ItemActionsFeature.title("Invert selection", mac: "Invert Selection"),
+                dynamicTitle: ItemActionsFeature.title(L10n.tr("Invert selection"), mac: L10n.tr("Invert Selection")),
                 isEnabled: { $0.window?.itemView != nil && !($0.window?.visibleItems.isEmpty ?? true) },
                 perform: { ctx in
                     guard let window = ctx.window, let view = window.itemView else { return }

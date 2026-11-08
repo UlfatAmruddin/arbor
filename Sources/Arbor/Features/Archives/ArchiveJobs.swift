@@ -229,10 +229,10 @@ enum ArchiveJobs {
     private static func confirmExpansion(_ archive: URL, total: Int64, ratio: Double, window: NSWindow?, answer: @escaping (Bool) -> Void) {
         let alert = NSAlert()
         alert.alertStyle = .critical
-        alert.messageText = "“\(archive.lastPathComponent)” would expand to \(StatusText.bytes(total))."
-        alert.informativeText = "That's about \(Int(ratio.rounded())) times its own size. Archives that expand this much are often built to fill the disk (a “zip bomb”). Extract it only if you trust where it came from."
-        let cancel = alert.addButton(withTitle: "Cancel")
-        let go = alert.addButton(withTitle: "Extract Anyway")
+        alert.messageText = L10n.format("“%@” would expand to %@.", "\(archive.lastPathComponent)", "\(StatusText.bytes(total))")
+        alert.informativeText = L10n.format("That's about %@ times its own size. Archives that expand this much are often built to fill the disk (a “zip bomb”). Extract it only if you trust where it came from.", "\(Int(ratio.rounded()))")
+        let cancel = alert.addButton(withTitle: L10n.tr("Cancel"))
+        let go = alert.addButton(withTitle: L10n.tr("Extract Anyway"))
         cancel.keyEquivalent = "\r"
         go.keyEquivalent = ""
         if AppDelegate.isHeadless { ArchiveFeature.lastAlert = alert.messageText }
@@ -251,13 +251,13 @@ enum ArchiveJobs {
         rejected += result.removedAfterwards.map { (ArchiveEntry(rawPath: $0, kind: .special), ExtractionPlanner.Rejection.linkOutside) }
         guard !rejected.isEmpty else { return }
         let count = rejected.count
-        let text = rejectionText(rejected, header: "\(count == 1 ? "This item was" : "These items were") left out for your safety:")
+        let text = rejectionText(rejected, header: L10n.format("%@ left out for your safety:", "\(count == 1 ? "This item was" : "These items were")"))
         ArchiveFeature.alert(count == 1 ? "1 item wasn't extracted." : "\(count) items weren't extracted.", text, in: window)
     }
 
     static func show(_ error: Error, title: String, window: NSWindow?) {
         if case ArchiveError.cancelled = error {
-            BrowserWindowController.active?.statusBar.setMessage("Cancelled.")
+            BrowserWindowController.active?.statusBar.setMessage(L10n.tr("Cancelled."))
             return
         }
         ArchiveFeature.alert(title, error.localizedDescription, in: window)
@@ -318,10 +318,10 @@ enum ArchiveJobs {
                     if Location.folder(folder) == c.location {
                         c.refreshSelecting([url.lastPathComponent], rename: url.lastPathComponent)
                     } else {
-                        c.statusBar.setMessage("Created “\(url.lastPathComponent)” in “\(displayName(of: folder))”.")
+                        c.statusBar.setMessage(L10n.format("Created “%@” in “%@”.", "\(url.lastPathComponent)", "\(displayName(of: folder))"))
                     }
                 case .failure(let error):
-                    show(error, title: "Couldn't create “\(name)”.", window: weakController?.window)
+                    show(error, title: L10n.format("Couldn't create “%@”.", "\(name)"), window: weakController?.window)
                 }
             }
         }
@@ -348,7 +348,7 @@ enum ArchiveJobs {
         do {
             try ArchiveNaming.emptyZip.write(to: url, options: .withoutOverwriting)
         } catch {
-            ArchiveFeature.alert("Couldn't create “\(name)” in “\(displayName(of: folder))”.", error.localizedDescription, in: controller.window)
+            ArchiveFeature.alert(L10n.format("Couldn't create “%@” in “%@”.", "\(name)", "\(displayName(of: folder))"), error.localizedDescription, in: controller.window)
             return
         }
         registerUndoCreate(url, action: "New")
@@ -362,7 +362,7 @@ enum ArchiveJobs {
         let um = OperationCenter.shared.undoManager
         um.registerUndo(withTarget: OperationCenter.shared) { _ in
             guard ArchiveCatalog.stamp(of: url) == stamp else {
-                ArchiveFeature.alert("“\(url.lastPathComponent)” changed after it was created, so it wasn't removed.", "", in: NSApp.keyWindow)
+                ArchiveFeature.alert(L10n.format("“%@” changed after it was created, so it wasn't removed.", "\(url.lastPathComponent)"), "", in: NSApp.keyWindow)
                 return
             }
             if let trashed = try? SystemTrash.trash(url) {
@@ -395,12 +395,12 @@ enum ArchiveJobs {
                 let reason = ArchiveError.summarize(output.stderr).replacingOccurrences(of: "hdiutil: attach failed - ", with: "")
                 if fallbackToBrowse, ArchiveFormat.detect(image) == .iso {
                     weakController?.navigate(to: .archive(image, innerPath: ""))
-                    weakController?.statusBar.setMessage("“\(image.lastPathComponent)” couldn't be mounted (\(reason)). Showing its contents read-only instead.")
+                    weakController?.statusBar.setMessage(L10n.format("“%@” couldn't be mounted (%@). Showing its contents read-only instead.", "\(image.lastPathComponent)", "\(reason)"))
                     return
                 }
-                ArchiveFeature.alert("“\(image.lastPathComponent)” couldn't be mounted.",
+                ArchiveFeature.alert(L10n.format("“%@” couldn't be mounted.", "\(image.lastPathComponent)"),
                              (reason.isEmpty ? "The disk image may be damaged or in an unsupported format." : reason.prefix(1).uppercased() + reason.dropFirst() + ".")
-                                + "\n\nYou can also open it with DiskImageMounter from Finder.", in: weakController?.window)
+                                + L10n.tr("\n\nYou can also open it with DiskImageMounter from Finder."), in: weakController?.window)
             }
         }
     }

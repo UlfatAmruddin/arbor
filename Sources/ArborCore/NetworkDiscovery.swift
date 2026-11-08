@@ -87,9 +87,9 @@ public struct NetworkDevice: Hashable, Sendable, Identifiable {
 
     public var subtitle: String {
         switch category {
-        case .computer: return protocols.isEmpty ? "Computer" : "Shared folders (" + protocols.joined(separator: ", ") + ")"
-        case .mediaDevices: return "Media device"
-        case .infrastructure: return "Network device"
+        case .computer: return protocols.isEmpty ? L10n.tr("Computer") : L10n.tr("Shared folders (") + protocols.joined(separator: ", ") + ")"
+        case .mediaDevices: return L10n.tr("Media device")
+        case .infrastructure: return L10n.tr("Network device")
         }
     }
 }
@@ -101,8 +101,8 @@ public enum NetworkDiscoveryModel {
 
     static func protocolName(_ type: String) -> String? {
         switch type {
-        case "_smb._tcp": return "SMB"
-        case "_afpovertcp._tcp": return "AFP"
+        case "_smb._tcp": return L10n.tr("SMB")
+        case "_afpovertcp._tcp": return L10n.tr("AFP")
         default: return nil
         }
     }
@@ -171,15 +171,15 @@ public struct FileSystemCapabilities: Equatable, Sendable {
     /// Explorer's "File system" value.
     public var displayName: String {
         switch kind {
-        case .apfs: return "APFS"
-        case .hfsPlus: return "Mac OS Extended"
+        case .apfs: return L10n.tr("APFS")
+        case .hfsPlus: return L10n.tr("Mac OS Extended")
         case .exFAT: return "exFAT"
-        case .fat: return "FAT32"
-        case .ntfs: return "NTFS"
-        case .smb: return "SMB"
-        case .afp: return "AFP"
-        case .nfs: return "NFS"
-        case .webdav: return "WebDAV"
+        case .fat: return L10n.tr("FAT32")
+        case .ntfs: return L10n.tr("NTFS")
+        case .smb: return L10n.tr("SMB")
+        case .afp: return L10n.tr("AFP")
+        case .nfs: return L10n.tr("NFS")
+        case .webdav: return L10n.tr("WebDAV")
         case .other: return typeName.uppercased()
         }
     }

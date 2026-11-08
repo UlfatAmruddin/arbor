@@ -26,7 +26,7 @@ public final class TypeDescriptions: @unchecked Sendable {
         let key = isFolder ? "/" : ext
         if shareable, let hit = lock.withLock({ isFolder ? folder : byExtension[key] }) { return hit }
         guard let value = (try? url.resourceValues(forKeys: [.localizedTypeDescriptionKey]))?.localizedTypeDescription else {
-            return isFolder ? "Folder" : "Document"
+            return isFolder ? L10n.tr("Folder") : L10n.tr("Document")
         }
         if shareable {
             lock.withLock {

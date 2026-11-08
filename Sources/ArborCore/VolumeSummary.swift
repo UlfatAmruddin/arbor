@@ -10,13 +10,13 @@ public struct VolumeSummary: Equatable, Sendable {
         /// Explorer's "Type" wording adapted to Mac volumes.
         public var typeName: String {
             switch self {
-            case .startup: return "Startup disk"
-            case .internal: return "Local disk"
-            case .external: return "External disk"
-            case .removable: return "Removable disk"
-            case .optical: return "CD/DVD drive"
-            case .diskImage: return "Disk image"
-            case .network: return "Network drive"
+            case .startup: return L10n.tr("Startup disk")
+            case .internal: return L10n.tr("Local disk")
+            case .external: return L10n.tr("External disk")
+            case .removable: return L10n.tr("Removable disk")
+            case .optical: return L10n.tr("CD/DVD drive")
+            case .diskImage: return L10n.tr("Disk image")
+            case .network: return L10n.tr("Network drive")
             }
         }
 
@@ -59,7 +59,7 @@ public struct VolumeSummary: Equatable, Sendable {
 }
 
 public enum VolumeSections {
-    public static let devicesAndDrives = "Devices and drives"
+    public static let devicesAndDrives = L10n.tr("Devices and drives")
     public static let networkLocations = "Network locations"
 
     public static func sorted(_ volumes: [VolumeSummary]) -> [VolumeSummary] {
@@ -116,7 +116,7 @@ public enum CapacityText {
 
     /// "120 GB free of 476 GB" (Windows 11 This PC wording).
     public static func freeOfTotal(free: Int64, total: Int64) -> String {
-        "\(size(max(0, free))) free of \(size(max(0, total)))"
+        L10n.format("%@ free of %@", "\(size(max(0, free)))", "\(size(max(0, total)))")
     }
 
     /// Fraction of the drive in use, 0…1 (0 when unknown).

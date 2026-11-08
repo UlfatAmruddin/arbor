@@ -7,6 +7,8 @@ import ArborCore
 enum PerformanceFeature {
     static func register() {
         PerformanceCaches.register()
+        CustomIcons.install()
+        DebugScript.registerLogger { _ in "custom icons: " + CustomIcons.shared.debugText }
         let environment = ProcessInfo.processInfo.environment
         #if DEBUG
         let monitor = true

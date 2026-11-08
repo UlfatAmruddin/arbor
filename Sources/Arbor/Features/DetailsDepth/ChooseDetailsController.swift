@@ -20,16 +20,16 @@ final class ChooseDetailsController: NSViewController, NSTableViewDataSource, NS
     private let list = NSTableView()
     private let search = NSSearchField()
     private let widthField = NSTextField()
-    private let upButton = NSButton(title: "Move Up", target: nil, action: nil)
-    private let downButton = NSButton(title: "Move Down", target: nil, action: nil)
-    private let showButton = NSButton(title: "Show", target: nil, action: nil)
-    private let hideButton = NSButton(title: "Hide", target: nil, action: nil)
+    private let upButton = NSButton(title: L10n.tr("Move Up"), target: nil, action: nil)
+    private let downButton = NSButton(title: L10n.tr("Move Down"), target: nil, action: nil)
+    private let showButton = NSButton(title: L10n.tr("Show"), target: nil, action: nil)
+    private let hideButton = NSButton(title: L10n.tr("Hide"), target: nil, action: nil)
 
     static func present(on window: NSWindow, columns: ColumnSet, completion: @escaping (ColumnSet) -> Void) {
         guard window.attachedSheet == nil else { return }
         let controller = ChooseDetailsController(columns: columns, completion: completion)
         let sheet = NSWindow(contentViewController: controller)
-        sheet.title = "Choose Details"
+        sheet.title = L10n.tr("Choose Details")
         sheet.styleMask = [.titled]
         current = controller
         window.beginSheet(sheet)
@@ -49,9 +49,9 @@ final class ChooseDetailsController: NSViewController, NSTableViewDataSource, NS
 
     override func loadView() {
         let root = NSView(frame: NSRect(x: 0, y: 0, width: 440, height: 470))
-        let intro = NSTextField(wrappingLabelWithString: "Select the details you want to display for the files in this folder.")
-        let detailsLabel = NSTextField(labelWithString: "Details:")
-        search.placeholderString = "Search"
+        let intro = NSTextField(wrappingLabelWithString: L10n.tr("Select the details you want to display for the files in this folder."))
+        let detailsLabel = NSTextField(labelWithString: L10n.tr("Details:"))
+        search.placeholderString = L10n.tr("Search")
         search.delegate = self
         search.sendsSearchStringImmediately = true
         search.target = self
@@ -65,7 +65,7 @@ final class ChooseDetailsController: NSViewController, NSTableViewDataSource, NS
         list.style = .plain
         list.dataSource = self
         list.delegate = self
-        list.setAccessibilityLabel("Details")
+        list.setAccessibilityLabel(L10n.tr("Details"))
         let scroll = NSScrollView()
         scroll.documentView = list
         scroll.hasVerticalScroller = true
@@ -82,16 +82,16 @@ final class ChooseDetailsController: NSViewController, NSTableViewDataSource, NS
         side.alignment = .width
         side.spacing = 8
 
-        let widthLabel = NSTextField(labelWithString: "Width of selected column (in pixels):")
+        let widthLabel = NSTextField(labelWithString: L10n.tr("Width of selected column (in pixels):"))
         widthField.formatter = { let f = NumberFormatter(); f.allowsFloats = false; f.minimum = 20; f.maximum = 2000; return f }()
         widthField.delegate = self
         widthField.target = self
         widthField.action = #selector(widthChanged(_:))
-        widthField.setAccessibilityLabel("Width of selected column in pixels")
+        widthField.setAccessibleName(L10n.tr("Width of selected column in pixels"))
 
-        let ok = NSButton(title: "OK", target: self, action: #selector(confirm))
+        let ok = NSButton(title: L10n.tr("OK"), target: self, action: #selector(confirm))
         ok.keyEquivalent = "\r"
-        let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancelSheet))
+        let cancel = NSButton(title: L10n.tr("Cancel"), target: self, action: #selector(cancelSheet))
         cancel.keyEquivalent = "\u{1b}"
 
         for v in [intro, detailsLabel, search, scroll, side, widthLabel, widthField, ok, cancel] as [NSView] {
@@ -113,7 +113,7 @@ final class ChooseDetailsController: NSViewController, NSTableViewDataSource, NS
             side.topAnchor.constraint(equalTo: scroll.topAnchor),
             side.leadingAnchor.constraint(equalTo: scroll.trailingAnchor, constant: 12),
             side.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -16),
-            side.widthAnchor.constraint(equalToConstant: 100),
+            side.widthAnchor.constraint(greaterThanOrEqualToConstant: 100),
             widthLabel.topAnchor.constraint(equalTo: scroll.bottomAnchor, constant: 14),
             widthLabel.leadingAnchor.constraint(equalTo: intro.leadingAnchor),
             widthField.centerYAnchor.constraint(equalTo: widthLabel.centerYAnchor),

@@ -14,8 +14,8 @@ final class ExtractWizard: NSWindowController, NSTextFieldDelegate {
     let archive: URL
     private weak var browser: BrowserWindowController?
     let pathField = NSTextField()
-    let showFiles = NSButton(checkboxWithTitle: "Show extracted files when complete", target: nil, action: nil)
-    private let extractButton = NSButton(title: "Extract", target: nil, action: nil)
+    let showFiles = NSButton(checkboxWithTitle: L10n.tr("Show extracted files when complete"), target: nil, action: nil)
+    private let extractButton = NSButton(title: L10n.tr("Extract"), target: nil, action: nil)
     private let errorLabel = NSTextField(labelWithString: "")
 
     static func show(for archive: URL, in browser: BrowserWindowController) {
@@ -43,18 +43,19 @@ final class ExtractWizard: NSWindowController, NSTextFieldDelegate {
     private func build(_ panel: NSWindow) {
         let root = ThemeBackgroundView(Theme.contentBackground)
         panel.contentView = root
-        panel.title = "Extract Compressed (Zipped) Folders"
+        panel.title = L10n.tr("Extract Compressed (Zipped) Folders")
 
-        let caption = NSTextField(labelWithString: "Extract Compressed (Zipped) Folders")
+        let caption = NSTextField(labelWithString: L10n.tr("Extract Compressed (Zipped) Folders"))
         caption.font = .systemFont(ofSize: 12)
         caption.textColor = Theme.secondaryText
         let captionIcon = NSImageView(image: IconProvider.shared.symbolIcon("doc.zipper", color: 0x8A6D1F, size: 16))
+        captionIcon.hideFromAccessibility()
 
-        let heading = NSTextField(labelWithString: "Select a Destination and Extract Files")
+        let heading = NSTextField(labelWithString: L10n.tr("Select a Destination and Extract Files"))
         heading.font = .systemFont(ofSize: 17, weight: .regular)
         heading.textColor = Theme.wizardHeading
 
-        let prompt = NSTextField(labelWithString: "Files will be extracted to this folder:")
+        let prompt = NSTextField(labelWithString: L10n.tr("Files will be extracted to this folder:"))
         prompt.font = Theme.bodyFont
         prompt.textColor = Theme.primaryText
 
@@ -63,9 +64,9 @@ final class ExtractWizard: NSWindowController, NSTextFieldDelegate {
         pathField.lineBreakMode = .byTruncatingHead
         pathField.cell?.usesSingleLineMode = true
         pathField.delegate = self
-        pathField.setAccessibilityLabel("Files will be extracted to this folder")
+        pathField.setAccessibleName(L10n.tr("Files will be extracted to this folder"))
 
-        let browse = NSButton(title: "Browse…", target: self, action: #selector(browse(_:)))
+        let browse = NSButton(title: L10n.tr("Browse…"), target: self, action: #selector(browse(_:)))
         browse.bezelStyle = .rounded
 
         showFiles.state = .on
@@ -83,7 +84,7 @@ final class ExtractWizard: NSWindowController, NSTextFieldDelegate {
         extractButton.action = #selector(extract(_:))
         extractButton.keyEquivalent = "\r"
         extractButton.bezelStyle = .rounded
-        let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancel(_:)))
+        let cancel = NSButton(title: L10n.tr("Cancel"), target: self, action: #selector(cancel(_:)))
         cancel.keyEquivalent = "\u{1b}"
         cancel.bezelStyle = .rounded
         for b in [extractButton, cancel] { b.widthAnchor.constraint(greaterThanOrEqualToConstant: 88).isActive = true }
@@ -127,7 +128,7 @@ final class ExtractWizard: NSWindowController, NSTextFieldDelegate {
             extractButton.trailingAnchor.constraint(equalTo: cancel.leadingAnchor, constant: -10),
             extractButton.centerYAnchor.constraint(equalTo: footer.centerYAnchor),
         ])
-        root.setAccessibilityLabel("Select a Destination and Extract Files")
+        root.setAccessibilityLabel(L10n.tr("Select a Destination and Extract Files"))
     }
 
     func controlTextDidChange(_ obj: Notification) {
@@ -142,7 +143,7 @@ final class ExtractWizard: NSWindowController, NSTextFieldDelegate {
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
         panel.prompt = "Select Folder"
-        panel.message = "Select a destination"
+        panel.message = L10n.tr("Select a destination")
         panel.directoryURL = archive.deletingLastPathComponent()
         panel.beginSheetModal(for: sheet) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
@@ -188,10 +189,10 @@ final class ExtractWizard: NSWindowController, NSTextFieldDelegate {
                     // Explorer opens the destination when done; Arbor opens it in a new tab.
                     browser.openTab(.folder(destination), select: outcome.placed.map(\.lastPathComponent))
                 } else {
-                    browser.statusBar.setMessage("Extracted “\(archive.lastPathComponent)” to “\(displayName(of: destination))”.")
+                    browser.statusBar.setMessage(L10n.format("Extracted “%@” to “%@”.", "\(archive.lastPathComponent)", "\(displayName(of: destination))"))
                 }
             case .failure(let error):
-                ArchiveJobs.show(error, title: "“\(archive.lastPathComponent)” couldn't be extracted.", window: browser?.window)
+                ArchiveJobs.show(error, title: L10n.format("“%@” couldn't be extracted.", "\(archive.lastPathComponent)"), window: browser?.window)
             }
         }
     }

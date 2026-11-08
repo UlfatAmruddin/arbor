@@ -35,11 +35,11 @@ public enum ACLPermissionLevel: String, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .fullControl: return "Full control"
-        case .modify: return "Modify"
-        case .readAndExecute: return "Read & execute"
-        case .read: return "Read"
-        case .write: return "Write"
+        case .fullControl: return L10n.tr("Full control")
+        case .modify: return L10n.tr("Modify")
+        case .readAndExecute: return L10n.tr("Read & execute")
+        case .read: return L10n.tr("Read")
+        case .write: return L10n.tr("Write")
         }
     }
 
@@ -111,9 +111,9 @@ public enum ACLEditError: Error, LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .notOwner: return "Only the owner of this item or an administrator can change its permissions."
-        case .unknownPrincipal(let name): return "There's no user or group named “\(name)” on this Mac."
-        case .changedSinceEdit: return "The permissions were changed again after your change, so undoing it could remove someone else's change."
+        case .notOwner: return L10n.tr("Only the owner of this item or an administrator can change its permissions.")
+        case .unknownPrincipal(let name): return L10n.format("There's no user or group named “%@” on this Mac.", "\(name)")
+        case .changedSinceEdit: return L10n.tr("The permissions were changed again after your change, so undoing it could remove someone else's change.")
         case .failed(let text): return text
         }
     }
@@ -156,7 +156,7 @@ public enum ACLEditor {
         FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
         let before = text(url)
         try run(["+a", rule.chmodEntry(isFolder: isDirectory.boolValue), url.path])
-        return ACLChange(url: url, before: before, after: text(url), summary: "Added: \(rule.summary)")
+        return ACLChange(url: url, before: before, after: text(url), summary: L10n.format("Added: %@", "\(rule.summary)"))
     }
 
     /// Removes the entry at `index` (0-based, in the order `ACLEntry.read` lists them).
@@ -171,7 +171,7 @@ public enum ACLEditor {
         var isDirectory: ObjCBool = false
         FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
         return ACLChange(url: url, before: before, after: text(url),
-                         summary: "Removed: \(e.allow ? "Allow" : "Deny") \(e.name) (\(e.kind == .group ? "group" : "user")): \(e.levelTitle(isFolder: isDirectory.boolValue))")
+                         summary: L10n.format("Removed: %@ %@ (%@): %@", "\(e.allow ? "Allow" : "Deny")", "\(e.name)", "\(e.kind == .group ? "group" : "user")", "\(e.levelTitle(isFolder: isDirectory.boolValue))"))
     }
 
     /// Puts the list back as it was before `change`, but only if nothing changed it since.

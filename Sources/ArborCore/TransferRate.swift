@@ -65,17 +65,23 @@ public struct TransferRateEstimator: Sendable {
         let s = max(0, seconds)
         if s < 60 {
             let rounded = max(5, Int((s / 5).rounded(.up)) * 5)
-            return rounded >= 60 ? "About 1 minute" : "About \(rounded) seconds"
+            return rounded >= 60 ? L10n.tr("About 1 minute") : L10n.format("About %@ seconds", "\(rounded)")
         }
         let minutes = Int((s / 60).rounded())
-        if minutes < 60 { return minutes == 1 ? "About 1 minute" : "About \(minutes) minutes" }
+        if minutes < 60 { return minutes == 1 ? L10n.tr("About 1 minute") : L10n.format("About %@ minutes", "\(minutes)") }
         let hours = minutes / 60, rest = minutes % 60
         if hours < 48 {
-            let h = hours == 1 ? "1 hour" : "\(hours) hours"
-            if rest == 0 { return "About \(h)" }
-            return "About \(h) and \(rest == 1 ? "1 minute" : "\(rest) minutes")"
+            // Whole sentences, so translations never assemble "hour(s)" and "minute(s)" themselves.
+            switch (hours == 1, rest) {
+            case (true, 0): return L10n.tr("About 1 hour")
+            case (false, 0): return L10n.format("About %@ hours", "\(hours)")
+            case (true, 1): return L10n.tr("About 1 hour and 1 minute")
+            case (true, _): return L10n.format("About 1 hour and %@ minutes", "\(rest)")
+            case (false, 1): return L10n.format("About %@ hours and 1 minute", "\(hours)")
+            case (false, _): return L10n.format("About %@ hours and %@ minutes", "\(hours)", "\(rest)")
+            }
         }
-        return "About \(Int((Double(hours) / 24).rounded())) days"
+        return L10n.format("About %@ days", "\(Int((Double(hours) / 24).rounded()))")
     }
 
     /// "45.2 MB/s", "812 KB/s": Explorer's adaptive 1024-based units with three significant digits.

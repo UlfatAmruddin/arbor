@@ -30,6 +30,8 @@ under "Shared files touched".
 | Icons | Shortcut arrow overlay stays a corner badge (30 %, max 64 pt) on medium/large/extra-large icons instead of covering half the icon | Implemented | Snapshot, extra large icons |
 | Search | "Advanced options ▸ Zipped (compressed) folders" (was "files") | Implemented | `searchmenu:` dump |
 | Audit | Every screen in light and dark (list below) | Done | Headless snapshots read one by one |
+| Selection | One rule for every list (Details, icon layouts, navigation pane, Home / This Mac / Gallery / Network tiles): accent tint while the list has keyboard focus in the active window, neutral grey otherwise; the navigation pane's current-location pill and accent bar turn grey in an inactive window | Implemented | Headless `windowactive:0` / `windowactive:1` + `log` (`selection emphasis:` line), snapshots light/dark of Details and Large icons in both states |
+| FE-204 | Right-to-left tabs: icon and title start at the right, ✕ and separator on the left; a tab dragged along the row lands in the slot counted from the right edge | Implemented | `ARBOR_RTL=1` snapshots light/dark (also pseudo-localized), `dragtab:1:-260` + `log` (`window tabs:`), unit tests `TabStripGeometryTests` |
 
 ## Audit: screens checked (light and dark)
 
@@ -98,12 +100,19 @@ status bar `N items | n item selected size |` with Details / Large icons toggles
 - **DEC-parity-6** Tear-off places the new window so the dragged tab stays under the pointer; merging targets only
   the frontmost Arbor window at the pointer (a tab row hidden behind another window, or another app's window,
   never captures the drop).
+- **DEC-parity-8** Selection emphasis (`SelectionEmphasis`): accent while the list has keyboard focus in the active
+  window, `Theme.selectionInactive` grey otherwise, for every list and tile view; check boxes keep the accent. Headless
+  runs count as the active window so snapshots show the focused look; `windowactive:0` checks the other.
+- **DEC-parity-9** Right-to-left tabs mirror their contents and count reorder slots from the right edge
+  (`TabStripGeometry`); merge slots between windows already did.
 - **DEC-parity-7** The recent-locations list is per session and shared by all windows; it is not persisted
   (Explorer's list comes from typed paths and history; persisting would add another history store to clear).
 
 ## Shared files touched (small, additive)
 
-`Window/NavigationBar.swift` (Refresh button), `Window/AddressBar.swift` (Refresh removed, recent ▾ added, `onRefresh`
+`Views/ExplorerTableStyle.swift`, `Views/TileGridView.swift`, `Features/IconViews/ItemGridView.swift`,
+`Features/GalleryLibraries/GalleryPage.swift`, `Features/Network/NetworkUI.swift` (selection emphasis, a few lines each),
+`Window/TabStripView.swift` (RTL tab drawing, reorder slot, `scriptDrag`), `Window/NavigationBar.swift` (Refresh button), `Window/AddressBar.swift` (Refresh removed, recent ▾ added, `onRefresh`
 kept so search's wrapper still works), `Window/TabStripView.swift` (overflow buttons, drop marker, tear-off drag loop,
 three protocol methods with default implementations), `Window/BrowserWindowController.swift` (`takeTab`,
 `adoptTab`, one call to `updateNavigationTooltips`), `Window/CommandBarView.swift` (New ▾ enabled state),
@@ -117,16 +126,15 @@ Archives (column widths, KB), Properties (type name), Item actions (overlay size
 ## Script steps
 
 `tearoff:N`, `mergetab:TAB:WINDOW:SLOT`, `focuswindow:N`, `tabscroll:±N`, `windowsize:W,H`, `droppreview:SLOT`
-(all 1-based). The `log:` output gains `window tabs:`, `tab strip:`, `nav row:` (with tooltips) and `recent:` lines.
+(all 1-based), `dragtab:N:DX` (drop tab N after dragging it DX points), `windowactive:0|1` (draw as if the window
+were inactive / active; headless windows are never key). The `log:` output gains `window tabs:`, `tab strip:`,
+`nav row:` (with tooltips), `recent:` and `selection emphasis:` lines.
 
 ## Known gaps
 
 - Pointer-driven tab dragging (the floating tab, drop marker while hovering, single-tab window drag) can't be
   driven by headless scripts; the underlying moves are covered by the script steps above.
-- The Details pane's large preview area stayed blank for a CSV in a headless snapshot (thumbnail generation timing);
-  not investigated further here.
-- Content-view selection in icon views paints the active accent fill even when the window isn't key, while Details
-  dims it; Windows dims both. Left for the icon views owner.
+- Hover colors in an inactive window are unchanged (tracking areas only fire in the key window anyway).
 - Windows 11's exact selection/hover colors, tab metrics and menu orders are RECALL items in the reference; they
   need a check against a Windows 11 install (spec §2.2).
 - Context-menu icon row (Cut · Copy · Rename · Share · Delete as icons at the top) isn't possible with AppKit menus;

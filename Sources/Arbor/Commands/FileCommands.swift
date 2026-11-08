@@ -59,7 +59,7 @@ enum FileCommands {
                 id: "file.newFolder", title: "Folder", symbol: "folder.badge.plus",
                 shortcut: Shortcut("n", [.command, .shift]),
                 placements: [.newMenu(.main, 10), .mainMenu("File", .new, 20)],
-                dynamicTitle: { $0.surface == .menuBar ? "New Folder" : "Folder" },
+                dynamicTitle: { $0.surface == .menuBar ? L10n.tr("New Folder") : L10n.tr("Folder") },
                 isEnabled: { $0.targetFolder != nil && $0.allowsEditing },
                 perform: newFolder),
 
@@ -131,7 +131,7 @@ enum FileCommands {
             ExplorerCommand(
                 id: "file.pin", title: "Pin to Quick access", symbol: "pin",
                 placements: [.itemContextMenu(.pin, 10), .treeContextMenu(.pin, 10), .seeMore(.pin, 10)],
-                dynamicTitle: { ctx in pinTarget(ctx).map { QuickAccess.isPinned($0) } == true ? "Unpin from Quick access" : "Pin to Quick access" },
+                dynamicTitle: { ctx in pinTarget(ctx).map { QuickAccess.isPinned($0) } == true ? L10n.tr("Unpin from Quick access") : L10n.tr("Pin to Quick access") },
                 isAvailable: { pinTarget($0) != nil },
                 perform: { ctx in
                     guard let url = pinTarget(ctx) else { return }
@@ -140,15 +140,15 @@ enum FileCommands {
             ExplorerCommand(
                 id: "file.eject", title: "Eject", symbol: "eject",
                 placements: [.treeContextMenu(.share, 90), .itemContextMenu(.share, 90)],
-                dynamicTitle: { ctx in ctx.single.map { "Eject “\($0.name)”" } ?? "Eject" },
+                dynamicTitle: { ctx in ctx.single.map { L10n.format("Eject “%@”", "\($0.name)") } ?? L10n.tr("Eject") },
                 isAvailable: { ctx in ctx.single.map { isEjectable($0.url) } ?? false },
                 perform: { ctx in
                     guard let url = ctx.single?.url else { return }
                     do {
                         try SystemOpen.eject(url)
                     } catch {
-                        NSAlert.show("“\(displayName(of: url))” couldn't be ejected.",
-                                     "\(error.localizedDescription)\n\nClose any files or apps using it, then try again.",
+                        NSAlert.show(L10n.format("“%@” couldn't be ejected.", "\(displayName(of: url))"),
+                                     L10n.format("%@\n\nClose any files or apps using it, then try again.", "\(error.localizedDescription)"),
                                      in: ctx.window?.window)
                     }
                 }),
@@ -177,7 +177,7 @@ enum FileCommands {
         do {
             try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
         } catch {
-            NSAlert.show("Couldn't create a folder in “\(displayName(of: folder))”.", error.localizedDescription, in: window.window)
+            NSAlert.show(L10n.format("Couldn't create a folder in “%@”.", "\(displayName(of: folder))"), error.localizedDescription, in: window.window)
             return
         }
         OperationCenter.shared.registerUndoNewFolder(url)
@@ -199,7 +199,7 @@ enum FileCommands {
         }
         if !trashed.isEmpty {
             OperationCenter.shared.registerUndoTrash(trashed)
-            window.statusBar.setMessage("\(StatusText.items(trashed.count)) moved to the Trash. Press ⌘Z to undo.")
+            window.statusBar.setMessage(L10n.format("%@ moved to the Trash. Press ⌘Z to undo.", "\(StatusText.items(trashed.count))"))
         }
         window.refreshSelecting(urls: nextSelection.map { [$0] } ?? [])
         guard !failed.isEmpty, let host = window.window else { return }
@@ -207,9 +207,9 @@ enum FileCommands {
         let alert = NSAlert()
         alert.messageText = failed.count == 1 ? "“\(failed[0].name)” can't be moved to the Trash."
                                               : "\(failed.count) items can't be moved to the Trash."
-        alert.informativeText = "This location may not support the Trash. You can delete permanently instead, which can't be undone."
-        alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Delete Permanently…")
+        alert.informativeText = L10n.tr("This location may not support the Trash. You can delete permanently instead, which can't be undone.")
+        alert.addButton(withTitle: L10n.tr("Cancel"))
+        alert.addButton(withTitle: L10n.tr("Delete Permanently…"))
         alert.beginSheetModal(for: host) { response in
             if response == .alertSecondButtonReturn {
                 DispatchQueue.main.async { confirmPermanentDelete(failed, ctx: ctx) }
@@ -221,10 +221,10 @@ enum FileCommands {
         guard !items.isEmpty, let window = ctx.window, let host = window.window else { NSSound.beep(); return }
         let alert = NSAlert()
         alert.alertStyle = .critical
-        alert.messageText = items.count == 1 ? "Permanently delete “\(items[0].name)”?" : "Permanently delete \(items.count) items?"
-        alert.informativeText = "This can't be undone. The items won't go to the Trash."
-        let delete = alert.addButton(withTitle: "Delete Permanently")
-        let cancel = alert.addButton(withTitle: "Cancel")
+        alert.messageText = items.count == 1 ? L10n.format("Permanently delete “%@”?", "\(items[0].name)") : L10n.format("Permanently delete %@ items?", "\(items.count)")
+        alert.informativeText = L10n.tr("This can't be undone. The items won't go to the Trash.")
+        let delete = alert.addButton(withTitle: L10n.tr("Delete Permanently"))
+        let cancel = alert.addButton(withTitle: L10n.tr("Cancel"))
         delete.hasDestructiveAction = true
         delete.keyEquivalent = ""
         cancel.keyEquivalent = "\r"
@@ -242,7 +242,7 @@ enum FileCommands {
                     guard let window else { return }
                     window.refreshSelecting(urls: next.map { [$0] } ?? [])
                     if !failures.isEmpty {
-                        NSAlert.show("Some items couldn't be deleted.", failures.joined(separator: "\n"), in: window.window)
+                        NSAlert.show(L10n.tr("Some items couldn't be deleted."), failures.joined(separator: "\n"), in: window.window)
                     }
                 }
             }
@@ -270,7 +270,7 @@ enum ClipboardCommands {
                 perform: { ctx in
                     let urls = ctx.selection.map(\.url)
                     FileClipboard.shared.write(urls, kind: .move)
-                    ctx.window?.statusBar.setMessage("\(StatusText.items(urls.count)) cut. Paste to move \(urls.count == 1 ? "it" : "them").")
+                    ctx.window?.statusBar.setMessage((urls.count == 1 ? L10n.format("%@ cut. Paste to move it.", StatusText.items(urls.count)) : L10n.format("%@ cut. Paste to move them.", StatusText.items(urls.count))))
                 }),
             ExplorerCommand(
                 id: "edit.copy", title: "Copy", symbol: "doc.on.doc", shortcut: Shortcut("c"),
@@ -281,7 +281,7 @@ enum ClipboardCommands {
                 perform: { ctx in
                     let urls = ctx.selection.map(\.url)
                     FileClipboard.shared.write(urls, kind: .copy)
-                    ctx.window?.statusBar.setMessage("\(StatusText.items(urls.count)) copied.")
+                    ctx.window?.statusBar.setMessage(L10n.format("%@ copied.", "\(StatusText.items(urls.count))"))
                 }),
             ExplorerCommand(
                 id: "edit.paste", title: "Paste", symbol: "doc.on.clipboard", shortcut: Shortcut("v"),
@@ -289,7 +289,7 @@ enum ClipboardCommands {
                              .mainMenu("Edit", .clipboard, 30)],
                 menuAction: #selector(NSText.paste(_:)),
                 dynamicTitle: { ctx in
-                    ctx.surface == .itemContextMenu ? ctx.single.map { "Paste into “\($0.name)”" } ?? "Paste" : "Paste"
+                    ctx.surface == .itemContextMenu ? ctx.single.map { L10n.format("Paste into “%@”", "\($0.name)") } ?? L10n.tr("Paste") : L10n.tr("Paste")
                 },
                 isAvailable: { ctx in ctx.surface != .itemContextMenu || ctx.single?.isFolder == true },
                 isEnabled: { ctx in FileClipboard.shared.canPaste && pasteTarget(ctx) != nil },

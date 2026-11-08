@@ -64,7 +64,7 @@ extension LocationProvider {
     func icon(for location: Location, size: CGFloat) -> NSImage { IconProvider.shared.icon(for: location, size: size) }
     func targetFolder(for location: Location) -> URL? { location.folderURL }
     func allowsItemEditing(in location: Location) -> Bool { location.folderURL != nil }
-    func emptyText(for location: Location) -> String { "This folder is empty." }
+    func emptyText(for location: Location) -> String { L10n.tr("This folder is empty.") }
     /// Extra status-bar text after the item count (search progress and coverage). Default: none.
     func statusDetail(for location: Location) -> String? { nil }
 }
