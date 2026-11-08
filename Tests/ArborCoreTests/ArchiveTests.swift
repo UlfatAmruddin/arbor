@@ -10,6 +10,8 @@ struct TestZip {
         var unixMode: UInt16 = 0o100644
         var flags: UInt16 = 0x0800
         var nameBytes: [UInt8]? = nil
+        /// "Version made by" host: 3 = Unix, 0 = MS-DOS/FAT, 10 = NTFS.
+        var host: UInt16 = 3
     }
     var members: [Member] = []
 
@@ -41,7 +43,7 @@ struct TestZip {
             u16(UInt16(name.count), &out); u16(0, &out)
             out.append(contentsOf: name); out.append(m.data)
 
-            u32(0x0201_4B50, &central); u16(0x0314, &central); u16(20, &central); u16(m.flags, &central); u16(0, &central)
+            u32(0x0201_4B50, &central); u16(m.host << 8 | 0x14, &central); u16(20, &central); u16(m.flags, &central); u16(0, &central)
             u16(0x6000, &central); u16(0x5A67, &central)
             u32(crc, &central); u32(UInt32(m.data.count), &central); u32(UInt32(m.data.count), &central)
             u16(UInt16(name.count), &central); u16(0, &central); u16(0, &central); u16(0, &central); u16(0, &central)

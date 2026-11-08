@@ -269,7 +269,7 @@ final class TrashAccessPage: NSViewController, LocationPageStatus {
         view = root
     }
 
-    @objc private func openSettings() { NSWorkspace.shared.open(Self.settingsURL) }
+    @objc private func openSettings() { SystemOpen.open(Self.settingsURL) }
     @objc private func retry() { host?.reloadLocation() }
-    @objc private func showInFinder() { NSWorkspace.shared.open(trashURL) }
+    @objc private func showInFinder() { SystemOpen.open(trashURL) }
 }

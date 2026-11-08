@@ -505,11 +505,7 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
     }
 
     private func present(_ alert: NSAlert, _ completion: @escaping (NSApplication.ModalResponse) -> Void) {
-        if let window, window.isVisible, window.attachedSheet == nil {
-            alert.beginSheetModal(for: window, completionHandler: completion)
-        } else {
-            completion(alert.runModal())
-        }
+        AlertSheets.present(alert, in: window?.isVisible == true ? window : nil, completion: completion)
     }
 
     func windowWillClose(_ notification: Notification) {

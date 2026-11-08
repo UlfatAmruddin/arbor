@@ -169,7 +169,7 @@ final class LiveNetworkServices: NetworkServicing {
     func mount(_ address: NetworkAddress, options: MountOptions, completion: @escaping (Result<[URL], NetworkError>) -> Void) -> NetworkCancellable {
         let target = address.shareRoot ?? address.server.withUser(address.user)
         let open = NSMutableDictionary()
-        open["UIOption"] = options.allowUI ? (options.differentCredentials ? "ForceUI" : "AllowUI") : "NoUI"
+        open["UIOption"] = options.allowUI && SystemOpen.allowsSystemDialogs ? (options.differentCredentials ? "ForceUI" : "AllowUI") : "NoUI"
         if options.differentCredentials { open["ForceNewSession"] = true }
         let mountOptions = NSMutableDictionary()
         var requestID: AsyncRequestID?

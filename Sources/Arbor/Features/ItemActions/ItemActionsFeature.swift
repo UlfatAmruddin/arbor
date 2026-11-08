@@ -166,7 +166,7 @@ enum SelectionCommands {
                 isEnabled: { $0.window?.itemView != nil && !($0.window?.visibleItems.isEmpty ?? true) },
                 perform: { ctx in
                     guard let window = ctx.window, let view = window.itemView else { return }
-                    view.select(names: window.visibleItems.map(\.name))
+                    view.select(urls: window.visibleItems.map(\.url))
                 }),
             ExplorerCommand(
                 id: "edit.selectNone", title: "Select None", symbol: "square.dashed",

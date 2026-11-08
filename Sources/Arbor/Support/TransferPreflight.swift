@@ -16,11 +16,7 @@ enum TransferPreflight {
             alert.informativeText = info
             alert.addButton(withTitle: confirmTitle)
             alert.addButton(withTitle: "Cancel")
-            if let window, window.attachedSheet == nil {
-                alert.beginSheetModal(for: window) { completion($0 == .alertFirstButtonReturn) }
-            } else {
-                completion(alert.runModal() == .alertFirstButtonReturn)
-            }
+            AlertSheets.present(alert, in: window) { completion($0 == .alertFirstButtonReturn) }
         }
     }
 

@@ -40,7 +40,6 @@ enum ImageCommands {
     static func rotate(_ ctx: CommandContext, clockwise: Bool) {
         let urls = ctx.selection.map(\.url)
         guard !urls.isEmpty, let window = ctx.window else { return }
-        let names = ctx.selection.map(\.name)
         window.statusBar.setMessage("Rotating \(StatusText.items(urls.count))…")
         DispatchQueue.global(qos: .userInitiated).async {
             var done: [URL] = []
@@ -51,10 +50,10 @@ enum ImageCommands {
                 }
             }
             DispatchQueue.main.async { [weak window] in
-                if !done.isEmpty { registerUndo(done, clockwise: clockwise) }
+                if !done.isEmpty { registerUndo(done, clockwise: clockwise, actionName: clockwise ? "Rotate Right" : "Rotate Left") }
                 IconProvider.shared.purgeFileIcons()
                 guard let window else { return }
-                window.refreshSelecting(names)
+                window.refreshSelecting(urls: urls)
                 window.statusBar.setMessage(done.isEmpty ? nil : "Rotated \(StatusText.items(done.count)) \(clockwise ? "right" : "left"). Press ⌘Z to undo.")
                 if !problems.isEmpty {
                     NSAlert.show(problems.count == 1 ? "1 image couldn't be rotated." : "\(problems.count) images couldn't be rotated.",
@@ -64,8 +63,9 @@ enum ImageCommands {
         }
     }
 
-    /// Undo turns the images back the other way (exact for both lossless methods).
-    static func registerUndo(_ urls: [URL], clockwise: Bool) {
+    /// Undo turns the images back the other way (exact for both lossless methods); Redo turns them again.
+    /// `clockwise` is the turn this step undoes; `actionName` names the user's original action in both directions.
+    static func registerUndo(_ urls: [URL], clockwise: Bool, actionName: String) {
         let center = OperationCenter.shared
         center.undoManager.registerUndo(withTarget: center) { _ in
             var back: [URL] = []
@@ -73,12 +73,12 @@ enum ImageCommands {
                 if (try? ImageRotator.rotate(url, clockwise: !clockwise)) != nil { back.append(url) }
             }
             IconProvider.shared.purgeFileIcons()
-            if !back.isEmpty { registerUndo(back, clockwise: !clockwise) }
+            if !back.isEmpty { registerUndo(back, clockwise: !clockwise, actionName: actionName) }
             if back.count != urls.count {
                 NSAlert.show("Some images couldn't be turned back.", "They were moved, changed or removed.", in: NSApp.keyWindow)
             }
         }
-        center.undoManager.setActionName(clockwise ? "Rotate Right" : "Rotate Left")
+        center.undoManager.setActionName(actionName)
     }
 
     /// Sets the picture for every screen's current desktop (Explorer sets it for all monitors).
@@ -91,7 +91,7 @@ enum ImageCommands {
         }
         var failure: Error?
         for screen in NSScreen.screens {
-            do { try NSWorkspace.shared.setDesktopImageURL(item.url, for: screen, options: [:]) } catch { failure = error }
+            do { try SystemOpen.setDesktopImage(item.url, for: screen) } catch { failure = error }
         }
         if let failure {
             NSAlert.show("Couldn't set “\(item.name)” as the desktop background.", failure.localizedDescription, in: window.window)

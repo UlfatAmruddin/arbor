@@ -26,13 +26,13 @@ after Archives and Properties, so they can extend those features' commands and t
 | FE-122 | Cross-volume move | implemented | unit: injectable volume check + real disk image; each original deleted only after its own copy succeeded; failed originals kept |
 | FE-123 | Metadata preservation | implemented | unit: xattrs, Finder tags, permissions, flags (hidden), creation + modification dates, folder dates/permissions, with and without clone |
 | FE-124 | Symlinks, hard links, sparse | implemented | unit: links copied as links (never followed, also in discovery), hard links become independent files, 200 MB sparse file stays sparse |
-| FE-125 | Persistent job journal | implemented | unit (completed / not done / uncertain, torn last line, live-process journals left alone); headless crash simulation → review sheet |
+| FE-125 | Persistent job journal | implemented | unit (completed / not done / uncertain, torn last line, live-process journals left alone, waiting jobs recognized); headless crash simulation → review sheet; quit with a queued job → next launch offers "Start" (`behavior-checks.sh queue`) |
 | FE-126 | Operation results | implemented | "Operation history" window ("…" menu, Window ▸ Operation History, progress window footer): kind, sources → destination, time, outcome counts, verification state; expanding a job shows per-item results with readable reasons; Open destination, Retry failed items, Clear history (confirmed). Bounded: 50 jobs × 200 items. Jobs from the crash review are added too. Unit (record from report and from journal, counts, retry plan, retention, persistence); headless runs: failure → history → retry → clear, snapshots light + dark |
 | FE-127 | Queue controls | implemented (beyond Explorer) | Off by default (Windows runs every job at once). "Queue options" in the progress window footer and Window ▸ Transfer Queue: "Queue transfers to the same drive", "Run at most N operations at a time". Per waiting job: Start now, Move up/down, Defer; Pause/Resume/Cancel per job as before. Unit (`TransferScheduler`: default concurrency, same drive, limit order, defer, start now, reconfigure); headless run with limit 1, reorder and defer, snapshots light + dark |
 | FE-128 | Safe retry | implemented | "Retry remaining" starts a normal job: destinations re-checked, conflicts asked; missing sources not offered |
 | FE-129 | Undo protection | implemented | Undo Copy removes (to Trash) only copies whose fingerprint is unchanged (unit: edited, replaced-same-size, Finder .DS_Store, deleted); redo restores |
 | FE-130 | Optional copy verification | implemented | "Verify after copying" per copy job (check box in its progress panel, off by default; "Verify new copies by default" in Queue options). Size + SHA-256 of original and copy, streamed in 1 MB chunks, copy read with `F_NOCACHE`; shown as "Verifying copies… N%", then "Verified" (status bar, history) or an alert listing the files that don't match. Unit (identical tree incl. links, flipped byte, size, missing, exclusions, cancel, moves not verified); headless run with `ARBOR_VERIFY_THROTTLE`, snapshot |
-| — | "Copy without its properties?" | implemented | Windows' "Property Loss" dialog (Yes · Skip · Cancel, "Do this for all current items") when the destination volume can't store an item's extended attributes (no `VOL_CAP_INT_EXTENDED_ATTR`: FAT32, exFAT, SMB without named streams) or access list (`_PC_EXTENDED_SECURITY_NP`). Unit (APFS, a real exFAT image, inventory ignores system attributes, skip / for-all / cancel); headless copy to a real exFAT image, snapshots |
+| — | "Copy without its properties?" | implemented | Windows' "Property Loss" dialog (Yes · Skip · Cancel, "Do this for all current items") when the destination volume can't store an item's extended attributes (no `VOL_CAP_INT_EXTENDED_ATTR`: FAT32, exFAT, SMB without named streams) or access list (`_PC_EXTENDED_SECURITY_NP`), for files, packages and folders' own properties ("copy this folder without its properties?"; Skip leaves the folder out). Unit (APFS, a real exFAT image, inventory ignores system attributes, skip / for-all / cancel, tagged folder: `FolderPropertyLossTests`); headless copy to a real exFAT image, snapshots |
 | FE-241 | Per-item success vs aborted | implemented | per-item outcomes incl. `partial` and `copiedButSourceRemains`; journal per item |
 | FE-250 | Revalidation after delayed decision | implemented | unit: destination edited while dialog open → asked again; vanished conflict → plain copy |
 | FE-255 | Actual committed name | implemented | unit: keep-both name recorded in report and journal |
@@ -80,9 +80,11 @@ cancels the job (removing the file being copied) and keeps the journal for revie
 | DEC-fileops-15 | History keeps 50 jobs × 200 items, written from the job's report (and from crash journals after review) | Bounded file (spec §15); the journal itself is deleted when a job ends |
 | DEC-fileops-16 | Verification compares SHA-256 of both sides (not a stored hash) and reads the copy uncached | Detects corruption on the destination, not just in memory; memory stays at two 1 MB buffers |
 | DEC-fileops-17 | Moves aren't verified | A cross-volume move removes each original right after its copy, so nothing is left to compare |
-| DEC-fileops-18 | "Property Loss" is asked for files and packages, not folders; system attributes (quarantine, provenance, MACL, last-used date) and all-zero Finder info never trigger it. "Yes" copies anyway: macOS keeps extended attributes in "._" files on FAT/exFAT and drops access lists | Windows asks per file; asking about invisible system attributes would prompt for every download |
+| DEC-fileops-18 | "Property Loss" is asked for files, packages and folders (a folder's own tags, comments, attributes or access list; its contents are asked about one by one, and Skip leaves the whole folder out); system attributes (quarantine, provenance, MACL, last-used date) and all-zero Finder info never trigger it. "Yes" copies anyway: macOS keeps extended attributes in "._" files on FAT/exFAT and drops access lists | Windows asks per file; asking about invisible system attributes would prompt for every download |
 | DEC-fileops-19 | Compress to ▸ Additional options writes ZIP, 7z, TAR, .tar.gz/.bz2/.xz and single-file .gz/.bz2/.xz with bsdtar; no Zstandard | The system libarchive has no zstd writer; it would depend on a separately installed `zstd` |
 | DEC-fileops-20 | "Include hidden files" excludes `*/.*` below the selection; selected dot items are always included | The user chose them explicitly |
+| DEC-fileops-21 | A job still waiting in the queue when Arbor quits isn't started or cancelled: its journal (which has no "running" line yet) is kept, and the next launch's review offers "Start", which queues it again as a normal job. Quitting doesn't wait for waiting jobs | The user asked for that transfer; nothing of it happened, so offering it again is safe and every destination is checked again |
+| DEC-fileops-22 | Undo of a move from another volume is a normal move job (progress, pause, cancel, journal, conflict prompts, history); it registers no undo of its own | Same safety rules as any move; the undo stack keeps one Undo/Redo pair (qa-core.md QA-CORE-5) |
 
 ## Scripted checks (headless)
 
@@ -106,11 +108,10 @@ permissions editor's state. Headless-only environment: `ARBOR_HISTORY_FILE`, `AR
 
 - Verification failures are covered by unit tests; the headless runs reach the "Verified" outcome only (a copy can't be
   corrupted on demand mid-run). Moves aren't verified (DEC-fileops-17).
-- Waiting jobs aren't restored after quitting (they are cancelled with the rest and appear in the crash review).
 - "Retry failed items" stays available after a retry (the old record still lists the failures); retrying again goes
   through the conflict prompts, so nothing is overwritten.
 - "File In Use" is rare on macOS (EBUSY/ETXTBSY); locked (uchg) items are reported as "File Access Denied … locked".
-- The property-loss prompt doesn't cover folders' own attributes, file flags or owners (copyfile applies what the
-  volume allows).
+- The property-loss prompt doesn't cover file flags or owners (copyfile applies what the volume allows).
+- A queued job restored with "Start" goes back to the end of the queue; its old position isn't kept.
 - Pause doesn't survive quitting; a retried item restarts from the beginning.
 - The header counts top-level items ("Copying 2 items"), not every file inside folders; "Items remaining" counts every entry.

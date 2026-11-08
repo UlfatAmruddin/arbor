@@ -51,7 +51,7 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
     private lazy var restoreButton = SheetButton("Restore") { [weak self] _ in self?.restoreInPlace() }
     private lazy var browse = SheetButton("Browse in Time Machine") { [weak self] _ in self?.browseTimeMachine() }
     private lazy var settings = SheetButton("Time Machine Settings…") { _ in
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Time-Machine-Settings.extension")!)
+        SystemOpen.open(URL(string: "x-apple.systempreferences:com.apple.Time-Machine-Settings.extension")!)
     }
     private var versions: [DocumentVersion] = []
     private lazy var backups = TimeMachineVersionsView(controller: controller)
@@ -206,7 +206,7 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             try DocumentVersions.restore(version, to: target)
             try FileFlags.update(target, locked: true)
-            NSWorkspace.shared.open(target)
+            SystemOpen.open(target)
         } catch {
             PropertiesWindowController.present(message: "The version couldn't be opened.", info: error.localizedDescription, window: controller?.window)
         }
@@ -258,10 +258,10 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
     /// Time Machine opens on Finder's front window, so the item is revealed in Finder first.
     private func browseTimeMachine() {
         guard let url = model.single?.url else { return }
-        NSWorkspace.shared.activateFileViewerSelecting([url])
+        SystemOpen.reveal([url])
         let app = URL(fileURLWithPath: "/System/Applications/Time Machine.app")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            NSWorkspace.shared.openApplication(at: app, configuration: NSWorkspace.OpenConfiguration())
+            SystemOpen.openApplication(at: app)
         }
     }
 
@@ -416,7 +416,7 @@ final class SharingTab: PropertiesTab {
             hstack([fixedImage(IconProvider.shared.icon(for: model.entries[0].item, size: 32), 32), SheetLabel.make(name)], spacing: 10),
             SheetLabel.wrapping("On a Mac, folders are shared with other computers in System Settings › General › Sharing › File Sharing, where you choose the folders and who can use them."),
             SheetButton("Sharing Settings…") { _ in
-                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Sharing-Settings.extension")!)
+                SystemOpen.open(URL(string: "x-apple.systempreferences:com.apple.Sharing-Settings.extension")!)
             },
             SheetSeparator(),
             SheetLabel.make("Share with nearby devices", bold: true),
@@ -506,7 +506,7 @@ final class DriveGeneralTab: PropertiesTab, PropertiesTabDebug {
         let chart = NSView()
         chart.translatesAutoresizingMaskIntoConstraints = false
         let cleanup = SheetButton("Disk Cleanup") { _ in
-            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.settings.Storage")!)
+            SystemOpen.open(URL(string: "x-apple.systempreferences:com.apple.settings.Storage")!)
         }
         cleanup.toolTip = "Opens Storage in System Settings, where macOS recommends what to remove"
         for v in [pie, caption, cleanup] as [NSView] { chart.addSubview(v) }
@@ -600,8 +600,7 @@ final class ToolsTab: PropertiesTab {
         stack.spacing = 8
         stack.translatesAutoresizingMaskIntoConstraints = false
         let check = SheetButton("Check") { _ in
-            NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: "/System/Applications/Utilities/Disk Utility.app"),
-                                               configuration: NSWorkspace.OpenConfiguration())
+            SystemOpen.openApplication(at: URL(fileURLWithPath: "/System/Applications/Utilities/Disk Utility.app"))
         }
         check.toolTip = "Opens Disk Utility; select the drive and click First Aid"
         let items: [NSView] = [

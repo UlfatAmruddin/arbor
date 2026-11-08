@@ -34,7 +34,7 @@ final class MetadataLossDialog: FileOpsDialog {
                                 source: transfer.sources.first?.deletingLastPathComponent(), destination: transfer.destination,
                                 open: ConflictFlow.open)
         let isFolder = FileOps.isPlainFolder(loss.source)
-        let instruction = FileOpsStyle.label("Are you sure you want to copy this \(isFolder ? "item" : "file") without its properties?",
+        let instruction = FileOpsStyle.label("Are you sure you want to copy this \(isFolder ? "folder" : "file") without its properties?",
                                              font: FileOpsStyle.instructionFont, wraps: true)
         instruction.preferredMaxLayoutWidth = 430
         let item = FailureDialog.itemRow(loss.source)

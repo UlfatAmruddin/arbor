@@ -143,7 +143,7 @@ enum SearchCommands {
             return item
         }
         let indexed = ClosureMenuItem("Change indexed locations…") {
-            if let url = URL(string: "x-apple.systempreferences:com.apple.Spotlight-Settings.extension") { NSWorkspace.shared.open(url) }
+            if let url = URL(string: "x-apple.systempreferences:com.apple.Spotlight-Settings.extension") { SystemOpen.open(url) }
         }
         indexed.toolTip = "Opens System Settings ▸ Spotlight, where macOS decides what's indexed."
         items.append(submenu("Advanced options", [
@@ -189,7 +189,7 @@ enum SearchCommands {
                                                         : "Why might some results be missing?"
         alert.informativeText = coverageText(session)
         alert.addButton(withTitle: "OK")
-        if let host = ctx.window?.window { alert.beginSheetModal(for: host) } else { alert.runModal() }
+        AlertSheets.present(alert, in: ctx.window?.window)
     }
 
     static func coverageText(_ session: SearchSession) -> String {

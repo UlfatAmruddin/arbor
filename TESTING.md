@@ -22,7 +22,7 @@ cat "$ROOT/state.txt"
 ```
 
 Environment:
-- `ARBOR_HEADLESS=1`: invisible, click-through window, no Dock icon. Preferences (pins, view mode, sort, panes) go to a throwaway domain that `quit` deletes, and window/split/column geometry is neither read nor saved, so runs never change the user's settings.
+- `ARBOR_HEADLESS=1`: invisible, click-through window, no Dock icon. Preferences (pins, view mode, sort, panes) go to a throwaway domain that `quit` deletes, and window/split/column geometry is neither read nor saved, so runs never change the user's settings. Nothing outside Arbor's windows opens either: files, apps, Finder, Terminal, Mail, the share picker, Quick Look, settings pages, the desktop picture and disk images are only logged (`log:` → `system open: …`; everything goes through `Support/SystemOpen.swift`, enforced by `SystemOpenAuditTests`).
 - `ARBOR_APPEARANCE=light|dark`: forces the appearance (check both).
 - The path argument opens that folder; without it the window opens Home.
 
@@ -51,6 +51,7 @@ Steps (separated by `;`; the first `:` separates a step from its argument):
 | `undostate:/path` | append the undo stack state |
 | `snapshot:/path.png` | draw the window (title bar included) into a PNG; `snapshotlayer:` renders the layer tree instead |
 | `quit` | delete the headless preferences domain and exit |
+| `terminate` | quit the way "Quit Anyway" does while jobs run (journals kept for the next launch) |
 
 Features add steps and log lines from their own files: `DebugScript.registerStep("name") { arg, window in … }` and `DebugScript.registerLogger { window in "…" }`.
 A step that must hold the script until something finishes (a folder load, a copy) registers with `DebugScript.registerWaitStep("name") { arg, window, elapsed in … }`; it is polled until it returns true.

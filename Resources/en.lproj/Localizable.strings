@@ -9,9 +9,11 @@
 "1 item" = "1 item";
 "1 item selected" = "1 item selected";
 "Add to Favorites" = "Add to Favorites";
+"Additional options" = "Additional options";
 "Address" = "Address";
 "Add…" = "Add…";
 "Album" = "Album";
+"Arbor extras (File Explorer runs every transfer at once)" = "Arbor extras (File Explorer runs every transfer at once)";
 "Ascending" = "Ascending";
 "Authors" = "Authors";
 "Back" = "Back";
@@ -61,6 +63,7 @@
 "Copy as path" = "Copy as path";
 "Create Symbolic Link" = "Create Symbolic Link";
 "Create a new item" = "Create a new item";
+"Create archive" = "Create archive";
 "Create shortcut" = "Create shortcut";
 "Create symbolic link" = "Create symbolic link";
 "Cut" = "Cut";
@@ -171,6 +174,7 @@
 "Open in new tab" = "Open in new tab";
 "Open in new window" = "Open in new window";
 "Open with" = "Open with";
+"Operation history" = "Operation history";
 "Options" = "Options";
 "Original Location" = "Original Location";
 "Pages" = "Pages";
@@ -185,6 +189,7 @@
 "Preview pane" = "Preview pane";
 "Privacy" = "Privacy";
 "Properties" = "Properties";
+"Property Loss" = "Property Loss";
 "Put every item back where it was (items Arbor moved to the Trash)" = "Put every item back where it was (items Arbor moved to the Trash)";
 "Put the selected items back where they were" = "Put the selected items back where they were";
 "Quick Look" = "Quick Look";
@@ -213,6 +218,7 @@
 "Retry" = "Retry";
 "Rotate left" = "Rotate left";
 "Rotate right" = "Rotate right";
+"Run at most" = "Run at most";
 "Save Search…" = "Save Search…";
 "Save search" = "Save search";
 "Scroll tab list backward" = "Scroll tab list backward";
@@ -267,6 +273,7 @@
 "The items couldn't be copied." = "The items couldn't be copied.";
 "This Mac" = "This Mac";
 "Title" = "Title";
+"Transfer Queue" = "Transfer Queue";
 "Trash" = "Trash";
 "Trash properties" = "Trash properties";
 "Try Again" = "Try Again";

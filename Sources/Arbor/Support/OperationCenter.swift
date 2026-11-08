@@ -23,6 +23,10 @@ final class OperationCenter {
         let created = Date()
         /// How dialogs describe the job when its real source is a hidden staging folder (extracting an archive).
         var presentedAs: PresentedJob?
+        /// False for jobs that are themselves an undo or redo (they register their own inverse).
+        var registersUndo = true
+        /// Set once the job was allowed to run (a queued job waits until then).
+        var hasLaunched = false
         init(transfer: FileTransfer, window: NSWindow?) {
             self.transfer = transfer
             self.window = window
@@ -110,6 +114,12 @@ final class OperationCenter {
     /// once they have stopped (the file being copied is removed first) or after 5 seconds.
     func cancelAllForQuit(then done: @escaping () -> Void) {
         isQuitting = true
+        // Jobs still waiting in the queue never started: keep their journals as they are, so the next
+        // launch offers to start them again (JobRecovery), and don't wait for them.
+        for job in jobs where !job.hasLaunched {
+            job.transfer.journal?.abandon()
+            jobs.removeAll { $0 === job }
+        }
         jobs.forEach {
             $0.transfer.retainsJournalWhenCancelled = true
             $0.transfer.cancel()
@@ -124,22 +134,25 @@ final class OperationCenter {
 
     /// Starts a copy/move job: journaled (FE-125), with Explorer's conflict and error dialogs and
     /// the progress window (Features/FileOperations).
-    func start(_ kind: TransferKind, sources: [URL], destination: URL, window: NSWindow?,
+    func start(_ kind: TransferKind, sources: [URL], destination: URL, window: NSWindow?, registersUndo: Bool = true,
                completion: @escaping (TransferReport) -> Void) {
         let transfer = FileTransfer(kind: kind, sources: sources, destination: destination,
                                     journal: FileOpsEnvironment.makeJournal(kind, sources: sources, destination: destination),
                                     options: FileOpsEnvironment.transferOptions)
         let job = Job(transfer: transfer, window: window)
+        job.registersUndo = registersUndo
         jobs.append(job)
         Self.prepareJob?(job)
         post()
         OperationsWindow.shared.jobStarted(job)
-        let launch = { Self.run(job, completion: completion) }
+        // While quitting, a queued job is never started (its journal is kept for the next launch instead).
+        let launch = { if !OperationCenter.shared.isQuitting { Self.run(job, completion: completion) } }
         if let admission = Self.admission { admission(job, launch) } else { launch() }
     }
 
     private static func run(_ job: Job, completion: @escaping (TransferReport) -> Void) {
         let transfer = job.transfer
+        job.hasLaunched = true
         Task.detached(priority: .userInitiated) {
             let report = await transfer.run(
                 progress: { progress in
@@ -162,7 +175,9 @@ final class OperationCenter {
         Self.jobFinished?(job, report)
         jobs.removeAll { $0 === job }
         post()
-        if report.kind == .move {
+        if !job.registersUndo {
+            // An undo or redo running as a job: its caller registers the inverse.
+        } else if report.kind == .move {
             let pairs = report.committed.filter { $0.source != $0.destination }
             if !pairs.isEmpty { registerUndoMove(pairs) }
         } else {
@@ -208,7 +223,9 @@ final class OperationCenter {
         undoManager.setActionName("Rename")
     }
 
-    func registerUndoTrash(_ pairs: [(original: URL, trashed: URL)]) {
+    /// `actionName` is what Edit ▸ Undo/Redo say for this step and every later round of it ("New Folder",
+    /// "Restore", "Create Shortcut"…), not just the first.
+    func registerUndoTrash(_ pairs: [(original: URL, trashed: URL)], actionName: String = "Move to Trash") {
         undoManager.registerUndo(withTarget: self) { center in
             var restored: [URL] = []
             var skipped: [String] = []
@@ -225,39 +242,24 @@ final class OperationCenter {
                 center.report("Some items couldn't be put back.",
                               "Their original location is taken or they're no longer in the Trash:\n" + skipped.joined(separator: ", "))
             }
-            center.undoManager.registerUndo(withTarget: center) { c in c.trashAgain(restored) }
-            center.undoManager.setActionName("Move to Trash")
+            center.undoManager.registerUndo(withTarget: center) { c in c.trashAgain(restored, actionName: actionName) }
+            center.undoManager.setActionName(actionName)
         }
-        undoManager.setActionName("Move to Trash")
+        undoManager.setActionName(actionName)
     }
 
-    private func trashAgain(_ urls: [URL]) {
+    private func trashAgain(_ urls: [URL], actionName: String) {
         var pairs: [(original: URL, trashed: URL)] = []
         for url in urls {
             if let trashed = try? SystemTrash.trash(url) { pairs.append((url, trashed)) }
         }
-        registerUndoTrash(pairs)
+        registerUndoTrash(pairs, actionName: actionName)
     }
 
+    /// Undo puts moved items back (another volume: as a normal move job with progress and cancel, see
+    /// `UndoMoveBack.swift`); Redo moves them again. Each step registers its inverse at once.
     func registerUndoMove(_ pairs: [(source: URL, destination: URL)]) {
-        undoManager.registerUndo(withTarget: self) { center in
-            var undone: [(source: URL, destination: URL)] = []
-            var skipped: [String] = []
-            for pair in pairs {
-                guard FileOps.exists(pair.destination), !FileOps.exists(pair.source) else {
-                    skipped.append(pair.destination.lastPathComponent); continue
-                }
-                do {
-                    try FileManager.default.moveItem(at: pair.destination, to: pair.source)
-                    undone.append((pair.destination, pair.source))
-                } catch { skipped.append(pair.destination.lastPathComponent) }
-            }
-            if !skipped.isEmpty {
-                center.report("Some items couldn't be moved back.",
-                              "They were changed or their original location is taken:\n" + skipped.joined(separator: ", "))
-            }
-            if !undone.isEmpty { center.registerUndoMove(undone) }
-        }
+        registerMoveStep { pairs.map { MoveBack.Item(from: $0.destination, to: $0.source) } }
         undoManager.setActionName("Move")
     }
 
@@ -269,14 +271,13 @@ final class OperationCenter {
                 return
             }
             if let trashed = try? SystemTrash.trash(url) {
-                center.registerUndoTrash([(url, trashed)])
-                center.undoManager.setActionName("New Folder")
+                center.registerUndoTrash([(url, trashed)], actionName: "New Folder")
             }
         }
         undoManager.setActionName("New Folder")
     }
 
-    private func report(_ message: String, _ info: String) {
+    func report(_ message: String, _ info: String) {
         NSAlert.show(message, info, in: NSApp.keyWindow)
     }
 }

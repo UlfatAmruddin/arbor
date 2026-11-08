@@ -71,10 +71,6 @@ enum NetworkConnectFlow {
             default: choice(.cancel)
             }
         }
-        if let host = window.window, host.attachedSheet == nil {
-            alert.beginSheetModal(for: host, completionHandler: handle)
-        } else {
-            handle(alert.runModal())
-        }
+        AlertSheets.present(alert, in: window.window, completion: handle)
     }
 }

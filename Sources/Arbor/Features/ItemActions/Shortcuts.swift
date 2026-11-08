@@ -70,8 +70,7 @@ enum Shortcuts {
             for url in urls where FileOps.exists(url) {
                 if let trashed = try? SystemTrash.trash(url) { pairs.append((url, trashed)) }
             }
-            center.registerUndoTrash(pairs)
-            center.undoManager.setActionName(name)
+            center.registerUndoTrash(pairs, actionName: name)
         }
         center.undoManager.setActionName(name)
     }
@@ -133,12 +132,14 @@ enum Shortcuts {
         return .folder(target)
     }
 
-    /// Opening a file shortcut opens its target; a broken one shows "Problem with Shortcut".
+    /// Opening a file shortcut opens its target, which Home ▸ Recent then lists (as Explorer does);
+    /// a broken one shows "Problem with Shortcut".
     static func openFile(_ window: BrowserWindowController, _ item: FileItem) -> Bool {
         guard isAlias(item.url) else { return false }
         switch resolve(item.url) {
         case .target(let target, _)?:
-            NSWorkspace.shared.open(target)
+            SystemOpen.open(target)
+            NotificationCenter.default.post(name: LocationEvents.didOpenFiles, object: window, userInfo: ["urls": [target]])
             return true
         case .broken(let name)?:
             showProblem(alias: item, targetName: name, window: window)
@@ -170,11 +171,7 @@ enum Shortcuts {
                 NSAlert.show("Couldn't delete “\(alias.name)”.", error.localizedDescription, in: window.window)
             }
         }
-        if let host = window.window, host.attachedSheet == nil {
-            alert.beginSheetModal(for: host, completionHandler: finish)
-        } else {
-            finish(alert.runModal())
-        }
+        AlertSheets.present(alert, in: window.window, completion: finish)
     }
 
     // MARK: Icon overlay

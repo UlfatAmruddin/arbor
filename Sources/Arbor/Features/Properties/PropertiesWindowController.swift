@@ -202,13 +202,7 @@ final class PropertiesWindowController: NSWindowController, NSWindowDelegate {
     /// Shows an alert as a sheet on `window` (or app-modal without one). Sheets keep scripted runs
     /// going (`propbutton:` answers them); headless runs keep them invisible.
     static func present(_ alert: NSAlert, window: NSWindow?, completion: ((NSApplication.ModalResponse) -> Void)? = nil) {
-        if AppDelegate.isHeadless { alert.window.alphaValue = 0 }
-        if let window, window.attachedSheet == nil {
-            alert.beginSheetModal(for: window) { response in completion?(response) }
-        } else {
-            let response = alert.runModal()
-            completion?(response)
-        }
+        AlertSheets.present(alert, in: window, completion: completion)
     }
 
     static func present(message: String, info: String, window: NSWindow?) {

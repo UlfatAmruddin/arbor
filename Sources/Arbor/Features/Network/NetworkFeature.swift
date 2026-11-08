@@ -80,7 +80,7 @@ enum NetworkFeature {
 
     static func openLocalNetworkSettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork") {
-            NSWorkspace.shared.open(url)
+            SystemOpen.open(url)
         }
     }
 

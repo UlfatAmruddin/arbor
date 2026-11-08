@@ -106,7 +106,7 @@ final class LibraryProvider: LocationProvider {
                 LibraryStore.remember(resolution, for: name)
                 completion(.success(.items(result.items)))
                 if !result.unavailable.isEmpty {
-                    let list = result.unavailable.map(\.folder.path).map { "“\($0)”" }.joined(separator: ", ")
+                    let list = DisplayPath.quotedList(result.unavailable.map(\.folder))
                     host?.showStatusMessage("Some folders in this library aren't available, so it may be incomplete: \(list)", isError: true)
                 }
             }

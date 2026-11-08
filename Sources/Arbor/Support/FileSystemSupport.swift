@@ -79,10 +79,6 @@ extension NSAlert {
         alert.messageText = message
         alert.informativeText = info
         alert.alertStyle = style
-        if let window, window.attachedSheet == nil {
-            alert.beginSheetModal(for: window)
-        } else {
-            alert.runModal()
-        }
+        AlertSheets.present(alert, in: window)
     }
 }

@@ -2,15 +2,16 @@ import Foundation
 
 /// A small append-only record of one copy/move job (FE-125, FE-128, spec §9.5).
 ///
-/// One JSON object per line: a header (job, sources, destination, process), then one event per
-/// top-level item state change. Appending keeps writes O(1) per change even for huge jobs.
+/// One JSON object per line: a header (job, sources, destination, process), a `{"run":true}` line once
+/// the job may start (a queued job waits without it), then one event per top-level item state change. Appending keeps writes O(1) per change even for huge jobs.
 /// The file is deleted when the job ends normally, so any file left behind means the app
 /// crashed or was quit mid-job. Writes are not fsync'd: they survive an app crash (the kernel
 /// keeps them), not a power loss, which then shows fewer finished items than really finished.
 /// That errs on the safe side because retry re-checks every destination.
 public final class JobJournal: @unchecked Sendable {
     public struct Header: Codable, Sendable, Equatable {
-        public var version = 1
+        /// 2: the journal says when the job started running (`markRunning`); version 1 journals don't.
+        public var version = 2
         public let id: UUID
         public let pid: Int32
         public let kind: String
@@ -40,6 +41,10 @@ public final class JobJournal: @unchecked Sendable {
         var n: String?
     }
 
+    struct RunMarker: Codable {
+        let run: Bool
+    }
+
     public let url: URL
     public let header: Header
     private let handle: FileHandle
@@ -60,6 +65,15 @@ public final class JobJournal: @unchecked Sendable {
         }
         handle = try FileHandle(forWritingTo: url)
         try handle.seekToEnd()
+    }
+
+    /// The job left the queue and runs now. A journal without this line belongs to a job that was still
+    /// waiting to start when the app stopped.
+    public func markRunning() {
+        lock.withLock {
+            guard !closed, let data = try? Self.encoder.encode(RunMarker(run: true)) else { return }
+            try? handle.write(contentsOf: data + [0x0A])
+        }
     }
 
     public func record(_ index: Int, _ state: ItemState, destination: URL? = nil, note: String? = nil) {
@@ -146,6 +160,8 @@ public struct InterruptedJob: Sendable {
     public let file: URL
     public let header: JobJournal.Header
     public let items: [Item]
+    /// The job was still waiting in the queue (it never started): nothing of it happened.
+    public let wasWaiting: Bool
 
     public var kind: TransferKind { TransferKind(rawValue: header.kind) ?? .copy }
     public var destination: URL { URL(fileURLWithPath: header.destination) }
@@ -167,7 +183,9 @@ public struct InterruptedJob: Sendable {
         decoder.dateDecodingStrategy = .iso8601
         guard let first = lines.first, let header = try? decoder.decode(JobJournal.Header.self, from: Data(first.utf8)) else { return nil }
         var last: [Int: JobJournal.Event] = [:]
+        var ran = false
         for line in lines.dropFirst() {
+            if let marker = try? decoder.decode(JobJournal.RunMarker.self, from: Data(line.utf8)), marker.run { ran = true; continue }
             // A torn final line (crash mid-write) is ignored.
             guard let event = try? decoder.decode(JobJournal.Event.self, from: Data(line.utf8)),
                   header.sources.indices.contains(event.i) else { continue }
@@ -177,6 +195,8 @@ public struct InterruptedJob: Sendable {
         }
         self.file = file
         self.header = header
+        // Version 1 journals can't tell; treat them as started (the review then reads as before).
+        wasWaiting = header.version >= 2 && !ran && last.isEmpty
         items = header.sources.enumerated().map { index, path in
             let event = last[index]
             let status: Status

@@ -156,7 +156,7 @@ public enum LibraryMerge {
         var result = LibraryMergeResult(items: [], duplicateFolders: [], unavailable: [])
         for source in sources {
             guard let id = source.folderID else {
-                result.unavailable.append((source.folder, source.problem ?? "“\(source.folder.path)” isn't available."))
+                result.unavailable.append((source.folder, source.problem ?? "“\(DisplayPath.of(source.folder))” isn't available."))
                 continue
             }
             guard seenFolders.insert(id).inserted else {
@@ -183,7 +183,7 @@ public enum LibraryMerge {
         let listings = library.folderURLs.map { folder -> LibrarySourceListing in
             guard let id = folderIdentity(folder) else {
                 return LibrarySourceListing(folder: folder, folderID: nil, items: [],
-                                            problem: "“\(folder.path)” doesn't exist or isn't connected.")
+                                            problem: "“\(DisplayPath.of(folder))” doesn't exist or isn't connected.")
             }
             // A folder already listed under another path is not read twice; merge reports it.
             guard listed.insert(id).inserted else { return LibrarySourceListing(folder: folder, folderID: id, items: []) }

@@ -174,14 +174,24 @@ public enum ArchiveTool {
         return Listing(entries: parsed.entries, warning: nil)
     }
 
+    /// The listing extraction plans from: bsdtar's names, renamed for ZIPs made on Windows (`ZipNames`),
+    /// and whether extraction must rewrite "\" to match (`extract(…rewritesBackslashes:)`).
+    public static func extractionListing(_ url: URL, process: ToolProcess = ToolProcess()) throws -> (listing: Listing, rewritesBackslashes: Bool) {
+        var listing = try listWithBsdtar(url, process: process)
+        guard ArchiveFormat.detect(url) == .zip, (try? ZipDirectory.usesWindowsSeparators(url)) == true else { return (listing, false) }
+        listing.entries = ZipNames.rewritten(listing.entries)
+        return (listing, true)
+    }
+
     // MARK: Extraction
 
     /// Runs bsdtar for a plan into an empty staging folder. Ownership, file flags and ACLs are not
     /// restored (they could lock the user out); bsdtar's own refusal of `..`, absolute names and
     /// writes through symlinks stays on as a second line of defense.
     public static func extract(_ archive: URL, plan: ExtractionPlanner.Plan, into staging: URL,
-                               process: ToolProcess, onEntry: (() -> Void)? = nil) throws {
+                               process: ToolProcess, rewritesBackslashes: Bool = false, onEntry: (() -> Void)? = nil) throws {
         var args = ["-x", "-v", "-f", archive.path, "-C", staging.path, "--no-same-owner", "--no-fflags", "--no-acls"]
+        if rewritesBackslashes { args += ZipNames.bsdtarRewrite }
         var listFile: URL?
         if !plan.patterns.isEmpty {
             let list = staging.deletingLastPathComponent().appendingPathComponent(".arbor-patterns-\(UUID().uuidString)")

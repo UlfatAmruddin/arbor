@@ -77,9 +77,8 @@ enum SendToCommands {
             menu.append(ClosureMenuItem("Mail recipient", image: icon(mail.image)) {
                 if AppDelegate.isHeadless {
                     window?.statusBar.setMessage("Mail recipient: \(urls.count) attachment(s) (not sent in test runs).")
-                } else {
-                    mail.perform(withItems: urls)
                 }
+                SystemOpen.perform(mail, items: urls)
             })
         }
         let drives = drives()

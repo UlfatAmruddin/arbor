@@ -115,7 +115,7 @@ enum DeleteCommands {
     }
 
     static func moveToTrash(_ items: [FileItem], window: BrowserWindowController) {
-        let nextSelection = window.neighbor(after: items)
+        let nextSelection = window.neighborURL(after: items)
         var trashed: [(original: URL, trashed: URL)] = []
         var failed: [FileItem] = []
         for item in items {
@@ -125,14 +125,14 @@ enum DeleteCommands {
             OperationCenter.shared.registerUndoTrash(trashed)
             window.statusBar.setMessage("\(StatusText.items(trashed.count)) moved to the Trash. Press ⌘Z to undo.")
         }
-        window.refreshSelecting(nextSelection.map { [$0] } ?? [])
+        window.refreshSelecting(urls: nextSelection.map { [$0] } ?? [])
         // Never silently turn "move to Trash" into a permanent delete (spec §9.5): ask.
         if !failed.isEmpty { confirmPermanentDelete(failed, window: window, mode: .cannotTrash) }
     }
 
     static func confirmPermanentDelete(_ items: [FileItem], window: BrowserWindowController, mode: DeleteConfirmation.Mode) {
         guard !items.isEmpty else { NSSound.beep(); return }
-        let next = window.neighbor(after: items)
+        let next = window.neighborURL(after: items)
         DeleteConfirmation(items, mode: mode) { [weak window] yes in
             guard yes else { return }
             DispatchQueue.global(qos: .userInitiated).async {
@@ -144,7 +144,7 @@ enum DeleteCommands {
                 }
                 DispatchQueue.main.async {
                     guard let window else { return }
-                    window.refreshSelecting(next.map { [$0] } ?? [])
+                    window.refreshSelecting(urls: next.map { [$0] } ?? [])
                     if !failures.isEmpty {
                         NSAlert.show("Some items couldn't be deleted.", failures.joined(separator: "\n"), in: window.window)
                     }

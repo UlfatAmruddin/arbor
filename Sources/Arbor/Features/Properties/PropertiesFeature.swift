@@ -42,9 +42,9 @@ enum PropertiesFeature {
         let folder = new.deletingLastPathComponent()
         for controller in (NSApp.delegate as? AppDelegate)?.controllers ?? [] {
             guard let shown = controller.location.folderURL, Location.folder(shown) == Location.folder(folder) else { continue }
-            var names = controller.selectedItems.map(\.name)
-            if let i = names.firstIndex(of: old.lastPathComponent) { names[i] = new.lastPathComponent }
-            controller.refreshSelecting(names)
+            var urls = controller.selectedItems.map(\.url)
+            if let i = urls.firstIndex(where: { $0.standardizedFileURL == old.standardizedFileURL }) { urls[i] = new }
+            controller.refreshSelecting(urls: urls)
         }
     }
 

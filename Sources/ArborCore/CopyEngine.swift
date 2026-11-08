@@ -213,6 +213,9 @@ final class CopyEngine {
     // MARK: Folders
 
     private func copyFolder(_ source: URL, to target: URL, moveSource: Bool) -> Outcome {
+        // The folder's own tags, comments, attributes or access list (its contents are asked about one by one).
+        // Skip leaves the whole folder out, like Explorer's "Skip" for that item.
+        if let early = checkMetadata(source, target, totals: nil) { return early }
         while mkdir(target.path, 0o700) != 0 {
             let error = errno
             switch decide(source, target, .creatingFolder, error) {

@@ -76,8 +76,8 @@ enum ArchiveJobs {
 
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                // bsdtar's view of the names is what its patterns must match.
-                let listing = try ArchiveTool.listWithBsdtar(request.archive, process: process)
+                // bsdtar's view of the names is what its patterns must match (renamed for ZIPs made on Windows).
+                let (listing, rewritesBackslashes) = try ArchiveTool.extractionListing(request.archive, process: process)
                 // bsdtar's listing doesn't flag ZIP encryption; the central directory does.
                 if ArchiveFormat.detect(request.archive) == .zip, let zipEntries = try? ZipDirectory.read(request.archive) {
                     let locked = zipEntries.filter(\.isEncrypted)
@@ -100,8 +100,17 @@ enum ArchiveJobs {
                 case .noSpace(let needed, let available):
                     throw Failure.expansion("There isn't enough space to extract “\(request.archive.lastPathComponent)”. It needs \(StatusText.bytes(needed)), and \(StatusText.bytes(available)) is available.")
                 case .suspicious(let ratio):
-                    let go = DispatchQueue.main.sync { confirmExpansion(request.archive, total: plan.totalBytes, ratio: ratio, window: window) }
-                    if !go { throw ArchiveError.cancelled }
+                    // Asked in a sheet on the window; this worker waits for the answer.
+                    let answered = DispatchSemaphore(value: 0)
+                    let go = Counter()
+                    DispatchQueue.main.async {
+                        confirmExpansion(request.archive, total: plan.totalBytes, ratio: ratio, window: window) { yes in
+                            if yes { go.increment() }
+                            answered.signal()
+                        }
+                    }
+                    answered.wait()
+                    if go.value == 0 { throw ArchiveError.cancelled }
                 }
 
                 let jobRoot = try FileManager.default.url(for: .itemReplacementDirectory, in: .userDomainMask,
@@ -131,7 +140,8 @@ enum ArchiveJobs {
                 watchdog.resume()
                 defer { watchdog.cancel() }
                 do {
-                    try ArchiveTool.extract(request.archive, plan: plan, into: staging, process: process) { counter.increment() }
+                    try ArchiveTool.extract(request.archive, plan: plan, into: staging, process: process,
+                                           rewritesBackslashes: rewritesBackslashes) { counter.increment() }
                 } catch ArchiveError.cancelled where overrun.value > 0 {
                     throw Failure.expansion("Extracting “\(request.archive.lastPathComponent)” was stopped because it was writing far more data than the archive declares, or the disk was almost full. Archives like this are usually built to fill the disk (a “zip bomb”).")
                 }
@@ -216,7 +226,7 @@ enum ArchiveJobs {
         return Int64(info.f_bavail) * Int64(info.f_bsize)
     }
 
-    private static func confirmExpansion(_ archive: URL, total: Int64, ratio: Double, window: NSWindow?) -> Bool {
+    private static func confirmExpansion(_ archive: URL, total: Int64, ratio: Double, window: NSWindow?, answer: @escaping (Bool) -> Void) {
         let alert = NSAlert()
         alert.alertStyle = .critical
         alert.messageText = "“\(archive.lastPathComponent)” would expand to \(StatusText.bytes(total))."
@@ -225,12 +235,8 @@ enum ArchiveJobs {
         let go = alert.addButton(withTitle: "Extract Anyway")
         cancel.keyEquivalent = "\r"
         go.keyEquivalent = ""
-        if AppDelegate.isHeadless {
-            // Scripts can't answer a modal alert; record it and take the safe choice.
-            ArchiveFeature.lastAlert = alert.messageText
-            return false
-        }
-        return alert.runModal() == .alertSecondButtonReturn
+        if AppDelegate.isHeadless { ArchiveFeature.lastAlert = alert.messageText }
+        AlertSheets.present(alert, in: window) { answer($0 == .alertSecondButtonReturn) }
     }
 
     static func rejectionText(_ rejected: [(entry: ArchiveEntry, reason: ExtractionPlanner.Rejection)], header: String) -> String {
@@ -349,7 +355,8 @@ enum ArchiveJobs {
         if Location.folder(folder) == controller.location { controller.refreshSelecting([name], rename: name) }
     }
 
-    /// Undo of a created archive moves it to the Trash, unless it changed since (FE-129: never clobber).
+    /// Undo of a created archive moves it to the Trash, unless it changed since (FE-129: never clobber);
+    /// Redo puts it back, under the same action name.
     static func registerUndoCreate(_ url: URL, action: String) {
         let stamp = ArchiveCatalog.stamp(of: url)
         let um = OperationCenter.shared.undoManager
@@ -358,7 +365,9 @@ enum ArchiveJobs {
                 ArchiveFeature.alert("“\(url.lastPathComponent)” changed after it was created, so it wasn't removed.", "", in: NSApp.keyWindow)
                 return
             }
-            _ = try? SystemTrash.trash(url)
+            if let trashed = try? SystemTrash.trash(url) {
+                OperationCenter.shared.registerUndoTrash([(url, trashed)], actionName: action)
+            }
         }
         um.setActionName(action)
     }
@@ -372,9 +381,7 @@ enum ArchiveJobs {
         OperationCenter.shared.begin(activity)
         weak let weakController = controller
         DispatchQueue.global(qos: .userInitiated).async {
-            var args = ["attach", "-plist"]
-            if AppDelegate.isHeadless { args.append("-nobrowse") }
-            args.append(image.path)
+            let args = ["attach", "-plist"] + SystemOpen.attachArguments(for: image) + [image.path]
             let output = try? process.run("/usr/bin/hdiutil", args)
             DispatchQueue.main.async {
                 OperationCenter.shared.end(activity)

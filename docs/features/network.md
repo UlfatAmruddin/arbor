@@ -56,4 +56,6 @@ Script steps: `netlog:/out`, `press:<button title>` (pages and sheets), `mapdriv
 - Not tested against a real SMB/AFP server or real Local Network permission prompt (no server available); live code paths (NetFS, NWBrowser, DNSServiceResolve, smbutil, getmntinfo) compile cleanly and mirror the fakes.
 - FE-188 capabilities not surfaced in Properties yet.
 - The context menu of a disconnected drive still lists other features' file commands (Copy, Pin, Show in Finder…) that don't apply to it.
+- Two failures at once: the second error sheet waits until the first is answered, and the same failure twice is shown
+  once (qa-places #12). Headless runs never show the system sign-in window (mounts use `NoUI`).
 - `NetworkFolderProvider` is registered in the network slot; a later feature registering a provider for *all* folders would take network folders over (no timeout page).

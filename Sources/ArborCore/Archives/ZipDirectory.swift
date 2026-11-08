@@ -83,10 +83,69 @@ public enum ZipDirectory {
         return (offset, size, count)
     }
 
+    /// Whether the archive was made with "\\" as its folder separator (see `ZipNames`). Reads the directory.
+    public static func usesWindowsSeparators(_ url: URL) throws -> Bool {
+        try readRaw(url).contains { ZipNames.isWindowsHost($0.host) && $0.name.contains("\\") }
+    }
+
     static func parseDirectory(_ data: Data, expected: UInt64, limit: Int? = nil) throws -> [ArchiveEntry] {
+        let raws = try parseRaw(data, expected: expected, limit: limit)
+        let windows = raws.contains { ZipNames.isWindowsHost($0.host) && $0.name.contains("\\") }
+        return raws.compactMap { raw in
+            let name = ZipNames.interpret(raw.name, windowsSeparators: windows)
+            let host = raw.host
+            let unixMode = host == 3 || host == 19 ? UInt16(truncatingIfNeeded: raw.external >> 16) : 0
+            let kind: ArchiveEntry.Kind
+            switch unixMode & 0o170000 {
+            case 0o120000: kind = .symlink
+            case 0o040000: kind = .directory
+            case 0o010000, 0o020000, 0o060000, 0o140000: kind = .special
+            default: kind = name.hasSuffix("/") || raw.external & 0x10 != 0 && host == 0 ? .directory : .file
+            }
+            guard !isMacMetadata(name) else { return nil }
+            return ArchiveEntry(rawPath: name, kind: kind,
+                                size: kind == .file ? Int64(clamping: raw.uncompressed) : nil,
+                                compressedSize: kind == .file ? Int64(clamping: raw.compressed) : nil,
+                                modified: raw.modified, isEncrypted: raw.encrypted)
+        }
+    }
+
+    /// One central-directory record, with its name as stored (after the Unicode-path field).
+    struct RawEntry {
+        var name: String
+        var host: UInt16
+        var external: UInt32
+        var uncompressed: UInt64
+        var compressed: UInt64
+        var modified: Date?
+        var encrypted: Bool
+    }
+
+    static func readRaw(_ url: URL) throws -> [RawEntry] {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        let fileSize = try handle.seekToEnd()
+        guard fileSize >= 22 else { throw ReadError.notZip }
+        let tailLength = min(fileSize, 65_557)
+        try handle.seek(toOffset: fileSize - tailLength)
+        let tail = try handle.read(upToCount: Int(tailLength)) ?? Data()
+        let (offset, size, count) = try locateDirectory(tail: tail) { start, length in
+            try handle.seek(toOffset: start)
+            return try handle.read(upToCount: length) ?? Data()
+        }
+        if count == 0 { return [] }
+        guard offset + size <= fileSize, size < 1 << 31 else { throw ReadError.truncated }
+        try handle.seek(toOffset: offset)
+        let directory = try handle.read(upToCount: Int(size)) ?? Data()
+        guard directory.count == Int(size) else { throw ReadError.truncated }
+        return try parseRaw(directory, expected: count)
+    }
+
+    static func parseRaw(_ data: Data, expected: UInt64, limit: Int? = nil) throws -> [RawEntry] {
         let cap = min(limit ?? maxEntries, maxEntries)
         let b = [UInt8](data)
-        var entries: [ArchiveEntry] = []
+        var entries: [RawEntry] = []
+        var listed = 0
         entries.reserveCapacity(Int(min(expected, 100_000)))
         var p = 0
         while p + 46 <= b.count, le32(b, p) == 0x0201_4B50 {
@@ -136,26 +195,13 @@ public enum ZipDirectory {
                 x = body + len
             }
 
-            // Windows tools sometimes store "\" as the separator.
-            name = name.replacingOccurrences(of: "\\", with: "/")
-            let host = madeBy >> 8
-            let unixMode = host == 3 || host == 19 ? UInt16(truncatingIfNeeded: external >> 16) : 0
-            let kind: ArchiveEntry.Kind
-            switch unixMode & 0o170000 {
-            case 0o120000: kind = .symlink
-            case 0o040000: kind = .directory
-            case 0o010000, 0o020000, 0o060000, 0o140000: kind = .special
-            default: kind = name.hasSuffix("/") || external & 0x10 != 0 && host == 0 ? .directory : .file
-            }
-            if !isMacMetadata(name) {
-                entries.append(ArchiveEntry(rawPath: name, kind: kind,
-                                            size: kind == .file ? Int64(clamping: uncompressed) : nil,
-                                            compressedSize: kind == .file ? Int64(clamping: compressed) : nil,
-                                            modified: modified, isEncrypted: flags & 1 != 0))
-            }
-            if entries.count >= cap {
+            // Whether "\" separates folders is decided once the whole directory is known (ZipNames).
+            entries.append(RawEntry(name: name, host: madeBy >> 8, external: external, uncompressed: uncompressed,
+                                    compressed: compressed, modified: modified, encrypted: flags & 1 != 0))
+            if !isMacMetadata(name) { listed += 1 }
+            if listed >= cap {
                 if limit != nil { break }
-                guard entries.count <= maxEntries else { throw ReadError.tooManyEntries }
+                guard listed <= maxEntries else { throw ReadError.tooManyEntries }
             }
             p = next
         }

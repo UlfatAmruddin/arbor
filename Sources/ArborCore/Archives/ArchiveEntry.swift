@@ -20,6 +20,9 @@ public struct ArchiveEntry: Sendable, Hashable {
     /// Symlink or hard-link target, as stored.
     public var linkTarget: String?
     public var isEncrypted: Bool
+    /// The name bsdtar knows the member by, when Arbor reads it differently (a ZIP made on Windows, see
+    /// `ZipNames`). Extraction patterns use this; nil = `rawPath`.
+    public var storedPath: String?
 
     public init(rawPath: String, kind: Kind, size: Int64? = nil, compressedSize: Int64? = nil,
                 modified: Date? = nil, linkTarget: String? = nil, isEncrypted: Bool = false) {

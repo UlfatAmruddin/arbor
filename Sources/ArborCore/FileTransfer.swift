@@ -313,6 +313,7 @@ public final class FileTransfer: @unchecked Sendable {
         progressSink = progress
         conflictResolver = conflicts
         failureResolver = failures
+        journal?.markRunning()   // from here the job isn't "waiting to start" any more
         control.onChange = { [weak self] in self?.emit(force: true) }
         defer { control.onChange = nil }
 

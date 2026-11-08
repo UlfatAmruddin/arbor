@@ -44,7 +44,7 @@ enum FileCommands {
                         let icon = NSWorkspace.shared.icon(forFile: app.path)
                         icon.size = NSSize(width: 16, height: 16)
                         return ClosureMenuItem(displayName(of: app).replacingOccurrences(of: ".app", with: ""), image: icon) {
-                            NSWorkspace.shared.open(ctx.selection.map(\.url), withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
+                            SystemOpen.open(ctx.selection.map(\.url), withApplicationAt: app)
                         }
                     }
                 }),
@@ -95,7 +95,7 @@ enum FileCommands {
                 isEnabled: { $0.hasSelection },
                 perform: { ctx in
                     guard let anchor = ctx.anchorView else { return }
-                    NSSharingServicePicker(items: ctx.selection.map(\.url)).show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
+                    SystemOpen.showSharePicker(ctx.selection.map(\.url), relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
                 }),
             ExplorerCommand(
                 id: "file.copyPath", title: "Copy as Path", symbol: "link",
@@ -117,8 +117,7 @@ enum FileCommands {
                 perform: { ctx in
                     // The folder is passed as a document, never built into a shell command.
                     guard let folder = ctx.selection.first(where: \.isFolder)?.url ?? ctx.targetFolder,
-                          let terminal = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") else { NSSound.beep(); return }
-                    NSWorkspace.shared.open([folder], withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration())
+                          SystemOpen.openTerminal(at: folder) else { NSSound.beep(); return }
                 }),
             ExplorerCommand(
                 id: "file.showInFinder", title: "Show in Finder", shortcut: Shortcut("r", [.command, .option]),
@@ -127,7 +126,7 @@ enum FileCommands {
                 isEnabled: { !$0.selection.isEmpty || $0.targetFolder != nil },
                 perform: { ctx in
                     let urls = ctx.selection.map(\.url)
-                    NSWorkspace.shared.activateFileViewerSelecting(urls.isEmpty ? ctx.targetFolder.map { [$0] } ?? [] : urls)
+                    SystemOpen.reveal(urls.isEmpty ? ctx.targetFolder.map { [$0] } ?? [] : urls)
                 }),
             ExplorerCommand(
                 id: "file.pin", title: "Pin to Quick access", symbol: "pin",
@@ -146,7 +145,7 @@ enum FileCommands {
                 perform: { ctx in
                     guard let url = ctx.single?.url else { return }
                     do {
-                        try NSWorkspace.shared.unmountAndEjectDevice(at: url)
+                        try SystemOpen.eject(url)
                     } catch {
                         NSAlert.show("“\(displayName(of: url))” couldn't be ejected.",
                                      "\(error.localizedDescription)\n\nClose any files or apps using it, then try again.",
@@ -188,7 +187,7 @@ enum FileCommands {
     static func moveToTrash(_ ctx: CommandContext) {
         let items = ctx.selection
         guard !items.isEmpty, let window = ctx.window else { NSSound.beep(); return }
-        let nextSelection = window.neighbor(after: items)
+        let nextSelection = window.neighborURL(after: items)
         var trashed: [(original: URL, trashed: URL)] = []
         var failed: [FileItem] = []
         for item in items {
@@ -202,7 +201,7 @@ enum FileCommands {
             OperationCenter.shared.registerUndoTrash(trashed)
             window.statusBar.setMessage("\(StatusText.items(trashed.count)) moved to the Trash. Press ⌘Z to undo.")
         }
-        window.refreshSelecting(nextSelection.map { [$0] } ?? [])
+        window.refreshSelecting(urls: nextSelection.map { [$0] } ?? [])
         guard !failed.isEmpty, let host = window.window else { return }
         // Never silently turn "move to Trash" into a permanent delete (spec §9.5).
         let alert = NSAlert()
@@ -229,7 +228,7 @@ enum FileCommands {
         delete.hasDestructiveAction = true
         delete.keyEquivalent = ""
         cancel.keyEquivalent = "\r"
-        let next = window.neighbor(after: items)
+        let next = window.neighborURL(after: items)
         alert.beginSheetModal(for: host) { [weak window] response in
             guard response == .alertFirstButtonReturn else { return }
             DispatchQueue.global(qos: .userInitiated).async {
@@ -241,7 +240,7 @@ enum FileCommands {
                 }
                 DispatchQueue.main.async {
                     guard let window else { return }
-                    window.refreshSelecting(next.map { [$0] } ?? [])
+                    window.refreshSelecting(urls: next.map { [$0] } ?? [])
                     if !failures.isEmpty {
                         NSAlert.show("Some items couldn't be deleted.", failures.joined(separator: "\n"), in: window.window)
                     }

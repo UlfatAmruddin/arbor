@@ -57,7 +57,7 @@ enum RenameCommands {
         sessions[key] = Session(items: items.map { RenameCandidate(url: $0.url, isFolder: $0.isFolder) }, edited: items[0].url)
         view.beginRename(named: items[0].name, text: nil)
         // Explorer keeps the whole batch selected while the first name is edited.
-        if view.isEditingName { view.select(names: items.map(\.name)) }
+        if view.isEditingName { view.select(urls: items.map(\.url)) }
         window.statusBar.setMessage("Type a name for all \(items.count) items. Each gets a number: “Name (1)”, “Name (2)”…")
     }
 

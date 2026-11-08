@@ -236,11 +236,7 @@ enum GalleryLibrariesFeature {
             let open = { (response: NSApplication.ModalResponse) in
                 if response == .alertFirstButtonReturn { LocationsDialog(mode: .library(name)).present(in: ctx.window?.window) }
             }
-            if let host = ctx.window?.window, host.attachedSheet == nil {
-                alert.beginSheetModal(for: host) { response in DispatchQueue.main.async { open(response) } }
-            } else {
-                open(alert.runModal())
-            }
+            AlertSheets.present(alert, in: ctx.window?.window) { response in DispatchQueue.main.async { open(response) } }
             return nil
         }
     }

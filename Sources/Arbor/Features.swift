@@ -45,6 +45,7 @@ enum Features {
         FileOperationsExtras.register()   // file-operation extras (after Archives and Properties, whose commands they extend)
 
         PerformanceFeature.register()   // slot: memory and responsiveness
+        ReliabilityFeature.register()   // behavior and safety checks (undo names, headless safety, alert queue)
     }
 }
 

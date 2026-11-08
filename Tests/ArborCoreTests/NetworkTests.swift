@@ -248,15 +248,17 @@ struct SlowWorkTests {
     @Test func timesOutWithoutWaitingForTheWork() async {
         let queue = SlowWorkQueue<Int>(label: "test.slow", callbackQueue: DispatchQueue(label: "test.callbacks"))
         let workDone = NetworkCallCounter()
+        // The work stays blocked until the caller has heard back, so it can only "finish first" if the
+        // queue waited for it. Ordering, not wall-clock time: on a loaded CI machine any callback can be late.
+        let gate = DispatchSemaphore(value: 0)
         let result: (outcome: String, workFinishedFirst: Bool) = await withCheckedContinuation { continuation in
-            queue.run(key: "a", timeout: 0.2, work: { Thread.sleep(forTimeInterval: 4.0); workDone.bump(); return 1 }) { outcome in
+            queue.run(key: "a", timeout: 0.2, work: { gate.wait(); workDone.bump(); return 1 }) { outcome in
                 let finished = workDone.value > 0
                 if case .timedOut = outcome { continuation.resume(returning: ("timeout", finished)) }
                 else { continuation.resume(returning: ("done", finished)) }
+                gate.signal()
             }
         }
-        // The caller must hear "timed out" before the slow work ends. Ordering, not wall-clock time,
-        // is checked: on a loaded CI machine parallel tests can delay any callback by seconds.
         #expect(result.outcome == "timeout")
         #expect(!result.workFinishedFirst)
     }
@@ -264,9 +266,11 @@ struct SlowWorkTests {
     @Test func lateResultAndSharedJob() async {
         let queue = SlowWorkQueue<Int>(label: "test.slow2", callbackQueue: DispatchQueue(label: "test.callbacks2"))
         let counter = NetworkCallCounter()
+        // The read stays hung until the first caller has timed out, however slow the machine is.
+        let gate = DispatchSemaphore(value: 0)
         let late: Int = await withCheckedContinuation { continuation in
-            queue.run(key: "share", timeout: 0.1, work: { counter.bump(); Thread.sleep(forTimeInterval: 0.5); return 7 },
-                      late: { continuation.resume(returning: $0) }) { _ in }
+            queue.run(key: "share", timeout: 0.1, work: { counter.bump(); gate.wait(); return 7 },
+                      late: { continuation.resume(returning: $0) }) { _ in gate.signal() }
             // A retry while the first is still hung joins it instead of starting a second read.
             queue.run(key: "share", timeout: 5, work: { counter.bump(); return 9 }) { _ in }
         }

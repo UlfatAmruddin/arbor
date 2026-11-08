@@ -430,7 +430,7 @@ enum AdvancedAttributesSheet {
         add(encrypt)
         add(SheetLabel.wrapping("APFS has no per-file compression or encryption switch. Whole disks are encrypted with FileVault (System Settings › Privacy & Security).", small: true))
         let spotlight = SheetButton("Spotlight Settings…") { _ in
-            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Spotlight-Settings.extension")!)
+            SystemOpen.open(URL(string: "x-apple.systempreferences:com.apple.Spotlight-Settings.extension")!)
         }
         let ok = SheetButton("OK", isDefault: true) { [weak window, weak sheet] _ in
             if let sheet { window?.endSheet(sheet) }
@@ -517,9 +517,9 @@ enum OpenWithChooser {
                 }
             }
             if let type = contentType, !url.pathExtension.isEmpty {
-                NSWorkspace.shared.setDefaultApplication(at: app, toOpen: type, completion: finish)
+                SystemOpen.setDefaultApplication(at: app, toOpen: type, completion: finish)
             } else {
-                NSWorkspace.shared.setDefaultApplication(at: app, toOpenFileAt: url, completion: finish)
+                SystemOpen.setDefaultApplication(at: app, toOpenFileAt: url, completion: finish)
             }
         }
         let cancel = SheetButton("Cancel") { [weak window, weak sheet] _ in if let sheet { window?.endSheet(sheet) } }

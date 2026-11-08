@@ -5,10 +5,15 @@ clipboard, rename, New, Trash/undo/redo, drag-and-drop policy, copy/move conflic
 read-only and denied folders, races, folder-watcher bursts.
 
 How to rerun:
+- Unit under load: the whole suite passed 5 runs in a row while `scripts/bench.sh --quick` ran, and 5 more with
+  every core also busy (about 6× slower). Tests wait on conditions and ordering, never on wall-clock gaps.
 - Unit: `scripts/test.sh` (new: `Tests/ArborCoreTests/CoreRegressionTests.swift`, 12 tests; the
   cross-file-system tests create and mount 20 MB ExFAT, HFS+ and case-sensitive APFS disk images with
   `hdiutil` and skip themselves when that is impossible).
-- Headless: `scripts/build-app.sh debug && scripts/core-checks.sh` (asserts the fixed UI bugs stay fixed).
+- Headless: `scripts/build-app.sh debug && scripts/core-checks.sh` (asserts the fixed UI bugs stay fixed) and
+  `scripts/behavior-checks.sh [undo undomove selection sheets network headless recent queue]` (undo/redo names,
+  undo of cross-volume moves, selection identity, window-modal alerts and their queue, headless safety, Recent
+  for shortcuts, queued jobs after quit; 47 checks).
 
 ## Bugs
 
@@ -20,9 +25,12 @@ Severity order: data safety, crash, wrong behavior, visual.
 | QA-CORE-2 | wrong behavior (enabled QA-CORE-1) | A path typed in the address bar kept its typed spelling (`~/desktop`), so the same folder became a different location: separate history entries, pins and per-folder views didn't match, tree highlight missing, and paste targets were aliases of the folder on screen. Explorer shows the stored spelling. | fixed (`PathResolver.onDiskSpelling`; symbolic links are kept as typed) | `AddressSpellingTests`, `core-checks.sh` |
 | QA-CORE-3 | wrong behavior | After Cut + Paste the clipboard still named the moved files; a second Paste "copied" them and showed "2 items couldn't be copied: The item no longer exists". Explorer empties the clipboard after a move. | fixed (`FileClipboard.finishedCut` clears content this app wrote, only while unchanged) | `core-checks.sh` |
 | QA-CORE-4 | data safety | In search results (many items share a name) selection was restored by name: after switching tabs, changing view, refreshing an icon view or collapsing a group, **every same-named item became selected**, so Delete would trash items the user never picked. Invert Selection with one of three `readme.txt` selected selected nothing; Return in the search box selected every match. | fixed (`ItemViewController.select(urls:)`, `TabState.selectedURLs`, icon view and group relayout keep URLs) | `core-checks.sh` (4 checks; all failed before) |
-| QA-CORE-5 | wrong behavior / responsiveness | Undo of a cross-volume move runs `FileManager.moveItem` on the main thread: a large undo freezes the window with no progress or cancel. Safe (originals are only removed after the copy) but slow. | open | — |
-| QA-CORE-6 | visual (label) | After Undo then Redo of New folder, the Edit menu reads "Undo Move to Trash" instead of "Undo New Folder". Behavior is correct. | open | — |
-| QA-CORE-7 | wrong behavior (minor) | Back/Forward history entries store selected names only, so going back to a search-results entry can reselect every same-named result. Tabs, view changes and refresh are fixed (QA-CORE-4). | open | — |
+| QA-CORE-5 | wrong behavior / responsiveness | Undo of a cross-volume move ran `FileManager.moveItem` on the main thread: a large undo froze the window with no progress or cancel. | fixed (`MoveBack` plans off the main thread: same-volume items are renamed back, items on another volume go back through a normal move job with the progress window, pause, cancel, journal, conflict prompts and "original removed only after its copy"; Keep Both names are restored afterwards when free; Redo works the same way) | `MoveBackPlanTests` (3 tests); `behavior-checks.sh undomove` (HFS+ image, throttled: the undo shows as a running job, files come back, nothing left on the image, Redo offered) |
+| QA-CORE-6 | visual (label) | After Undo then Redo of New folder, the Edit menu read "Undo Move to Trash" instead of "Undo New Folder". Same for New ▸ documents, shortcuts and Restore from Trash after a Redo; Redo after undoing Rotate Right said "Redo Rotate Left"; undoing a new archive offered no Redo. | fixed (`registerUndoTrash(_:actionName:)` keeps the action's name in every round; rotate keeps the user's direction; archive creation gets a Redo. Security ▸ Edit… changes are undone inside that editor with its own “Undo last change”, which names the change, not on Edit ▸ Undo) | `behavior-checks.sh undo` (14 checks: New folder ×3 rounds, Move to Trash, Rename, batch rename, New Text Document, Rotate Right, Copy; all New folder/New document/Rotate checks failed before) |
+| QA-CORE-7 | wrong behavior (minor) | Back/Forward history entries stored selected names only. | fixed (qa-places #2: entries keep URLs); duplicated, torn-off and merged tabs and any visit that names URLs now also restore by URL | `HistorySelectionTests`; `behavior-checks.sh selection` |
+| QA-CORE-8 | data safety | After Delete (or Delete Permanently, or deleting in the Trash) the next item to select was chosen and restored **by name**: in search results, deleting `b.txt` next to three `a.txt` selected all three, so a second Delete would trash files the user never picked. Rotate, Properties renames, Select All, a batch-rename edit and a single rename restored by name too. | fixed (`neighborURL(after:)`, `refreshSelecting(urls:)`, `select(urls:)` at every call site that knows the items) | `behavior-checks.sh selection` (failed before: `selected: a.txt \| a.txt \| a.txt`) |
+| QA-CORE-9 | wrong behavior | The extension-change prompt and the rename error were app-modal (`runModal`): they blocked every window and scripts couldn't answer them. Eleven other alerts fell back to `runModal` whenever their window already showed a sheet. | fixed (`AlertSheets`: window-modal sheets, one at a time per window; Cancel on the extension prompt keeps the typed name in the field, a rename error reopens the field with the typed text; the zip-bomb confirmation is a sheet the extraction waits for) | `behavior-checks.sh sheets` (8 checks; the run timed out before the fix) |
+| QA-CORE-10 | safety (test runs) | Headless runs (`ARBOR_HEADLESS`) could open files in other apps, Finder windows, Terminal, the share picker, Quick Look, network sign-in windows, change the desktop picture or default apps, and eject disks. | fixed (`SystemOpen`: every such request goes through one helper that only logs it in headless runs; `log:` prints `system open: …`) | `SystemOpenAuditTests` (fails on any direct call outside the helper; 31 direct calls before); `behavior-checks.sh headless` |
 
 Checked and found correct (no change needed): conflict prompts with exFAT names it rejects (`what?.txt`,
 `a:b.txt`) keep the originals on a move; case twins from case-sensitive APFS never overwrite each other on
@@ -79,9 +87,20 @@ parent; an external change while a rename field is open keeps the typed text.
   (spec §8.1); exFAT and other destinations refuse them per item with a reported failure, keeping originals.
 - **DEC-qa-core-4** Selection identity is the item URL wherever a listing can repeat names; names remain
   the persisted form (history, session) and are exact in ordinary folders.
+- **DEC-qa-core-5** Undo/Redo of a move registers its inverse at once (AppKit requires it) and fills it in when
+  the items have arrived. Pressing it before that says the previous step is still moving items instead of
+  guessing. The move job an undo starts registers no undo of its own.
+- **DEC-qa-core-6** Alerts about a window wait for that window's current sheet instead of stacking or going
+  app-modal; an alert identical to one already showing or waiting is merged into it and its caller hears
+  Cancel (the safe answer). Only the quit confirmation (no window involved) stays app-modal.
+- **DEC-qa-core-7** In headless runs nothing outside Arbor's own windows is opened or changed: `SystemOpen`
+  logs the request instead. Arbor's own sheets shown through `AlertSheets` are invisible there too.
 
 ## Known gaps
 
-QA-CORE-5, -6 and -7 above. Rename-error and extension-change alerts are app-modal (`runModal`), which
-scripted checks cannot answer, so those paths were verified by reading the code and by unit tests rather
-than headless runs.
+- Redo (or Undo) pressed while the previous cross-volume Undo is still copying only reports that it is still
+  running (DEC-qa-core-5); that step is used up, so the items stay where the first Undo put them.
+- The quit confirmation ("Files are still being copied or moved") is still app-modal: it belongs to the app,
+  not to a window.
+- Sheets shown by features directly (not through `AlertSheets`) still rely on AppKit's own queueing when a
+  second one arrives.

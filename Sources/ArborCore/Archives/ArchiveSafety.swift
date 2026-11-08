@@ -113,10 +113,12 @@ public enum ExtractionPlanner {
 
         // Fast path: no rejected entries in scope, so whole roots can be named (a pattern selects a subtree).
         let patterns: [String]
-        if !rejectedInScope {
+        // Members known to bsdtar under another name (rewritten on extraction) must be named one by one.
+        let renamed = entries.contains { $0.storedPath != nil }
+        if !rejectedInScope, !renamed {
             patterns = everything ? [] : rootParts.map { $0.joined(separator: "/") }.map(BsdtarListing.literalPattern)
         } else {
-            patterns = included.map { BsdtarListing.literalPattern($0.rawPath) }
+            patterns = included.map { BsdtarListing.literalPattern($0.storedPath ?? $0.rawPath) }
         }
         return Plan(roots: roots, base: baseParts, included: included, rejected: rejected, folders: folders,
                     totalBytes: total, hasEncrypted: encrypted, patterns: patterns)

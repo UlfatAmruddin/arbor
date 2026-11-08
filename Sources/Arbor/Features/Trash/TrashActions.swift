@@ -51,21 +51,17 @@ enum TrashActions {
     }
 
     static func present(_ alert: NSAlert, in window: NSWindow?, completion: @escaping (NSApplication.ModalResponse) -> Void) {
-        if let window, window.attachedSheet == nil {
-            alert.beginSheetModal(for: window, completionHandler: completion)
-        } else {
-            completion(alert.runModal())
-        }
+        AlertSheets.present(alert, in: window, completion: completion)
     }
 
     // MARK: Delete (permanent) and Empty
 
     static func deletePermanently(_ items: [FileItem], window: BrowserWindowController?) {
         guard !items.isEmpty else { NSSound.beep(); return }
-        let next = window?.neighbor(after: items)
+        let next = window?.neighborURL(after: items)
         confirmPermanent(items, window: window?.window) {
             remove(items.map(\.url), window: window) { removed in
-                window?.refreshSelecting(next.map { [$0] } ?? [])
+                window?.refreshSelecting(urls: next.map { [$0] } ?? [])
                 if removed > 0 { window?.statusBar.setMessage("\(StatusText.items(removed)) permanently deleted.") }
             }
         }
@@ -86,7 +82,7 @@ enum TrashActions {
                     alert.informativeText = "macOS protects the Trash folder. Turn on Arbor in System Settings → Privacy & Security → Full Disk Access, or empty the Trash in Finder."
                     alert.addButton(withTitle: "Open Settings")
                     alert.addButton(withTitle: "Cancel")
-                    present(alert, in: window?.window) { if $0 == .alertFirstButtonReturn { NSWorkspace.shared.open(TrashAccessPage.settingsURL) } }
+                    present(alert, in: window?.window) { if $0 == .alertFirstButtonReturn { SystemOpen.open(TrashAccessPage.settingsURL) } }
                 case .items(let entries, _, _):
                     window?.statusBar.setMessage(nil)
                     guard !entries.isEmpty else { window?.statusBar.setMessage("The Trash is already empty."); return }
@@ -229,8 +225,8 @@ enum TrashActions {
             for url in urls where FileOps.exists(url) {
                 if let trashed = try? SystemTrash.trash(url) { pairs.append((url, trashed)) }
             }
-            center.registerUndoTrash(pairs)
-            center.undoManager.setActionName("Restore")
+            // Redo restores again; every later Undo/Redo round keeps the name "Restore".
+            center.registerUndoTrash(pairs, actionName: "Restore")
         }
         center.undoManager.setActionName("Restore")
     }

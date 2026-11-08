@@ -5,6 +5,7 @@ import ArborCore
 /// what is uncertain (FE-125, FE-128). "Retry remaining" starts a normal job for the unfinished
 /// items, so every destination is checked again and conflicts are asked: a same-named item at the
 /// destination is never assumed to be the finished copy. Nothing is replayed automatically.
+/// A job that was still waiting in the queue when Arbor quit is offered again as it was ("Start").
 enum JobRecovery {
     private static var queue: [InterruptedJob] = []
     private static var showing = false
@@ -55,10 +56,14 @@ final class RecoverySheet: NSObject, NSTableViewDataSource, NSTableViewDelegate 
     private func build() {
         let root = FillView(FileOpsStyle.background)
         let verb = job.kind == .copy ? "copying" : "moving"
-        let title = FileOpsStyle.label("A file operation didn't finish", font: FileOpsStyle.instructionFont)
+        let waiting = job.wasWaiting
+        let title = FileOpsStyle.label(waiting ? "A file operation was waiting to start" : "A file operation didn't finish",
+                                       font: FileOpsStyle.instructionFont)
         let started = DateFormatter.localizedString(from: job.header.started, dateStyle: .medium, timeStyle: .short)
         let intro = FileOpsStyle.label(
-            "Arbor stopped while \(verb) \(StatusText.items(job.items.count)) to “\(displayName(of: job.destination))” (started \(started)).",
+            waiting
+                ? "When Arbor quit, \(verb) \(StatusText.items(job.items.count)) to “\(displayName(of: job.destination))” was waiting in the queue (added \(started)). Nothing of it was done yet."
+                : "Arbor stopped while \(verb) \(StatusText.items(job.items.count)) to “\(displayName(of: job.destination))” (started \(started)).",
             wraps: true)
         intro.preferredMaxLayoutWidth = 516
         let counts = FileOpsStyle.label(
@@ -83,12 +88,14 @@ final class RecoverySheet: NSObject, NSTableViewDataSource, NSTableViewDelegate 
         scroll.translatesAutoresizingMaskIntoConstraints = false
 
         let explain = FileOpsStyle.label(
-            "“Uncertain” items were being written when Arbor stopped, so the destination may hold a partial copy. Retry remaining \(job.kind == .copy ? "copies" : "moves") the items that aren't completed. Arbor checks each destination again and asks before replacing anything.",
+            waiting
+                ? "Start puts the operation back in the queue with the items that still exist. Arbor checks each destination again and asks before replacing anything."
+                : "“Uncertain” items were being written when Arbor stopped, so the destination may hold a partial copy. Retry remaining \(job.kind == .copy ? "copies" : "moves") the items that aren't completed. Arbor checks each destination again and asks before replacing anything.",
             font: FileOpsStyle.captionFont, color: Theme.secondaryText, wraps: true)
         explain.preferredMaxLayoutWidth = 516
 
         let retryable = job.retryableSources
-        let retry = WinButton("Retry remaining", accent: true) { [weak self] in self?.retry() }
+        let retry = WinButton(waiting ? "Start" : "Retry remaining", accent: true) { [weak self] in self?.retry() }
         retry.isEnabled = !retryable.isEmpty && FileOps.isPlainFolder(job.destination)
         let dismiss = WinButton("Dismiss") { [weak self] in self?.finish() }
         let spacer = NSView()
@@ -134,7 +141,7 @@ final class RecoverySheet: NSObject, NSTableViewDataSource, NSTableViewDelegate 
             switch item.status {
             case .completed: text = item.state == .skipped ? "Skipped" : (item.state == .sourceRemains ? "Copied; original kept" : "Completed")
             case .notDone:
-                text = item.state == .failed ? "Not done (failed)" : "Not done"
+                text = job.wasWaiting ? "Waiting to start" : item.state == .failed ? "Not done (failed)" : "Not done"
                 color = Theme.secondaryText
             case .uncertain:
                 text = "Uncertain"

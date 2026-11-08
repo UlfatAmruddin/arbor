@@ -174,7 +174,7 @@ final class GalleryPageController: NSViewController, LocationPageStatus, Locatio
         emptyLabel.isHidden = !months.isEmpty
         rail.isHidden = months.isEmpty
         if !store.unavailable.isEmpty, !store.isScanning {
-            let names = store.unavailable.map { "“\($0.path)”" }.joined(separator: ", ")
+            let names = DisplayPath.quotedList(store.unavailable)
             host?.showStatusMessage("Some folders in the collection aren't available, so Gallery may be incomplete: \(names)", isError: true)
             showsPartialCoverage = true
         } else if store.unavailable.isEmpty, showsPartialCoverage {

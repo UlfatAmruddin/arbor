@@ -17,13 +17,13 @@ enum OpenedFilesRecorder {
         }
     }
 
-    /// The same item, also posting `LocationEvents.didOpenFiles`. Headless test runs record without
-    /// launching the app.
+    /// The same item, also posting `LocationEvents.didOpenFiles`. (Headless test runs only log the launch:
+    /// the item opens through `SystemOpen`.)
     static func wrap(_ item: NSMenuItem, urls: [URL], window: BrowserWindowController?) -> NSMenuItem {
         guard let action = item.action, item.submenu == nil, !item.isSeparatorItem else { return item }
         let original = item
         let wrapped = ClosureMenuItem(item.title, image: item.image) { [weak window] in
-            if !AppDelegate.isHeadless { NSApp.sendAction(action, to: original.target, from: original) }
+            NSApp.sendAction(action, to: original.target, from: original)
             NotificationCenter.default.post(name: LocationEvents.didOpenFiles, object: window, userInfo: ["urls": urls])
         }
         wrapped.toolTip = item.toolTip

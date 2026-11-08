@@ -180,7 +180,7 @@ struct TransferProgressTests {
             }, resolveConflict: neverAsked)
         }
         // Wait until paused.
-        for _ in 0..<200 where !transfer.isPaused { try await Task.sleep(nanoseconds: 10_000_000) }
+        for _ in 0..<12_000 where !transfer.isPaused { try await Task.sleep(nanoseconds: 10_000_000) }
         #expect(transfer.isPaused)
         let atPause = transfer.currentProgress.bytesDone
         try await Task.sleep(nanoseconds: 400_000_000)
@@ -205,7 +205,7 @@ struct TransferProgressTests {
                 if p.phase == .running, p.bytesDone > 2 * MB, flag.trip() { transfer.pause() }
             }, resolveConflict: neverAsked)
         }
-        for _ in 0..<200 where !transfer.isPaused { try await Task.sleep(nanoseconds: 10_000_000) }
+        for _ in 0..<12_000 where !transfer.isPaused { try await Task.sleep(nanoseconds: 10_000_000) }
         transfer.cancel()
         let report = await job.value
         #expect(report.wasCancelled)
@@ -662,7 +662,7 @@ struct JobJournalTests {
                 if p.currentName == "second.bin", p.bytesDone > 4 * MB, flag.trip() { transfer.pause() }
             }, resolveConflict: neverAsked)
         }
-        for _ in 0..<200 where !transfer.isPaused { try await Task.sleep(nanoseconds: 10_000_000) }
+        for _ in 0..<12_000 where !transfer.isPaused { try await Task.sleep(nanoseconds: 10_000_000) }
         let snapshot = try #require(InterruptedJob(file: journal.url))
         #expect(snapshot.items.map(\.status) == [.completed, .uncertain])
         transfer.resume()

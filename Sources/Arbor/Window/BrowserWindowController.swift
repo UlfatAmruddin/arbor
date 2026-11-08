@@ -254,10 +254,10 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         reloadTabStrip()
     }
 
-    private func switchTo(_ index: Int, initialSelection: [String] = []) {
+    private func switchTo(_ index: Int, initialSelection: [String] = [], initialURLs: [URL] = []) {
         if tabs.indices.contains(activeIndex) { deactivate(tabs[activeIndex]) }
         activeIndex = index
-        activate(activeTab, initialSelection: initialSelection)
+        activate(activeTab, initialSelection: initialSelection, initialURLs: initialURLs)
     }
 
     private func deactivate(_ tab: TabState) {
@@ -268,12 +268,12 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         if addressBar.isEditingPath { addressBar.endEditing() }
     }
 
-    private func activate(_ tab: TabState, initialSelection: [String] = []) {
+    private func activate(_ tab: TabState, initialSelection: [String] = [], initialURLs: [URL] = []) {
         tab.isActive = true
         searchBox.text = search.boxText(for: tab.displayedLocation ?? tab.location, filterText: tab.searchText)
         if tab.displayedLocation == nil {
             showBlank()
-            request(.visit(tab.location, select: initialSelection, selectURLs: []), tab: tab)
+            request(.visit(tab.location, select: initialSelection, selectURLs: initialURLs), tab: tab)
         } else if tab.items != nil, !tab.showsPage {
             display(tab, select: tab.selectedNames, top: tab.topVisibleName, locationChanged: true)
             startWatching(tab)
@@ -331,7 +331,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         if source === activeTab { captureViewState(source) }
         let copy = source.duplicate()
         tabs.insert(copy, at: index + 1)
-        switchTo(index + 1, initialSelection: copy.selectedNames)
+        switchTo(index + 1, initialSelection: copy.selectedNames, initialURLs: copy.selectedURLs)
         reloadTabStrip()
     }
 
@@ -384,7 +384,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         let slot = min(max(index, 0), tabs.count)
         tabs.insert(tab, at: slot)
         if slot <= activeIndex, tabs.count > 1 { activeIndex += 1 }
-        switchTo(slot, initialSelection: tab.selectedNames)
+        switchTo(slot, initialSelection: tab.selectedNames, initialURLs: tab.selectedURLs)
         reloadTabStrip()
     }
 
@@ -538,7 +538,11 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
                 tab.items = items
                 if !selectURLs.isEmpty {
                     let wanted = Set(selectURLs.map { Location.folder($0) })
-                    names = items.filter { wanted.contains(.folder($0.url)) }.map(\.name)
+                    let matched = items.filter { wanted.contains(.folder($0.url)) }
+                    names = matched.map(\.name)
+                    // Restored by URL in display(): names can repeat (search results, libraries).
+                    tab.selectedNames = matched.map(\.name)
+                    tab.selectedURLs = matched.map(\.url)
                 }
             case .custom(let page):
                 tab.showsPage = true
@@ -814,7 +818,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         case .success(.network(let url)):
             addressBar.endEditing()
             if let handler = Self.networkAddressHandler, handler(self, url) { itemView?.focus(); return }
-            NSWorkspace.shared.open(url)
+            SystemOpen.open(url)
             statusBar.setMessage("Connecting to \(url.host ?? url.absoluteString)… The share will appear under This Mac once it's mounted.")
             itemView?.focus()
         case .failure(let error):
@@ -870,6 +874,22 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         navigate(to: location, select: names)
     }
 
+    /// Reloads and selects exactly these items. Use it wherever the items are known: in search results
+    /// and libraries several items share a name, and selecting by name would select them all.
+    func refreshSelecting(urls: [URL], rename: String? = nil) {
+        activeTab.renameAfterLoad = rename
+        request(.visit(location, select: urls.map(\.lastPathComponent), selectURLs: urls), tab: activeTab)
+    }
+
+    /// The item to select after removing `items`: the next remaining row, else the previous one (by identity).
+    func neighborURL(after items: [FileItem]) -> URL? {
+        let removed = Set(items.map(\.url))
+        let rows = visibleItems
+        guard let last = rows.lastIndex(where: { removed.contains($0.url) }) else { return nil }
+        if let next = rows[(last + 1)...].first(where: { !removed.contains($0.url) }) { return next.url }
+        return rows[..<last].last(where: { !removed.contains($0.url) })?.url
+    }
+
     /// The item to select after removing `items`: the next remaining row, else the previous one.
     func neighbor(after items: [FileItem]) -> String? {
         let removed = Set(items.map(\.name))
@@ -893,7 +913,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         }
         locations.forEach { openTab($0) }
         files.removeAll { InteractionHooks.openFile?(self, $0) == true }
-        files.forEach { NSWorkspace.shared.open($0.url) }
+        files.forEach { SystemOpen.open($0.url) }
         if !files.isEmpty { NotificationCenter.default.post(name: LocationEvents.didOpenFiles, object: self, userInfo: ["urls": files.map(\.url)]) }
     }
 
@@ -926,18 +946,38 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
                 alert.informativeText = "If you change “.\(oldExt ?? "")” to “.\(newExt ?? "")”, the file might open in a different app or stop opening."
                 alert.addButton(withTitle: "Use .\(newExt ?? "(none)")")
                 alert.addButton(withTitle: "Cancel")
-                if alert.runModal() != .alertFirstButtonReturn { return false }
+                // A sheet on this window. The view reopens the name field with the typed text underneath
+                // (returning false); Cancel leaves it there to edit, Use closes it and renames.
+                AlertSheets.present(alert, in: window) { [weak self] response in
+                    guard response == .alertFirstButtonReturn, let self else { return }
+                    self.endRenameField()
+                    DispatchQueue.main.async { _ = self.performRename(item, to: newName, reopenOnFailure: true) }
+                }
+                return false
             }
         }
+        return performRename(item, to: newName, reopenOnFailure: false)
+    }
+
+    /// Renames without asking. A failure is reported in a sheet and the name field comes back with the typed
+    /// text (the view reopens it when this returns false; `reopenOnFailure` when no view is waiting for the answer).
+    private func performRename(_ item: FileItem, to newName: String, reopenOnFailure: Bool) -> Bool {
         do {
             let newURL = try Renamer.rename(item.url, to: newName)
             OperationCenter.shared.registerUndoRename(from: newURL, back: item.name)
-            navigate(to: location, select: [newURL.lastPathComponent])
+            refreshSelecting(urls: [newURL])
             return true
         } catch {
-            NSAlert.show("Couldn't rename “\(item.name)”.", error.localizedDescription, in: nil)
+            NSAlert.show("Couldn't rename “\(item.name)”.", error.localizedDescription, in: window)
+            if reopenOnFailure { itemView?.beginRename(named: item.name, text: newName) }
             return false
         }
+    }
+
+    /// Ends an open name field without renaming (the field editor's Escape).
+    private func endRenameField() {
+        guard itemView?.isEditingName == true, let editor = window?.firstResponder as? NSTextView else { return }
+        editor.doCommand(by: #selector(NSResponder.cancelOperation(_:)))
     }
 
     func itemViewTransfer(_ kind: TransferKind, _ urls: [URL], to folder: URL) {
@@ -980,7 +1020,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         if QLPreviewPanel.sharedPreviewPanelExists() && panel.isVisible {
             panel.orderOut(nil)
         } else if !selectedItems.isEmpty {
-            panel.makeKeyAndOrderFront(nil)
+            SystemOpen.showQuickLook(panel, previewing: selectedItems.map { PreviewHooks.url(for: $0) })
         }
     }
 

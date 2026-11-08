@@ -25,7 +25,7 @@ final class TimeMachineVersionsView: NSStackView {
     private lazy var restoreButton = SheetButton("Restore…") { [weak self] _ in self?.confirmRestore() }
     private lazy var privacyButton = SheetButton("Privacy Settings…") { _ in
         if AppDelegate.isHeadless { TimeMachineVersionsView.lastOpened = "settings: Full Disk Access"; return }
-        NSWorkspace.shared.open(TimeMachineBackups.fullDiskAccessSettingsURL)
+        SystemOpen.open(TimeMachineBackups.fullDiskAccessSettingsURL)
     }
 
     /// Headless runs record what would be opened instead of launching apps.
@@ -191,7 +191,7 @@ final class TimeMachineVersionsView: NSStackView {
                 _ = try? FileFlags.update(target, locked: false)
                 try? FileManager.default.removeItem(at: folder)
             } else {
-                NSWorkspace.shared.open(target)
+                SystemOpen.open(target)
             }
         } catch {
             PropertiesWindowController.present(message: "The version couldn't be opened.", info: error.localizedDescription, window: controller?.window)

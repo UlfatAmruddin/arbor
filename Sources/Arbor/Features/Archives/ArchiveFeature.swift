@@ -107,9 +107,9 @@ enum ArchiveFeature {
                 }
                 makeReadOnly(url)
                 if let app {
-                    NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
-                } else if !AppDelegate.isHeadless {
-                    NSWorkspace.shared.open(url)
+                    SystemOpen.open([url], withApplicationAt: app)
+                } else {
+                    SystemOpen.open(url)
                 }
                 lastExtraction = url
                 weakWindow?.statusBar.setMessage("Opened a read-only copy of “\(ref.name)”. Changes won't be saved back to “\(ref.archive.lastPathComponent)”.")
@@ -230,7 +230,7 @@ enum ArchiveFeature {
         if let reveal = r.command("file.showInFinder") {
             let perform = reveal.perform
             reveal.perform = { ctx in
-                if let file = ctx.location?.archiveFile { NSWorkspace.shared.activateFileViewerSelecting([file]) } else { perform(ctx) }
+                if let file = ctx.location?.archiveFile { SystemOpen.reveal([file]) } else { perform(ctx) }
             }
         }
         if let openWith = r.command("file.openWith"), let submenu = openWith.submenu {

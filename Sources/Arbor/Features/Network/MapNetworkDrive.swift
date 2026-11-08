@@ -314,7 +314,7 @@ enum NetworkDisconnect {
                 let handle: (NSApplication.ModalResponse) -> Void = { response in
                     if response == .alertSecondButtonReturn { disconnect(share, window: window, force: true) }
                 }
-                if let host = window.window, host.attachedSheet == nil { alert.beginSheetModal(for: host, completionHandler: handle) } else { handle(alert.runModal()) }
+                AlertSheets.present(alert, in: window.window, completion: handle)
             case .failure(let error):
                 window.statusBar.setMessage(error.localizedDescription, isError: true)
             }
