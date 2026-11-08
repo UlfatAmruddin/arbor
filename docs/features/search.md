@@ -40,7 +40,7 @@ it; reopening a stopped search reruns it. Refresh (F5 or the address bar) reruns
 | FE-142 | Semantic / cloud search | Boundary | Not built. No equivalent API; cloud placeholders are not downloaded to read their contents |
 | FE-143 | Spotlight adapter | Implemented | Translation unit tests. Fixtures live in temp folders Spotlight doesn't index, so live index results weren't observed headless |
 | FE-144 | Why a result is absent: status line plus Search options ▸ "Why might results be missing?" (denied, unreadable, offline scope, not indexed, index timeout, unchecked contents, unreadable archives, other disks skipped, result cap, stopped, stale) | Implemented | `searchdetails` output, coverage unit tests |
-| FE-145 | Name-first ranking | Not done | Results sort by the tab's sort order: the shared `FileSorter` has no relevance key. Name and content matches are labeled separately (Match column) |
+| FE-145 | Name-first ranking | Implemented (later, in docs/features/consistency.md #5) | Relevance (exact name, prefix, substring, contents) is the default order of results; name and content matches are also labeled separately (Match column) |
 | FE-146 | Freshness | Implemented | Fixture run: a file created during the session appeared, a deleted one vanished, with no rerun |
 | FE-236 | Mixed AND/OR left to right; parentheses override | Implemented | Parser tests plus a data test where the result differs from AND-before-OR |
 | FE-237 | Canonical `System.*` names are the internal identity, independent of UI language; unknown or localized labels are rejected visibly | Implemented | Tests: every canonical name round-trips; `größe:`, `taille:` and `foo:` give errors |
@@ -112,7 +112,6 @@ prints the box text, session status, dropdown, progress, history, back stack and
 
 ## Known gaps
 
-- FE-145 relevance ordering (needs a relevance `SortKey` in the shared sorter).
 - The history dropdown is mouse-only: ↓ in the box submits (core `SearchBox` behavior). Selection restore after Back uses names, so
   duplicate-named results can both be selected when restored from history.
 - Tiles and icon modes show the folder only in the infotip; Content shows it inline.

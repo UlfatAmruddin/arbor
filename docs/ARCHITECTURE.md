@@ -7,18 +7,22 @@ Read this before adding a feature. Goal: each feature lives in **its own files**
 
 | Folder | Holds |
 |---|---|
-| `Sources/ArborCore` | UI-free, unit-tested logic: `Location`, `NavigationHistory`, `ViewMode`, listing, sorting, paths, names, transfers |
-| `Window/` | `BrowserWindowController` (one per window), `TabState` (one per tab), tab strip, address bar, search box, command bar, status bar |
-| `Views/` | `ItemViewController` protocol + `ViewModeRegistry`, `DetailsViewController`, `IconProvider`, row styling |
-| `Commands/` | `ExplorerCommand`, `CommandRegistry`, menu building, all core commands, menu bar |
-| `Locations/` | `LocationProvider` + `LocationRegistry`, `FolderProvider`, placeholder Home / This Mac / "not available yet" pages |
-| `Panes/` | navigation pane, `SidePaneRegistry`, Preview pane, basic Details pane |
-| `Support/` | `Theme` (all colors/metrics), `ChromeButton`, `Prefs`, `QuickAccess`, clipboard, `OperationCenter` (jobs, undo) |
+| `Sources/ArborCore` | UI-free, unit-tested logic: `Location`, `NavigationHistory`, `ViewMode`, listing, sorting, paths, names, transfers, journals, history, queue, verification. Subfolders per area: `Search/` (AQS parser, evaluator, Spotlight translation, direct scan), `Archives/` (ZIP reader, bsdtar listing, safety planner), `Properties/`, `FolderOptions/`, `Consistency/`, `Accessibility/` (string table, key names), `Performance/` (budgets, background sort, stall recorder) |
+| `Window/` | `BrowserWindowController` (one per window), `TabState` (one per tab), tab strip and tear-off, address bar and breadcrumbs, navigation row, search box, command bar, status bar, `WindowHooks` |
+| `Views/` | `ItemViewController` protocol + `ViewModeRegistry`, `DetailsViewController`, `DetailsColumns` (per-location column layouts), `IconProvider`, `ItemBadges`, row and tile styling |
+| `Commands/` | `ExplorerCommand`, `CommandRegistry`, menu building, core commands, menu bar |
+| `Locations/` | `LocationProvider` + `LocationRegistry`, `FolderProvider`, page protocols (`LocationPageSelection`, `LocationPageFiltering`, `LocationPageViewState`), placeholder pages |
+| `Panes/` | navigation pane (+ `NavigationPaneExtras` for extra nodes), `SidePaneRegistry`, core Preview pane |
+| `Support/` | `Theme`, `ChromeButton`, `Prefs`, `FileClipboard`, `OperationCenter` (jobs, undo), `SystemOpen` (every hand-off to other apps; logged only in headless runs), `AlertSheets` (one sheet at a time per window), `InteractionHooks`, `ItemHooks`, `SelectionEmphasis` |
+| `Features/<Area>/` | One folder per feature area, each registered by one line in `Features.swift`: `IconViews`, `DetailsDepth` (grouping, filters, columns), `Home`, `ThisMac`, `Search`, `FileOperations`, `Properties`, `Archives`, `Network`, `Trash`, `Cloud`, `GalleryLibraries`, `FolderOptions`, `ItemActions`, `Accessibility`, `VisualParity`, `Consistency`, `Performance`, `Reliability`. Each has an area document in `docs/features/` |
+
+Registration order matters where a feature adjusts what others installed: `Consistency`, `FileOperationsExtras`,
+`Performance` and `Reliability` register last (see the comments in `Features.swift`).
 
 **Registering.** Write `enum MyFeature { static func register() { … } }` in your files, then replace *your* slot comment in
 `Features.registerAll()` with `MyFeature.register()`. Don't reorder slots or remove the blank lines between them.
 Later registrations win, so you replace a core placeholder by registering, never by editing it. Avoid editing
-`PlaceholderPages.swift`, `CoreFeature`, or another feature's files; add a hook instead and say so in your report.
+`PlaceholderPages.swift`, `CoreFeature`, or another feature's files; add a hook instead and list it in your area document.
 
 ## Window, tabs, locations
 
@@ -132,9 +136,37 @@ All colors and metrics live in `Support/Theme.swift` (light/dark dynamic). Draw 
 `ExplorerRowView` for list rows. Folder/drive/location icons come from `IconProvider.shared` (code-drawn folders + SF
 Symbols; never Microsoft assets, DEC-018). Don't subclass `NSTableHeaderView` or its cells (rows stop drawing on macOS 26).
 
+## Hooks for cross-feature behavior
+
+Shared views call small hook points instead of knowing about features. Add a hook rather than editing another
+feature's files.
+
+| Hook | Where | Used for |
+|---|---|---|
+| `InteractionHooks` | `Support/InteractionHooks.swift` | open file, commit rename, drop, drag hover (spring-loading), right mouse down, icon decoration, extra item detail lines |
+| `ItemHooks` | `Support/ItemHooks.swift` | drag writers (file promises for archive members) and drop handlers for drops without file URLs |
+| `WindowHooks`, `ItemViewHooks`, `NavigationPaneHooks`, `PreviewPolicy` | `Window/WindowHooks.swift` | Folder Options effects (title bar path, name decoration, tree options, preview handlers), selection changes |
+| `PreviewHooks` | `Locations/LocationPageExtras.swift` | Quick Look / Preview pane for items without a file on disk |
+| `ViewOptions` | `Features/DetailsDepth/ViewOptions.swift` | per-tab columns, Group by, filters; `folderKindResolver`, `columnsEdited` |
+| `DetailsColumns.register`, `ColumnCatalog.register` | `Views/DetailsColumns.swift`, ArborCore | per-location column layouts (Trash, search, ZIP, cloud) and extra columns |
+| `Breadcrumbs.register`, `LocationRegistry.registerOpenHandler` | `Window/`, `Locations/` | breadcrumbs for new location kinds; opening a file as a location (archives, saved searches) |
+
+## Scripts
+
+| Script | Does |
+|---|---|
+| `scripts/build-app.sh [debug\|release] [--universal]` | builds `build/Arbor.app` (zero warnings expected) |
+| `scripts/test.sh` | unit tests (also checks the string table with `extract-strings.sh --check`) |
+| `scripts/core-checks.sh`, `scripts/behavior-checks.sh [group…]` | headless regression checks for fixed bugs |
+| `scripts/acceptance.sh [Txx…]` | the task scenarios T01–T30 of SPEC.md §17.5, headless; results in docs/ACCEPTANCE.md |
+| `scripts/bench.sh [--check]` | memory and responsiveness workloads; `--check` compares with `scripts/bench-budgets.txt` (docs/PERFORMANCE.md) |
+| `scripts/extract-strings.sh [--check]` | regenerates `Resources/en.lproj/Localizable.strings` |
+| `scripts/make-dmg.sh`, `scripts/sign-and-notarize.sh` | release packaging (docs/RELEASING.md) |
+
 ## Testing your feature
 
 Unit-test logic in `ArborCore`. Drive the app headless (TESTING.md). Add script steps and log lines from your own files:
 `DebugScript.registerStep("emptytrash") { arg, window in …; return 0.8 }` and `DebugScript.registerLogger { w in "trash: …" }`.
-Keep `scripts/build-app.sh debug` at zero warnings, update your rows in docs/FEATURE-STATUS.md, and record new decisions in
-docs/DECISIONS.md.
+Keep `scripts/build-app.sh debug` at zero warnings, record status and decisions in your area document
+(`docs/features/<area>.md`, decisions numbered `DEC-<area>-N`), and keep `docs/FEATURE-STATUS.md`, the consolidated list
+of every requirement, in step with it.

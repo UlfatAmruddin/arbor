@@ -581,8 +581,10 @@
 "If the files in the existing folder have the same names as files in the folder you're copying, you'll be asked whether to replace them. Do you still want to copy the folder?" = "If the files in the existing folder have the same names as files in the folder you're copying, you'll be asked whether to replace them. Do you still want to copy the folder?";
 "If the files in the existing folder have the same names as files in the folder you're extracting, you'll be asked whether to replace them. Do you still want to extract the folder?" = "If the files in the existing folder have the same names as files in the folder you're extracting, you'll be asked whether to replace them. Do you still want to extract the folder?";
 "If the files in the existing folder have the same names as files in the folder you're moving, you'll be asked whether to replace them. Do you still want to move the folder?" = "If the files in the existing folder have the same names as files in the folder you're moving, you'll be asked whether to replace them. Do you still want to move the folder?";
+"If you add “.%@” to the name, the file might open in a different app or stop opening." = "If you add “.%@” to the name, the file might open in a different app or stop opening.";
 "If you change “.%@” to “.%@”, the file might open in a different app or stop opening." = "If you change “.%@” to “.%@”, the file might open in a different app or stop opening.";
 "If you quit now, the file being copied is removed and the rest is not copied. Items that already finished are kept, originals are never removed before their copy completes, and Arbor lists what didn't finish the next time it opens." = "If you quit now, the file being copied is removed and the rest is not copied. Items that already finished are kept, originals are never removed before their copy completes, and Arbor lists what didn't finish the next time it opens.";
+"If you remove “.%@” from the name, the file might open in a different app or stop opening." = "If you remove “.%@” from the name, the file might open in a different app or stop opening.";
 "If you select both versions, the copied file will have a number added to its name." = "If you select both versions, the copied file will have a number added to its name.";
 "Image" = "Image";
 "In archive: %@" = "In archive: %@";
@@ -881,6 +883,7 @@
 "Remove from Recent" = "Remove from Recent";
 "Remove from history" = "Remove from history";
 "Remove the downloaded copies; the items stay available when online" = "Remove the downloaded copies; the items stay available when online";
+"Remove the extension" = "Remove the extension";
 "Remove: %@ %@ (%@): %@." = "Remove: %@ %@ (%@): %@.";
 "Removed from Favorites. The file itself wasn't changed." = "Removed from Favorites. The file itself wasn't changed.";
 "Removed from Recent. The file itself wasn't changed." = "Removed from Recent. The file itself wasn't changed.";

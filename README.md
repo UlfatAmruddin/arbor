@@ -1,113 +1,161 @@
 # Arbor
 
-**A free, open-source file manager for macOS with the layout Windows users already know:** tabs, a folder tree beside the file list, a clickable path bar you can type into, a Details view with real columns, and a status bar.
+**A free, open-source file manager for macOS that works like Windows 11 File Explorer.** Tabs in the title bar, a
+folder tree beside the file list, a breadcrumb address bar you can type into, a command bar, Details and icon views,
+real cut and paste, and a status bar: the layout and habits Windows users already know, built natively for the Mac.
 
-> "Arbor" is a working name. This project isn't affiliated with or endorsed by Microsoft. "Windows" and "File Explorer" are Microsoft trademarks and are used here only to describe the layout the app is inspired by.
+Arbor is released under the MIT license. It is an independent project.
 
-Status: **v0.2 foundation, early preview.** The window now follows Windows 11 File Explorer's layout and look (title-bar tabs, breadcrumb address bar, command bar, navigation pane, status bar). It browses and manages local files well. Many things Explorer does aren't built yet; see [What's not here yet](#whats-not-here-yet) and [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
+> **Trademarks.** Arbor isn't affiliated with, endorsed by or sponsored by Microsoft. "Windows" and "File Explorer"
+> are trademarks of Microsoft Corporation and are used here only to describe the behavior Arbor follows. Arbor uses
+> its own artwork and the system font; no Microsoft icons, fonts or logos are included.
 
-## Why
+<p align="center">
+  <img src="docs/images/details-light.png" width="820" alt="Arbor showing a folder in Details view with the Preview pane, light appearance">
+</p>
+<p align="center">
+  <img src="docs/images/icons-dark.png" width="820" alt="Arbor showing a folder of pictures in Large icons, dark appearance">
+</p>
 
-Finder is capable, but many people find its organization and readability hard: names get cut off, view settings feel unpredictable, there's no real cut-and-paste, and the path is hidden. Arbor keeps hierarchy, full file names, sizes, dates and the current location visible at all times, while respecting how macOS works.
+## Status
 
-## What works in v0.1
+Version 0.2, an early but broad preview. Of the 258 requirements in the specification, 203 are implemented, 28
+partly, 13 are macOS boundaries (no Mac counterpart, so Arbor offers the closest real equivalent instead of a fake
+button) and 14 aren't done yet. Every one is listed in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md), and the
+end-to-end task scenarios are recorded in [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md).
 
-- **Tabs** in the title bar like Explorer: ⌘T new tab (opens Home), ⌘W close, ⌘1–⌘8 jump to a tab, ⌘9 last tab, ⌃Tab / ⌃⇧Tab or ⇧⌘] / ⇧⌘[ to cycle, middle-click a folder to open it in a new tab, drag tabs to reorder or down to move one to a new window. Right-click a tab for Duplicate, Close other tabs, Close tabs to the right and Move to new window. Each tab keeps its own history, selection, scroll position, search, sort and view.
-- **Navigation**: Back, Forward, Up and Refresh. Back and Forward restore the selection and scroll position you left. Up from a disk goes to This Mac. The address bar shows breadcrumb segments; each › opens a menu of that folder's subfolders, and long paths collapse into «. Click empty space or press ⌘L (or ⌥D in the file list) to type a path or a place name such as Home or This Mac.
-- **The address bar understands** `~/Documents`, relative paths, `"quoted paths"`, `file://` URLs, `smb://server/share`, and pasted Windows UNC paths (`\\server\share` becomes `smb://…`). It explains, rather than guesses, when you type a Windows drive letter like `C:\`. Typed text is never run as a command.
-- **Home** shows your Quick access folders. **Navigation pane**: Home, Gallery, pinned folders (pin and unpin any folder), This Mac (all drives, with Eject) and Network. Gallery, Network and Trash pages say plainly that they aren't built yet. The arrow expands a folder; clicking the name opens it. Folders are only read when you expand them.
-- **Details view**: Name, Date modified, Type and Size. Click a header to sort. Natural number order (file 2 before file 10). Folders first in either direction. Resize, reorder and hide columns (right-click the header). Long names are shortened in the middle so the extension stays visible; hover to see the full name.
-- **Real cut and paste**: ⌘X marks files (they dim), ⌘V moves them. Originals are removed only after each copy succeeds. ⌘C/⌘V copies, and pasting into the same folder makes `name - Copy.ext`. Works with Finder's clipboard too.
-- **Name conflicts**: Keep Both (default), Replace (the old file goes to the Trash, so it can be recovered), Skip or Cancel, with sizes and dates for both. Folders can be merged. You can apply one choice to all remaining conflicts.
-- **Rename** with F2 or Rename. Only the name is selected, not the extension. You're warned before changing an extension, and case-only renames work. **New folder** (⇧⌘N) starts out ready to rename.
-- **Trash**: ⌘⌫ or the Delete key. **Undo** (⌘Z) works across all tabs for rename, Trash, move and new folder, and never overwrites anything that has changed since. Permanent delete (⌥⌘⌫ or Shift+Delete) always asks first.
-- **Drag and drop** inside the list, onto folders, onto the tree, and to and from other apps. Same drive moves, another drive copies; hold ⌥ to force a copy or ⌘ to force a move.
-- **Preview pane** (⌥⌘P), a basic **Details pane** (⇧⌥⌘P; the two are exclusive, like Explorer) and **Quick Look** (Space). The preview won't silently download iCloud files.
-- **Search box**: filters the current folder as you type, and the status bar shows how many items match.
-- **Status bar**: item count, selection count and total size, plus transfer progress with a Cancel button.
-- **Open With**, **Copy as Path** (⌥⌘C, each path in quotes like Explorer), **Open in Terminal**, **Share**, **Show in Finder**, **Show Package Contents**, **Select none / Invert selection**, **Compact view**, **Item check boxes**.
-- Explorer-like light and dark themes with our own yellow folder icons (no Microsoft artwork). Core lists and text fields are native controls; the custom tab strip and buttons expose accessibility roles but haven't had a VoiceOver audit.
+No Windows reference machine was used while building it: parity is based on Microsoft's documentation and on recalled
+behavior, so details such as exact spacing, colors or menu order may differ from a current Windows 11 build.
 
-## Keyboard (Windows habit → Arbor)
+## Features
 
-| Windows | Arbor | |
+- **Tabs and windows.** New tabs open Home, like Explorer. Drag tabs to reorder, drag one out for a new window, or drop
+  it on another window's tab row. Each tab keeps its own history, selection, search, sort and view.
+- **Navigation.** Back, Forward, Up and Refresh; a breadcrumb address bar whose › menus list subfolders; type or paste
+  a path, `~/Documents`, a `file://` URL, `smb://server/share` or a Windows UNC path (`\\server\share`). Typed text is
+  never run as a command. A folder tree that expands without navigating.
+- **Views.** Details (sortable, groupable columns with header filters and more metadata columns), List, Tiles, Content
+  and four icon sizes with thumbnails; compact view, item check boxes, per-folder views and folder types (General
+  items, Documents, Pictures, Music, Videos), set in a full Folder Options dialog.
+- **Places.** Home (Quick access, Favorites, Recent), This Mac (drives with capacity bars), Gallery, Libraries, Network
+  (discovered computers, shares, Map network drive), Trash (Original Location, Restore, Empty Trash), and iCloud Drive
+  and other cloud folders with sync status.
+- **Files.** Real cut and paste (originals are removed only after each copy succeeds), Replace or Skip and compare
+  dialogs, folder merge, byte progress with pause and resume, Operation history, recovery after a crash, New ▸
+  templates, shortcuts (Mac aliases), Send to, batch rename, rotate images, Properties with Security, Details and
+  Previous Versions.
+- **Search.** Searches subfolders with Spotlight and a direct scan, understands much of Explorer's query syntax
+  (`kind:`, `size:>1MB`, `date:last week`, `AND`/`OR`/`NOT`), ranks name matches first and says when results may be
+  incomplete and why.
+- **Archives.** Browse and extract ZIP, 7z, TAR (and gzip, bzip2, xz) archives; create ZIP, 7z and TAR; mount ISO
+  images. Unsafe archive members are never extracted.
+- **Safety.** Delete moves to the Trash; anything permanent asks first. Undo refuses rather than overwrite something
+  changed since. Replacing a file moves the old one to the Trash.
+- **Accessibility.** Every action works from the keyboard (F6 between regions, ⇧F10 for context menus); every control
+  has a VoiceOver name; text size, increased contrast and right-to-left layouts are supported.
+
+## Keyboard (Windows → Arbor)
+
+| Windows | Arbor | Does |
 |---|---|---|
 | Enter | Return | Open |
-| F2 | F2 | Rename |
-| Backspace / Alt+← | Delete / ⌥← / ⌘[ | Back |
-| Alt+→ | ⌥→ / ⌘] | Forward |
-| Alt+↑ | ⌥↑ / ⌘↑ | Up |
-| F5 | F5 / ⌘R | Refresh |
-| Ctrl+L / Alt+D | ⌘L | Type a path |
-| Ctrl+F / Ctrl+E | ⌘F | Search this folder |
-| Ctrl+T / Ctrl+W | ⌘T / ⌘W | New / close tab |
+| Ctrl+Enter | ⌘Return | Open in a new tab |
+| F2 | F2 | Rename (Tab moves to the next item) |
+| Alt+← / Backspace | ⌘[ / ⌥← / Delete | Back |
+| Alt+→ | ⌘] / ⌥→ | Forward |
+| Alt+↑ | ⌘↑ / ⌥↑ | Up |
+| F5 / Ctrl+R | F5 / ⌘R | Refresh |
+| Alt+D / Ctrl+L | ⌘L | Type a path |
+| Ctrl+F / Ctrl+E | ⌘F | Search |
+| Ctrl+T / Ctrl+W | ⌘T / ⌘W | New tab / close tab |
+| Ctrl+N | ⌘N | New window |
 | Ctrl+Tab / Ctrl+Shift+Tab | ⌃Tab / ⌃⇧Tab | Next / previous tab |
-| Ctrl+Shift+1…8 | ⇧⌘1…8 | View modes (only Details is built) |
-| Alt+Shift+P | ⇧⌥⌘P | Details pane |
+| Ctrl+1…9 | ⌘1…9 | Go to tab |
 | Ctrl+Shift+N | ⇧⌘N | New folder |
 | Ctrl+X / C / V | ⌘X / C / V | Cut / copy / paste |
+| Ctrl+Z / Ctrl+Y | ⌘Z / ⇧⌘Z | Undo / redo |
+| Ctrl+A | ⌘A | Select all |
 | Delete | fn+Delete or ⌘⌫ | Move to Trash |
-| Shift+Delete | fn+Shift+Delete or ⌥⌘⌫ | Delete permanently (asks first) |
+| Shift+Delete | fn+⇧Delete or ⌥⌘⌫ | Delete permanently (asks first) |
+| Alt+Enter | ⌥Return or ⌘I | Properties |
 | Alt+P | ⌥⌘P | Preview pane |
-| Ctrl+Shift+. (n/a) | ⇧⌘. | Show hidden items |
+| Alt+Shift+P | ⇧⌥⌘P | Details pane |
+| Ctrl+Shift+1…8 | ⇧⌘1…8 | View modes |
+| Shift+F10 / Menu key | ⇧F10 | Context menu |
+| F6 / Tab | F6 / Tab | Move between regions |
+| Ctrl+Shift+C (copy as path) | ⌥⌘C | Copy as path |
+| — | ⇧⌘. | Show hidden items |
+| — | Space | Quick Look |
 
-On a Mac keyboard, F2 and F5 may need **fn** unless "Use F1, F2, etc. keys as standard function keys" is turned on in System Settings → Keyboard.
+On a Mac keyboard, F-keys may need **fn** unless "Use F1, F2, etc. keys as standard function keys" is on in System
+Settings → Keyboard.
+
+## System requirements
+
+macOS 14 Sonoma or later, on Apple silicon or Intel Macs (one universal app).
 
 ## Install
 
-Arbor needs **macOS 14 Sonoma or later** and runs natively on both Apple silicon and Intel Macs.
-
 ### Download
 
-1. Download `Arbor-<version>.dmg` from the [latest release](https://github.com/ulfatamruddin/arbor/releases/latest).
-2. Open it and drag **Arbor** onto the **Applications** folder.
-3. Open Arbor from Applications or Launchpad.
+When a release is available, download `Arbor-<version>.dmg` from this repository's [Releases](../../releases) page,
+open it and drag **Arbor** onto **Applications**. Each release lists a SHA-256 checksum; check it with
+`shasum -a 256 Arbor-<version>.dmg`.
 
-**First launch of an unsigned build.** Until releases are signed with an Apple Developer ID and notarized (the release notes say which kind you have), macOS blocks the first launch with a message that it can't verify Arbor. To open it anyway, once:
+**Unsigned builds and Gatekeeper.** Until releases are signed with an Apple Developer ID and notarized (the release
+notes say which you have), macOS blocks the first launch because it can't verify the developer. To open Arbor anyway,
+once:
 
-- In Finder, right-click (or Control-click) Arbor in Applications, choose **Open**, then **Open** again. This works on macOS 14 Sonoma; macOS 15 and later no longer offer it, so use the next option there.
-- Or try to open Arbor, then go to **System Settings → Privacy & Security**, scroll to Security, and click **Open Anyway** next to the message about Arbor. Confirm with your password.
+- Try to open Arbor, then go to **System Settings → Privacy & Security**, scroll to Security, click **Open Anyway** next
+  to the message about Arbor and confirm.
+- On macOS 14 you can also Control-click Arbor in Applications, choose **Open**, then **Open** again.
 
-After that, Arbor opens normally. The release page lists a SHA-256 checksum (`Arbor-<version>.dmg.sha256`) if you want to check the download: `shasum -a 256 Arbor-<version>.dmg`.
-
-The first time you open Desktop, Documents or Downloads, macOS asks whether Arbor may access them. That's normal: Arbor only asks for what you open. From Terminal, `/Applications/Arbor.app/Contents/MacOS/Arbor ~/Projects` opens a specific folder.
+Only do this for a download you trust (this repository's Releases page). The first time you open Desktop, Documents or
+Downloads, macOS asks whether Arbor may access them; Arbor only asks for what you open.
 
 ### Build from source
 
-It takes a few minutes and needs only Apple's free Command Line Tools:
+Needs only Apple's free Command Line Tools (Xcode is optional):
 
 ```bash
-xcode-select --install          # once, if you don't have the tools
-git clone https://github.com/ulfatamruddin/arbor.git && cd arbor
-scripts/build-app.sh            # creates build/Arbor.app for this Mac
+xcode-select --install          # once, if the tools aren't installed
+git clone <this repository's URL> arbor && cd arbor
+scripts/build-app.sh            # builds build/Arbor.app for this Mac
 open build/Arbor.app
 ```
 
-Drag `build/Arbor.app` into `/Applications` to keep it. `scripts/build-app.sh release --universal` builds one app for both Apple silicon and Intel, and `scripts/make-dmg.sh` makes the disk image. Releases are described in [docs/RELEASING.md](docs/RELEASING.md).
-
-## Development
-
-```bash
-scripts/test.sh                 # unit tests (works with Xcode or just Command Line Tools)
-swift build                     # debug build
-scripts/build-app.sh debug      # debug .app
-```
-
-- `Sources/ArborCore`: logic with no UI, fully unit-tested: listing, sorting, history, address resolution, naming, rename, and the copy/move engine with its conflict and safety rules.
-- `Sources/Arbor`: the AppKit interface, organized as `Window/`, `Views/`, `Commands/`, `Locations/`, `Panes/`, `Support/`. Features plug in through registries; read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-- `Sources/Arbor/DebugScript.swift`: a test harness that drives the real UI from a script (set `ARBOR_SCRIPT`; see the file). It's inactive in normal use.
-- `docs/SPEC.md`: the product research and behavior specification, with requirement IDs (FE-001…FE-258).
-- `docs/DECISIONS.md`: decisions made so far and which ones are still provisional.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## What's not here yet
-
-Other view modes (icons, list, tiles, content; the menu lists them but only Details works), a real Home page (recent files), This Mac drive tiles, grouping, column filters, per-folder view settings, recursive and content search, archive browsing and creation, network browsing beyond `smb://` connect, cloud status badges, Gallery, Libraries, Properties dialog, batch rename, Trash browsing and Put Back for items trashed elsewhere, persistent transfer history, pause/resume, byte-level progress, saved sessions, localization, and a signed, notarized download. Every one of these is tracked by ID in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
+Drag `build/Arbor.app` into `/Applications` to keep it. `scripts/build-app.sh release --universal` builds one app for
+both Apple silicon and Intel, and `scripts/make-dmg.sh` makes the disk image ([docs/RELEASING.md](docs/RELEASING.md)).
+From Terminal, `/Applications/Arbor.app/Contents/MacOS/Arbor ~/Projects` opens a given folder.
 
 ## Privacy
 
-Arbor has no telemetry and makes no network connections of its own.
+Arbor has no telemetry, no analytics and no crash reporter, and makes no network connections of its own. It connects
+only to servers you open (network shares) and reads cloud status that macOS already provides locally. Recent files and
+frequent folders stay on your Mac and can be turned off or cleared in Folder Options.
+
+## Documentation
+
+| Document | What's in it |
+|---|---|
+| [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md) | Status of every requirement (FE-001…FE-258) |
+| [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md) | Results of the task scenarios T01–T30 |
+| [docs/SPEC.md](docs/SPEC.md) | Product vision and behavioral specification |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Decision log, with an index of each area's decisions |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Code layout, registries and hooks for adding features |
+| [docs/features/](docs/features/) | One document per feature area: status, decisions, known gaps |
+| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Memory and responsiveness budgets and measurements |
+| [docs/research/windows11-reference.md](docs/research/windows11-reference.md) | The Explorer behavior Arbor follows, with sources |
+| [TESTING.md](TESTING.md) | Unit tests and headless scripted checks |
+| [docs/RELEASING.md](docs/RELEASING.md) | Building, signing and publishing releases |
+| [CHANGELOG.md](CHANGELOG.md) | What changed in each version |
+
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first: it covers the safety rules for file
+operations, how to link changes to requirement IDs, and the checks every change must pass (`scripts/test.sh`, a
+warning-free `scripts/build-app.sh debug`, and a headless check for UI behavior). Report security problems privately as
+described in [SECURITY.md](SECURITY.md).
 
 ## License
 

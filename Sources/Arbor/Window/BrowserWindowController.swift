@@ -947,13 +947,23 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
     func itemViewRename(_ item: FileItem, to newName: String) -> Bool {
         if let handled = InteractionHooks.commitRename?(self, item, newName) { return handled }
         if !item.isFolder {
-            let oldExt = NameRules.splitExtension(item.name, treatAsFolder: false).ext?.lowercased()
-            let newExt = NameRules.splitExtension(newName, treatAsFolder: false).ext?.lowercased()
-            if oldExt != newExt {
+            let change = ExtensionChange.between(item.name, newName)
+            if change != .unchanged {
                 let alert = NSAlert()
                 alert.messageText = L10n.tr("Change the file name extension?")
-                alert.informativeText = L10n.format("If you change “.%@” to “.%@”, the file might open in a different app or stop opening.", "\(oldExt ?? "")", "\(newExt ?? "")")
-                alert.addButton(withTitle: L10n.format("Use .%@", "\(newExt ?? "(none)")"))
+                switch change {
+                case .changed(let oldExt, let newExt):
+                    alert.informativeText = L10n.format("If you change “.%@” to “.%@”, the file might open in a different app or stop opening.", "\(oldExt.lowercased())", "\(newExt.lowercased())")
+                    alert.addButton(withTitle: L10n.format("Use .%@", "\(newExt.lowercased())"))
+                case .added(let newExt):
+                    alert.informativeText = L10n.format("If you add “.%@” to the name, the file might open in a different app or stop opening.", "\(newExt.lowercased())")
+                    alert.addButton(withTitle: L10n.format("Use .%@", "\(newExt.lowercased())"))
+                case .removed(let oldExt):
+                    alert.informativeText = L10n.format("If you remove “.%@” from the name, the file might open in a different app or stop opening.", "\(oldExt.lowercased())")
+                    alert.addButton(withTitle: L10n.tr("Remove the extension"))
+                case .unchanged:
+                    break
+                }
                 alert.addButton(withTitle: L10n.tr("Cancel"))
                 // A sheet on this window. The view reopens the name field with the typed text underneath
                 // (returning false); Cancel leaves it there to edit, Use closes it and renames.

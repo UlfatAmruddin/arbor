@@ -8,7 +8,7 @@ issues.
 
 Please report privately, not in a public issue:
 
-1. Go to https://github.com/ulfatamruddin/arbor/security/advisories/new
+1. Go to the repository's [Security ▸ Advisories ▸ New draft advisory](../../security/advisories/new) page
    (the repository's **Security** tab ▸ **Report a vulnerability**).
 2. Describe what happens, the macOS version, the Arbor version (Arbor ▸ About Arbor), and the
    steps to reproduce it. Use made-up file names and paths in your report; don't send private files.

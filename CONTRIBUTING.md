@@ -3,7 +3,7 @@
 Thanks for helping. A few ground rules keep the project trustworthy.
 
 ## Reporting bugs and ideas
-- Use the issue templates: **Bug report** or **Feature request** (https://github.com/ulfatamruddin/arbor/issues/new/choose). Include the Arbor version from Arbor ▸ About Arbor and your macOS version.
+- Use the issue templates: **Bug report** or **Feature request** ([new issue](../../issues/new/choose)). Include the Arbor version from Arbor ▸ About Arbor and your macOS version.
 - Anything that could lose data or expose files is a security problem: report it privately as described in [SECURITY.md](SECURITY.md), not in a public issue.
 
 ## Before you start

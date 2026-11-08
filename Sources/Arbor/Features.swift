@@ -46,6 +46,7 @@ enum Features {
 
         PerformanceFeature.register()   // slot: memory and responsiveness
         ReliabilityFeature.register()   // behavior and safety checks (undo names, headless safety, alert queue)
+        AcceptanceScriptSteps.register()   // script steps and log lines for scripts/acceptance.sh
     }
 }
 

@@ -5,21 +5,22 @@
 #   2. Set `sha256` to the checksum of the released disk image:
 #        shasum -a 256 Arbor-<version>.dmg
 #      (the release also has Arbor-<version>.dmg.sha256 attached).
-#   3. Check it: brew style --fix arbor.rb && brew audit --cask --new arbor
+#   3. Replace OWNER below with the GitHub account that hosts the repository.
+#   4. Check it: brew style --fix arbor.rb && brew audit --cask --new arbor
 #
 # Where to publish it:
 #   - Own tap (works today): put this file at Casks/arbor.rb in a repository named
-#     ulfatamruddin/homebrew-arbor. Users then run: brew install --cask ulfatamruddin/arbor/arbor
+#     OWNER/homebrew-arbor. Users then run: brew install --cask OWNER/arbor/arbor
 #   - homebrew/cask (the main repository) only accepts apps that are signed with a Developer ID and
 #     notarized, and that meet its notability rules. Submit there once releases are notarized.
 cask "arbor" do
   version "0.2.0"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
 
-  url "https://github.com/ulfatamruddin/arbor/releases/download/v#{version}/Arbor-#{version}.dmg"
+  url "https://github.com/OWNER/arbor/releases/download/v#{version}/Arbor-#{version}.dmg"
   name "Arbor"
   desc "File manager with tabs, a folder tree and an editable address bar"
-  homepage "https://github.com/ulfatamruddin/arbor"
+  homepage "https://github.com/OWNER/arbor"
 
   livecheck do
     url :url

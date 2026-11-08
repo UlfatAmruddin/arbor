@@ -368,6 +368,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         let keepSelection = update.locationChanged ? [] : selectedNames
         let keepURLs = update.locationChanged ? [] : Set(selectedItems.map(\.url))
         let keepTop = update.locationChanged ? nil : topVisibleName
+        let keepEnds = update.locationChanged ? nil : currentSelectionEnds()
         folder = update.folder
         allowsEditing = update.allowsEditing
         if update.locationChanged { ColumnValueStore.shared.cancel(owner: visibleOwner) }
@@ -386,6 +387,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
             // Search results can hold several items with one name: keep the selection by URL.
             table.selectRowIndexes(IndexSet(items.indices.filter { keepURLs.contains(items[$0].url) }.compactMap { itemRows[$0] }),
                                    byExtendingSelection: false)
+            restoreSelectionEnds(keepEnds)
         } else {
             select(names: update.select ?? keepSelection)
         }

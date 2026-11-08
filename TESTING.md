@@ -72,3 +72,9 @@ Steps: `axdump:/path` (accessibility tree as VoiceOver sees it), `key:shift+F10`
 `l10naudit:/path` (text in every window that isn't from the string table, and clipped labels; use with `ARBOR_PSEUDO_LOC=1`),
 `axaudit:/path` (controls VoiceOver would read without a name, empty rows), `composecommit:<text>`, `windowactive:0|1`.
 Environment: `ARBOR_PSEUDO_LOC=1` (accented, longer strings), `ARBOR_RTL=1` (right-to-left layout), `ARBOR_CONTRAST=1`, `ARBOR_REDUCE_MOTION=1`, `ARBOR_TEXT_SIZE=150`. Keep the string table current with `scripts/extract-strings.sh` (`--check` verifies). Details: docs/features/accessibility.md.
+
+## 5. Acceptance scenarios
+`scripts/acceptance.sh [T01 …]` runs the task scenarios T01–T30 of docs/SPEC.md §17.5 headless, each on its own fixture,
+and prints pass / FAIL / partial per scenario (`ACCEPT_KEEP=1` keeps the logs and snapshots). Results, and what each
+scenario can't show headless: docs/ACCEPTANCE.md. Steps it adds: `menukey:cmd+x` (a menu shortcut, delivered the way its
+menu item delivers it) and a `clipboard:` line in `log:` (pasteboard names, copy or move, items drawn as cut).

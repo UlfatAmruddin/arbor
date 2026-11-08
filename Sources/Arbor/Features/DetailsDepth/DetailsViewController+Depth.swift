@@ -240,10 +240,13 @@ extension DetailsViewController {
         set.groupBy = o.columns.groupBy
         set.groupAscending = o.columns.groupAscending
         set.normalize()
+        // Showing, hiding or reordering a column keeps the selected items selected (spec T06).
+        let keep = selectedItems.map(\.url)
         o.columns = set
         ViewOptions.saveEditedColumns(o)
         applyTabColumns()
         table.reloadData()
+        if !keep.isEmpty, selectedItems.isEmpty { select(urls: keep) }
         scheduleVisibleLoad()
         if let tab = hostTab { DetailsDepth.refresh(tab) }
     }

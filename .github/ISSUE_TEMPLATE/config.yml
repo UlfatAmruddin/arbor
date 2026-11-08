@@ -1,5 +1,2 @@
 blank_issues_enabled: true
-contact_links:
-  - name: Report a security problem
-    url: https://github.com/ulfatamruddin/arbor/security/advisories/new
-    about: Problems that could lose data or expose files. Please report these privately (see SECURITY.md).
+# Security problems: GitHub lists SECURITY.md ("Report a vulnerability") in the issue chooser on its own.

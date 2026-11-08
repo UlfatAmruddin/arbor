@@ -1,7 +1,7 @@
 # Releasing Arbor
 
-Releases are disk images (`Arbor-<version>.dmg`) attached to GitHub Releases at
-https://github.com/ulfatamruddin/arbor/releases. Each holds one universal `Arbor.app` (Apple silicon
+Releases are disk images (`Arbor-<version>.dmg`) attached to the repository's
+[GitHub Releases](../../../releases) page. Each holds one universal `Arbor.app` (Apple silicon
 and Intel, macOS 14+) and a link to `/Applications`. See DEC-003, DEC-004 and DEC-005 in
 [DECISIONS.md](DECISIONS.md).
 
