@@ -14,7 +14,7 @@
 #
 #   BENCH_TOLERANCE=F         multiply the time budgets (ms, stalls, CPU) by F (default 1)
 #   BENCH_MEMORY_TOLERANCE=F  multiply the memory budgets (MB) by F (default 1); counts are never scaled
-#   BENCH_SAMPLE_IDLE=1       save call stacks of the idle run (<out>/idle-N.sample.txt)
+#   BENCH_SAMPLE_IDLE=1       the idle run logs CPU per thread and stacks of busy threads (<out>/idle-N.log)
 #
 # Every run is headless (ARBOR_HEADLESS=1), uses fixtures generated into a fresh mktemp -d folder,
 # and never touches user files. Results: <out>/results.txt (metric median first min max) and
@@ -175,18 +175,16 @@ for w in $WORKLOADS; do
     script="$(script_for "$w" "$log" "$dest")"
     printf "%-7s run %d… " "$w" "$r"
     start=$(date +%s)
+    # BENCH_SAMPLE_IDLE=1: the idle run also records, from inside the app, CPU per thread and the call
+    # stacks of threads that ran (lines idlethread / idleprofile / idlestack in its log).
+    profile=0; [ "${BENCH_SAMPLE_IDLE:-0}" = 1 ] && [ "$w" = idle ] && profile=1
+    ARBOR_IDLE_PROFILE=$profile \
     ARBOR_HEADLESS=1 ARBOR_APPEARANCE=light ARBOR_TEST_TRASH="$ROOT/trash" ARBOR_STALL_LOG="$OUT/$w-$r.stalls" \
       ARBOR_SCRIPT="$script" "$BIN" "$(start_folder "$w")" >"$OUT/$w-$r.stdout" 2>&1 &
     pid=$!
     # Watchdog: stop a run that hangs (polls once a second; holds no pipe open).
     ( for _ in $(seq 900); do sleep 1; kill -0 "$pid" 2>/dev/null || exit 0; done; kill "$pid" 2>/dev/null ) >/dev/null 2>&1 &
     watchdog=$!
-    # BENCH_SAMPLE_IDLE=1: record what the app does while it should be idle (call stacks every 1 ms
-    # for 2.5 s, finishing well inside the 5 s idle window so the app is still running when the stacks
-    # are symbolicated), saved next to the run's log as <run>.sample.txt.
-    if [ "${BENCH_SAMPLE_IDLE:-0}" = 1 ] && [ "$w" = idle ]; then
-      ( sleep 2.5; /usr/bin/sample "$pid" 2.5 1 -mayDie -file "$OUT/$w-$r.sample.txt" >/dev/null 2>&1 || true ) &
-    fi
     wait "$pid" || echo "(exit $?)"
     wait "$watchdog" 2>/dev/null || true
     rm -rf "$dest"

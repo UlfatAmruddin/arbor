@@ -118,14 +118,19 @@ enum PerformanceDebug {
             let (label, rest) = split(arg)
             let (path, secondsText) = split(rest)
             let seconds = Double(secondsText) ?? 5
+            let profiler = IdleProfiler.isRequested ? IdleProfiler() : nil
+            profiler?.start()
             let cpu = ProcessMetrics.current().cpuSeconds
             let volumes = volumeEvents
             let start = CFAbsoluteTimeGetCurrent()
             DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
                 let elapsed = CFAbsoluteTimeGetCurrent() - start
-                let used = ProcessMetrics.current().cpuSeconds - cpu
+                let report = profiler?.stop()
+                // The profiler's own thread is not part of what the app does while idle.
+                let used = ProcessMetrics.current().cpuSeconds - cpu - (report?.profilerCPU ?? 0)
                 append(String(format: "idle %@ cpu_ms_per_s=%.2f seconds=%.1f volume_events=%d", label, used * 1000 / elapsed, elapsed,
                               volumeEvents - volumes), to: path)
+                for line in report?.lines ?? [] { append(line, to: path) }
             }
             return seconds + 0.05
         }

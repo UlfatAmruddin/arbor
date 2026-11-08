@@ -120,7 +120,7 @@ jobs:
       # Retune them from the uploaded results when the runner image changes.
       BENCH_TOLERANCE: "3"
       BENCH_MEMORY_TOLERANCE: "1.5"
-      BENCH_SAMPLE_IDLE: "1"   # keep call stacks of the idle run with the uploaded results
+      BENCH_SAMPLE_IDLE: "1"   # the idle run logs CPU per thread and stacks of busy threads (uploaded)
     steps:
       - uses: actions/checkout@v4.2.2
         with:
