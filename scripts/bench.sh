@@ -14,6 +14,7 @@
 #
 #   BENCH_TOLERANCE=F         multiply the time budgets (ms, stalls, CPU) by F (default 1)
 #   BENCH_MEMORY_TOLERANCE=F  multiply the memory budgets (MB) by F (default 1); counts are never scaled
+#   BENCH_SAMPLE_IDLE=1       save call stacks of the idle run (<out>/idle-N.sample.txt)
 #
 # Every run is headless (ARBOR_HEADLESS=1), uses fixtures generated into a fresh mktemp -d folder,
 # and never touches user files. Results: <out>/results.txt (metric median first min max) and
@@ -180,6 +181,11 @@ for w in $WORKLOADS; do
     # Watchdog: stop a run that hangs (polls once a second; holds no pipe open).
     ( for _ in $(seq 900); do sleep 1; kill -0 "$pid" 2>/dev/null || exit 0; done; kill "$pid" 2>/dev/null ) >/dev/null 2>&1 &
     watchdog=$!
+    # BENCH_SAMPLE_IDLE=1: record what the app does while it should be idle (call stacks every 1 ms
+    # for 4 s, taken inside the 5 s idle window), saved next to the run's log as <run>.sample.txt.
+    if [ "${BENCH_SAMPLE_IDLE:-0}" = 1 ] && [ "$w" = idle ]; then
+      ( sleep 3; /usr/bin/sample "$pid" 4 1 -mayDie -file "$OUT/$w-$r.sample.txt" >/dev/null 2>&1 || true ) &
+    fi
     wait "$pid" || echo "(exit $?)"
     wait "$watchdog" 2>/dev/null || true
     rm -rf "$dest"
