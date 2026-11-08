@@ -1,8 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Listings of recently browsed archives, shared by every window and tab (a small LRU, spec §15.3).
-/// A listing is keyed by path plus size, modification date and inode, so a replaced archive is re-read.
+/// Shared LRU of archive listings (spec §15.3), keyed by path, size, mtime and inode so a
+/// replaced archive is re-read.
 final class ArchiveCatalog: @unchecked Sendable {
     static let shared = ArchiveCatalog()
 
@@ -36,7 +36,7 @@ final class ArchiveCatalog: @unchecked Sendable {
         }
     }
 
-    /// Any cached listing, current or not, without touching the disk (for item lookups on the main thread).
+    /// Any cached listing, current or not, without disk access (main-thread lookups).
     func peek(_ archive: URL) -> Listing? {
         let path = archive.standardizedFileURL.path
         return lock.withLock { cache.first { $0.key == path }?.listing }
@@ -73,7 +73,7 @@ final class ArchiveCatalog: @unchecked Sendable {
         return (ref, peek(ref.archive)?.index.node(at: ref.innerPath))
     }
 
-    /// Maps a row URL to its archive: first through cached listings (no disk access), then by walking up.
+    /// Maps a row URL to its archive: cached listings first, then by walking up.
     static func ref(for url: URL) -> ArchiveItemRef? {
         let path = url.standardizedFileURL.path
         let known = shared.lock.withLock { shared.cache.map(\.key) }
@@ -84,12 +84,37 @@ final class ArchiveCatalog: @unchecked Sendable {
     }
 }
 
-/// `.archive(file, innerPath)` locations: an archive browsed like a folder (FE-163, FE-166, FE-167).
-/// Read-only: New, Rename, Delete, Cut and Paste are unavailable here.
+/// An archive browsed like a read-only folder (FE-163, FE-166, FE-167).
 final class ArchiveProvider: LocationProvider {
     func handles(_ location: Location) -> Bool {
         if case .archive = location { return true }
         return false
+    }
+
+    /// Items kept out because their names point outside the archive or are too long.
+    static func hiddenItemsNote(_ index: ArchiveIndex) -> String? {
+        if index.unsafeCount > 0 {
+            let items = StatusText.items(index.unsafeCount)
+            return index.unsafeCount == 1
+                ? L10n.format("%@ in this archive has a name that points outside it. It isn't shown and won't be extracted.", items)
+                : L10n.format("%@ in this archive have names that point outside it. They aren't shown and won't be extracted.", items)
+        }
+        if index.tooLongCount > 0 {
+            let items = StatusText.items(index.tooLongCount)
+            return index.tooLongCount == 1
+                ? L10n.format("%@ in this archive has a name too long to use. It isn't shown and won't be extracted.", items)
+                : L10n.format("%@ in this archive have names too long to use. They aren't shown and won't be extracted.", items)
+        }
+        return nil
+    }
+
+    /// Listing rows that couldn't be read; shown after any damage warning, which explains them better.
+    static func unreadableItemsNote(_ index: ArchiveIndex) -> String? {
+        guard index.unreadableCount > 0 else { return nil }
+        let items = StatusText.items(index.unreadableCount)
+        return index.unreadableCount == 1
+            ? L10n.format("%@ in this archive couldn't be read. It isn't shown and won't be extracted.", items)
+            : L10n.format("%@ in this archive couldn't be read. They aren't shown and won't be extracted.", items)
     }
 
     func load(_ location: Location, context: LocationLoadContext,
@@ -108,10 +133,12 @@ final class ArchiveProvider: LocationProvider {
                 let listing = try ArchiveCatalog.shared.load(file, process: process)
                 if listing.index.encryptedCount > 0 {
                     note = L10n.format("Some items in “%@” are password-protected and can't be opened or extracted.", "\(file.lastPathComponent)")
-                } else if listing.index.unsafeCount > 0 {
-                    note = "\(StatusText.items(listing.index.unsafeCount)) in this archive \(listing.index.unsafeCount == 1 ? "has a name" : "have names") that point outside it. They aren't shown and won't be extracted."
+                } else if let unsafe = Self.hiddenItemsNote(listing.index) {
+                    note = unsafe
                 } else if let warning = listing.warning {
                     note = L10n.format("This archive may be damaged: %@", "\(warning)")
+                } else if let unreadable = Self.unreadableItemsNote(listing.index) {
+                    note = unreadable
                 } else if inner.isEmpty {
                     note = L10n.format("Arbor shows “%@” read-only: copy or drag items out, or use Extract all.", "\(file.lastPathComponent)")
                     noteIsError = false

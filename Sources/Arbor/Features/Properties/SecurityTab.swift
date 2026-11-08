@@ -1,9 +1,8 @@
 import AppKit
 import ArborCore
 
-/// The Security tab in Mac terms (FE-153, FE-245): owner, group and everyone else with their POSIX
-/// permissions, any ACL entries, and the current user's access *tested* with access(2). Windows'
-/// Allow/Deny grid is kept only where it is real: POSIX has no Deny, ACL entries do.
+/// Security tab in Mac terms (FE-153, FE-245): POSIX owner/group/everyone, ACL entries, and the
+/// user's access tested with access(2). Allow/Deny only for ACLs; POSIX has no Deny.
 final class SecurityTab: PropertiesTab, PropertiesTabDebug {
     let title = L10n.tr("Security")
     let view: NSView
@@ -11,7 +10,7 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
     private let page = SheetPage()
     private let objectName = SheetLabel.make("", selectable: true)
     private let namesBox = SheetBox()
-    /// Scrolls when owner, group, everyone and access-list entries don't fit the box.
+    /// Scrolls when the entries don't fit.
     private let namesScroll = SheetScrollList()
     private var namesList: NSStackView { namesScroll.stack }
     private let permissionsTitle = SheetLabel.make("", bold: true)
@@ -86,7 +85,7 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
             namesScroll.bottomAnchor.constraint(equalTo: namesBox.bottomAnchor, constant: -1),
         ])
         add(namesBox)
-        // Explorer: "To change permissions, click Edit." [Edit…] (access-list entries, group).
+        // Explorer's "To change permissions, click Edit." [Edit…], for ACL entries and group.
         let edit = SheetButton(L10n.tr("Edit…")) { [weak self] _ in self?.openEditor() }
         let editHint = SheetLabel.make(L10n.tr("To change permissions, click Edit."))
         editHint.setContentCompressionResistancePriority(.required, for: .horizontal)

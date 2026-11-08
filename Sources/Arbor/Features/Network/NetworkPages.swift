@@ -81,7 +81,7 @@ class NetworkTilesPage: NSViewController, LocationPageStatus {
         return menu
     }
 
-    /// Tiles for mounted shares and mapped drives (connected or not) — "Network locations".
+    /// "Network locations" tiles: mounted shares and mapped drives.
     func driveTiles() -> [NetworkTileView] {
         guard let window else { return [] }
         let center = NetworkCenter.shared
@@ -143,9 +143,7 @@ extension NetworkTilesPage {
 
 // MARK: - Network (FE-078)
 
-/// The Network page: computers and devices found with Bonjour, grouped like Explorer
-/// ("Computer", "Network Infrastructure"), plus connected shares and mapped drives. Discovery runs
-/// only while the page exists.
+/// Bonjour devices grouped like Explorer, plus connected shares and mapped drives. Discovers only while shown.
 final class NetworkPageController: NetworkTilesPage {
     private let discovery: NetworkDiscovering
     private var resolving: String?
@@ -317,7 +315,7 @@ final class ServerPageController: NetworkTilesPage {
         let row = NSStackView(views: [spinner, emptyLabel(L10n.format("Looking for shared folders on %@…", "\(server.hostDisplayName)"))])
         row.spacing = 8
         grid.emptyView = row
-        // FE-179: a server that never answers gets a timeout with Retry; the UI stays usable meanwhile.
+        // FE-179: an unresponsive server times out with Retry; the UI stays usable.
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.state == "loading" else { return }
             self.request?.cancel()
@@ -346,7 +344,7 @@ final class ServerPageController: NetworkTilesPage {
         var actions: [NSView] = [FluentButton(L10n.tr("Retry"), primary: true) { [weak self] in self?.load() }]
         switch error {
         case .authenticationFailed, .listingUnsupported, .noShares:
-            // The system's own sign-in and share chooser (NetFS), credentials stay in the Keychain.
+            // System sign-in and share chooser (NetFS); credentials stay in the Keychain.
             actions.insert(FluentButton(L10n.tr("Connect…")) { [weak self] in self?.connectWithSystemChooser() }, at: 0)
         default:
             break
@@ -363,7 +361,7 @@ final class ServerPageController: NetworkTilesPage {
         window?.updateChrome()
     }
 
-    /// Mounts the server URL with the system UI, which asks for credentials and which share to open.
+    /// Mounts via the system UI, which asks for credentials and the share.
     private func connectWithSystemChooser() {
         guard let window else { return }
         _ = NetworkConnectFlow.open(server, in: window)

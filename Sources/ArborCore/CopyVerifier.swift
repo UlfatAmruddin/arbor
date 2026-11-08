@@ -1,10 +1,9 @@
 import Foundation
 import CryptoKit
 
-/// What "Verify after copying" found (FE-130, spec §9.2: verification is its own state).
+/// "Verify after copying" result (FE-130; spec §9.2: verification is its own state).
 public struct VerificationResult: Sendable, Equatable {
     public struct Failure: Codable, Sendable, Equatable {
-        /// The source path that didn't match its copy.
         public var path: String
         public var reason: String
         public init(path: String, reason: String) {
@@ -22,14 +21,9 @@ public struct VerificationResult: Sendable, Equatable {
     public var isVerified: Bool { !cancelled && failures.isEmpty }
 }
 
-/// Compares copies with their originals after a copy job: sizes first, then SHA-256 of both sides,
-/// streamed in bounded chunks (memory stays at two chunk buffers whatever the file size). The copy is
-/// read with the file cache disabled (`F_NOCACHE`) so the bytes come from the destination, not from
-/// the memory the copy was just written through.
-///
-/// Folders are walked entry by entry: every file and link in the source must exist in the copy with
-/// the same contents. Extra items in the copy (a merge into an existing folder) are not failures.
-/// Items the job skipped or failed on are excluded, since they were never copied.
+/// Checks copies against originals: size, then streamed SHA-256. The copy is read with `F_NOCACHE`
+/// so bytes come from disk, not the page cache. Extra items in the copy (merges) are not failures;
+/// skipped or failed items are excluded.
 public enum CopyVerifier {
     public static let chunkSize = 1 << 20
 
@@ -93,7 +87,6 @@ public enum CopyVerifier {
 
     public enum Comparison: Equatable { case same, different, unreadable(String), cancelled }
 
-    /// SHA-256 of both files, read in `chunkSize` pieces.
     public static func compare(_ a: URL, _ b: URL, control: TransferControl? = nil, chunkSize: Int = CopyVerifier.chunkSize,
                                progress: (Int64) -> Void = { _ in }) -> Comparison {
         guard let ha = try? FileHandle(forReadingFrom: a) else { return .unreadable("The original couldn't be read.") }
@@ -119,7 +112,7 @@ public enum CopyVerifier {
         return sa.finalize() == sb.finalize() ? .same : .different
     }
 
-    /// SHA-256 of one file as lowercase hex (streamed).
+    /// Lowercase hex, streamed.
     public static func sha256Hex(_ url: URL, chunkSize: Int = CopyVerifier.chunkSize) throws -> String {
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
@@ -128,8 +121,7 @@ public enum CopyVerifier {
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
-    /// The copies a finished job made that can be verified: fresh copies and merged folders, minus
-    /// nested items that were skipped or failed (they weren't copied).
+    /// Fresh copies and merged folders, minus nested items that were skipped or failed.
     public static func pairs(for report: TransferReport) -> (pairs: [(source: URL, copy: URL)], excluded: Set<URL>) {
         guard report.kind == .copy else { return ([], []) }
         var pairs: [(source: URL, copy: URL)] = []

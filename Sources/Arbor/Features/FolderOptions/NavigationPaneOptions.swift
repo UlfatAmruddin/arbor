@@ -1,12 +1,10 @@
 import AppKit
 import ArborCore
 
-/// Folder Options › Navigation pane, plus protected files in the tree ("Hide empty drives" is This Mac's
-/// `VolumeCatalog`, which the tree also uses):
-/// - Always show availability status: a cloud mark on folders a sync provider owns.
+/// Folder Options › Navigation pane and protected files in the tree ("Hide empty drives" is `VolumeCatalog`):
+/// - Availability status: a cloud mark on sync-provider folders.
 /// - Expand to open folder: the tree opens down to the current folder.
-/// - Show all folders: the user's home folder and Trash join the top level (the Mac stand-in for
-///   Windows' Desktop root).
+/// - Show all folders: home and Trash join the top level (stand-in for Windows' Desktop root).
 enum NavigationPaneOptions {
     static func install() {
         NavigationPaneHooks.adjustRoots.add("folder-options.navigation-roots") { roots in adjustRoots(roots) }
@@ -34,8 +32,7 @@ enum NavigationPaneOptions {
 
     // MARK: Expand to open folder
 
-    /// Expands the deepest visible ancestor of `location` step by step until its row exists.
-    /// Local volumes only, so a slow network share never blocks the tree.
+    /// Expands toward `location` step by step; local volumes only, so a slow share never blocks the tree.
     static func expand(_ outline: NSOutlineView, to location: Location) {
         guard let target = location.folderURL,
               (try? target.resourceValues(forKeys: [.volumeIsLocalKey]))?.volumeIsLocal == true else { return }

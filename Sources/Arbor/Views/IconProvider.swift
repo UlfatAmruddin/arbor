@@ -2,9 +2,8 @@ import AppKit
 import UniformTypeIdentifiers
 import ArborCore
 
-/// Icons for items and locations. Folders use our own flat yellow folder artwork, drawn in code
-/// (DEC-018: no Microsoft assets). Special folders add an SF Symbol glyph; drives use SF Symbols;
-/// files use the macOS icon for their type. One bounded cache is shared by every window and tab.
+/// Item and location icons. Folders are drawn in code (DEC-018: no Microsoft assets); files use macOS type icons.
+/// One bounded cache is shared by all windows.
 final class IconProvider {
     static let shared = IconProvider()
 
@@ -27,7 +26,7 @@ final class IconProvider {
         }
     }
 
-    /// One byte budget for every window (CacheBudgets.iconBytes), trimmed under memory pressure.
+    /// Shared byte budget (CacheBudgets.iconBytes), trimmed under memory pressure.
     let cache = ByteBudgetCache<String, NSImage>(byteLimit: CacheBudgets.iconBytes)
     private let lock = NSLock()
     private lazy var specialFolders: [String: FolderKind] = {
@@ -55,7 +54,7 @@ final class IconProvider {
 
     // MARK: Public API
 
-    /// Features may override icons for some items or locations (e.g. network drives). Keep these cheap: no I/O.
+    /// Feature icon overrides (e.g. network drives). Must be cheap: no I/O.
     static let itemIconOverrides = Handlers<(FileItem, CGFloat), NSImage>(
         "IconProvider.itemIconOverrides", "An item's icon instead of the drawn one (network drives). No I/O.",
         signature: "(item, size) -> icon?")
@@ -68,17 +67,16 @@ final class IconProvider {
         return ItemBadges.decorate(decoratedIcon(for: item, size: size), item: item, size: size)
     }
 
-    /// Plain icon plus feature decorations such as shortcut arrows (cached). Status badges, which
-    /// change over time, are added on top by `icon(for:size:)` (see `ItemBadges`).
+    /// Plain icon plus decorations like shortcut arrows (cached); `icon(for:size:)` adds status badges.
     func decoratedIcon(for item: FileItem, size: CGFloat) -> NSImage {
         guard !InteractionHooks.decorateIcon.isEmpty else { return plainIcon(for: item, size: size) }
-        // A custom icon found later gets its own entry (the type icon was cached under the plain key).
+        // A custom icon found later gets its own entry (the plain key holds the type icon).
         let custom = !item.isFolder && CustomIcons.shared.icon(for: item.url) != nil
         let key = "decorated-\(item.url.path)-\(size)" + (custom ? "-custom" : "")
         if let hit = lock.withLock({ cache.value(for: key) }) { return hit }
         let plain = plainIcon(for: item, size: size)
         let decorated = InteractionHooks.decorateIcon.first((item, plain, size))
-        // Most items aren't decorated: the entry then only points at the shared plain icon.
+        // Undecorated items just point at the shared plain icon.
         let pixels = Int(size * 2)
         lock.withLock { cache.insert(decorated ?? plain, for: key, cost: decorated == nil ? 256 : max(1024, pixels * pixels * 4)) }
         return decorated ?? plain
@@ -87,8 +85,7 @@ final class IconProvider {
     /// The icon without decorations or status badges.
     func plainIcon(for item: FileItem, size: CGFloat = 16) -> NSImage {
         if item.isFolder {
-            // The volume check reads the cached mount table, so folders share their kind's artwork instead of
-            // one cache entry per folder path; only drives are cached per path.
+            // Folders share their kind's artwork; only drives are cached per path (mount table is cached).
             let key = Location.normalizedKey(item.url)
             if MountPoints.shared.isMountPoint(key) {
                 return cached("item-\(key)-\(size)", cost: size) { driveIcon(for: item.url, size: size) }
@@ -148,14 +145,13 @@ final class IconProvider {
         }
     }
 
-    /// Extensions whose files can each look different (apps, icon files, links); everything else with
-    /// an extension uses its type's icon, looked up once instead of once per file (spec §15.3).
+    /// Extensions whose files each look different; others use one type icon per extension (spec §15.3).
     static let perFileIconExtensions: Set<String> = ["app", "icns", "ico", "lnk", "url", "webloc", "fileloc", "inetloc"]
 
     func fileIcon(_ url: URL, size: CGFloat) -> NSImage {
         let ext = url.pathExtension.lowercased()
         if !ext.isEmpty, !Self.perFileIconExtensions.contains(ext), let type = UTType(filenameExtension: ext), !type.isDynamic {
-            // A custom Finder icon (checked in the background for files on screen) wins over the type's icon.
+            // A custom Finder icon (checked in the background) wins over the type icon.
             if let custom = CustomIcons.shared.icon(for: url) {
                 return cached("custom-\(url.path)-\(size)", cost: size) {
                     let image = custom.copy() as? NSImage ?? custom
@@ -170,7 +166,7 @@ final class IconProvider {
             }
         }
         return cached("file-\(url.path)-\(size)", cost: size) {
-            // Items that aren't on disk (archive members) get their type's icon instead of a blank page.
+            // Items not on disk (archive members) get their type icon, not a blank page.
             let image = FileManager.default.fileExists(atPath: url.path) ? NSWorkspace.shared.icon(forFile: url.path)
                 : NSWorkspace.shared.icon(for: UTType(filenameExtension: url.pathExtension) ?? .data)
             image.size = NSSize(width: size, height: size)
@@ -178,7 +174,7 @@ final class IconProvider {
         }
     }
 
-    /// `cost` is the icon's point size: an icon costs about its 2x bitmap once drawn.
+    /// `cost` is the point size; an icon costs about its 2x bitmap.
     private func cached(_ key: String, cost size: CGFloat = 32, make: () -> NSImage) -> NSImage {
         if let hit = lock.withLock({ cache.value(for: key) }) { return hit }
         let image = make()
@@ -200,7 +196,7 @@ final class IconProvider {
 
     // MARK: Folder artwork
 
-    /// A flat manila folder on a 32-unit grid: a darker back panel with a tab and a lighter front panel.
+    /// Flat manila folder on a 32-unit grid.
     static func drawFolder(in rect: NSRect, glyph: (symbol: String, color: UInt32)?) {
         let u = rect.width / 32
         func r(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> NSRect {

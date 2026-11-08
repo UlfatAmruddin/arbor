@@ -1,26 +1,23 @@
 import Foundation
 
-/// What the evaluator knows about one file. Values that weren't read are nil, and tests on them are
-/// "unknown" rather than false, so a direct scan never claims a non-match it couldn't check.
+/// Unread values are nil and test as "unknown", not false, so a scan never claims a non-match it couldn't check.
 public struct SearchCandidate {
     public var name: String
-    /// The containing folder's path.
+    /// Containing folder.
     public var folderPath: String
     public var isFolder: Bool
     public var isPackage: Bool
     public var isSymbolicLink: Bool
-    /// Logical size; nil for folders.
+    /// nil for folders.
     public var size: Int64?
     public var modified: Date?
     public var created: Date?
     public var typeIdentifier: String?
-    /// Localized kind ("PDF document").
     public var typeDescription: String?
-    /// Finder tags; nil = not read.
     public var tags: [String]?
-    /// Authors (Spotlight metadata); nil = unknown.
+    /// From Spotlight.
     public var authors: [String]?
-    /// Answers "does the text contain this?"; returns nil when the contents can't be checked.
+    /// Returns nil when the contents can't be checked.
     public var contentContains: ((String) -> Bool?)?
 
     public init(name: String, folderPath: String, isFolder: Bool, isPackage: Bool = false, isSymbolicLink: Bool = false,
@@ -42,7 +39,7 @@ public struct SearchCandidate {
         self.contentContains = contentContains
     }
 
-    /// The extension Explorer would show; folders have none.
+    /// Folders have none; packages do.
     public var fileExtension: String {
         guard !isFolder || isPackage else { return "" }
         return (name as NSString).pathExtension
@@ -52,7 +49,7 @@ public struct SearchCandidate {
 /// Three-valued truth (Kleene logic).
 public enum SearchTruth: Equatable, Sendable { case yes, no, unknown }
 
-/// Why a result matched, shown in the Match column (FE-137).
+/// Shown in the Match column (FE-137).
 public enum SearchReason: Hashable, Sendable, Comparable {
     case name
     case contents
@@ -89,10 +86,9 @@ public struct SearchMatch: Equatable {
     public static func yes(_ reasons: Set<SearchReason> = []) -> SearchMatch { SearchMatch(truth: .yes, reasons: reasons) }
 }
 
-/// Tests candidates against a parsed query.
 public struct SearchEvaluator {
     public let expression: SearchExpression
-    /// "File contents" option: free-text words also match file contents.
+    /// "File contents" option: free text also matches contents.
     public var matchContents: Bool
 
     public init(_ expression: SearchExpression, matchContents: Bool = false) {
@@ -104,12 +100,11 @@ public struct SearchEvaluator {
         Self.evaluate(expression, candidate, matchContents: matchContents)
     }
 
-    /// Whether answering the query needs to read file contents.
     public var needsContents: Bool {
         expression.terms.contains { $0.property == .contents || ($0.property == nil && matchContents) }
     }
 
-    /// Whether some part of the query can only be answered from Spotlight metadata (authors).
+    /// Authors are only available from Spotlight.
     public var needsIndexOnlyMetadata: Bool { expression.properties.contains(.author) }
 
     static func evaluate(_ e: SearchExpression, _ c: SearchCandidate, matchContents: Bool) -> SearchMatch {
@@ -142,7 +137,7 @@ public struct SearchEvaluator {
 
     static func term(_ t: SearchTerm, _ c: SearchCandidate, matchContents: Bool) -> SearchMatch {
         guard let property = t.property else {
-            // Free text: the name, and (with the File contents option) the contents.
+            // Free text: name, plus contents with the File contents option.
             guard case .text(let value, let mode) = t.test else { return .no }
             if TextMatcher.matches(c.name, value, mode) { return .yes([.name]) }
             guard matchContents, mode != .wildcard, !c.isFolder else { return .no }
@@ -155,7 +150,7 @@ public struct SearchEvaluator {
         case (.fileExtension, .text(let v, let mode)): return bool(TextMatcher.matches(c.fileExtension, v, mode))
         case (.folderPath, .text(let v, let mode)): return bool(TextMatcher.matches(c.folderPath, v, mode))
         case (.type, .text(let v, let mode)):
-            // `type:.txt` or `type:txt` also matches the extension, like Explorer.
+            // Like Explorer, `type:txt` also matches the extension.
             let ext = v.hasPrefix(".") ? String(v.dropFirst()) : v
             if !c.fileExtension.isEmpty, TextMatcher.matches(c.fileExtension, ext, mode == .contains ? .equals : mode) { return .yes([reason]) }
             guard let description = c.typeDescription else { return .unknown }
@@ -200,7 +195,7 @@ public struct SearchEvaluator {
     }
 }
 
-/// Case-, diacritic- and width-insensitive text comparison, plus DOS wildcards (`*`, `?`).
+/// Case-, diacritic- and width-insensitive comparison, plus DOS wildcards.
 public enum TextMatcher {
     static let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive, .widthInsensitive]
 
@@ -217,7 +212,7 @@ public enum TextMatcher {
         Array(s.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil))
     }
 
-    /// Whole-string DOS wildcard match: `*` = any run, `?` = one character.
+    /// Whole-string match.
     public static func wildcard(_ text: String, _ pattern: String) -> Bool {
         let t = fold(text)
         let p = fold(pattern)

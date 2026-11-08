@@ -3,10 +3,7 @@ import ArborCore
 
 extension BrowserWindowController {
     // MARK: - Navigation (spec §5.1)
-    //
-    // A request asks the location's provider for content. History is only committed once the
-    // load succeeds, so a failed navigation keeps the previous location. Results for a request
-    // that has since been superseded are dropped.
+    // History commits only after a load succeeds; results of superseded requests are dropped.
 
     enum NavRequest {
         case visit(Location, select: [String], selectURLs: [URL])
@@ -31,7 +28,7 @@ extension BrowserWindowController {
         if let url = current.folderURL { urls = [url] }
         if case .archive(let file, _) = current, case .folder = parent { urls = [file] }
         var names: [String] = []
-        // Leaving an archive that was opened from inside another one selects it in the outer archive.
+        // Leaving a nested archive selects it in the outer one.
         if case .archive(let file, let inner) = current, inner.isEmpty, case .archive = parent { names = [file.lastPathComponent] }
         request(.visit(parent, select: names, selectURLs: urls), tab: activeTab)
     }
@@ -106,7 +103,7 @@ extension BrowserWindowController {
                tab.displayedLocation == target, !tab.showsPage,
                !tab.restoreOnDisplay, tab.renameAfterLoad == nil, let shown = tab.items, shown.count <= listed.count,
                shown == WindowHooks.filter(listed, target) {
-                return   // Nothing changed (metadata-only event, tab switch): keep rows, selection and scroll as they are.
+                return   // Unchanged (metadata-only event, tab switch): keep rows, selection and scroll.
             }
             switch request {
             case .visit(let location, let names, _): tab.history.visit(location, selectedNames: names)
@@ -136,7 +133,7 @@ extension BrowserWindowController {
                     let wanted = Set(selectURLs.map { Location.folder($0) })
                     let matched = items.filter { wanted.contains(.folder($0.url)) }
                     names = matched.map(\.name)
-                    // Restored by URL in display(): names can repeat (search results, libraries).
+                    // display() restores by URL: names can repeat (search results, libraries).
                     tab.selectedNames = matched.map(\.name)
                     tab.selectedURLs = matched.map(\.url)
                 }
@@ -174,7 +171,7 @@ extension BrowserWindowController {
     private func loadFailed(_ request: NavRequest, tab: TabState, target: Location, error: Error) {
         let isActive = tab === activeTab
         if case .reload = request, let url = target.folderURL {
-            // The folder we were showing went away: walk up to the nearest one that still exists.
+            // The shown folder is gone: walk up to the nearest existing one.
             var parent = url
             while !FileManager.default.fileExists(atPath: parent.path), let up = NavigationHistory.parent(of: parent) { parent = up }
             if isActive { statusBar.setMessage(L10n.format("“%@” is no longer available.", "\(url.lastPathComponent)"), isError: true) }

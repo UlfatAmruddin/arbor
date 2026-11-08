@@ -1,13 +1,7 @@
 import Foundation
 
-/// The Type column's text ("PDF document", "Folder"), asked of Launch Services once per filename
-/// extension instead of once per file (spec §15.3, FE-228).
-///
-/// Asking each URL for `localizedTypeDescriptionKey` makes Launch Services resolve the localized kind
-/// for every row: 1.3 s of the 2.5 s it took to list a 100,000-entry folder (docs/PERFORMANCE.md). The
-/// kind of an ordinary file depends only on its extension, so the first file's answer is reused for the
-/// others. Items whose kind can depend on the item itself (packages, symbolic links, aliases, files
-/// without an extension, folders with one) are still asked one by one. Thread-safe.
+/// Type column text cached per extension (spec §15.3, FE-228): per-file lookups were 1.3 s of a 2.5 s
+/// 100,000-entry listing. Packages, links, aliases and extensionless files are still asked per item. Thread-safe.
 public final class TypeDescriptions: @unchecked Sendable {
     public static let shared = TypeDescriptions()
 
@@ -41,8 +35,7 @@ public final class TypeDescriptions: @unchecked Sendable {
         return value
     }
 
-    /// `NSString.pathExtension` without bridging: the text after the last dot, unless the dot starts the
-    /// name or the text contains a space ("archive.tar.gz" → "gz", ".profile" → "", "v1. draft" → "").
+    /// Bridging-free `pathExtension`: ".profile" → "", "v1. draft" → "" (no spaces allowed).
     static func pathExtension(_ name: String) -> String {
         let utf8 = name.utf8
         guard let dot = utf8.lastIndex(of: UInt8(ascii: ".")), dot != utf8.startIndex else { return "" }

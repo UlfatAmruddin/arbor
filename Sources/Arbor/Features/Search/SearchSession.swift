@@ -1,9 +1,8 @@
 import AppKit
 import ArborCore
 
-/// One running or finished search (spec §10.3). Runs the Spotlight index query and the direct scan
-/// side by side, merges their hits by file identity, tracks coverage, and keeps finished results fresh
-/// from file-system events. Main-thread confined; engines call back on background queues.
+/// One search (spec §10.3): Spotlight query and direct scan side by side, merged by file identity,
+/// kept fresh by file events. Main-thread confined; engines call back on background queues.
 final class SearchSession {
     static let resultLimit = 10_000
 
@@ -13,7 +12,7 @@ final class SearchSession {
     private(set) var coverage = SearchCoverage()
     private(set) var startedAt = Date()
     private(set) var finishedAt: Date?
-    /// Set when a change notification asked the tab to reload; the next load returns the snapshot as is.
+    /// Set when a change notification asked for a reload; the next load returns the snapshot as is.
     var snapshotRequested = false
 
     private struct Entry {
@@ -83,7 +82,7 @@ final class SearchSession {
         deinit { cancel() }
     }
 
-    /// Calls `onChange` (throttled) when results or coverage change. Release the token to stop.
+    /// Calls `onChange` (throttled) on result or coverage changes. Release the token to stop.
     func observe(_ onChange: @escaping () -> Void) -> Token {
         let id = UUID()
         let box = observerBox
@@ -91,8 +90,8 @@ final class SearchSession {
         return Token { [weak box] in box?.observers[id] = nil }
     }
 
-    /// Takes over another session's observers (Refresh replaces a session; tabs showing it follow).
-    /// The box is shared, so tokens made by the old session still remove their entries.
+    /// Takes over another session's observers (Refresh replaces sessions).
+    /// The box is shared, so the old session's tokens still remove their entries.
     func adoptObservers(from other: SearchSession) {
         observerBox = other.observerBox
         other.observerBox = ObserverBox()
@@ -325,11 +324,10 @@ final class SearchSession {
         extraSearches.forEach { $0.cancel() }
     }
 
-    /// True when stopped because a newer query is about to replace it (the status keeps saying "Searching…").
+    /// Stopped because a newer query replaces it (status keeps saying "Searching…").
     private(set) var superseded = false
 
-    /// Stops a running search (navigated away, typed a new query). Results so far are kept and the
-    /// coverage says "stopped"; loading it again reruns it.
+    /// Stops a running search, keeping results so far; coverage says "stopped" and loading reruns it.
     func cancel(superseded: Bool = false) {
         stopEngines()
         watcher?.stop()
@@ -444,16 +442,15 @@ enum SearchCandidates {
               let item = FileItem(url: url), let identity = FileIdentity.of(path: path) else { return nil }
         var reasons = match.reasons
         if reasons.isEmpty, match.truth == .unknown {
-            // Accepted on the index's word: the parts Arbor couldn't check are contents or authors.
+            // Accepted on the index's word: Arbor couldn't check contents or authors.
             reasons = evaluator.expression.properties.contains(.author) ? [.property(.author)] : [.contents]
         }
         return SearchHit(item: item, identity: identity, reasons: reasons)
     }
 }
 
-/// Applies the direct scan's scope rules to paths found another way (index, file events): inside the
-/// scope, one level only for "Current folder", no hidden folders or package contents unless asked,
-/// no other mounted disks.
+/// Applies the direct scan's scope rules to paths from the index or file events: inside the scope,
+/// one level for "Current folder", no hidden folders, packages (unless asked) or other disks.
 final class ScopeFilter {
     let scopePaths: [String]
     let recursive: Bool
@@ -509,8 +506,8 @@ final class ScopeFilter {
     }
 }
 
-/// The sessions behind search tabs: a small LRU cache so Back/Forward and tab switches show results
-/// instantly, with running searches cancelled as soon as no tab shows them (spec §10.4, §15.3).
+/// Sessions behind search tabs: a small LRU so Back/Forward and tab switches are instant; running
+/// searches no tab shows are cancelled (spec §10.4, §15.3).
 enum SearchSessions {
     static var limit = 4
     private static var sessions: [SearchSession] = []

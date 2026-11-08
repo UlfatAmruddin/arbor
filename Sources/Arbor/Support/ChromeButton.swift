@@ -1,8 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Flat Explorer-style button: icon and/or title, optional ▾, rounded hover/pressed fill.
-/// Draws itself (no bezel) so it looks the same in light and dark mode and in snapshots.
+/// Flat Explorer-style button (icon/title, optional ▾, hover/pressed fill), self-drawn so it looks
+/// the same in light, dark and snapshots.
 final class ChromeButton: NSControl {
     var symbolName: String? { didSet { invalidate() } }
     /// A full-color image (folder icons etc.), drawn as is. Ignored when `symbolName` is set.
@@ -19,7 +19,7 @@ final class ChromeButton: NSControl {
     var cornerRadius: CGFloat = Theme.cornerRadius
     /// Runs on mouse-up inside, or on VoiceOver press.
     var onClick: ((ChromeButton) -> Void)?
-    /// Runs on mouse-down instead of `onClick` (menus open on press, like Explorer).
+    /// Runs on mouse-down instead of `onClick` (menus open on press).
     var onPress: ((ChromeButton) -> Void)?
     var textColor: NSColor = Theme.primaryText
 
@@ -181,7 +181,6 @@ final class ChromeButton: NSControl {
     }
 }
 
-/// A menu item that runs a closure.
 final class ClosureMenuItem: NSMenuItem {
     private let handler: () -> Void
 
@@ -197,7 +196,7 @@ final class ClosureMenuItem: NSMenuItem {
     @objc private func run() { handler() }
 }
 
-/// A thin vertical separator used in the command bar and status bar.
+/// Command bar and status bar separator.
 final class VerticalSeparator: NSView {
     init(height: CGFloat = 20) {
         super.init(frame: .zero)

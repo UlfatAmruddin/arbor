@@ -1,10 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Windows' "Property Loss" dialog: "Are you sure you want to copy this file without its
-/// properties?" with Yes · Skip · Cancel and "Do this for all current items" (windows11-reference
-/// §9.6). Asked when the destination volume can't store an item's Finder tags, comments, resource
-/// fork, other extended attributes or access list (FAT32, exFAT, SMB shares without named streams).
+/// Windows' "Property Loss" prompt (windows11-reference §9.6), for destinations that can't keep tags, comments,
+/// resource forks, other xattrs or ACLs (FAT32, exFAT, SMB without named streams).
 final class MetadataLossDialog: FileOpsDialog {
     private let completion: (MetadataLossDecision) -> Void
     private let applyAll = NSButton(checkboxWithTitle: L10n.tr("Do this for all current items"), target: nil, action: nil)

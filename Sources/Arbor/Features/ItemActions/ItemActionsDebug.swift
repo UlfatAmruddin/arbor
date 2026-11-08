@@ -1,7 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Script steps for headless checks of item actions (see docs/features/item-actions.md):
+/// Script steps for headless item-action checks (docs/features/item-actions.md):
 ///
 ///     sheettype:text            type into the focused field of the window's sheet (wizard, dialogs)
 ///     editorcmd:insertTab:      send an editing command to the focused field editor (Tab, Shift-Tab…)
@@ -24,7 +24,7 @@ enum ItemActionsDebug {
             return nil
         }
         DebugScript.registerStep("sheetsnapshot") { path, window in
-            // Sheets are separate windows, so the window snapshot doesn't include them.
+            // Sheets are separate windows, not in the window snapshot.
             guard let sheet = window?.window?.attachedSheet ?? NSApp.modalWindow,
                   let frame = sheet.contentView?.superview else { return nil }
             frame.layoutSubtreeIfNeeded()

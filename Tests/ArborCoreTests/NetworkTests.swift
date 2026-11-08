@@ -12,13 +12,13 @@ struct NetworkAddressTests {
         #expect(unc.share == "Media")
         #expect(unc.path == ["Movies 2026"])
         #expect(unc.unc == #"\\NAS-01\Media\Movies 2026"#)
-        #expect(unc.url.absoluteString == "smb://NAS-01/Media/Movies%202026")
+        #expect(unc.url?.absoluteString == "smb://NAS-01/Media/Movies%202026")
     }
 
     @Test func serverAlone() throws {
         let a = try #require(NetworkAddress.parse(#"\\nas"#))
         #expect(a.isServer)
-        #expect(a.url.absoluteString == "smb://nas")
+        #expect(a.url?.absoluteString == "smb://nas")
         #expect(NetworkAddress.parse(#"\\nas\"#)?.isServer == true)
         #expect(NetworkAddress.parse("smb://nas")?.isServer == true)
         #expect(NetworkAddress.parse("//nas/share")?.share == "share")
@@ -33,7 +33,7 @@ struct NetworkAddressTests {
     @Test func passwordsAreNeverKept() throws {
         let a = try #require(NetworkAddress.parse("smb://alice:s3cret@nas/share"))
         #expect(a.user == "alice")
-        #expect(!a.url.absoluteString.contains("s3cret"))
+        #expect(a.url?.absoluteString.contains("s3cret") == false)
         let data = try JSONEncoder().encode(a)
         #expect(!String(decoding: data, as: UTF8.self).contains("s3cret"))
     }
@@ -57,6 +57,23 @@ struct NetworkAddressTests {
         #expect(!a.sameShare(as: NetworkAddress(host: "NAS", share: "Public2")))
         #expect(!a.sameShare(as: NetworkAddress(host: "NAS", port: 1445, share: "Public")))
         #expect(!a.sameShare(as: NetworkAddress(scheme: "afp", host: "NAS", share: "Public")))
+    }
+
+    @Test func hostsURLComponentsRejectStillFormURLs() throws {
+        // Escaped Bonjour targets and decoded mount-table names.
+        for host in [#"my\032nas.local."#, #"a\.b.local."#, "my nas.local", "a%b", "a<b", #"a"b"#] {
+            let address = NetworkAddress(host: host, user: "a b", share: "Media Files", path: ["x"])
+            let url = try #require(address.url)
+            #expect(NetworkAddress(url: url) == address)
+            let key = Location.server(address).key
+            #expect(Location(key: key) == .server(address))
+        }
+        #expect(NetworkAddress(host: "my nas", port: 1445).url?.absoluteString == "smb://my%20nas:1445")
+        // No URL at all: the location still has a key and never crashes.
+        let broken = NetworkAddress(scheme: "s m b", host: "nas", share: "x")
+        #expect(broken.url == nil)
+        #expect(Location.server(broken).key != Location.server(broken.appending("y")).key)
+        #expect(NetworkAddress.fromMountSource("//nas:-5/share", fileSystem: "smbfs")?.url == nil)
     }
 
     @Test func accountsMustMatchWhenBothKnown() {
@@ -248,8 +265,7 @@ struct SlowWorkTests {
     @Test func timesOutWithoutWaitingForTheWork() async {
         let queue = SlowWorkQueue<Int>(label: "test.slow", callbackQueue: DispatchQueue(label: "test.callbacks"))
         let workDone = NetworkCallCounter()
-        // The work stays blocked until the caller has heard back, so it can only "finish first" if the
-        // queue waited for it. Ordering, not wall-clock time: on a loaded CI machine any callback can be late.
+        // Work blocks until the caller hears back: ordering, not timing, so slow CI can't flake it.
         let gate = DispatchSemaphore(value: 0)
         let result: (outcome: String, workFinishedFirst: Bool) = await withCheckedContinuation { continuation in
             queue.run(key: "a", timeout: 0.2, work: { gate.wait(); workDone.bump(); return 1 }) { outcome in

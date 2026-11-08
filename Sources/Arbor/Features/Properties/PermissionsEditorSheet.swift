@@ -1,15 +1,12 @@
 import AppKit
 import ArborCore
 
-/// Security tab ▸ Edit… (FE-153): Explorer's "Permissions for <name>" in macOS terms. Adds and removes
-/// access-list entries for users and groups, changes the group to one of the owner's own groups, and
-/// explains why the owner can't be changed. Every change is shown as a summary to confirm first
-/// ("Apply this change?"), applied at once, and the last change can be undone (refused if the list
-/// changed again meanwhile). Only the owner (or root) can edit; others see the list read-only.
+/// Security ▸ Edit… (FE-153): add/remove ACL entries, pick one of the owner's groups; owner changes are explained, not offered.
+/// Each change is confirmed, applied at once and undoable unless the list changed since. Owner or root only; others read-only.
 final class PermissionsEditorSheet: NSObject {
     private enum Change {
         case acl(ACLChange)
-        case group(URL, from: gid_t, to: gid_t, summary: String)
+        case group(ACLTarget, from: gid_t, to: gid_t, summary: String)
         var summary: String {
             switch self {
             case .acl(let c): return c.summary
@@ -31,7 +28,9 @@ final class PermissionsEditorSheet: NSObject {
     private let done: () -> Void
     private weak var parent: NSWindow?
     private let sheet: NSWindow
-    private let canEdit: Bool
+    /// The item as it was when the sheet opened; every change is refused unless the path still leads to it.
+    private let target: ACLTarget?
+    private var canEdit: Bool { target != nil }
     private var entries: [ACLEntry] = []
     private var selected: Int?
     private var rows: [SheetListRow] = []
@@ -71,7 +70,7 @@ final class PermissionsEditorSheet: NSObject {
         var isDirectory: ObjCBool = false
         FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
         isFolder = isDirectory.boolValue
-        canEdit = ACLEditor.canEdit(url)
+        target = ACLEditor.target(url)
         groups = ACLEditor.currentUserGroups()
         sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 520), styleMask: [.titled], backing: .buffered, defer: false)
         super.init()
@@ -307,19 +306,20 @@ final class PermissionsEditorSheet: NSObject {
     private func applyStaged() {
         guard let staged else { return }
         do {
+            guard let target else { throw ACLEditError.notOwner }
             switch staged {
             case .add(let rule):
-                lastChange = .acl(try ACLEditor.add(rule, to: url))
+                lastChange = .acl(try ACLEditor.add(rule, to: target))
             case .remove(let index, let name):
-                // The list may have changed since it was shown: remove only the same entry.
+                // The list may have changed: remove only the same entry.
                 guard ACLEntry.read(url).indices.contains(index), ACLEntry.read(url)[index].name == name else {
                     throw ACLEditError.changedSinceEdit
                 }
-                lastChange = .acl(try ACLEditor.remove(at: index, from: url))
+                lastChange = .acl(try ACLEditor.remove(at: index, from: target))
             case .group(let gid, let name):
                 let before = try ItemSecurity.read(url)
-                try ACLEditor.changeGroup(url, to: gid)
-                lastChange = .group(url, from: before.groupID, to: gid, summary: L10n.format("Group changed from %@ to %@", "\(before.groupName)", "\(name)"))
+                try ACLEditor.changeGroup(target, to: gid)
+                lastChange = .group(target, from: before.groupID, to: gid, summary: L10n.format("Group changed from %@ to %@", "\(before.groupName)", "\(name)"))
             }
             status.stringValue = L10n.format("Done. %@", "\(lastChange?.summary ?? "")")
         } catch {
@@ -337,9 +337,9 @@ final class PermissionsEditorSheet: NSObject {
         do {
             switch change {
             case .acl(let c): try ACLEditor.undo(c)
-            case .group(let url, let from, let to, _):
-                guard (try? ItemSecurity.read(url))?.groupID == to else { throw ACLEditError.changedSinceEdit }
-                try ACLEditor.changeGroup(url, to: from)
+            case .group(let target, let from, let to, _):
+                guard (try? ItemSecurity.read(target.url))?.groupID == to else { throw ACLEditError.changedSinceEdit }
+                try ACLEditor.changeGroup(target, to: from)
             }
             status.stringValue = L10n.format("Undone: %@", "\(change.summary)")
             lastChange = nil

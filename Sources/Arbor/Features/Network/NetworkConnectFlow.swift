@@ -1,11 +1,9 @@
 import AppKit
 import ArborCore
 
-/// Opening a share: connect (mount) asynchronously, then show the mounted folder in the tab that
-/// asked (FE-176). Discovery, sign-in and mounting stay separate steps; nothing here blocks the UI,
-/// and navigating elsewhere cancels the attempt.
+/// Opening a share (FE-176): mount asynchronously, then show it in the asking tab. Never blocks; navigating away cancels.
 enum NetworkConnectFlow {
-    /// Connects and navigates `tab` (default: the active tab) to the share. `newTab` opens it in a new tab instead.
+    /// Connects and navigates `tab` (default: active), or a new tab if `newTab`.
     @discardableResult
     static func open(_ address: NetworkAddress, in window: BrowserWindowController, tab: TabState? = nil, newTab: Bool = false,
                      differentCredentials: Bool = false, done: ((Bool) -> Void)? = nil) -> NetworkCancellable {
@@ -41,8 +39,7 @@ enum NetworkConnectFlow {
         }
     }
 
-    /// Navigates a tab to the mounted folder. A tab whose only history entry is the not-yet-mounted
-    /// `.server` address (a new tab) gets that entry replaced, so Back never lands on it again.
+    /// A lone not-yet-mounted `.server` history entry is replaced, so Back never lands on it.
     static func show(_ folder: URL, in tab: TabState, window: BrowserWindowController) {
         if case .server = tab.location, !tab.history.canGoBack, !tab.history.canGoForward {
             tab.history = NavigationHistory(start: .folder(folder))

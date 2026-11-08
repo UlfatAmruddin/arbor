@@ -3,14 +3,12 @@ import ArborCore
 
 // MARK: - Where a command appears
 
-/// Where a command is being invoked from.
 enum CommandSurface: String {
     case menuBar, commandBar, itemContextMenu, backgroundContextMenu, treeContextMenu, tabContextMenu,
          statusBar, keyboard, script
 }
 
-/// A group inside a menu. Sections are separated by a separator and ordered by `rank`.
-/// Features may define their own: `static let archive = MenuSection(rank: 450, name: "archive")`.
+/// A separator-delimited menu group, ordered by `rank`. Features may add their own.
 struct MenuSection: Hashable, Comparable {
     let rank: Int
     let name: String
@@ -34,11 +32,11 @@ struct MenuSection: Hashable, Comparable {
     static let window = MenuSection(rank: 950, name: "window")
 }
 
-/// Named places commands are listed. Each surface is built from the registry at display time.
+/// Where commands are listed; built from the registry at display time.
 enum CommandSlot: Hashable {
-    /// Primary icon buttons after "New ▾": Cut, Copy, Paste, Rename, Share, Delete.
+    /// Icon buttons after "New ▾" (Cut, Copy, Paste…).
     case commandBar
-    /// Shown after "View ▾" only while available (e.g. "Extract all" for a selected zip).
+    /// After "View ▾", only while available ("Extract all" for a zip).
     case commandBarContextual
     /// Right end of the command bar ("Details").
     case commandBarTrailing
@@ -46,14 +44,14 @@ enum CommandSlot: Hashable {
     case statusBarTrailing
     case newMenu, sortMenu, viewMenu, showMenu, seeMore
     case itemContextMenu, backgroundContextMenu, treeContextMenu, tabContextMenu
-    /// A top-level menu bar menu by title ("File", "Edit", "View", "Go", "Window", or a new title).
+    /// A menu bar menu by title ("File", "Edit"… or a new one).
     case mainMenu(String)
 }
 
 struct CommandPlacement: Hashable {
     var slot: CommandSlot
     var section: MenuSection
-    /// Order within the section; lower comes first.
+    /// Lower comes first within the section.
     var order: Double
 
     static func commandBar(_ order: Double) -> Self { .init(slot: .commandBar, section: .main, order: order) }
@@ -88,8 +86,8 @@ struct Shortcut {
     }
 }
 
-/// A physical key handled outside the menu bar (F2, Delete, ⌥←, ⇧⌘1…). `itemView` bindings only
-/// fire while the file list has focus; `window` bindings fire anywhere in the window except text fields.
+/// A key handled outside the menu bar (F2, Delete, ⌥←…). `itemView` fires only while the file list
+/// has focus; `window` fires anywhere except text fields.
 struct KeyBinding {
     enum Scope { case itemView, window }
     var keyCode: UInt16
@@ -109,28 +107,27 @@ struct KeyBinding {
 
 // MARK: - Context
 
-/// Everything a command needs, frozen when the menu opens or the button is pressed (spec §7.1:
-/// an action uses a frozen target snapshot, not whatever is selected when async work finishes).
+/// Frozen when the menu opens or the button is pressed, not read when async work ends (spec §7.1).
 struct CommandContext {
     weak var window: BrowserWindowController?
-    /// The active tab's location (or the tab the menu was opened on).
+    /// Of the active tab, or of the tab the menu was opened on.
     var location: Location?
-    /// Selected items (item menus, command bar) or the right-clicked tree node.
+    /// Selected items, or the right-clicked tree node.
     var selection: [FileItem]
-    /// The real folder where New/Paste would put items, if any.
+    /// Where New/Paste would put items, if a real folder.
     var targetFolder: URL?
     var surface: CommandSurface
-    /// The control or menu item that triggered the command (anchor for popovers/share).
+    /// The triggering control or menu item (popover anchor).
     var sender: Any?
-    /// Tab context menu: the tab that was right-clicked.
+    /// The right-clicked tab (tab context menu).
     var tabIndex: Int?
-    /// Tree context menu: the node's location (also set for Home, This Mac… which have no file).
+    /// The right-clicked tree node (also Home, This Mac…, which have no file).
     var treeLocation: Location?
 
     var tab: TabState? { window?.tab(at: tabIndex) }
     var single: FileItem? { selection.count == 1 ? selection[0] : nil }
     var hasSelection: Bool { !selection.isEmpty }
-    /// Whether the location allows rename/delete/new items (real folders do; This Mac doesn't).
+    /// Rename/delete/new allowed (real folders yes, This Mac no).
     var allowsEditing: Bool { location.map { LocationRegistry.provider(for: $0).allowsItemEditing(in: $0) } ?? false }
 
     init(window: BrowserWindowController?, location: Location?, selection: [FileItem] = [], targetFolder: URL? = nil,
@@ -145,40 +142,36 @@ struct CommandContext {
         self.treeLocation = treeLocation
     }
 
-    /// The anchor view for popovers (Share).
     var anchorView: NSView? { (sender as? NSView) ?? window?.commandBar }
 }
 
 // MARK: - Command
 
-/// One user-visible action. Register with `CommandRegistry.shared.register(...)`, once per id. Other
-/// features change how it behaves in their places (Trash, archives, Gallery…) with
-/// `CommandRegistry.shared.override(...)`, never by assigning its closures, so the result doesn't
-/// depend on registration order (DEC-024).
+/// A user-visible action, registered once per id. Other features change it with `override(...)`,
+/// never by assigning its closures, so registration order doesn't matter (DEC-024).
 final class ExplorerCommand {
     let id: String
     var title: String
-    /// Optional context-dependent title ("Pin to Quick access" / "Unpin from Quick access").
+    /// Context-dependent title (Pin / Unpin from Quick access).
     let dynamicTitle: ((CommandContext) -> String)?
     var symbol: String?
     var tooltip: String?
     var shortcut: Shortcut?
     var keyBindings: [KeyBinding]
     var placements: [CommandPlacement]
-    /// Main menu items with a responder selector (cut:, copy:, paste:, undo:…) are sent nil-targeted
-    /// so text fields handle them first; the window controller forwards them to this command.
+    /// Sent nil-targeted from the main menu so text fields handle it first; the window forwards it here.
     var menuAction: Selector?
-    /// Disabled while a text field is being edited, so ⌘⌫ etc. keep editing text.
+    /// Disabled while a text field is editing, so ⌘⌫ etc. edit text.
     var yieldsToTextInput: Bool
-    /// Command bar: show the title next to the icon.
+    /// Command bar: title next to the icon.
     var showsTitle: Bool
-    /// The command's own rules, as registered. Callers use `isAvailable(_:)` & co., which apply overrides.
+    /// As registered; callers use `isAvailable(_:)` & co., which apply overrides.
     private let ownIsAvailable: (CommandContext) -> Bool
     private let ownIsEnabled: (CommandContext) -> Bool
     private let ownState: (CommandContext) -> NSControl.StateValue
     private let ownSubmenu: ((CommandContext) -> [NSMenuItem])?
     private let ownPerform: (CommandContext) -> Void
-    /// What other features contributed (shared with the registry, which may hold it before the command exists).
+    /// Other features' contributions; the registry may hold them before the command exists.
     fileprivate(set) var extensions: CommandExtensions
 
     init(id: String, title: String, symbol: String? = nil, tooltip: String? = nil, shortcut: Shortcut? = nil,
@@ -191,7 +184,7 @@ final class ExplorerCommand {
          submenu: ((CommandContext) -> [NSMenuItem])? = nil,
          perform: @escaping (CommandContext) -> Void = { _ in }) {
         self.id = id
-        self.title = L10n.tr(title)   // user-visible strings go through the string table (FE-204)
+        self.title = L10n.tr(title)   // string table (FE-204)
         self.symbol = symbol
         self.tooltip = tooltip.map { L10n.tr($0) }
         self.shortcut = shortcut
@@ -228,13 +221,13 @@ final class ExplorerCommand {
         return dynamicTitle.map { L10n.tr($0(context)) } ?? title
     }
 
-    /// Whether the title can change with the context (its own dynamic title, or an override's).
+    /// Its own or an override's dynamic title.
     var hasDynamicTitle: Bool { dynamicTitle != nil || !extensions.title.isEmpty }
 
-    /// Whether the command shows a submenu (Open with ▸, Sort by ▸) instead of performing an action.
+    /// Shows a submenu (Open with ▸) instead of performing.
     var hasSubmenu: Bool { ownSubmenu != nil || !extensions.submenu.isEmpty }
 
-    /// The submenu's items: an override's or the command's own, then every submenu adjustment.
+    /// An override's or its own items, then every submenu adjustment.
     func submenuItems(_ context: CommandContext) -> [NSMenuItem] {
         let items = extensions.submenu.first(context) ?? ownSubmenu?(context) ?? []
         return extensions.submenuItems.apply(items, context)
@@ -245,8 +238,7 @@ final class ExplorerCommand {
         if extensions.perform.first(context) == nil { ownPerform(context) }
     }
 
-    /// What `perform` would do without override `overrideID` and the overrides that run before it:
-    /// for an override that adds to the behavior it replaces ("forget the tile, then delete as usual").
+    /// `perform` skipping `overrideID` and earlier overrides, so an override can extend what it replaces.
     func perform(_ context: CommandContext, after overrideID: String) {
         if extensions.perform.first(context, after: overrideID) == nil { ownPerform(context) }
     }
@@ -282,9 +274,7 @@ extension Shortcut {
 
 // MARK: - Overrides
 
-/// Per-command extension points (DEC-024). Each holds contributions by id; an override contributes to
-/// the aspects it changes. For every aspect the first override (in run order) whose condition holds
-/// decides; with none, the command's own closure does.
+/// Per-command extension points (DEC-024): per aspect, the first override whose condition holds wins.
 final class CommandExtensions {
     let commandID: String
     private(set) lazy var isAvailable = Handlers<CommandContext, Bool>(point("isAvailable"), "Where the command is listed.")
@@ -296,7 +286,7 @@ final class CommandExtensions {
         point("submenuItems"), "Adjusts the submenu's items (extra entries, recording opened files).")
     private(set) lazy var perform = Handlers<CommandContext, Void>(point("perform"), "What the command does.")
     private(set) lazy var willPerform = Observers<CommandContext>(point("willPerform"), "Runs before the command performs.")
-    /// The feature that replaced the command with its own version, if any (at most one).
+    /// At most one feature may replace the command.
     private(set) lazy var replacement = Provided<Bool>(point("replacement"), "A newer version of the command replaced it.",
                                                        default: false)
 
@@ -304,7 +294,7 @@ final class CommandExtensions {
 
     private func point(_ aspect: String) -> String { "commands[\(commandID)].\(aspect)" }
 
-    /// The aspects that have contributions.
+    /// Aspects with contributions.
     var points: [ExtensionPointInfo] {
         let all: [ExtensionPointInfo] = [replacement, isAvailable, isEnabled, state, title, submenu, submenuItems, perform, willPerform]
         return all.filter { !$0.contributions.isEmpty }
@@ -319,13 +309,12 @@ final class CommandRegistry {
 
     private var commands: [String: ExplorerCommand] = [:]
     private var registrationOrder: [String] = []
-    /// Overrides by command id; kept here so a feature may override a command registered after it.
+    /// Kept here so a feature may override a command registered after it.
     private var extensionsByID: [String: CommandExtensions] = [:]
-    /// The feature that registered each command.
+    /// Command id → registering feature.
     private var owners: [String: String] = [:]
 
-    /// Registers a command. Each id is registered once: a second registration is an extension error
-    /// (use `override` to change another feature's command).
+    /// Once per id; a second registration is an extension error (use `override`).
     func register(_ command: ExplorerCommand) {
         let registry = ExtensionRegistry.shared
         if let existing = commands[command.id] {
@@ -350,10 +339,8 @@ final class CommandRegistry {
         return created
     }
 
-    /// Changes a command where `when` holds (a location such as the Trash or Gallery): each closure given
-    /// replaces the command's own for that aspect. Elsewhere the command is unchanged. `id` names the
-    /// contribution ("trash.delete-permanently"); `order` decides between overrides whose conditions
-    /// overlap (the first that holds wins).
+    /// Replaces the given closures where `when` holds (Trash, Gallery…). `order` picks between
+    /// overlapping overrides; the first that holds wins.
     func override(_ commandID: String, _ id: String, order: ExtensionOrder = .normal,
                   when condition: @escaping (CommandContext) -> Bool,
                   isAvailable: ((CommandContext) -> Bool)? = nil,
@@ -377,18 +364,16 @@ final class CommandRegistry {
         }
     }
 
-    /// Hides a command where `condition` holds.
     func hide(_ commandID: String, _ id: String, order: ExtensionOrder = .normal, when condition: @escaping (CommandContext) -> Bool) {
         override(commandID, id, order: order, when: condition, isAvailable: { _ in false })
     }
 
-    /// Hides, where `condition` holds, every command whose id starts with `prefix` (except `excluded`),
-    /// including commands registered later.
+    /// Also hides matching commands registered later.
     func hide(prefix: String, except excluded: Set<String> = [], _ id: String, order: ExtensionOrder = .normal,
               when condition: @escaping (CommandContext) -> Bool) {
         let feature = ExtensionRegistry.shared.currentFeature
         let rule = PrefixRule(prefix: prefix, excluded: excluded) { [unowned self] commandID in
-            // Recorded as the rule's feature, also for commands that register later.
+            // Attributed to the rule's feature, even for later commands.
             let registry = ExtensionRegistry.shared
             let current = registry.currentFeature
             registry.currentFeature = feature
@@ -408,9 +393,8 @@ final class CommandRegistry {
 
     private var prefixRules: [PrefixRule] = []
 
-    /// Replaces a registered command with a new version (a feature upgrading a core command: Sort ▾ items
-    /// that know about column sorts). It keeps its place and the overrides made for it; each command can
-    /// be replaced once. The feature replacing it must require the feature that registered it.
+    /// A new version keeps the command's place and overrides. Once per command; the replacing
+    /// feature must require the original's.
     func replace(_ command: ExplorerCommand, _ id: String) {
         guard commands[command.id] != nil else {
             ExtensionRegistry.shared.report(point: "commands[\(command.id)].replacement",
@@ -420,7 +404,7 @@ final class CommandRegistry {
         }
         let ext = extensions(for: command.id)
         guard ext.replacement.providerID == nil else {
-            ext.replacement.provide(id, true)   // records the second replacement as an error
+            ext.replacement.provide(id, true)   // a second replacement is an error
             return
         }
         ext.replacement.provide(id, true)
@@ -429,25 +413,24 @@ final class CommandRegistry {
         NotificationCenter.default.post(name: Self.changed, object: nil)
     }
 
-    /// Adjusts a command's submenu items after they are built (every contribution, in run order).
+    /// Runs every contribution, in order, on the built submenu items.
     func adjustSubmenu(_ commandID: String, _ id: String, order: ExtensionOrder = .normal,
                        _ transform: @escaping ([NSMenuItem], CommandContext) -> [NSMenuItem]) {
         extensions(for: commandID).submenuItems.add(id, order: order, transform)
     }
 
-    /// Runs `observer` before a command performs (the command still does what it would).
+    /// Runs `observer` first; the command still performs as usual.
     func beforePerform(_ commandID: String, _ id: String, order: ExtensionOrder = .normal,
                        _ observer: @escaping (CommandContext) -> Void) {
         extensions(for: commandID).willPerform.observe(id, order: order, observer)
     }
 
-    /// Every per-command point with contributions, by command id.
+    /// Points with contributions, by command id.
     var extensionPoints: [ExtensionPointInfo] {
         extensionsByID.keys.sorted().flatMap { extensionsByID[$0]?.points ?? [] }
     }
 
-    /// Records an extension error for every override of a command that was never registered (a typo,
-    /// or a feature that went away). Run once all features registered.
+    /// Flags overrides of never-registered commands (typos, removed features). Run after registration.
     func checkOverrides() {
         for id in extensionsByID.keys.sorted() where commands[id] == nil {
             guard let ext = extensionsByID[id], !ext.points.isEmpty else { continue }
@@ -463,11 +446,10 @@ final class CommandRegistry {
 
     var all: [ExplorerCommand] { registrationOrder.compactMap { commands[$0] } }
 
-    /// Per-slot section order (section name → rank) where a surface orders sections differently from
-    /// the shared ranks, e.g. Explorer's background menu starts with View / Sort by / Group by.
+    /// Per-slot ranks that differ from the shared ones (Explorer's background menu starts with View).
     var sectionRanks: [CommandSlot: [String: Int]] = [:]
 
-    /// Commands placed in a slot, ordered by section then order (then registration order).
+    /// Ordered by section, order, then registration.
     func entries(in slot: CommandSlot) -> [(command: ExplorerCommand, placement: CommandPlacement)] {
         var result: [(ExplorerCommand, CommandPlacement, Int)] = []
         for (index, id) in registrationOrder.enumerated() {
@@ -485,7 +467,7 @@ final class CommandRegistry {
         return result.map { ($0.0, $0.1) }
     }
 
-    /// Titles of main menus that commands use, in menu bar order.
+    /// In menu bar order.
     var mainMenuTitles: [String] {
         let fixed = ["File", "Edit", "View", "Go"]
         var extra: [String] = []
@@ -505,7 +487,7 @@ final class CommandRegistry {
         all.first { $0.menuAction == action }
     }
 
-    /// Runs a command if it is available and enabled. Returns false otherwise.
+    /// False if the command is unavailable or disabled.
     @discardableResult
     func perform(_ id: String, context: CommandContext) -> Bool {
         guard let command = commands[id], command.isAvailable(context), command.isEnabled(context) else { return false }
@@ -516,7 +498,7 @@ final class CommandRegistry {
 
 // MARK: - Menus
 
-/// A menu item bound to a command, optionally with a frozen context (context menus).
+/// Context menus carry a frozen context.
 final class CommandMenuItem: NSMenuItem {
     let commandID: String
     var frozenContext: CommandContext?
@@ -530,12 +512,11 @@ final class CommandMenuItem: NSMenuItem {
     required init(coder: NSCoder) { fatalError() }
 }
 
-/// Builds menus from registry slots and dispatches menu items. It is the explicit target of every
-/// command menu item, except responder-chain items (`menuAction`), which go through the window.
+/// Target of every command menu item except responder-chain ones (`menuAction`), which go via the window.
 final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
     static let shared = CommandDispatcher()
 
-    /// Adjusts a command's title in menus (not buttons), e.g. Explorer's sentence case in context menus.
+    /// Menus only, not buttons (e.g. sentence case in context menus).
     static let menuTitleHook = Pipeline<String, (command: ExplorerCommand, context: CommandContext)>(
         "CommandDispatcher.menuTitleHook", "Adjusts a command's title in menus (sentence case in context menus).",
         signature: "(title, (command, context)) -> title")
@@ -544,13 +525,13 @@ final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
         menuTitleHook.apply(command.title(in: context), (command, context))
     }
 
-    /// Context for the menu bar: the frontmost browser window's active tab.
+    /// Menu bar context: the frontmost browser window's active tab.
     func liveContext(surface: CommandSurface, sender: Any? = nil) -> CommandContext {
         if let window = BrowserWindowController.active { return window.context(surface: surface, sender: sender) }
         return CommandContext(window: nil, location: nil, surface: surface, sender: sender)
     }
 
-    /// Menu items for a slot. Unavailable commands are left out; sections get separators.
+    /// Skips unavailable commands; separates sections.
     func items(for slot: CommandSlot, context: CommandContext) -> [NSMenuItem] {
         var items: [NSMenuItem] = []
         var lastSection: MenuSection?
@@ -569,7 +550,7 @@ final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
         return menu
     }
 
-    /// A menu item for a command. Context menus pass a frozen context; the menu bar passes nil (live).
+    /// Context menus pass a frozen context; the menu bar passes nil (live).
     func menuItem(_ command: ExplorerCommand, context: CommandContext?, showShortcut: Bool = true) -> NSMenuItem {
         let item = CommandMenuItem(command: command, context: context)
         if let symbol = command.symbol, context?.surface != .menuBar, context != nil {
@@ -611,7 +592,7 @@ final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
         return validate(command, item: menuItem, context: context)
     }
 
-    /// Shared by the dispatcher and the window's responder-chain validation.
+    /// Also used by the window's responder-chain validation.
     func validate(_ command: ExplorerCommand, item: NSMenuItem, context: CommandContext) -> Bool {
         item.title = CommandDispatcher.menuTitle(command, context: context)
         item.state = command.state(context)
@@ -619,7 +600,7 @@ final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
         return command.isAvailable(context) && command.isEnabled(context)
     }
 
-    // Submenus in the menu bar are filled when opened.
+    // Menu bar submenus fill when opened.
     func menuNeedsUpdate(_ menu: NSMenu) {
         guard let parent = menu.supermenu?.items.first(where: { $0.submenu === menu }),
               let id = parent.representedObject as? String, let command = CommandRegistry.shared.command(id),

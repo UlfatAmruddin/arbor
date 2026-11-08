@@ -155,7 +155,7 @@ enum FileCommands {
         ])
     }
 
-    /// The folder Pin acts on: the selected (or right-clicked) folder, else the current folder from "…".
+    /// The selected or right-clicked folder, else the current one (from "…").
     static func pinTarget(_ ctx: CommandContext) -> URL? {
         if let item = ctx.single, item.isFolder, !Location.isVolumeRoot(item.url) { return item.url }
         if ctx.surface == .commandBar || ctx.surface == .script, ctx.selection.isEmpty { return ctx.location?.folderURL }
@@ -252,7 +252,7 @@ enum FileCommands {
 
 /// Cut, Copy, Paste (with intent), Move Item Here, Undo/Redo, selection commands (FE-057, FE-084, FE-091).
 enum ClipboardCommands {
-    /// Paste destination: the right-clicked folder in an item menu (frozen), else the current folder.
+    /// The right-clicked folder (item menu), else the current folder.
     static func pasteTarget(_ ctx: CommandContext) -> URL? {
         if ctx.surface == .itemContextMenu { return ctx.single.flatMap { $0.isFolder ? $0.url : nil } }
         return ctx.allowsEditing ? ctx.targetFolder : nil

@@ -2,8 +2,7 @@ import AppKit
 import DiskArbitration
 import ArborCore
 
-/// Mounted volumes for This Mac and the navigation pane, with one naming and ordering rule so
-/// both show the same drives the same way.
+/// Mounted volumes, named and ordered the same way for This Mac and the navigation pane.
 enum VolumeCatalog {
     private static let baseKeys: [URLResourceKey] = [
         .volumeLocalizedNameKey, .volumeIsLocalKey, .volumeIsInternalKey, .volumeIsRemovableKey, .volumeIsEjectableKey,
@@ -13,8 +12,7 @@ enum VolumeCatalog {
         .volumeAvailableCapacityKey, .volumeAvailableCapacityForImportantUsageKey, .volumeLocalizedFormatDescriptionKey,
     ]
 
-    /// Features adjust the drive list, e.g. the network feature adds mapped drives that are
-    /// disconnected and names shares `share (\\server)`. May run off the main thread; no I/O.
+    /// Features adjust the drive list (e.g. network adds disconnected mapped drives). May run off main; no I/O.
     static let adjustments = Pipeline<[VolumeSummary], Void>(
         "VolumeCatalog.adjustments", "Adjusts the drive list (mapped and disconnected network drives). May run off the main thread.",
         signature: "(volumes) -> volumes")
@@ -24,8 +22,8 @@ enum VolumeCatalog {
     static let statusOverride = Handlers<VolumeSummary, String>(
         "VolumeCatalog.statusOverride", "A drive's status line on This Mac; nil = free space.", signature: "(volume) -> text?")
 
-    /// Every visible mounted volume. `detailed` adds free space, file system and the disk-image /
-    /// optical classification from Disk Arbitration; call it off the main thread.
+    /// Every visible mounted volume. `detailed` adds free space, file system and disk-image/optical kind
+    /// from Disk Arbitration; call it off the main thread.
     static func summaries(detailed: Bool) -> [VolumeSummary] {
         adjustments.apply(mountedSummaries(detailed: detailed))
     }
@@ -48,7 +46,7 @@ enum VolumeCatalog {
             let name = VolumeSections.displayName(volumeName: v?.volumeLocalizedName ?? displayName(of: url), kind: kind, server: server)
             var free: Int64?
             if detailed {
-                // Finder's "available" figure includes purgeable space; fall back to the plain figure.
+                // "Available" includes purgeable space; fall back to the plain figure.
                 if let important = v?.volumeAvailableCapacityForImportantUsage, important > 0 { free = important }
                 else { free = v?.volumeAvailableCapacity.map(Int64.init) }
             }
@@ -70,7 +68,7 @@ enum VolumeCatalog {
         return nil
     }
 
-    /// Navigation pane rows under "This Mac": same names, order and "Hide empty drives" rule as the page.
+    /// Nav pane rows under "This Mac": same names, order and "Hide empty drives" rule as the page.
     static func navigationNodes() -> [NavNode] {
         VolumeSections.visible(summaries(detailed: false), hideEmpty: Prefs.hideEmptyDrives).map {
             NavNode(kind: .volume, title: $0.name, location: .folder($0.url), isEjectable: $0.isEjectable)

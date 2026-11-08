@@ -1,8 +1,7 @@
 import Foundation
 
-/// Least-recently-used bookkeeping for listings kept by tabs (spec §15.3, FE-251): a byte budget
-/// shared by every tab in every window, instead of a fixed number of listings (eight 100,000-entry
-/// listings would be ~700 MB). Listings on screen are never evicted.
+/// LRU byte budget for tab listings, shared by all windows (spec §15.3, FE-251); a fixed count could
+/// reach ~700 MB. Listings on screen are never evicted.
 public struct ListingBudget {
     public var byteLimit: Int
     /// Oldest first.
@@ -14,7 +13,7 @@ public struct ListingBudget {
 
     public var count: Int { order.count }
 
-    /// Records a listing (new or replaced) as most recently used. Returns the ids to evict.
+    /// Marks a listing most recently used; returns the ids to evict.
     public mutating func touch(_ id: String, cost: Int, active: Set<String>) -> [String] {
         remove(id)
         order.append(id)
@@ -29,7 +28,7 @@ public struct ListingBudget {
         totalCost -= cost
     }
 
-    /// Evicts the oldest inactive listings until at most `bytes` remain. Returns their ids.
+    /// Evicts oldest inactive listings until at most `bytes` remain; returns their ids.
     public mutating func trim(toBytes bytes: Int, active: Set<String>) -> [String] {
         var evicted: [String] = []
         var index = 0

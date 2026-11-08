@@ -39,8 +39,7 @@ enum GalleryLibrariesFeature: ExplorerFeature {
 
     // MARK: Navigation pane and breadcrumbs
 
-    /// "Libraries" after Network when Show libraries is on (hidden by default, like Windows 11). The nodes
-    /// use the `.folder` kind with preset children so they expand: Libraries → each library → its folders.
+    /// "Libraries" after Network when shown (off by default, like Windows 11); `.folder` nodes with preset children.
     static func librariesNodes() -> [NavNode] {
         guard Prefs.showLibraries else { return [] }
         let children = LibraryStore.all.map { library -> NavNode in
@@ -144,8 +143,7 @@ enum GalleryLibrariesFeature: ExplorerFeature {
 
     // MARK: Location-specific behavior of core commands
 
-    /// Gallery and library pages decide first (order `.early`): where they apply, their rules replace
-    /// the commands' own and other features' overrides (these used to be installed after every feature).
+    /// Gallery and library pages decide first (`.early`): their rules replace the commands' and other features' overrides.
     static func registerOverrides() {
         let r = CommandRegistry.shared
         let gallery: (CommandContext) -> Bool = { $0.location == .gallery }
@@ -164,8 +162,7 @@ enum GalleryLibrariesFeature: ExplorerFeature {
         }
         r.hide("view.compact", "gallery-libraries.no-compact", order: .early, when: gallery)
 
-        // Sort ▾ in Gallery: by date taken, newest or oldest first. Every other sort.* command is hidden
-        // there, also those registered by later features.
+        // Sort ▾ in Gallery: date taken only; other sort.* commands are hidden, including later features'.
         r.hide(prefix: "sort.", except: ["sort.ascending", "sort.descending"], "gallery-libraries.sort-by-date-taken",
                order: .early, when: gallery)
         for (id, newest) in [("sort.ascending", false), ("sort.descending", true)] {
@@ -190,7 +187,7 @@ enum GalleryLibrariesFeature: ExplorerFeature {
         // Rename in Gallery: names aren't shown on tiles, so it asks in a sheet.
         r.override("file.rename", "gallery-libraries.rename-in-sheet", order: .early, when: gallery, perform: renameInGallery)
 
-        // Delete in Gallery: the real file goes to the Trash as anywhere else; the tile disappears at once.
+        // Delete in Gallery: the file goes to the Trash; the tile disappears at once.
         r.override("file.trash", "gallery-libraries.forget-trashed-tiles", order: .early, when: gallery, perform: { ctx in
             let urls = ctx.selection.map(\.url)
             CommandRegistry.shared.command("file.trash")?.perform(ctx, after: "gallery-libraries.forget-trashed-tiles")

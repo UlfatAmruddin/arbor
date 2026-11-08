@@ -1,9 +1,7 @@
 import Foundation
 
-/// Transfer speed and time remaining (FE-114). Speed is measured over a sliding window and
-/// smoothed; nothing is reported until enough time has passed for the number to mean
-/// something, so the UI shows "Calculating…" instead of a fabricated estimate (spec §9.2).
-/// Paused time is excluded: pausing ends the current window and resuming starts a new one.
+/// Speed and time remaining (FE-114), smoothed over a sliding window. Nothing is reported until it means
+/// something ("Calculating…", spec §9.2). Pausing ends the window; resuming starts a new one.
 public struct TransferRateEstimator: Sendable {
     public let window: TimeInterval
     public let minimumElapsed: TimeInterval
@@ -43,12 +41,12 @@ public struct TransferRateEstimator: Sendable {
 
     /// Bytes per second, or nil while still calculating.
     public func bytesPerSecond(at time: TimeInterval) -> Double? {
-        guard !paused, let start = activeSince, time - start >= minimumElapsed, let rate = smoothed, rate > 0 else { return nil }
+        // Runs of empty items decay the rate toward zero; below 1 B/s it says nothing useful.
+        guard !paused, let start = activeSince, time - start >= minimumElapsed, let rate = smoothed, rate >= 1 else { return nil }
         return rate
     }
 
-    /// Seconds left for `remaining` bytes, or nil while still calculating. Smoothed so the
-    /// estimate doesn't jump around between updates.
+    /// Smoothed seconds left for `remaining` bytes; nil while still calculating.
     public mutating func secondsRemaining(_ remaining: Int64, at time: TimeInterval) -> TimeInterval? {
         guard let rate = bytesPerSecond(at: time) else { return nil }
         let raw = Double(max(remaining, 0)) / rate
@@ -59,9 +57,10 @@ public struct TransferRateEstimator: Sendable {
 
     // MARK: Wording
 
-    /// Explorer's "Time remaining" wording: "About 10 seconds", "About 1 minute",
-    /// "About 1 hour and 5 minutes", "About 2 days".
+    /// Explorer's "Time remaining" wording: "About 10 seconds", "About 1 hour and 5 minutes"…
     public static func describeRemaining(_ seconds: TimeInterval) -> String {
+        // Past about 30 years the estimate is meaningless, and far past it Int(_:) traps.
+        guard seconds.isFinite, seconds < 1e9 else { return L10n.tr("Calculating…") }
         let s = max(0, seconds)
         if s < 60 {
             let rounded = max(5, Int((s / 5).rounded(.up)) * 5)
@@ -86,6 +85,7 @@ public struct TransferRateEstimator: Sendable {
 
     /// "45.2 MB/s", "812 KB/s": Explorer's adaptive 1024-based units with three significant digits.
     public static func describeSpeed(_ bytesPerSecond: Double) -> String {
-        ExplorerSize.adaptive(Int64(bytesPerSecond.rounded())) + "/s"
+        // A claimed size near Int64.max can push the rate past what Int64 holds.
+        ExplorerSize.adaptive(Int64(Int(checked: bytesPerSecond.rounded()) ?? (bytesPerSecond > 0 ? .max : 0))) + "/s"
     }
 }

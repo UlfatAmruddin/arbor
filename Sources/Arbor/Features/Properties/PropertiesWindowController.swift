@@ -1,7 +1,6 @@
 import AppKit
 import ArborCore
 
-/// One tab of a Properties window.
 protocol PropertiesTab: AnyObject {
     var title: String { get }
     var view: NSView { get }
@@ -15,8 +14,7 @@ extension PropertiesTab {
     func close() {}
 }
 
-/// A non-modal Properties window for one selection, with Windows' tabs and OK / Cancel / Apply
-/// (FE-099). Opening Properties again for the same items brings the existing window forward.
+/// Non-modal, with OK / Cancel / Apply (FE-099); reopening for the same items brings it forward.
 final class PropertiesWindowController: NSWindowController, NSWindowDelegate {
     private static var open: [String: PropertiesWindowController] = [:]
     static var all: [PropertiesWindowController] { Array(open.values) }
@@ -199,8 +197,7 @@ final class PropertiesWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: Alerts
 
-    /// Shows an alert as a sheet on `window` (or app-modal without one). Sheets keep scripted runs
-    /// going (`propbutton:` answers them); headless runs keep them invisible.
+    /// Sheet on `window` (else app-modal): scripted runs answer it via `propbutton:`, headless runs keep it invisible.
     static func present(_ alert: NSAlert, window: NSWindow?, completion: ((NSApplication.ModalResponse) -> Void)? = nil) {
         AlertSheets.present(alert, in: window, completion: completion)
     }

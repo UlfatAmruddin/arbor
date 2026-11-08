@@ -5,14 +5,14 @@ final class FileTableView: NSTableView {
     var keyHandler: ((NSEvent) -> Bool)?
     var middleClick: ((Int) -> Void)?
     var menuProvider: (() -> NSMenu?)?
-    /// Group headers: a click the view handles itself (collapse, select the group). Return true if handled.
+    /// Group header clicks (collapse, select the group). Return true if handled.
     var rowMouseDown: ((Int, NSEvent) -> Bool)?
-    /// Group headers: their own context menu (Collapse group…), nil for item rows.
+    /// Group header context menu; nil for item rows.
     var rowMenuProvider: ((Int) -> NSMenu?)?
 
-    /// Type-to-select through the input method (FE-068); set by the Details view.
+    /// Type-to-select through the input method (FE-068).
     var typeSelect: ListTypeSelect?
-    /// Keyboard focus moved apart from the selection (⌥⌘↑/↓, DEC-accessibility-3); nil = follows the selection.
+    /// Focus moved apart from the selection (⌥⌘↑/↓, DEC-accessibility-3); nil follows the selection.
     var focusRow: Int? {
         didSet {
             guard focusRow != oldValue else { return }
@@ -39,7 +39,7 @@ final class FileTableView: NSTableView {
         super.mouseDown(with: event)
     }
 
-    /// Right-clicking an unselected item selects it, so the menu's target is visible (spec §7.1).
+    /// Right-clicking an unselected item selects it first (spec §7.1).
     override func menu(for event: NSEvent) -> NSMenu? {
         let row = row(at: convert(event.locationInWindow, from: nil))
         if row >= 0, let menu = rowMenuProvider?(row) { return menu }
@@ -80,7 +80,7 @@ final class RenameField: NSTextField {
 final class NameCellView: NSTableCellView {
     let icon = NSImageView()
     let nameField = RenameField()
-    /// Made on first use: most rows never show one, and a check box is half the cost of a new cell.
+    /// Lazy: most rows never show one, and it costs half a new cell.
     private(set) lazy var checkbox: NSButton = {
         let box = NSButton(checkboxWithTitle: "", target: nil, action: nil)
         box.translatesAutoresizingMaskIntoConstraints = false
@@ -161,8 +161,7 @@ final class TextCellView: NSTableCellView {
     required init?(coder: NSCoder) { fatalError() }
 }
 
-/// Details view: Name, Date modified, Type, Size (FE-028, FE-035, FE-037), styled like Explorer.
-/// Sorting and filtering happen in the window; this view only displays and reports.
+/// Explorer-style Details view (FE-028, FE-035, FE-037). The window sorts and filters; this only displays.
 final class DetailsViewController: NSViewController, ItemViewController, NSTableViewDataSource, NSTableViewDelegate,
                                    NSTextFieldDelegate, NSMenuDelegate {
     weak var itemDelegate: ItemViewDelegate?
@@ -180,13 +179,11 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
     private var renamingItem: FileItem?
     private var renameCancelled = false
     private var pendingRenameText: String?
-    /// Tab (+1) or Shift-Tab (-1) ended the rename: continue with the next/previous item (FE-064).
+    /// Tab (+1) / Shift-Tab (-1) ended the rename: continue with the next/previous item (FE-064).
     private var renameStep = 0
     private var deferredUpdate: ItemViewUpdate?
 
-    // Grouping (FE-038): table rows are group headers and items; `items` stays in display order.
-    // Columns (FE-035, FE-036): the set shown, metadata loading for visible rows, header overlay.
-    // The logic lives in DetailsViewController+Depth.swift.
+    // Grouping (FE-038) and columns (FE-035, FE-036) live in DetailsViewController+Depth.swift.
     enum Row: Equatable { case header(Int), item(Int) }
     var rows: [Row] = []
     /// Groups shown (empty when not grouped).
@@ -222,8 +219,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         addColumn("type", L10n.tr("Type"), width: 150, min: 70, key: .type)
         addColumn("size", "Size", width: 90, min: 55, key: .size)   // header text left like Explorer; values right-aligned
 
-        // Stock header view and cells on purpose: on macOS 26 a custom NSTableHeaderView or header cell
-        // subclass stops the rows from drawing (scroll edge effect). Titles are styled instead.
+        // Stock header on purpose: on macOS 26 a custom header view/cell stops rows drawing (scroll edge effect).
         table.style = .plain
         table.selectionHighlightStyle = .regular
         table.backgroundColor = Theme.contentBackground
@@ -236,7 +232,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         table.columnAutoresizingStyle = .firstColumnOnlyAutoresizingStyle
         table.usesAlternatingRowBackgroundColors = false
         table.gridStyleMask = []
-        // Columns are saved per folder kind by ViewOptions (FE-040), not by table autosave.
+        // ViewOptions saves columns per folder kind (FE-040), not table autosave.
         table.floatsGroupRows = false
         table.dataSource = self
         table.delegate = self
@@ -273,7 +269,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         emptyLabel.alignment = .center
         emptyLabel.isHidden = true
         emptyLabel.translatesAutoresizingMaskIntoConstraints = false
-        // Long explanations (search errors, coverage) wrap instead of running off the edges.
+        // Long messages (search errors) wrap.
         emptyLabel.maximumNumberOfLines = 0
         emptyLabel.lineBreakMode = .byWordWrapping
         emptyLabel.preferredMaxLayoutWidth = 520
@@ -313,8 +309,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         column.width = width
         column.minWidth = min
         column.maxWidth = 2000
-        // No sortDescriptorPrototype: header clicks go through tableView(_:didClick:) so the Mac sort
-        // triangle isn't drawn; the header overlay draws Explorer's chevron instead.
+        // No sortDescriptorPrototype, so no Mac sort triangle; the header overlay draws Explorer's chevron.
         column.resizingMask = [.autoresizingMask, .userResizingMask]
         table.addTableColumn(column)
     }
@@ -357,8 +352,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
 
     // MARK: Showing items
 
-    /// Replaces the rows. Keeps selection and scroll position on refresh, and waits while the
-    /// user is renaming so typed text isn't lost (spec §8.1).
+    /// Replaces the rows, keeping selection and scroll on refresh; waits during a rename (spec §8.1).
     func display(_ update: ItemViewUpdate) {
         _ = view
         if renamingItem != nil {
@@ -373,18 +367,18 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         allowsEditing = update.allowsEditing
         if update.locationChanged { ColumnValueStore.shared.cancel(owner: visibleOwner) }
         DetailsColumns.apply(to: table, location: update.location)   // per-location extra columns (Trash, cloud, search)
-        // A location with its own column layout owns the columns; the tab's column set applies elsewhere.
+        // A location's own layout wins over the tab's column set.
         if DetailsColumns.activeLayoutID(of: table) == nil { applyTabColumns() }
         let hadGroups = !groups.isEmpty
         if items.count >= 10_000 { BackgroundRelease.drop(items) }   // freed off the main thread
         items = regroup(update.items)
         rebuildRows()
         table.rowHeight = Theme.rowHeight(compact: Prefs.compactView)
-        // Without group rows, keep the cell views: reloadData() discards them all (spec §15.3).
+        // Without group rows, keep cell views; reloadData() discards them (spec §15.3).
         if hadGroups || !groups.isEmpty { table.reloadData() } else { table.reloadKeepingViews() }
         headerOverlay?.needsDisplay = true
         if update.select == nil, !keepURLs.isEmpty {
-            // Search results can hold several items with one name: keep the selection by URL.
+            // Names can repeat in search results: keep the selection by URL.
             table.selectRowIndexes(IndexSet(items.indices.filter { keepURLs.contains(items[$0].url) }.compactMap { itemRows[$0] }),
                                    byExtendingSelection: false)
             restoreSelectionEnds(keepEnds)
@@ -412,7 +406,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         table.noteHeightOfRows(withIndexesChanged: indexes)
     }
 
-    /// Scrolling up to reveal a row puts it at the top edge, whatever the header and insets are.
+    /// Puts the row at the top edge, whatever the header and insets.
     func scrollRowToTop(_ row: Int) {
         guard !rows.isEmpty else { return }
         table.scrollRowToVisible(rows.count - 1)
@@ -506,7 +500,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         return cell
     }
 
-    /// Item check boxes (View ▸ Show ▸ Item check boxes): toggles that row in the selection.
+    /// Item check box: toggles that row in the selection.
     @objc private func checkboxClicked(_ sender: NSButton) {
         let row = table.row(for: sender)
         guard row >= 0 else { return }
@@ -524,8 +518,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         return item.name
     }
 
-    /// Clicking a header sorts by that column (again: reverses it); the previous column becomes the
-    /// tie-breaker (FE-235).
+    /// Sorts by the column (again: reverses); the previous column becomes the tie-breaker (FE-235).
     func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) {
         let column = ColumnID(tableColumn.identifier.rawValue)
         var order = sortOrder
@@ -534,8 +527,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         itemDelegate?.itemViewSortChanged(order)
     }
 
-    /// The sort is drawn by the header overlay (Explorer's chevron above the title), so the table
-    /// itself keeps no sort descriptors.
+    /// The header overlay draws the sort, so the table keeps no sort descriptors.
     private func syncSortIndicator() {
         syncingSort = true
         if !table.sortDescriptors.isEmpty { table.sortDescriptors = [] }

@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// What a location shows: a list of items (rendered by the standard item views, so sorting,
-/// filtering, selection, rename, clipboard and drag and drop all work) or a custom page.
+/// What a location shows: items in the standard item views (sorting, selection, rename… all work) or a custom page.
 enum LocationContent {
     case items([FileItem])
     case custom(NSViewController)
@@ -33,18 +32,14 @@ final class LoadHandle {
     }
 }
 
-/// Supplies the content for some locations (B2). Register in your feature's `register()`:
-///
-///     LocationRegistry.register(TrashProvider())
-///
-/// The most recently registered provider that `handles` a location wins, so a feature replaces
-/// the core placeholder simply by registering.
+/// Supplies content for some locations (B2). Register in `register()`: `LocationRegistry.register(TrashProvider())`.
+/// The latest registered provider that `handles` a location wins, so features replace core placeholders.
 protocol LocationProvider: AnyObject {
     func handles(_ location: Location) -> Bool
-    /// Load asynchronously and call `completion` on the main queue. Return a handle if the work can be cancelled.
+    /// Loads async, calling `completion` on main. Return a handle if cancellable.
     func load(_ location: Location, context: LocationLoadContext,
               completion: @escaping (Result<LocationContent, Error>) -> Void) -> LoadHandle?
-    /// Start watching for changes; return a token that stops watching when released. Default: none.
+    /// Starts watching; the returned token stops when released. Default: none.
     func watch(_ location: Location, onChange: @escaping () -> Void) -> AnyObject?
     func title(for location: Location) -> String
     func icon(for location: Location, size: CGFloat) -> NSImage
@@ -87,9 +82,8 @@ enum LocationRegistry {
         providers.last { $0.handles(location) } ?? fallback
     }
 
-    /// Lets a feature turn an item into a location when it is opened (e.g. a .zip → `.archive`).
-    /// The first handler (in run order) that returns a location wins; otherwise folders open as folders
-    /// and everything else is opened with its app.
+    /// Turns an opened item into a location (e.g. .zip → `.archive`). First handler in run order wins;
+    /// otherwise folders open as folders and files with their app.
     static func registerOpenHandler(_ id: String, order: ExtensionOrder = .normal, _ handler: @escaping (FileItem) -> Location?) {
         openHandlers.register(id, order: order, handler)
     }

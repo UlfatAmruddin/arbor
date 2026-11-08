@@ -1,7 +1,6 @@
 import Foundation
 
-/// Explorer's eight layouts (spec §6.1), in the order of its Ctrl+Shift+1…8 shortcuts.
-/// "Compact view" is a separate density setting, not a mode.
+/// Explorer's eight layouts (spec §6.1) in Ctrl+Shift+1…8 order. "Compact view" is a density setting, not a mode.
 public enum ViewMode: String, CaseIterable, Sendable {
     case extraLargeIcons, largeIcons, mediumIcons, smallIcons, list, details, tiles, content
 

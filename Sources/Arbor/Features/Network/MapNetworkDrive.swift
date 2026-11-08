@@ -1,10 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Explorer's "Map Network Drive" dialog (FE-177), adapted honestly: macOS has no drive letters, so
-/// the Drive row explains where the drive appears instead (DEC-019). Finish connects asynchronously
-/// (cancellable) and saves a mapping record with server + share + account identity (FE-187);
-/// passwords are only ever handled by the system sign-in prompt and Keychain (FE-178).
+/// Explorer's "Map Network Drive" (FE-177). No drive letters, so the Drive row says where it appears (DEC-019).
+/// Saves server + share + account identity (FE-187); passwords only via the system prompt and Keychain (FE-178).
 final class MapNetworkDriveSheet: NSWindowController, NSComboBoxDelegate, NSComboBoxDataSource {
     private static var current: MapNetworkDriveSheet?
     private weak var browser: BrowserWindowController?
@@ -165,7 +163,7 @@ final class MapNetworkDriveSheet: NSWindowController, NSComboBoxDelegate, NSComb
 
     // MARK: Browse…
 
-    /// Lists computers Arbor can see, then the chosen computer's shares (Explorer's Browse For Folder, as menus).
+    /// Visible computers, then the chosen one's shares, as menus (Explorer's Browse For Folder).
     private func browse() {
         let discovery = NetworkCenter.shared.services.makeDiscovery()
         browseDiscovery = discovery
@@ -295,7 +293,7 @@ final class MapNetworkDriveSheet: NSWindowController, NSComboBoxDelegate, NSComb
 // MARK: - Disconnect (FE-177)
 
 enum NetworkDisconnect {
-    /// Unmounts one share; a busy volume explains why and offers to force it, like Explorer.
+    /// Unmounts one share; a busy volume offers to force it, like Explorer.
     static func disconnect(_ share: MountedShare, window: BrowserWindowController, force: Bool = false) {
         let name = NetworkCenter.shared.mappedDrive(for: share)?.label ?? share.address?.driveLabel ?? share.volumeName
         window.statusBar.setMessage(L10n.format("Disconnecting “%@”…", "\(name)"))

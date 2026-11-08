@@ -2,16 +2,9 @@ import AppKit
 import Quartz
 import UniformTypeIdentifiers
 
-/// The one way Arbor asks the system to show something outside its own windows: opening files, apps and
-/// settings, revealing in Finder, Terminal, Mail, the share picker, the desktop picture, default apps,
-/// Quick Look, attaching or ejecting disks.
-///
-/// Headless test runs (`ARBOR_HEADLESS`) must never put anything on the user's screen or change their
-/// system, so there every request is recorded instead of performed; `log:` lists the requests
-/// ("system open: …"). `Tests/ArborCoreTests/SystemOpenAuditTests.swift` fails if code outside this
-/// file calls the system directly.
+/// The only path for asking the system to open, reveal, share or change anything outside Arbor's windows.
+/// Headless runs (`ARBOR_HEADLESS`) just record requests (`log:`); `SystemOpenAuditTests` enforces this file's use.
 enum SystemOpen {
-    /// True in headless runs: requests are logged, not performed.
     static var isSuppressed: Bool { AppDelegate.isHeadless }
 
     private static let lock = NSLock()
@@ -33,11 +26,20 @@ enum SystemOpen {
 
     // MARK: Files, folders, web and settings addresses
 
-    /// Opens a file in its app, a folder in Finder or an address (web, `x-apple.systempreferences:`, `smb:`).
+    /// Opens a file, a folder in Finder, or an address (web, `x-apple.systempreferences:`, `smb:`).
     @discardableResult
     static func open(_ url: URL) -> Bool {
         if suppressed("open \(url.isFileURL ? url.path : url.absoluteString)") { return true }
         return NSWorkspace.shared.open(url)
+    }
+
+    /// Opens a file in its default app and reports that app (nil in headless runs or on failure).
+    static func open(_ url: URL, completion: @escaping (NSRunningApplication?, Error?) -> Void) {
+        if suppressed("open \(url.path)") {
+            completion(nil, nil)
+            return
+        }
+        NSWorkspace.shared.open(url, configuration: NSWorkspace.OpenConfiguration(), completionHandler: completion)
     }
 
     /// Opens files with a chosen app ("Open with").
@@ -110,7 +112,7 @@ enum SystemOpen {
         NSWorkspace.shared.setDefaultApplication(at: app, toOpenFileAt: url, completion: completion)
     }
 
-    /// Whether system services may show their own dialogs (the network sign-in window). Never in headless runs.
+    /// Whether system services may show their own dialogs (network sign-in). Never headless.
     static var allowsSystemDialogs: Bool { !suppressed("system dialogs refused") }
 
     // MARK: Disks
@@ -121,14 +123,14 @@ enum SystemOpen {
         try NSWorkspace.shared.unmountAndEjectDevice(at: url)
     }
 
-    /// Extra `hdiutil attach` arguments: headless runs attach without a Finder window or a Finder sidebar entry.
+    /// Headless runs attach without a Finder window or sidebar entry.
     static func attachArguments(for image: URL) -> [String] {
         suppressed("attach \(image.path) (no Finder window)") ? ["-nobrowse", "-noautoopen"] : []
     }
 
     // MARK: Quick Look
 
-    /// Shows the Quick Look panel (headless runs log what it would preview; `PreviewHooks` decides that).
+    /// Shows Quick Look (headless runs log what it would preview).
     static func showQuickLook(_ panel: QLPreviewPanel, previewing urls: [URL]) {
         if suppressed("Quick Look \(urls.map(\.path).joined(separator: ", "))") { return }
         panel.makeKeyAndOrderFront(nil)

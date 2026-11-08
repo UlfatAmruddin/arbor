@@ -2,9 +2,7 @@ import Foundation
 import CoreServices
 import ImageIO
 
-/// Embedded/indexed metadata for the Details tab and Details pane (FE-151): Spotlight (`MDItem`)
-/// attributes, with an ImageIO fallback for images Spotlight hasn't indexed yet (new files, volumes
-/// without an index). Read-only: Arbor never rewrites embedded metadata in place (FE-152).
+/// Spotlight metadata with an ImageIO fallback for unindexed images (FE-151). Read-only (FE-152).
 public struct MetadataRow: Equatable, Sendable {
     public var group: String
     public var label: String
@@ -29,7 +27,7 @@ public enum SpotlightMetadata {
         public let format: Format
     }
 
-    /// Explorer's groups and order (Description, Origin, Image, Camera, Audio/Media, Video, Content).
+    /// In Explorer's group order.
     public static let fields: [Field] = [
         Field(key: "kMDItemTitle", label: L10n.tr("Title"), group: L10n.tr("Description"), format: .text),
         Field(key: "kMDItemHeadline", label: L10n.tr("Subject"), group: L10n.tr("Description"), format: .text),
@@ -82,7 +80,7 @@ public enum SpotlightMetadata {
         Field(key: "kMDItemUseCount", label: L10n.tr("Times opened"), group: L10n.tr("File"), format: .number),
     ]
 
-    /// Raw Spotlight values for `fields` (and any extra keys). Missing or unindexed → empty.
+    /// Empty when missing or unindexed.
     public static func rawValues(_ url: URL, keys: [String]? = nil) -> [String: Any] {
         guard let item = MDItemCreateWithURL(kCFAllocatorDefault, url as CFURL) else { return [:] }
         let wanted = keys ?? fields.map(\.key)
@@ -90,7 +88,7 @@ public enum SpotlightMetadata {
         return dict
     }
 
-    /// Image properties from the file itself (ImageIO reads only the header and metadata, no pixels).
+    /// Reads headers only, no pixels.
     public static func imageValues(_ url: URL) -> [String: Any] {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
               CGImageSourceGetCount(source) > 0,
@@ -130,13 +128,13 @@ public enum SpotlightMetadata {
         return out.filter { !($0.value is NSNull) }
     }
 
-    /// Grouped, formatted rows in Explorer's order. Spotlight values win; ImageIO fills gaps for images.
+    /// Spotlight values win; ImageIO fills gaps for images.
     public static func rows(for url: URL, isImage: Bool) -> [MetadataRow] {
         var values = rawValues(url)
         if isImage {
             for (k, v) in imageValues(url) where values[k] == nil { values[k] = v }
         }
-        // Some importers fill Title/Subject with the file name; that isn't embedded metadata.
+        // Some importers fill Title/Subject with the file name.
         let names: Set<String> = [url.lastPathComponent, url.deletingPathExtension().lastPathComponent]
         for key in ["kMDItemTitle", "kMDItemHeadline"] {
             if let s = values[key] as? String, names.contains(s) { values.removeValue(forKey: key) }
@@ -146,14 +144,15 @@ public enum SpotlightMetadata {
 
     public static func rows(from values: [String: Any]) -> [MetadataRow] {
         var rows: [MetadataRow] = []
-        if let w = number(values["kMDItemPixelWidth"]), let h = number(values["kMDItemPixelHeight"]), w > 0, h > 0 {
-            rows.append(MetadataRow(group: L10n.tr("Image"), label: L10n.tr("Dimensions"), value: "\(Int(w)) x \(Int(h))"))
+        if let w = number(values["kMDItemPixelWidth"]), let h = number(values["kMDItemPixelHeight"]), w > 0, h > 0,
+           let w = Int(checked: w), let h = Int(checked: h) {
+            rows.append(MetadataRow(group: L10n.tr("Image"), label: L10n.tr("Dimensions"), value: "\(w) x \(h)"))
         }
         for field in fields {
             guard let raw = values[field.key], let text = format(raw, field.format), !text.isEmpty else { continue }
             rows.append(MetadataRow(group: field.group, label: field.label, value: text))
         }
-        // Keep Explorer's group order with Dimensions first in Image.
+        // Stable sort by group keeps Dimensions first in Image.
         let order = ["Description", "Origin", "Image", "Camera", "GPS", "Media", "Audio", "Video", "Content", "File"].map { L10n.tr($0) }   // groups are stored localized
         return rows.enumerated().sorted { a, b in
             let ga = order.firstIndex(of: a.element.group) ?? order.count
@@ -168,7 +167,6 @@ public enum SpotlightMetadata {
         return nil
     }
 
-    /// Formats one value. Public for tests and the Details pane.
     public static func format(_ value: Any, _ format: Format) -> String? {
         switch format {
         case .text, .version:
@@ -186,34 +184,36 @@ public enum SpotlightMetadata {
         case .duration:
             return number(value).map(PropertyFormat.duration)
         case .bitRate:
-            // Spotlight reports kbps for audio; some importers report bits per second.
+            // Spotlight reports kbps; some importers report bps.
             guard let n = number(value), n > 0 else { return nil }
             let kbps = n >= 10_000 ? n / 1000 : n
-            return "\(Int(kbps.rounded()))kbps"
+            return Int(checked: kbps.rounded()).map { "\($0)kbps" }
         case .hertz:
             guard let n = number(value) else { return nil }
-            return n >= 1000 ? "\(String(format: "%g", (n / 100).rounded() / 10)) kHz" : "\(Int(n)) Hz"
+            if n >= 1000 { return "\(String(format: "%g", (n / 100).rounded() / 10)) kHz" }
+            return Int(checked: n).map { "\($0) Hz" }
         case .pixels:
-            return number(value).map { "\(Int($0)) pixels" }
+            return number(value).flatMap { Int(checked: $0) }.map { "\($0) pixels" }
         case .dpi:
-            return number(value).map { "\(Int($0.rounded())) dpi" }
+            return number(value).flatMap { Int(checked: $0.rounded()) }.map { "\($0) dpi" }
         case .fStop:
             return number(value).map { "f/\(String(format: "%g", ($0 * 10).rounded() / 10))" }
         case .exposure:
             guard let n = number(value), n > 0 else { return nil }
-            return n < 1 ? "1/\(Int((1 / n).rounded())) sec." : "\(String(format: "%g", n)) sec."
+            if n < 1 { return Int(checked: (1 / n).rounded()).map { "1/\($0) sec." } }
+            return "\(String(format: "%g", n)) sec."
         case .focalLength:
             return number(value).map { "\(String(format: "%g", ($0 * 10).rounded() / 10)) mm" }
         case .iso:
-            return number(value).map { "ISO-\(Int($0))" }
+            return number(value).flatMap { Int(checked: $0) }.map { "ISO-\($0)" }
         case .flash:
             return number(value).map { $0 != 0 ? L10n.tr("Flash") : L10n.tr("No flash") }
         case .rating:
-            guard let n = number(value) else { return nil }
-            let stars = max(0, min(5, Int(n.rounded())))
+            guard let n = number(value), let rounded = Int(checked: n.rounded()) else { return nil }
+            let stars = max(0, min(5, rounded))
             return String(repeating: "★", count: stars) + String(repeating: "☆", count: 5 - stars)
         case .bytes:
-            return number(value).map { PropertyFormat.adaptiveSize(Int64($0)) }
+            return number(value).flatMap { Int(checked: $0) }.map { PropertyFormat.adaptiveSize(Int64($0)) }
         case .framesPerSecond:
             return number(value).map { "\(String(format: "%g", $0)) frames/second" }
         case .meters:

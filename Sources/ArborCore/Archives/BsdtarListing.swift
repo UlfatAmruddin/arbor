@@ -1,30 +1,37 @@
 import Foundation
 
 /// Parses `bsdtar -tv --numeric-owner` output (run with `LC_ALL=en_US.UTF-8`).
-///
-/// Each line is `mode nlink uid gid size Mon day HH:MM|YYYY name[ -> target| link to target]`.
-/// bsdtar escapes unprintable characters in names (`\n`, `\\`, `\ooo`), so a name never spans lines.
-/// The date is minute-precise (or year-only for old entries) and in local time, as bsdtar prints it.
+/// Names are escaped by bsdtar, so one entry is one line; dates are local, minute- or year-precise.
 public enum BsdtarListing {
     public struct Result: Sendable {
         public var entries: [ArchiveEntry]
-        /// Lines that didn't match the expected shape (reported, never guessed at).
+        /// Unparsable lines (reported, never guessed at).
         public var malformedLines: Int
+        /// More than `maxLines` lines; parsing stopped there.
+        public var exceededLimit = false
     }
 
-    public static func parse(_ text: String, now: Date = Date(), timeZone: TimeZone = .current) -> Result {
-        var entries: [ArchiveEntry] = []
-        var malformed = 0
-        for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
-            if let entry = parseLine(line, now: now, timeZone: timeZone) { entries.append(entry) } else { malformed += 1 }
+    public static func parse(_ text: String, now: Date = Date(), timeZone: TimeZone = .current, maxLines: Int = .max) -> Result {
+        var result = Result(entries: [], malformedLines: 0)
+        var lines = 0
+        var rest = text[...]
+        // Scanned line by line, so the cap doesn't first pay for every line of a huge listing.
+        while !rest.isEmpty {
+            let end = rest.firstIndex(of: "\n") ?? rest.endIndex
+            let line = rest[..<end]
+            rest = end == rest.endIndex ? rest[end...] : rest[rest.index(after: end)...]
+            if line.isEmpty { continue }
+            lines += 1
+            if lines > maxLines { result.exceededLimit = true; break }
+            if let entry = parseLine(line, now: now, timeZone: timeZone) { result.entries.append(entry) } else { result.malformedLines += 1 }
         }
-        return Result(entries: entries, malformedLines: malformed)
+        return result
     }
 
     public static func parseLine(_ line: Substring, now: Date = Date(), timeZone: TimeZone = .current) -> ArchiveEntry? {
         var rest = line[...]
         var fields: [Substring] = []
-        // Eight whitespace-separated fields, then exactly one space, then the (escaped) name.
+        // Eight fields, one space, then the escaped name.
         for _ in 0..<8 {
             rest = rest.drop(while: { $0 == " " })
             guard let end = rest.firstIndex(of: " ") else { return nil }
@@ -44,17 +51,18 @@ public enum BsdtarListing {
         case "l": kind = .symlink
         case "h": kind = .hardlink
         case "c", "b", "p", "s": kind = .special
-        default: return nil
+        // "?" (unknown type) and anything else: libarchive still extracts it, so it must be listed and rejected.
+        default: kind = .unknown
         }
 
         var namePart = rest
         var target: Substring?
-        if kind == .symlink, let r = namePart.range(of: " -> ") {
+        if let separator = kind == .symlink ? " -> " : kind == .hardlink ? " link to " : nil,
+           let r = namePart.range(of: separator) {
             target = namePart[r.upperBound...]
             namePart = namePart[..<r.lowerBound]
-        } else if kind == .hardlink, let r = namePart.range(of: " link to ") {
-            target = namePart[r.upperBound...]
-            namePart = namePart[..<r.lowerBound]
+            // bsdtar doesn't escape the separator, so a second one makes the name and target ambiguous.
+            if target?.range(of: separator) != nil { return nil }
         }
         let name = unescape(namePart)
         guard !name.isEmpty else { return nil }
@@ -78,7 +86,7 @@ public enum BsdtarListing {
             guard let h = Int(timeOrYear[..<colon]), let min = Int(timeOrYear[timeOrYear.index(after: colon)...]) else { return nil }
             c.hour = h
             c.minute = min
-            // The year is implied: the one that puts the date within six months of now.
+            // Implied year: the one within six months of now.
             let year = calendar.component(.year, from: now)
             c.year = year
             guard var result = calendar.date(from: c) else { return nil }
@@ -131,8 +139,7 @@ public enum BsdtarListing {
         return String(decoding: bytes, as: UTF8.self)
     }
 
-    /// An inclusion pattern that matches `name` literally (libarchive treats `* ? [ ] \` as wildcards).
-    /// A pattern also matches everything below it, so a folder pattern selects its whole subtree.
+    /// A libarchive pattern matching `name` literally (escapes `* ? [ ] \`); also matches its subtree.
     public static func literalPattern(_ name: String) -> String {
         var out = ""
         var trimmed = Substring(name)

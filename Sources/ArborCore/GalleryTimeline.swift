@@ -5,15 +5,14 @@ public enum GalleryMediaKind: String, Sendable, Codable {
     case image, video
 }
 
-/// One photo or video in the Gallery. The Gallery is a projection: every item is a real file at `url`,
-/// and every action (open, copy, Trash) acts on that file (spec §12.2, FE-239).
+/// A Gallery photo or video: always a real file at `url`, and every action acts on it (spec §12.2, FE-239).
 public struct GalleryItem: Hashable, Sendable {
     public let url: URL
-    /// Date taken when known (EXIF / Spotlight content creation), else file creation, else modification.
+    /// Date taken (EXIF / Spotlight), else creation, else modification.
     public let date: Date
     public let kind: GalleryMediaKind
     public let size: Int64?
-    /// Displayed width ÷ height (EXIF orientation applied). nil when unknown.
+    /// Width ÷ height with EXIF orientation applied.
     public let aspect: Double?
     public let modified: Date?
 
@@ -26,7 +25,7 @@ public struct GalleryItem: Hashable, Sendable {
         self.modified = modified
     }
 
-    /// Path identity used to merge scans and overlapping sources (never the file name).
+    /// Merges scans and overlapping sources (never the file name).
     public var key: String { Location.normalizedPath(url) }
 }
 
@@ -38,9 +37,9 @@ public struct GalleryMonth: Hashable, Sendable {
     public var items: [GalleryItem]
 }
 
-/// Month bucketing, ordering and dates for Gallery (pure logic, unit-tested).
+/// Month bucketing, ordering and dates for Gallery.
 public enum GalleryTimeline {
-    /// Newest first (or oldest first); ties broken by path so the order is stable between scans.
+    /// Ties broken by path so the order is stable between scans.
     public static func sorted(_ items: [GalleryItem], newestFirst: Bool = true) -> [GalleryItem] {
         items.sorted { a, b in
             if a.date != b.date { return newestFirst ? a.date > b.date : a.date < b.date }
@@ -48,7 +47,7 @@ public enum GalleryTimeline {
         }
     }
 
-    /// Groups items by calendar month. Sections and the items inside them follow `newestFirst`.
+    /// Groups by calendar month; sections and items follow `newestFirst`.
     public static func months(_ items: [GalleryItem], newestFirst: Bool = true,
                               calendar: Calendar = .current, locale: Locale = .current) -> [GalleryMonth] {
         var sections: [GalleryMonth] = []
@@ -83,7 +82,7 @@ public enum GalleryTimeline {
         return formatter.string(from: date)
     }
 
-    /// Years for the date rail, in display order, each with the index of its first month section.
+    /// Date-rail years, each with its first month section's index.
     public static func years(_ months: [GalleryMonth]) -> [(year: Int, firstSection: Int)] {
         var result: [(Int, Int)] = []
         for (index, section) in months.enumerated() where result.last?.0 != section.year {
@@ -92,10 +91,8 @@ public enum GalleryTimeline {
         return result
     }
 
-    /// The date Gallery files an item under: the date taken when known, else the earlier of the file's
-    /// creation and modification dates (a copied photo has a new creation date but keeps its
-    /// modification date; an edited one the reverse). Dates before 1900 or more than a day in the
-    /// future are treated as unknown (bad camera clocks, zero dates).
+    /// Date taken, else the earlier of creation and modification (copying resets one, editing the other).
+    /// Dates before 1900 or over a day ahead count as unknown (bad clocks, zero dates).
     public static func bestDate(taken: Date?, created: Date?, modified: Date?, now: Date = Date()) -> Date? {
         let earliest = Date(timeIntervalSince1970: -2_208_988_800)   // 1900-01-01
         let latest = now.addingTimeInterval(86_400)
@@ -137,7 +134,7 @@ public enum GalleryTimeline {
 public struct JustifiedRow: Equatable, Sendable {
     /// Indexes into the input array.
     public var indexes: [Int]
-    /// x offset and width of each tile, in the same order as `indexes`.
+    /// One per tile, in `indexes` order.
     public var frames: [(x: Double, width: Double)]
     public var height: Double
 
@@ -147,8 +144,7 @@ public struct JustifiedRow: Equatable, Sendable {
     }
 }
 
-/// "Justified" rows like Gallery: tiles keep their aspect ratio, every full row spans the width,
-/// and the last row of a section keeps the target height instead of being stretched.
+/// Justified rows: tiles keep their aspect, full rows span the width, a section's last row isn't stretched.
 public enum JustifiedLayout {
     /// Aspect ratios are clamped so panoramas and slivers stay usable.
     public static let minAspect = 0.5

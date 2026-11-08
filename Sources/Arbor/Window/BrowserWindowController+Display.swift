@@ -10,7 +10,7 @@ extension BrowserWindowController {
         itemView?.view.isHidden = true
     }
 
-    /// Puts the tab's content on screen: its items in the item view for its mode, or its page.
+    /// Shows the tab's items in its mode's view, or its page.
     func display(_ tab: TabState, select: [String]?, top: String?, locationChanged: Bool) {
         if tab.showsPage, let page = tab.page {
             var restore: (selection: [String], scroll: String?)?
@@ -18,7 +18,7 @@ extension BrowserWindowController {
                 shownPage?.view.removeFromSuperview()
                 embed(page.view)
                 shownPage = page
-                // A new page for the place (Back, Forward, Refresh, tab switch): put its selection back.
+                // New page for the place (Back, Forward, Refresh, tab switch): restore its selection.
                 if page is LocationPageViewState { restore = (select ?? tab.selectedNames, top ?? (select == nil ? tab.topVisibleName : nil)) }
             }
             itemView?.view.isHidden = true
@@ -37,8 +37,7 @@ extension BrowserWindowController {
         let visible = tab.visibleItems
         let empty = tab.items?.isEmpty == false && visible.isEmpty
             ? "No items match “\(tab.searchText)”." : provider.emptyText(for: location)
-        // Restoring the tab's own selection: names can repeat in search results, so selecting by
-        // name could add items the user never picked (and Delete would then take them too).
+        // Restore by URL: names repeat in search results, so by name Delete could hit unpicked items.
         let savedURLs = select != nil && select == tab.selectedNames
             && Set(tab.selectedURLs.map(\.lastPathComponent)) == Set(tab.selectedNames) ? tab.selectedURLs : []
         view.display(ItemViewUpdate(items: visible, folder: provider.targetFolder(for: location), select: select,
@@ -78,7 +77,7 @@ extension BrowserWindowController {
         activeTab.sortOrder = order
         Prefs.sortOrder = order
         if !activeTab.showsPage {
-            // Large listings sort in the background; the rows (and the selection) update when they're ready.
+            // Large listings sort in the background; rows and selection update when ready.
             let tab = activeTab
             let deferred = tab.sortInBackground { [weak self] in
                 guard let self, tab === self.activeTab, !tab.showsPage else { return }

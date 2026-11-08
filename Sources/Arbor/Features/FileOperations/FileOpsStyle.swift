@@ -1,10 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Colors, fonts and controls for the Windows 11 style file-operation dialogs (DEC-017, DEC-018).
-/// Our own approximations of the Explorer copy dialog; nothing is taken from Windows assets.
+/// Windows 11 style file-operation dialog look (DEC-017, DEC-018); our own approximations, no Windows assets.
 enum FileOpsStyle {
-    /// Dialog body.
     static let background = Theme.dynamic(light: 0xFFFFFF, dark: 0x2B2B2B)
     /// The "More details" strip and button row at the bottom.
     static let footer = Theme.dynamic(light: 0xF3F3F3, dark: 0x202020)
@@ -255,8 +253,7 @@ final class FileOpsPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }
 
-/// Base for the non-modal Windows-style dialogs: a titled panel centered on its browser window.
-/// Jobs keep running in other windows while one waits for an answer.
+/// Base for non-modal dialogs centered on their browser window; jobs elsewhere keep running.
 class FileOpsDialog: NSObject, NSWindowDelegate {
     /// Open dialogs, newest last (scripts click their buttons with `opbutton:`).
     static private(set) var open: [FileOpsDialog] = []
@@ -295,7 +292,6 @@ class FileOpsDialog: NSObject, NSWindowDelegate {
         panel.contentView = root
     }
 
-    /// Lays out, centers on `parent` and shows the panel.
     func present(over parent: NSWindow?) {
         guard let root = panel.contentView else { return }
         root.layoutSubtreeIfNeeded()
@@ -344,7 +340,6 @@ class FileOpsDialog: NSObject, NSWindowDelegate {
         return false
     }
 
-    /// The row of buttons at the right of the footer.
     func setButtons(_ buttons: [NSView], leading: [NSView] = []) {
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)

@@ -3,11 +3,10 @@ import Foundation
 
 // MARK: - Session restore (FE-024, FE-251)
 
-/// One tab as saved for "Restore previous folder windows". Compact: keys and view settings only,
-/// never listings (FE-251).
+/// One tab for "Restore previous folder windows": keys and view settings, never listings (FE-251).
 public struct SessionTab: Codable, Equatable, Sendable {
     public var location: String
-    /// Older entries first; bounded by `SessionState.historyLimit`.
+    /// Oldest first; bounded by `SessionState.historyLimit`.
     public var back: [String]
     /// Nearest entry first.
     public var forward: [String]
@@ -96,7 +95,7 @@ public struct SessionState: Codable, Equatable, Sendable {
 }
 
 extension NavigationHistory {
-    /// A history with these Back and Forward entries (forward: nearest first), using only public moves.
+    /// Rebuilds a history (forward: nearest first) using only public moves.
     public static func rebuilt(back: [Location], current: Location, forward: [Location], limit: Int = 100) -> NavigationHistory {
         let path = back + [current]
         var history = NavigationHistory(start: path[0], limit: limit)
@@ -127,8 +126,7 @@ public enum WindowPlacement {
         }
     }
 
-    /// The frame unchanged if reachable; otherwise resized to fit and moved onto the screen it overlaps
-    /// most (or the first screen), keeping its relative position where possible.
+    /// Unchanged if reachable; else fitted onto the screen it overlaps most (or the first one).
     public static func recover(_ frame: CGRect, screens: [CGRect], minSize: CGSize = CGSize(width: 480, height: 320)) -> CGRect {
         guard !screens.isEmpty else { return frame }
         if isReachable(frame, screens: screens), screens.contains(where: { $0.contains(frame) }) || fitsSomeScreen(frame, screens) {
@@ -144,8 +142,7 @@ public enum WindowPlacement {
         return result
     }
 
-    /// A reachable frame partly off-screen (dragged past an edge) is the user's choice; keep it if its
-    /// title bar is reachable and it isn't larger than every screen.
+    /// A frame dragged partly off-screen is the user's choice; keep it unless it's larger than every screen.
     private static func fitsSomeScreen(_ frame: CGRect, _ screens: [CGRect]) -> Bool {
         screens.contains { frame.width <= $0.width + 1 && frame.height <= $0.height + 1 && frame.maxY <= $0.maxY + 1 }
     }

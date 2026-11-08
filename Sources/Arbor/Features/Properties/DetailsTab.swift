@@ -2,9 +2,8 @@ import AppKit
 import UniformTypeIdentifiers
 import ArborCore
 
-/// Explorer's Details tab: a Property / Value list grouped like Windows (FE-151, FE-152, FE-161).
-/// Embedded and indexed metadata is read-only; Finder tags and comments, which macOS stores next to
-/// the file rather than inside it, are editable in their own clearly labelled group.
+/// Explorer's Details tab (FE-151, FE-152, FE-161). Metadata is read-only; Finder tags and comments, stored
+/// beside the file rather than in it, are editable in their own group.
 final class DetailsTab: PropertiesTab, PropertiesTabDebug {
     let title = L10n.tr("Details")
     let view: NSView

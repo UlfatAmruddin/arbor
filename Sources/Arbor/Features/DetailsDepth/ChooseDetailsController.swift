@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// "Choose Details" (header right-click → More…, Sort ▾ → More…): a searchable checklist of every
-/// column with Move Up / Move Down / Show / Hide and the selected column's width, like Explorer (FE-035).
+/// Explorer's "Choose Details" (FE-035): a searchable column checklist with order and width.
 final class ChooseDetailsController: NSViewController, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate,
                                      NSTextFieldDelegate {
     struct Entry: Equatable {

@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Folder Options values in `Prefs` (FE-205: app-wide scope). Catalog keys are preference keys, except
-/// four that predate Folder Options and are stored with their original meaning.
+/// Folder Options values in `Prefs` (FE-205: app-wide). Catalog keys are pref keys, except four older ones.
 extension Prefs {
     static var openTo: Location { string("openTo", default: "home") == "thismac" ? .thisMac : .home }
     static var openFoldersInOwnWindow: Bool { string("browseFolders", default: "same") == "own" }
@@ -23,9 +22,7 @@ extension Prefs {
 }
 
 enum FolderOptionsPrefs {
-    /// Keys stored under another name or meaning.
-    /// Home owns the privacy switches and "Hide empty drives" (keys `home.*`, `thisMac.*`); icon views read
-    /// `alwaysShowIcons` directly.
+    /// Keys stored under another name or meaning (Home's `home.*`, `thisMac.*`; icon views read `alwaysShowIcons`).
     private static let bridged: Set<String> = ["compactView", "itemCheckBoxes", "hideExtensions", "hiddenFiles",
                                                "showRecentFiles", "showFrequentFolders", "hideEmptyDrives"]
 

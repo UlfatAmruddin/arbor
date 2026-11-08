@@ -1,10 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Send to ▸ (FE-096), translated to Mac destinations:
-/// Compressed (zipped) folder (the archives feature's command, when installed) · Desktop (create
-/// shortcut) · Documents (copy) · Mail recipient (Mail's compose sheet via the system share service)
-/// · removable and external drives (copy). Bluetooth and Fax have no Mac counterpart and are omitted.
+/// Send to ▸ (FE-096), Mac destinations: Compressed folder, Desktop (shortcut), Documents (copy),
+/// Mail recipient (share service) and external drives (copy). No Bluetooth or Fax.
 enum SendToCommands {
     static let zipCommandID = "archive.compress.zip"
 
@@ -16,11 +14,10 @@ enum SendToCommands {
             submenu: { ctx in items(ctx) }))
     }
 
-    /// Desktop and Documents. Headless test runs use `ARBOR_TEST_SENDTO_ROOT` instead and never touch
-    /// the real folders (without it these destinations are hidden in headless runs).
+    /// Desktop and Documents. Headless runs use `ARBOR_TEST_SENDTO_ROOT` (or hide these), never the real folders.
     static func specialFolder(_ name: String, _ directory: FileManager.SearchPathDirectory) -> URL? {
         if AppDelegate.isHeadless {
-            guard let root = ProcessInfo.processInfo.environment["ARBOR_TEST_SENDTO_ROOT"] else { return nil }
+            guard let root = Automation.environment["ARBOR_TEST_SENDTO_ROOT"] else { return nil }
             return URL(fileURLWithPath: root).appendingPathComponent(name)
         }
         return FileManager.default.urls(for: directory, in: .userDomainMask).first
@@ -30,7 +27,7 @@ enum SendToCommands {
     static func drives() -> [(name: String, url: URL)] {
         let keys: [URLResourceKey] = [.volumeLocalizedNameKey, .volumeIsRemovableKey, .volumeIsEjectableKey,
                                       .volumeIsInternalKey, .volumeIsLocalKey, .volumeIsReadOnlyKey]
-        if AppDelegate.isHeadless, let fake = ProcessInfo.processInfo.environment["ARBOR_TEST_SENDTO_DRIVE"] {
+        if AppDelegate.isHeadless, let fake = Automation.environment["ARBOR_TEST_SENDTO_DRIVE"] {
             let url = URL(fileURLWithPath: fake)
             return [(url.lastPathComponent, url)]
         }

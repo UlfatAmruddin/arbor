@@ -1,7 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Script steps and log lines for headless checks of grouping, filters and columns (TESTING.md).
+/// Script steps for headless checks of grouping, filters and columns (TESTING.md).
 ///
 ///     groupby:type | groupby:none | groupdir:desc        Group by ▸ (column id), direction
 ///     collapse:Today | expand:Today | groupclick:Today   toggle / select a group by title
@@ -45,7 +45,7 @@ extension DetailsDepth {
             if let d = details(w), let g = group(named: arg, in: d) { d.selectGroup(g); d.focus() }
             return 0.5
         }
-        // `key:` (keys through the real keyboard path) is the accessibility feature's step (AccessibilityDebug.swift).
+        // `key:` is handled in AccessibilityDebug.swift.
         DebugScript.registerStep("filter") { arg, w in
             guard let tab = w?.activeTab, let colon = arg.firstIndex(of: ":") else { return 0.5 }
             let column = ColumnID(String(arg[..<colon]))

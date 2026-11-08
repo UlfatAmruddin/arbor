@@ -1,10 +1,9 @@
 import Foundation
 
-/// A shared folder offered by a server.
 public struct NetworkShareInfo: Hashable, Sendable {
     public var name: String
     public var comment: String
-    /// Administrative shares end in `$` (C$, IPC$); Explorer hides them from the server view.
+    /// Administrative shares (C$, IPC$); Explorer hides them.
     public var isHidden: Bool { name.hasSuffix("$") }
 
     public init(name: String, comment: String = "") {
@@ -13,7 +12,7 @@ public struct NetworkShareInfo: Hashable, Sendable {
     }
 }
 
-/// Reads `smbutil view` output (macOS's own SMB client). Only disk shares are kept.
+/// Parses `smbutil view` output, keeping disk shares only.
 ///
 ///     Share                                           Type    Comments
 ///     -------------------------------
@@ -40,7 +39,7 @@ public enum SMBShareListParser {
     }
 }
 
-/// One Bonjour advertisement (`_smb._tcp`, `_afpovertcp._tcp`, …).
+/// One Bonjour advertisement.
 public struct DiscoveredService: Hashable, Sendable {
     public var name: String
     public var type: String
@@ -53,7 +52,7 @@ public struct DiscoveredService: Hashable, Sendable {
     }
 }
 
-/// The Network page's groups, in Explorer's order (FE-078).
+/// Network page groups, in Explorer's order (FE-078).
 public enum NetworkCategory: String, CaseIterable, Sendable {
     case computer = "Computer"
     case mediaDevices = "Media Devices"
@@ -64,9 +63,9 @@ public enum NetworkCategory: String, CaseIterable, Sendable {
 public struct NetworkDevice: Hashable, Sendable, Identifiable {
     public var name: String
     public var category: NetworkCategory
-    /// Protocols it offers files over ("SMB", "AFP").
+    /// "SMB", "AFP".
     public var protocols: [String]
-    /// Bonjour service types seen, for resolving the host later.
+    /// For resolving the host later.
     public var serviceTypes: [String]
 
     public var id: String { category.rawValue + "/" + name.lowercased() }
@@ -78,7 +77,7 @@ public struct NetworkDevice: Hashable, Sendable, Identifiable {
         self.serviceTypes = serviceTypes
     }
 
-    /// The preferred file protocol to connect with: SMB, else AFP.
+    /// SMB, else AFP.
     public var preferredScheme: String? {
         if serviceTypes.contains("_smb._tcp") { return "smb" }
         if serviceTypes.contains("_afpovertcp._tcp") { return "afp" }
@@ -95,7 +94,7 @@ public struct NetworkDevice: Hashable, Sendable, Identifiable {
 }
 
 public enum NetworkDiscoveryModel {
-    /// Service types the Network page browses. Also listed in Info.plist `NSBonjourServices`.
+    /// Keep in sync with Info.plist `NSBonjourServices`.
     public static let fileServiceTypes = ["_smb._tcp", "_afpovertcp._tcp"]
     public static let infrastructureServiceTypes = ["_airport._tcp"]
 
@@ -107,8 +106,7 @@ public enum NetworkDiscoveryModel {
         }
     }
 
-    /// Merges advertisements by name (a Mac advertising SMB and AFP is one computer) and sorts
-    /// each group naturally. A file server is a computer even if it also advertises infrastructure.
+    /// Merges advertisements by name; anything offering files is a computer, even if it also advertises infrastructure.
     public static func devices(from services: Set<DiscoveredService>) -> [NetworkDevice] {
         var byName: [String: (name: String, types: Set<String>)] = [:]
         for service in services {
@@ -136,8 +134,7 @@ public enum NetworkDiscoveryModel {
 
 // MARK: - File system capabilities (FE-188)
 
-/// What a volume's file system can do, from its type name and flags, so the UI never promises
-/// writes, Trash or large files where the format can't deliver them.
+/// What a volume's file system can do, so the UI never promises writes, Trash or large files it can't deliver.
 public struct FileSystemCapabilities: Equatable, Sendable {
     public enum Kind: String, Sendable {
         case apfs, hfsPlus, exFAT, fat, ntfs, smb, afp, nfs, webdav, other
@@ -189,7 +186,7 @@ public struct FileSystemCapabilities: Equatable, Sendable {
 
     public var canWrite: Bool { !isReadOnly }
 
-    /// Plain-language limits worth telling the user, most important first.
+    /// Most important first.
     public var notes: [String] {
         var notes: [String] = []
         if kind == .ntfs && isReadOnly {

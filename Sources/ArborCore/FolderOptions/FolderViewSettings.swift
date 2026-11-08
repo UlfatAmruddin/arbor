@@ -1,12 +1,11 @@
 import Foundation
 import UniformTypeIdentifiers
 
-// `FolderTemplate` ("Optimize this folder for") is defined with the Properties › Customize store in
-// ArborCore/Properties/FolderTemplates.swift. Folder Options persists it in its view database.
+// `FolderTemplate` is defined in ArborCore/Properties/FolderTemplates.swift; Folder Options persists it.
 extension FolderTemplate: Codable {}
 
 extension FolderTemplate {
-    /// The Details column-set key for this template (grouping's `FolderKind`; Downloads is added by location).
+    /// Details column-set key (Downloads is decided by location).
     public var folderKind: FolderKind {
         switch self {
         case .generalItems: return .general
@@ -18,19 +17,18 @@ extension FolderTemplate {
     }
 }
 
-/// Presentation of a folder (spec §3.2 "View"). Every field is optional so layers can be merged:
-/// a nil field means "inherit from the layer below". Persisting this never touches the folder itself
-/// (no `.DS_Store`, FE-248). Columns and Group by use the Details column model (`ColumnSpec`, `ColumnID`).
+/// A folder's view (spec §3.2); nil fields inherit from the layer below.
+/// Never stored in the folder itself (no `.DS_Store`, FE-248).
 public struct FolderViewSettings: Codable, Equatable, Sendable {
     public var viewMode: String?
-    /// Primary sort column (`SortKey` raw value or any `ColumnID`).
+    /// `SortKey` raw value or any `ColumnID`.
     public var sortKey: String?
     public var ascending: Bool?
     public var foldersFirst: Bool?
     /// Group-by column ("" = explicitly not grouped).
     public var groupBy: String?
     public var groupAscending: Bool?
-    /// Details columns in display order (shown columns only; Name first).
+    /// Shown Details columns in order, Name first.
     public var columns: [ColumnSpec]?
 
     public init(viewMode: String? = nil, sortKey: String? = nil, ascending: Bool? = nil, foldersFirst: Bool? = nil,
@@ -54,7 +52,7 @@ public struct FolderViewSettings: Codable, Equatable, Sendable {
                            columns: columns ?? base.columns)
     }
 
-    /// The sort fields as a `FileSortOrder` (any Details column can be the primary key).
+    /// Any Details column can be the primary key.
     public var sortOrder: FileSortOrder {
         var order = FileSortOrder(key: .name, ascending: ascending ?? true, foldersFirst: foldersFirst ?? true)
         if let raw = sortKey, !raw.isEmpty { order.setPrimary(ColumnID(raw), ascending: ascending ?? true, keepPrevious: false) }
@@ -87,19 +85,18 @@ public enum ViewSettingsSource: Equatable, Sendable {
 }
 
 public struct ResolvedViewSettings: Equatable, Sendable {
-    /// Populated except `columns`, `groupBy` and `groupAscending`, where nil means "the folder type's column set".
+    /// Fully set, except nil `columns`/`groupBy`/`groupAscending` mean "the folder type's column set".
     public var settings: FolderViewSettings
     public var source: ViewSettingsSource
     public var template: FolderTemplate
 }
 
-/// Precedence (FE-052, spec §6.5): app default → folder template → explicit folder override.
-/// The template's Details columns and default grouping come from the column-set store (grouping feature);
-/// this resolver covers view mode and sort and passes through column/group overrides.
+/// Precedence (FE-052, spec §6.5): app default → template → folder override.
+/// Template columns and grouping come from the column-set store; this only passes overrides through.
 public enum ViewSettingsResolver {
     public static let appDefault = FolderViewSettings(viewMode: "details", sortKey: "name", ascending: true, foldersFirst: true)
 
-    /// Built-in template defaults (reference §5.1; RECALL). Pictures and Videos open in Large icons.
+    /// Built-in template defaults (reference §5.1; RECALL).
     public static func builtIn(_ template: FolderTemplate) -> FolderViewSettings {
         switch template {
         case .generalItems, .documents, .music: return FolderViewSettings()
@@ -111,7 +108,7 @@ public enum ViewSettingsResolver {
                                appDefault: FolderViewSettings = appDefault) -> ResolvedViewSettings {
         let builtIn = builtIn(template)
         var settings = builtIn.merged(over: appDefault)
-        // A typed folder (Pictures, Music…) shows its type as the source: its column set comes from it.
+        // A typed folder shows its type as the source, since its column set comes from it.
         var source: ViewSettingsSource = template == .generalItems && builtIn.isEmpty ? .appDefault : .template(template, applied: false)
         if let applied, !applied.isEmpty {
             settings = applied.merged(over: settings)
@@ -127,8 +124,7 @@ public enum ViewSettingsResolver {
 
 // MARK: - Folder type discovery
 
-/// Picks a template from the folder's location and content (Windows' "folder type discovery", reference §5.1).
-/// Pure and in-memory: it only looks at names already listed, never at file contents.
+/// Folder type discovery (reference §5.1) from location and listed names; never reads file contents.
 public enum FolderTemplateDetector {
     public struct KnownFolders: Sendable {
         public var documents: [URL]
@@ -158,12 +154,11 @@ public enum FolderTemplateDetector {
     public struct Resolution: Equatable, Sendable {
         public var template: FolderTemplate
         public var kind: FolderKind
-        /// Chosen in Properties › Customize (or inherited from an ancestor's "apply to all subfolders").
+        /// Set in Properties › Customize, directly or inherited from an ancestor.
         public var chosen: Bool
     }
 
-    /// Precedence: the folder's Properties › Customize choice → Downloads (its own column set) → a known
-    /// folder or one inside it → content discovery → General items.
+    /// Precedence: Customize choice → Downloads → known folder (or inside one) → content → General items.
     public static func resolve(folder: URL, items: [FileItem], chosen: FolderTemplate?, known: KnownFolders = .user) -> Resolution {
         if let chosen { return Resolution(template: chosen, kind: chosen.folderKind, chosen: true) }
         let path = Location.normalizedPath(folder)
@@ -194,7 +189,7 @@ public enum FolderTemplateDetector {
     public static func detect(items: [FileItem]) -> FolderTemplate {
         var counts: [FolderTemplate: Int] = [:]
         var files = 0
-        // One lookup per extension, not per file (a type lookup per row dominated large folders).
+        // One lookup per extension; per-file lookups dominated large folders.
         var byExtension: [String: FolderTemplate?] = [:]
         for item in items where !item.isFolder && !item.isHidden {
             files += 1
@@ -243,9 +238,8 @@ public enum FolderTemplateDetector {
 
 // MARK: - Stable folder identity
 
-/// Identifies a folder for saved views (FE-041, spec §3.2): the volume UUID plus the folder's file
-/// number, so a rename or move inside the volume keeps its view. Volumes without a UUID (some network
-/// shares) fall back to the path.
+/// Saved-view key (FE-041, spec §3.2): volume UUID + file number, so renames and moves keep the view.
+/// Volumes without a UUID (some network shares) fall back to the path.
 public struct FolderIdentity: Hashable, Codable, Sendable {
     /// "vol:<UUID>:ino:<number>", or nil when only the path is known.
     public let id: String?
@@ -258,7 +252,7 @@ public struct FolderIdentity: Hashable, Codable, Sendable {
 
     public static func pathOnly(_ url: URL) -> FolderIdentity { FolderIdentity(id: nil, path: Location.normalizedPath(url)) }
 
-    /// Reads the identity with one `stat` and a cached volume UUID. Call off the main thread for slow volumes.
+    /// One `stat` plus a cached volume UUID; call off the main thread for slow volumes.
     public static func of(_ url: URL) -> FolderIdentity {
         let path = Location.normalizedPath(url)
         var info = stat()

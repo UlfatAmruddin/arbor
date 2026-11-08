@@ -1,9 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Details view depth: Group by, column header filters, more columns with lazily loaded metadata,
-/// Choose Details, column sets per folder kind, and sorting by any column
-/// (FE-035, FE-036, FE-038, FE-039, FE-040, FE-051, FE-235). See docs/features/grouping.md.
+/// Details grouping, filters, columns and sorting (FE-035, FE-036, FE-038, FE-039, FE-040, FE-051,
+/// FE-235). See docs/features/grouping.md.
 enum DetailsDepth: ExplorerFeature {
     static let id = "details-depth"
     static func register() {
@@ -21,8 +20,7 @@ enum DetailsDepth: ExplorerFeature {
 
     // MARK: Pipeline hook
 
-    /// Applies the tab's column filters and makes sure columns used for sorting, grouping and
-    /// filtering are loaded for every item (they're needed to order the whole folder).
+    /// Applies filters and loads sort/group/filter columns for every item (needed to order the whole folder).
     static func filter(_ tab: TabState, _ items: [FileItem]) -> [FileItem] {
         let options = ViewOptions.options(for: tab)
         let needed = options.columnsNeedingAllValues(sort: tab.sortOrder)
@@ -45,7 +43,7 @@ enum DetailsDepth: ExplorerFeature {
         }
     }
 
-    /// Re-runs filter, sort and grouping for a tab and redraws it if it's on screen.
+    /// Re-runs filter, sort and grouping and redraws if on screen.
     static func refresh(_ tab: TabState?) {
         guard let tab else { return }
         tab.invalidateVisibleItems()
@@ -190,7 +188,7 @@ enum DetailsDepth: ExplorerFeature {
                             isEnabled: { options($0)?.groupBy != nil },
                             state: { ctx in options(ctx).map { $0.groupBy != nil && !$0.groupAscending ? .on : .off } ?? .off },
                             perform: { setGroupAscending($0, false) }),
-            // Sort ▾ → Group by ▸ (command bar only; context menus get their own entry, not nested in Sort by ▸).
+            // Command bar only; context menus get their own Group by entry.
             ExplorerCommand(id: "menu.groupBy", title: "Group By", symbol: "rectangle.grid.1x2",
                             placements: [.sortMenu(groupSection, 10)],
                             isAvailable: { ($0.surface == .commandBar || $0.surface == .script) && options($0) != nil },

@@ -1,10 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Files opened from Arbor go to Home ▸ Recent however they were opened (docs/features/consistency.md):
-/// double-click and Return in any view already go through `BrowserWindowController.open`; "Open With ▸"
-/// launched apps directly, so its items now report the files too. Read-only temporary copies of
-/// archive members are never recorded (they are deleted later and aren't the user's files).
+/// Records files opened with Open With ▸ in Home ▸ Recent too; archive member temp copies never are.
 enum OpenedFilesRecorder {
     static func register() {
         CommandRegistry.shared.adjustSubmenu("file.openWith", "consistency.record-opened-files") { items, ctx in
@@ -15,8 +12,7 @@ enum OpenedFilesRecorder {
         }
     }
 
-    /// The same item, also posting `LocationEvents.didOpenFiles`. (Headless test runs only log the launch:
-    /// the item opens through `SystemOpen`.)
+    /// The same item, also posting `LocationEvents.didOpenFiles` (headless runs only log the launch).
     static func wrap(_ item: NSMenuItem, urls: [URL], window: BrowserWindowController?) -> NSMenuItem {
         guard let action = item.action, item.submenu == nil, !item.isSeparatorItem else { return item }
         let original = item

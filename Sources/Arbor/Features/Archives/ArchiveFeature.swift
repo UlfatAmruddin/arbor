@@ -2,16 +2,15 @@ import AppKit
 import ArborCore
 import UniformTypeIdentifiers
 
-/// Archives and disk images (FE-163–FE-173): browse archives like folders, Extract All, Compress to,
-/// Send to ▸ Compressed (zipped) folder, New ▸ Compressed (zipped) Folder, Mount. See docs/features/archives.md.
+/// Archives and disk images (FE-163–FE-173). See docs/features/archives.md.
 enum ArchiveFeature: ExplorerFeature {
     static let id = "archives"
-    /// For scripted checks: the last alert text, extraction folder and mounted volume.
+    /// Last alert text, extraction folder and mounted volume, for scripted checks.
     static var lastAlert: String?
     static var lastExtraction: URL?
     static var lastMount: URL?
 
-    /// Alerts from archive jobs. Headless test runs record them instead (a sheet would appear on screen).
+    /// Alerts from archive jobs; headless runs record them instead of showing a sheet.
     static func alert(_ message: String, _ info: String = "", in window: NSWindow?) {
         lastAlert = message + (info.isEmpty ? "" : " " + info)
         guard !AppDelegate.isHeadless else { return }
@@ -72,7 +71,7 @@ enum ArchiveFeature: ExplorerFeature {
         CommandRegistry.shared.hide("file.sendTo", "archives.no-send-to", when: inArchive)
     }
 
-    /// Members open from a temporary copy; an ISO mounts on double-click like Explorer (browsed if it can't be).
+    /// Members open from a temporary copy; an ISO mounts (or is browsed if it can't be).
     static func openFile(_ file: FileItem, in window: BrowserWindowController) -> Bool {
         if let ref = ArchiveCatalog.ref(for: file.url) {
             openMember(ref, in: window)
@@ -85,7 +84,7 @@ enum ArchiveFeature: ExplorerFeature {
         return false
     }
 
-    /// Opens a member from a read-only temporary copy, like Explorer. A nested archive opens as a folder.
+    /// Opens a member from a read-only temporary copy; a nested archive opens as a folder.
     static func openMember(_ ref: ArchiveItemRef, in window: BrowserWindowController?, with app: URL? = nil) {
         guard let folder = try? ArchiveJobs.freshSessionFolder() else { return }
         let request = ArchiveJobs.ExtractRequest(archive: ref.archive, roots: [ref.innerPath], base: ref.parentPath,
@@ -120,8 +119,7 @@ enum ArchiveFeature: ExplorerFeature {
         chmod(url.path, info.st_mode & 0o555)
     }
 
-    /// Copy inside an archive: extract the selection to a temporary folder and put those files on the
-    /// clipboard, so Paste anywhere works (with the normal conflict rules).
+    /// Copy inside an archive: extracts to a temporary folder and puts those files on the clipboard.
     static func copyOut(_ ctx: CommandContext) {
         guard case .archive(let file, let inner)? = ctx.location, !ctx.selection.isEmpty,
               let folder = try? ArchiveJobs.freshSessionFolder() else { NSSound.beep(); return }
@@ -190,8 +188,7 @@ enum ArchiveFeature: ExplorerFeature {
                 }),
         ])
         for format in ArchiveCreateFormat.allCases {
-            // Script and keyboard entry points for each Compress to ▸ item.
-            // archive.compress.zip is also what Send to ▸ Compressed (zipped) folder runs (ItemActions).
+            // archive.compress.zip also backs Send to ▸ Compressed (zipped) folder (ItemActions).
             r.register(ExplorerCommand(id: "archive.compress.\(format.fileExtension)", title: format.menuTitle,
                                        isAvailable: canCompress, isEnabled: canCompress,
                                        perform: { ArchiveJobs.compress($0.selection, format: format, window: $0.window) }))
@@ -207,7 +204,7 @@ enum ArchiveFeature: ExplorerFeature {
     private static func adaptCoreCommands() {
         let r = CommandRegistry.shared
         r.override("edit.copy", "archives.copy-out", when: inArchive, isEnabled: { $0.hasSelection }, perform: copyOut)
-        // No meaningful target inside an archive: hidden or disabled rather than acting on a path that doesn't exist.
+        // No real path inside an archive: hidden or disabled.
         for id in ["file.share", "file.openInTerminal"] {
             r.override(id, "archives.no-target", when: inArchive, isEnabled: { _ in false })
         }
@@ -249,7 +246,6 @@ enum ArchiveFeature: ExplorerFeature {
                 return cell
             }
         }
-        // Explorer's ZIP folder columns: Name, Type, Compressed size, Password protected, Size, Ratio, Date modified.
         let layout = DetailsLayout(
             id: "archive.zip",
             order: ["name", "type", "archive.compressedSize", "archive.passwordProtected", "size", "archive.ratio", "dateModified"],
@@ -261,9 +257,7 @@ enum ArchiveFeature: ExplorerFeature {
                                   cell: text("archive.passwordProtected", .left) { entry($0).map { $0.isEncrypted ? L10n.tr("Yes") : L10n.tr("No") } ?? "" }),
                 DetailsColumnSpec(id: "archive.ratio", title: "Ratio", width: 70, alignment: .right,
                                   cell: text("archive.ratio", .right) { item in
-                                      guard let e = entry(item), let size = e.size, let packed = e.compressedSize else { return "" }
-                                      guard size > 0 else { return "0%" }
-                                      return "\(max(0, Int((100 - Double(packed) * 100 / Double(size)).rounded())))%"
+                                      entry(item)?.savedPercent.map { "\($0)%" } ?? ""
                                   }),
             ])
         DetailsColumns.register("archives.zip-columns") { location in

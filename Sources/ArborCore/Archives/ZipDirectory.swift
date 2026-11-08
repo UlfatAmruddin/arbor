@@ -1,12 +1,7 @@
 import Foundation
 
-/// Reads a ZIP file's central directory (names, sizes, compressed sizes, dates, encryption) without
-/// decompressing anything. Supports ZIP64, the Info-ZIP Unicode path and extended-timestamp fields.
-/// Mac metadata (`__MACOSX/…` AppleDouble members, which libarchive folds into the files they describe)
-/// is hidden, as in Finder.
-///
-/// This is the only ZIP reader: archive browsing, Extract All and the search option
-/// "Zipped (compressed) folders" all list archives through it.
+/// The only ZIP reader (browsing, Extract All, search): parses the central directory without
+/// decompressing. Handles ZIP64, Unicode paths and extended timestamps; hides `__MACOSX/` like Finder.
 public enum ZipDirectory {
     public enum ReadError: Error, LocalizedError, Equatable {
         case notZip, truncated, tooManyEntries
@@ -23,17 +18,20 @@ public enum ZipDirectory {
     /// Upper bound on listed entries, so a hostile directory can't exhaust memory.
     public static let maxEntries = 2_000_000
 
-    /// Directory bytes read when a `limit` is given: enough for the limit at typical name lengths.
+    /// Directory bytes read when a `limit` is given.
     static let limitedDirectoryBytes = 64 << 20
 
-    /// Whether the name says ZIP (a cheap test before opening the file).
     public static func hasZipName(_ url: URL) -> Bool { ArchiveFormat.detect(url) == .zip }
 
-    /// Lists the archive's members. With `limit`, returns at most that many entries (reading a bounded
-    /// prefix of the directory) instead of failing on huge archives; search only needs a sample.
+    /// With `limit`, reads a bounded prefix and returns a sample instead of failing on huge archives.
     public static func read(_ url: URL, limit: Int? = nil) throws -> [ArchiveEntry] {
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
+        return try read(handle, limit: limit)
+    }
+
+    /// Reads from an already open archive; the caller closes it.
+    static func read(_ handle: FileHandle, limit: Int? = nil) throws -> [ArchiveEntry] {
         let fileSize = try handle.seekToEnd()
         guard fileSize >= 22 else { throw ReadError.notZip }
         let tailLength = min(fileSize, 65_557)
@@ -44,7 +42,8 @@ public enum ZipDirectory {
             return try handle.read(upToCount: length) ?? Data()
         }
         if count == 0 || limit == 0 { return [] }
-        guard offset + size <= fileSize else { throw ReadError.truncated }
+        // Written so attacker-chosen ZIP64 values can't overflow.
+        guard offset <= fileSize, size <= fileSize - offset else { throw ReadError.truncated }
         let wanted = limit == nil ? size : min(size, UInt64(limitedDirectoryBytes))
         guard wanted < 1 << 31 else { throw ReadError.truncated }
         try handle.seek(toOffset: offset)
@@ -53,7 +52,7 @@ public enum ZipDirectory {
         return try parseDirectory(directory, expected: count, limit: limit)
     }
 
-    /// Finds the central directory from the end-of-central-directory record (and its ZIP64 variant).
+    /// Finds the central directory via the EOCD record (or its ZIP64 variant).
     static func locateDirectory(tail: Data, limited: Bool = false,
                                 read: (UInt64, Int) throws -> Data) throws -> (offset: UInt64, size: UInt64, count: UInt64) {
         let bytes = [UInt8](tail)
@@ -83,7 +82,7 @@ public enum ZipDirectory {
         return (offset, size, count)
     }
 
-    /// Whether the archive was made with "\\" as its folder separator (see `ZipNames`). Reads the directory.
+    /// Whether "\\" is the folder separator (see `ZipNames`).
     public static func usesWindowsSeparators(_ url: URL) throws -> Bool {
         try readRaw(url).contains { ZipNames.isWindowsHost($0.host) && $0.name.contains("\\") }
     }
@@ -110,7 +109,7 @@ public enum ZipDirectory {
         }
     }
 
-    /// One central-directory record, with its name as stored (after the Unicode-path field).
+    /// One central-directory record; `name` is before separator interpretation.
     struct RawEntry {
         var name: String
         var host: UInt16
@@ -134,7 +133,7 @@ public enum ZipDirectory {
             return try handle.read(upToCount: length) ?? Data()
         }
         if count == 0 { return [] }
-        guard offset + size <= fileSize, size < 1 << 31 else { throw ReadError.truncated }
+        guard offset <= fileSize, size <= fileSize - offset, size < 1 << 31 else { throw ReadError.truncated }
         try handle.seek(toOffset: offset)
         let directory = try handle.read(upToCount: Int(size)) ?? Data()
         guard directory.count == Int(size) else { throw ReadError.truncated }
@@ -163,14 +162,13 @@ public enum ZipDirectory {
             let extraStart = nameStart + nameLength
             let next = extraStart + extraLength + commentLength
             if next > b.count {
-                if limit != nil { break }   // a limited read stops at the end of the prefix it read
+                if limit != nil { break }   // end of the limited prefix
                 throw ReadError.truncated
             }
             let nameBytes = Array(b[nameStart..<extraStart])
             var name = decodeName(nameBytes, utf8Flag: flags & 0x0800 != 0)
             var modified: Date? = dosDateTime(date: dosDate, time: dosTime)
 
-            // Extra fields.
             var x = extraStart
             while x + 4 <= extraStart + extraLength {
                 let id = le16(b, x)
@@ -178,15 +176,15 @@ public enum ZipDirectory {
                 let body = x + 4
                 guard body + len <= extraStart + extraLength else { break }
                 switch id {
-                case 0x0001:   // ZIP64: only the fields that overflowed are present, in this order
+                case 0x0001:   // ZIP64: only overflowed fields, in this order
                     var q = body
                     if uncompressed == 0xFFFF_FFFF, q + 8 <= body + len { uncompressed = le64(b, q); q += 8 }
                     if compressed == 0xFFFF_FFFF, q + 8 <= body + len { compressed = le64(b, q); q += 8 }
-                case 0x7075:   // Info-ZIP Unicode path: version, CRC of the plain name, UTF-8 name
+                case 0x7075:   // Unicode path: version, CRC, UTF-8 name
                     if len > 5, b[body] == 1 {
                         name = String(decoding: b[(body + 5)..<(body + len)], as: UTF8.self)
                     }
-                case 0x5455:   // Extended timestamp: flags, then modification time (UTC seconds)
+                case 0x5455:   // Extended timestamp: flags, then mtime (UTC)
                     if len >= 5, b[body] & 1 != 0 {
                         modified = Date(timeIntervalSince1970: TimeInterval(Int32(bitPattern: le32(b, body + 1))))
                     }
@@ -195,7 +193,7 @@ public enum ZipDirectory {
                 x = body + len
             }
 
-            // Whether "\" separates folders is decided once the whole directory is known (ZipNames).
+            // "\" handling needs the whole directory (ZipNames).
             entries.append(RawEntry(name: name, host: madeBy >> 8, external: external, uncompressed: uncompressed,
                                     compressed: compressed, modified: modified, encrypted: flags & 1 != 0))
             if !isMacMetadata(name) { listed += 1 }
@@ -213,7 +211,7 @@ public enum ZipDirectory {
         name == "__MACOSX" || name.hasPrefix("__MACOSX/")
     }
 
-    /// UTF-8 when flagged or valid; otherwise the original IBM PC code page (CP437), as ZIP specifies.
+    /// UTF-8 when flagged or valid, else CP437 as ZIP specifies.
     static func decodeName(_ bytes: [UInt8], utf8Flag: Bool) -> String {
         if utf8Flag || bytes.allSatisfy({ $0 < 0x80 }) { return String(decoding: bytes, as: UTF8.self) }
         if let text = String(bytes: bytes, encoding: .utf8) { return text }
@@ -239,7 +237,6 @@ public enum ZipDirectory {
     }
     private static func le64(_ b: [UInt8], _ i: Int) -> UInt64 { UInt64(le32(b, i)) | UInt64(le32(b, i + 4)) << 32 }
 
-    /// CP437, the code page ZIP names use when the UTF-8 flag is clear.
     private static let cp437: [Unicode.Scalar] = {
         let high: [UInt32] = [
             0xC7, 0xFC, 0xE9, 0xE2, 0xE4, 0xE0, 0xE5, 0xE7, 0xEA, 0xEB, 0xE8, 0xEF, 0xEE, 0xEC, 0xC4, 0xC5,

@@ -1,22 +1,16 @@
 import AppKit
 import ArborCore
 
-/// Drag and drop polish (FE-106, FE-108, FE-109, FE-111):
-/// - Right-button drag: on drop, a menu offers Copy here / Move here / Create shortcuts here / Cancel,
-///   with the action a normal drag would take in bold (Explorer).
-/// - ⌥⌘-drop creates shortcuts (aliases), the Mac gesture for Explorer's Alt-drag.
-/// - Spring-loading: a drag resting ~0.7 s on a folder row opens it, on a tree node expands it, on a
-///   tab switches to it. Moving away, leaving the view or dropping cancels.
-/// - Drops onto the background or onto a file row go to the folder being shown (the core's drop
-///   targeting), never a stale selected folder.
-/// - Overlapping sources (a folder and something inside it) are copied or moved once.
+/// Drag and drop polish (FE-106, FE-108, FE-109, FE-111): right-drag drop menu, ⌥⌘-drop for aliases,
+/// spring-loading (~0.7 s) on folders, tree nodes and tabs, drops to the shown folder (never a stale
+/// selection), and overlapping sources handled once.
 enum DragPolish {
     static let rightDragType = NSPasteboard.PasteboardType("io.github.arbor-files.right-drag")
 
     private static var tracker = SpringLoadTracker(delay: 0.7, staleAfter: 1.0)
     private static var activation: (() -> Void)?
     private static var timer: Timer?
-    /// Headless runs never pop up menus; the drop menu waits here for a script step instead.
+    /// Headless runs never show menus; the drop menu waits here for a script step.
     static var pendingMenu: NSMenu?
     /// The last spring-loaded activation, for scripted checks.
     static var lastSpring: String?
@@ -29,7 +23,7 @@ enum DragPolish {
         InteractionHooks.rightMouseDown.register("item-actions.right-drag", handles: { table, event in rightMouseDown(table, event) })
     }
 
-    /// The pasteboard drags use. Headless runs use a private one so tests never touch the system's.
+    /// Drag pasteboard; headless runs use a private one so tests never touch the system's.
     static var dragPasteboard: NSPasteboard {
         AppDelegate.isHeadless ? NSPasteboard(name: NSPasteboard.Name("io.github.arbor-files.test-drag.\(getpid())"))
                                : NSPasteboard(name: .drag)
@@ -130,8 +124,7 @@ enum DragPolish {
 
     // MARK: Right-button drag (Details view)
 
-    /// Starts a drag when the right button moves more than a few points over a row; a plain right
-    /// click (or a press on the background) falls through to the context menu, shown on release.
+    /// Starts a drag when the right button moves a few points over a row; else the context menu shows on release.
     static func rightMouseDown(_ table: NSTableView, _ event: NSEvent) -> Bool {
         guard let window = table.window else { return false }
         let start = event.locationInWindow

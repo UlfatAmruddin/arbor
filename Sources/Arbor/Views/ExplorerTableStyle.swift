@@ -18,7 +18,7 @@ final class ExplorerRowView: NSTableRowView {
         tracking = area
     }
 
-    /// Keyboard focus parted from the selection (Details ⌥⌘arrows): a thin accent outline, like the icon layouts.
+    /// Focus apart from the selection (⌥⌘arrows) gets a thin accent outline.
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard style == .content, let table = superview as? FileTableView, let focus = table.focusRow,
@@ -55,14 +55,14 @@ final class ExplorerRowView: NSTableRowView {
         case .navigation:
             color = SelectionEmphasis.windowIsActive(window) ? Theme.navSelection : SelectionEmphasis.navInactive
         case .content:
-            // Same rule as the icon layouts and tiles (SelectionEmphasis), also in headless snapshots.
+            // Same rule as other views (SelectionEmphasis), also in headless snapshots.
             let focused = superview.map(SelectionEmphasis.hasFocus) ?? isEmphasized
             color = SelectionEmphasis.fill(focused: focused, hovered: isHovered)
         }
         fillRounded(pill, radius: Theme.cornerRadius, color)
         if style == .content { Theme.strokeSelectionIfContrast(pill, radius: Theme.cornerRadius) }   // Increase contrast (FE-201)
         if style == .navigation {
-            // Short accent bar at the left edge of the current location (docs/research/windows11-reference.md §2.1).
+            // Accent bar at the left of the current location (windows11-reference.md §2.1).
             let bar = NSRect(x: pill.minX, y: pill.midY - 8, width: 3, height: 16)
             fillRounded(bar, radius: 1.5, SelectionEmphasis.windowIsActive(window) ? Theme.accent : SelectionEmphasis.inactiveMark)
         }

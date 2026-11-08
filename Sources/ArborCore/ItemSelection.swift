@@ -1,11 +1,10 @@
 import Foundation
 
-/// Selection state for a grid or list of items (spec §7.1): the selected items, the focused item
-/// (keyboard caret) and the range anchor are tracked separately. Indexes refer to the current display
-/// order; views translate to names when the listing changes.
+/// Selection, focus (caret) and range anchor, tracked separately (spec §7.1). Indexes follow display order;
+/// views remap by name when the listing changes.
 public struct ItemSelection: Equatable, Sendable {
     public var selected = IndexSet()
-    /// The keyboard caret. It can sit on an unselected item (⌃-arrow moves focus only).
+    /// Can sit on an unselected item (⌃-arrow moves focus only).
     public var focus: Int?
     /// Start of Shift ranges.
     public var anchor: Int?
@@ -52,8 +51,7 @@ public struct ItemSelection: Equatable, Sendable {
         if !keepSelection { selected = [] }
     }
 
-    /// Keyboard move to `index`: plain moves select it; Shift extends from the anchor; focus-only
-    /// (⌃-arrow, Ctrl+arrow in Explorer) moves the caret without changing the selection.
+    /// Plain moves select; Shift extends from the anchor; focus-only (⌃-arrow) moves just the caret.
     public mutating func move(to index: Int, extend: Bool, focusOnly: Bool) {
         if focusOnly {
             focus = index
@@ -77,8 +75,7 @@ public struct ItemSelection: Equatable, Sendable {
         anchor = focus
     }
 
-    /// Programmatic selection (restore, Select All, after paste): focus and anchor go to the first item.
-    /// Clearing keeps the caret where it was.
+    /// Restore, Select All, after paste: focus and anchor go to the first item; clearing keeps the caret.
     public mutating func set(_ indexes: IndexSet) {
         selected = indexes
         if let first = indexes.first {
@@ -94,8 +91,7 @@ public struct ItemSelection: Equatable, Sendable {
         if let a = anchor, a >= count { anchor = nil }
     }
 
-    /// Marquee (rubber-band) result: plain replaces, Shift adds, ⌘ toggles against the selection the
-    /// drag started with (FE-058).
+    /// Marquee: plain replaces, Shift adds, ⌘ toggles against the drag's starting selection (FE-058).
     public static func marquee(base: IndexSet, hits: IndexSet, toggle: Bool, add: Bool) -> IndexSet {
         if toggle { return base.symmetricDifference(hits) }
         if add { return base.union(hits) }
@@ -103,9 +99,8 @@ public struct ItemSelection: Equatable, Sendable {
     }
 }
 
-/// Explorer's type-to-select (windows11-reference §8.2): typing a prefix selects the next item whose
-/// name starts with it; the buffer resets after about a second; repeating one letter cycles through
-/// the items starting with that letter. Matching ignores case and diacritics.
+/// Type-to-select (windows11-reference §8.2): the prefix resets after `timeout`; repeating one letter cycles.
+/// Ignores case and diacritics.
 public struct TypeSelect: Sendable {
     public var timeout: TimeInterval
     private(set) public var buffer = ""
@@ -124,7 +119,7 @@ public struct TypeSelect: Sendable {
         last = nil
     }
 
-    /// Returns the index to select, or nil if nothing matches.
+    /// Nil if nothing matches.
     public mutating func input(_ text: String, at time: Date, names: [String], current: Int?) -> Int? {
         guard !text.isEmpty, !names.isEmpty else { return nil }
         if !isActive(at: time) { buffer = "" }

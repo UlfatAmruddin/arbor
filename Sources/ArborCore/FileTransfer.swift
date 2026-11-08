@@ -19,8 +19,7 @@ public struct Conflict: Sendable {
     public let source: URL
     public let destination: URL
     public let kind: ConflictKind
-    /// Both sides as they were when the conflict was found (sizes and dates for the dialogs;
-    /// the destination stamp also detects a change while the decision was pending, FE-250).
+    /// Both sides when found; the destination stamp also catches changes while the dialog is open (FE-250).
     public let sourceStamp: FileStamp?
     public let destinationStamp: FileStamp?
 
@@ -35,7 +34,7 @@ public struct Conflict: Sendable {
 }
 
 public enum ConflictChoice: Sendable, Equatable {
-    /// The existing destination item is disposed of (moved to the Trash by default) first.
+    /// The existing item is disposed of first (Trash by default).
     case replace
     /// Folders only: combine contents; nested conflicts are asked separately.
     case merge
@@ -63,8 +62,7 @@ public enum ItemOutcome: Sendable, Equatable {
     case failed(String)
     /// Cross-volume move: the copy exists, but the original could not be removed.
     case copiedButSourceRemains(URL, String)
-    /// A folder that exists at the destination but is incomplete (items inside failed or the
-    /// job was cancelled partway). What did arrive is kept; nothing is rolled back.
+    /// An incomplete folder at the destination; what arrived is kept, nothing is rolled back.
     case partial(URL, String)
     case cancelled
 
@@ -83,8 +81,7 @@ public struct ItemResult: Sendable, Equatable {
 
 public struct TransferProgress: Sendable, Equatable {
     public enum Phase: String, Sendable {
-        /// "Discovering items…": counting what will be copied. Totals are unknown; `itemsDone`
-        /// and `bytesDone` hold what has been found so far.
+        /// Counting; totals unknown, `itemsDone`/`bytesDone` hold what was found so far.
         case discovering
         case running
         /// Waiting for the user to answer a conflict or error dialog.
@@ -104,7 +101,7 @@ public struct TransferProgress: Sendable, Equatable {
     /// Known after discovery; nil while counting.
     public var itemsTotal: Int?
     public var bytesDone: Int64
-    /// Known after discovery; nil while counting and for same-volume moves (renames have no bytes).
+    /// Nil while counting and for same-volume moves (renames have no bytes).
     public var bytesTotal: Int64?
 
     public init(completed: Int, total: Int, currentName: String?, phase: Phase = .running,
@@ -139,15 +136,14 @@ public struct TransferReport: Sendable {
     /// Nested problems and skips found while merging or copying folders.
     public let details: [ItemResult]
     public let wasCancelled: Bool
-    /// Copies only: how each committed copy looked right after it was made, for Undo Copy.
+    /// Copies only: each copy's state right after it was made, for Undo Copy.
     public let fingerprints: [URL: ItemFingerprint]
 
     public var problems: [ItemResult] {
         (results + details).filter(\.outcome.isProblem)
     }
 
-    /// Items whose final committed location is known. The committed name can differ
-    /// from the requested one after "keep both" (FE-255).
+    /// Final locations; the name can differ from the requested one after "keep both" (FE-255).
     public var committed: [(source: URL, destination: URL)] {
         results.compactMap {
             if case .succeeded(let url) = $0.outcome { return ($0.source, url) }
@@ -156,17 +152,10 @@ public struct TransferReport: Sendable {
     }
 }
 
-/// Copies or moves a frozen list of sources into a destination folder (spec §9).
-///
-/// Safety rules: sources and destination are fixed at creation. Conflicts at each folder level
-/// are found first and asked together; every decision is re-checked when the item is reached and
-/// asked again if the destination changed meanwhile (FE-250). "Replace" moves the existing item
-/// to the Trash first (DEC-010). Nothing is ever written over (`COPYFILE_EXCL`, `RENAME_EXCL`).
-/// A cross-volume move removes each original only after its own copy succeeded (FE-122).
-/// Cancelling never rolls back finished work; the file being copied is removed.
-///
-/// The work runs on a dedicated thread so pausing or waiting for a dialog never blocks Swift's
-/// shared executor threads.
+/// Copies or moves a fixed list of sources into a folder (spec §9). Never overwrites (`COPYFILE_EXCL`,
+/// `RENAME_EXCL`); "Replace" trashes first (DEC-010); decisions are re-asked if the destination changed (FE-250);
+/// a cross-volume move removes each original only after its copy succeeded (FE-122). Cancel keeps finished work.
+/// Runs on its own thread so pauses and dialogs never block Swift's shared executor.
 public final class FileTransfer: @unchecked Sendable {
     public typealias ConflictResolver = @Sendable (Conflict) async -> ConflictDecision
     /// Answers all conflicts found at one folder level, one decision per conflict, in order.
@@ -185,7 +174,7 @@ public final class FileTransfer: @unchecked Sendable {
     public struct Options: Sendable {
         /// APFS clones where possible (instant, no extra space).
         public var allowClone = true
-        /// Debug/testing: caps the data rate so progress, pause and cancel can be watched.
+        /// Debug/testing: caps the data rate.
         public var bytesPerSecondLimit: Int64?
         /// Fingerprint each committed copy so Undo Copy can prove it is unchanged.
         public var fingerprintCopies = true
@@ -250,16 +239,14 @@ public final class FileTransfer: @unchecked Sendable {
     public func pause() { control.pause() }
     public func resume() { control.resume() }
 
-    /// When the job ends cancelled, keep its journal instead of deleting it, so the next launch
-    /// can show what didn't finish (set when the app quits mid-job).
+    /// Keep the journal of a cancelled job so the next launch can show it (set when quitting mid-job).
     public var retainsJournalWhenCancelled: Bool {
         get { lock.withLock { retainJournal } }
         set { lock.withLock { retainJournal = newValue } }
     }
     private var retainJournal = false
 
-    /// Set before `run` to be asked when the destination can't hold an item's properties (extended
-    /// attributes, access lists). Without a resolver such items are copied without them, as before.
+    /// Asked when the destination can't keep xattrs or ACLs; without one, items are copied without them.
     public var metadataLossResolver: MetadataLossResolver?
     /// How destination volumes are examined (replaceable in tests).
     public var capabilityCheck: CapabilityCheck = { VolumeCapabilities.of($0) }
@@ -271,7 +258,7 @@ public final class FileTransfer: @unchecked Sendable {
 
     // MARK: - Running
 
-    /// One-conflict-at-a-time resolver (kept for simple callers and tests).
+    /// Single-conflict resolver, for simple callers and tests.
     public func run(progress: @escaping @Sendable (TransferProgress) -> Void = { _ in },
                     resolveConflict: @escaping ConflictResolver,
                     resolveFailure: FailureResolver? = nil) async -> TransferReport {
@@ -382,7 +369,7 @@ public final class FileTransfer: @unchecked Sendable {
     }
 
     private func account(_ totals: TransferTotals) {
-        update { $0.itemsDone += totals.items; $0.bytesDone += totals.bytes }
+        update { $0.itemsDone += totals.items; $0.bytesDone = $0.bytesDone.saturatingAdd(totals.bytes) }
         emit()
     }
 
@@ -401,7 +388,7 @@ public final class FileTransfer: @unchecked Sendable {
         engine.bytesPerSecondLimit = options.bytesPerSecondLimit
         engine.bytesRemaining = { [unowned self] in lock.withLock { counters.bytesRemaining } }
         engine.hooks.bytes = { [unowned self] delta in
-            update { $0.bytesDone += delta }
+            update { $0.bytesDone = $0.bytesDone.saturatingAdd(delta) }
             emit()
         }
         engine.hooks.entryDone = { [unowned self] totals in account(totals) }
@@ -501,9 +488,8 @@ public final class FileTransfer: @unchecked Sendable {
         }
         let isFolder = FileOps.isPlainFolder(source)
         var target = folder.appendingPathComponent(source.lastPathComponent)
-        // The destination may spell the source's own folder differently (other letter case,
-        // a symbolic link): the "existing item" is then the source itself and must never be
-        // offered for replacing (QA-CORE-1).
+        // The destination may be the source's own folder spelled differently (case, symlink);
+        // never offer the source itself for replacing (QA-CORE-1).
         let intoOwnFolder = target.standardizedFileURL == source || FileOps.isSameEntry(target, source)
         if isFolder && !intoOwnFolder && FileOps.isSameOrInsideOnDisk(folder, source) {
             return Plan(source: source, target: folder,

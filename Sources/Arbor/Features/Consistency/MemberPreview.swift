@@ -2,9 +2,8 @@ import AppKit
 import Quartz
 import ArborCore
 
-/// Quick Look (Space) and the Preview pane for files inside archives: the member is extracted on
-/// demand to a read-only temporary copy (the same safe extraction as Open), at most `sizeLimit`
-/// bytes and one member at a time, and kept in a small cache so arrowing back is instant.
+/// Previews archive members via a read-only temp copy (same safe extraction as Open), capped at
+/// `sizeLimit` bytes, one at a time, with a small cache.
 enum MemberPreview {
     static let sizeLimit: Int64 = 64 * 1024 * 1024
     static let cacheLimit = 12

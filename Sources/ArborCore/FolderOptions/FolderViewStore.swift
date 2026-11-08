@@ -1,14 +1,12 @@
 import Foundation
 
-/// Saved per-folder views and "Apply to Folders" template defaults (FE-041, FE-052, FE-248).
-///
-/// A small JSON database in Application Support, bounded to `limit` folders (least recently used are
-/// pruned). It never writes inside the folders themselves. Not thread-safe: use it from one thread.
+/// Saved per-folder views and "Apply to Folders" defaults (FE-041, FE-052, FE-248), as JSON in Application Support.
+/// Keeps the `limit` most recently used; never writes inside folders. Not thread-safe.
 public final class FolderViewStore {
     public struct Entry: Codable, Equatable, Sendable {
         public var id: String?
         public var path: String
-        /// Template detected when the view was saved ("Apply to Folders" replaces views of the same type).
+        /// Template at save time ("Apply to Folders" drops views of that type).
         public var template: FolderTemplate?
         public var settings: FolderViewSettings
         public var lastUsed: Date
@@ -39,8 +37,7 @@ public final class FolderViewStore {
 
     // MARK: Lookup
 
-    /// The entry for a folder. An identity match wins. A path match is used only when either side has
-    /// no identity; a different identity at the same path is a different folder (replaced), so no match.
+    /// Identity match wins; a path match counts only if one side lacks an identity (else the folder was replaced).
     private func index(for identity: FolderIdentity) -> Int? {
         if let id = identity.id, let i = entries.firstIndex(where: { $0.id == id }) { return i }
         return entries.firstIndex { $0.path == identity.path && ($0.id == nil || identity.id == nil) }
@@ -48,7 +45,7 @@ public final class FolderViewStore {
 
     public func override(for identity: FolderIdentity) -> FolderViewSettings? {
         guard let i = index(for: identity) else { return nil }
-        // Refresh the use date at most daily so browsing doesn't rewrite the file constantly.
+        // At most daily, so browsing doesn't keep rewriting the file.
         let today = now()
         if today.timeIntervalSince(entries[i].lastUsed) > 86_400 {
             entries[i].lastUsed = today
@@ -91,7 +88,7 @@ public final class FolderViewStore {
         isDirty = true
     }
 
-    /// "Reset Folders": forget every saved folder view and every applied template default.
+    /// "Reset Folders": forget all saved views and template defaults.
     public func resetAll() {
         entries.removeAll()
         templates.removeAll()
@@ -125,7 +122,7 @@ public final class FolderViewStore {
         isDirty = false
     }
 
-    /// Encoded contents (cheap; call on the owning thread, write the data anywhere).
+    /// Cheap; call on the owning thread, write the data anywhere.
     public func encoded() -> Data? {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601

@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// This Mac (FE-074), Explorer's This PC: drive tiles grouped under "Devices and drives" and
-/// "Network locations", with capacity bars. Reloads when volumes mount, unmount or are renamed.
+/// This Mac (FE-074), Explorer's This PC: drive tiles with capacity bars. Reloads on mount, unmount, rename.
 final class ThisMacPageProvider: LocationProvider {
     func handles(_ location: Location) -> Bool { location == .thisMac }
 
@@ -26,7 +25,7 @@ final class ThisMacPageProvider: LocationProvider {
     func emptyText(for location: Location) -> String { L10n.tr("No drives are connected.") }
 }
 
-/// A drive tile: icon, name, capacity bar and "X GB free of Y GB".
+/// Drive tile: icon, name, capacity bar, "X GB free of Y GB".
 final class DriveTileView: TileView {
     let volume: VolumeSummary
     private let bar = CapacityBarView()
@@ -277,7 +276,7 @@ final class ThisMacPage: NSViewController, LocationPageStatus, LocationPageSelec
 
     func tileGrid(_ grid: TileGridView, unhandledKey event: NSEvent) -> Bool { browser?.itemViewKey(event) ?? false }
 
-    /// Dropping onto a drive copies into its root, like Explorer (the transfer engine decides copy vs move).
+    /// Dropping on a drive copies into its root (the transfer engine decides copy vs move).
     func tileGrid(_ grid: TileGridView, dropFolderAt index: Int) -> URL? {
         guard let v = entry(grid)?.volumes[index], !v.isReadOnly else { return nil }
         return v.url

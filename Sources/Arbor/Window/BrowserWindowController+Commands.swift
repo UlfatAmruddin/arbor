@@ -18,7 +18,7 @@ extension BrowserWindowController: NSMenuItemValidation {
         CommandRegistry.shared.perform(id, context: context(surface: surface, sender: sender))
     }
 
-    // Responder-chain actions (Edit menu): text fields get them first, then the window.
+    // Edit menu actions: text fields get them first, then the window.
     @objc func cut(_ sender: Any?) { performMenuAction(#selector(cut(_:)), sender) }
     @objc func copy(_ sender: Any?) { performMenuAction(#selector(copy(_:)), sender) }
     @objc func paste(_ sender: Any?) { performMenuAction(#selector(paste(_:)), sender) }

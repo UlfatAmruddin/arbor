@@ -1,9 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Every extension point in the app, grouped by area (DEC-024). The `extensions` script step lists
-/// them with their contributions in run order (scripts/list-extension-points.sh, docs/EXTENSION-POINTS.md).
-/// A new point goes in this list too; `ExtensionCatalogTests` checks that none is missing.
+/// Every extension point, by area (DEC-024), listed by the `extensions` step (scripts/list-extension-points.sh,
+/// docs/EXTENSION-POINTS.md). Add new points here; `ExtensionCatalogTests` checks none is missing.
 enum ExtensionCatalog {
     static let sections: [(title: String, points: [ExtensionPointInfo])] = [
         ("Interactions in item views", [
@@ -42,8 +41,8 @@ enum ExtensionCatalog {
 
     static var points: [ExtensionPointInfo] { sections.flatMap(\.points) }
 
-    /// One line per point (kind, name, contributions in run order), then the per-command overrides,
-    /// the script steps and the feature order. No paths or machine details: safe to publish as is.
+    /// One line per point (kind, name, contributions in run order), then overrides, script steps and feature
+    /// order. No paths or machine details: safe to publish.
     static func listing() -> String {
         var lines = ["features (registration order): " + Features.registeredOrder.joined(separator: ", ")]
         lines += points.map(\.listing)

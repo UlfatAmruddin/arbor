@@ -1,9 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Drive Properties ▸ File System (FE-188): what the drive's format can and can't do, read off the
-/// main thread, with plain-language limits (read-only NTFS, FAT32's 4 GB files, no Trash…) so nothing
-/// in Arbor promises what the drive can't deliver. A Mac addition: Windows shows only the format name.
+/// Drive Properties ▸ File System (FE-188): the format's limits in plain language, read off the main thread.
 final class FileSystemTab: PropertiesTab, PropertiesTabDebug {
     let title = L10n.tr("File System")
     let view: NSView

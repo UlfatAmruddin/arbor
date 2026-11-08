@@ -20,7 +20,7 @@ public enum ListingError: Error, Equatable, LocalizedError {
     }
 }
 
-/// Enumerates one folder level. Never recurses: disclosure arrows and folder sizes are not pre-scanned.
+/// One folder level only: disclosure arrows and folder sizes are never pre-scanned.
 public enum DirectoryLister {
     public static func list(_ folder: URL, includeHidden: Bool, fileManager: FileManager = .default) throws -> [FileItem] {
         let path = folder.path
@@ -29,9 +29,8 @@ public enum DirectoryLister {
             throw ListingError.notFound(path: path)
         }
         guard isDirectory.boolValue else { throw ListingError.notAFolder(path: path) }
-        // Streamed in batches rather than `contentsOfDirectory`: that returns every URL with its prefetched
-        // values at once (1.2 KB per entry, 120 MB for 100,000 entries) before any row exists, and the
-        // freed memory stayed with the process. Here at most one batch of URLs is alive (FE-228).
+        // Batched, not `contentsOfDirectory`, which holds every URL at once (~120 MB per 100k entries) and
+        // never returns the memory (FE-228).
         var failure: NSError?
         var options: FileManager.DirectoryEnumerationOptions = [.skipsSubdirectoryDescendants, .skipsPackageDescendants]
         if !includeHidden { options.insert(.skipsHiddenFiles) }
@@ -59,8 +58,7 @@ public enum DirectoryLister {
         return items
     }
 
-    /// Builds the rows; large folders in parallel chunks (reading the prefetched values is about half
-    /// of a 100,000-entry listing's time). Order is kept.
+    /// Large folders in parallel chunks (reading values is about half the listing time); keeps order.
     static func makeItems(_ urls: [URL]) -> [FileItem] {
         guard urls.count >= 4_000 else { return urls.compactMap(FileItem.init(url:)) }
         let chunks = max(1, min(8, ProcessInfo.processInfo.activeProcessorCount))
@@ -79,7 +77,7 @@ public enum DirectoryLister {
         return parts.lists.flatMap { $0 }
     }
 
-    /// Subfolders only, for the navigation tree.
+    /// For the navigation tree.
     public static func subfolders(of folder: URL, includeHidden: Bool) throws -> [FileItem] {
         try list(folder, includeHidden: includeHidden)
             .filter(\.isFolder)

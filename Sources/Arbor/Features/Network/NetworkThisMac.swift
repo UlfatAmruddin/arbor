@@ -1,10 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Mapped network drives in This Mac's "Network locations" and under This Mac in the navigation
-/// pane (FE-177), through the This Mac feature's `VolumeCatalog` hooks: connected shares get their
-/// `share (\\server)` label, and mapped drives that aren't connected are listed as unavailable
-/// (open = Reconnect). The catalog may be read off the main thread, so it reads a locked snapshot.
+/// Mapped drives in This Mac and its nav pane via `VolumeCatalog` hooks (FE-177); unconnected ones show unavailable
+/// (open = Reconnect). The catalog may be read off main, hence the locked snapshot.
 enum NetworkThisMac {
     struct Snapshot {
         /// Mount point path → label for connected shares.
@@ -31,13 +29,12 @@ enum NetworkThisMac {
         return NetworkCenter.shared.drives.drive(id: id)
     }
 
-    /// Where a disconnected mapped drive is listed: its last mount point (so tabs inside it and its
-    /// row agree), else `/Volumes/<share>`.
+    /// Last mount point (so tabs inside it and its row agree), else `/Volumes/<share>`.
     static func placeholder(for drive: MappedDrive) -> URL {
         URL(fileURLWithPath: drive.lastMountPoint ?? "/Volumes/\(drive.address.share ?? drive.address.hostDisplayName)").standardizedFileURL
     }
 
-    /// Rebuilds the snapshot (main thread), on every network change.
+    /// Main thread, on every network change.
     static func refresh() {
         let center = NetworkCenter.shared
         center.invalidateMounts()

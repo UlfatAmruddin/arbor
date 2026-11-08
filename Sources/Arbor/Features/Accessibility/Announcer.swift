@@ -1,9 +1,8 @@
 import AppKit
 import ArborCore
 
-/// VoiceOver announcements (FE-200, spec §16.2): the new location, selection counts (throttled), status
-/// bar outcomes (job completed, errors) and keyboard region changes. Progress and thumbnails are never
-/// announced. Every announcement is also kept in `recent` for scripted checks.
+/// VoiceOver announcements (FE-200, spec §16.2): location, throttled selection counts, status outcomes
+/// and region changes, never progress. All are kept in `recent` for scripted checks.
 enum Announcer {
     private(set) static var recent: [String] = []
     private static var selectionThrottle = AnnouncementThrottle(interval: 0.8)

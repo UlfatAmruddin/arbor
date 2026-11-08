@@ -6,9 +6,8 @@ enum PropertiesSubject {
     case file, folder, package, volume, multiple
 }
 
-/// The items of one Properties window, their state as read when the window opened, and the user's
-/// pending edits. Tabs edit `edited` through `edit(_:)`; Apply writes only what differs and detects
-/// changes made by other apps meanwhile (FE-150, spec §11.3).
+/// Items of one Properties window as read at open, plus pending edits. Apply writes only diffs and detects
+/// changes by other apps meanwhile (FE-150, spec §11.3).
 final class PropertiesModel {
     struct Entry {
         var url: URL
@@ -21,8 +20,7 @@ final class PropertiesModel {
     let subject: PropertiesSubject
     /// Called after edits or reloads so tabs refresh and the window enables Apply.
     var observers: [() -> Void] = []
-    /// Extra apply steps owned by tabs (folder template, folder icon, volume name). Return an error
-    /// message to stop, nil when done.
+    /// Extra apply steps owned by tabs (folder template, icon, volume name): error message to stop, nil when done.
     var extraAppliers: [String: () -> String?] = [:]
     var extraChanges: Set<String> = [] { didSet { notify() } }
 
@@ -49,7 +47,7 @@ final class PropertiesModel {
 
     func notify() { observers.forEach { $0() } }
 
-    /// Applies an edit to every item (multi-selection check boxes) or the single item.
+    /// Applies to every item (multi-selection check boxes) or the single item.
     func edit(_ body: (inout EditableState, EditableState) -> Void) {
         for i in entries.indices { body(&entries[i].edited, entries[i].original) }
         notify()
@@ -61,8 +59,7 @@ final class PropertiesModel {
 
     // MARK: External changes
 
-    /// Re-reads every item. Fields the user hasn't touched follow the disk silently; fields the user
-    /// edited that also changed on disk are returned as conflicts. Missing items are reported.
+    /// Untouched fields follow the disk; edited fields changed on disk (and missing items) are returned.
     @discardableResult
     func refreshFromDisk() -> (conflicts: [(name: String, fields: [EditableField])], missing: [String]) {
         var conflicts: [(String, [EditableField])] = []
@@ -90,8 +87,7 @@ final class PropertiesModel {
 
     // MARK: Apply
 
-    /// Applies pending edits, asking first when another app changed an edited field. Calls
-    /// `completion(true)` when everything was written; failures are reported in a sheet on `window`.
+    /// Asks first when another app changed an edited field; `completion(true)` when all written, failures in a sheet.
     func apply(in window: NSWindow?, completion: @escaping (Bool) -> Void) {
         let check = refreshFromDisk()
         if !check.missing.isEmpty {

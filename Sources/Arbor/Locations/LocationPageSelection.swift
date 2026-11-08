@@ -1,10 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Optional: a custom page (Home, This Mac…) whose items can be selected. The window then uses
-/// this selection for commands (Copy, Copy as path, Share, Open…), the status bar and side panes,
-/// exactly as it does for the item views. Call `BrowserWindowController.itemViewSelectionDidChange()`
-/// when it changes.
+/// Optional: a custom page (Home, This Mac…) with selectable items, used for commands, status bar and
+/// side panes like item views. Call `BrowserWindowController.itemViewSelectionDidChange()` on change.
 protocol LocationPageSelection: AnyObject {
     var selectedItems: [FileItem] { get }
 }

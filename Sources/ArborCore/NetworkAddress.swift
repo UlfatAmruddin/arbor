@@ -1,18 +1,14 @@
 import Foundation
 
 /// A server, a share on it, or a folder inside that share (FE-014, FE-176, FE-187).
-///
-/// Passwords are never kept: parsing drops any password embedded in a URL, so an address can be
-/// persisted and logged safely (FE-178). Identity compares scheme, host, port, share and account,
-/// case-insensitively like SMB; a display name alone is never an identity.
+/// Never holds a password, so it is safe to persist and log (FE-178). Identity is case-insensitive, like SMB.
 public struct NetworkAddress: Hashable, Codable, Sendable, CustomStringConvertible {
-    /// "smb", "afp", "nfs" or "cifs" (stored as "smb").
+    /// "smb", "afp" or "nfs"; "cifs" is stored as "smb".
     public var scheme: String
     public var host: String
     public var port: Int?
-    /// Account name from the URL (`smb://user@host/share`), if any.
     public var user: String?
-    /// Share name; nil for the server itself.
+    /// nil for the server itself.
     public var share: String?
     /// Folders inside the share.
     public var path: [String]
@@ -27,7 +23,7 @@ public struct NetworkAddress: Hashable, Codable, Sendable, CustomStringConvertib
         self.path = path.filter { !$0.isEmpty }
     }
 
-    /// From `smb://[user[:password]@]host[:port]/share/folder`. The password is discarded.
+    /// `smb://[user[:password]@]host[:port]/share/folder`; the password is discarded.
     public init?(url: URL) {
         guard let scheme = url.scheme?.lowercased(), PathResolver.networkSchemes.contains(scheme) else { return nil }
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -38,8 +34,7 @@ public struct NetworkAddress: Hashable, Codable, Sendable, CustomStringConvertib
                   share: parts.first, path: Array(parts.dropFirst()))
     }
 
-    /// Parses what a person types: `\\server\share\folder`, `//server/share`, `smb://server/share`,
-    /// `afp://server`. Uses `PathResolver` so the address bar and Map network drive agree.
+    /// Typed `\\server\share`, `//server/share` or `smb://…`. Uses `PathResolver` so the address bar and Map network drive agree.
     public static func parse(_ text: String) -> NetworkAddress? {
         var t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.hasPrefix("//"), !t.hasPrefix("///") { t = "\\\\" + t.dropFirst(2).replacingOccurrences(of: "/", with: "\\") }
@@ -49,10 +44,10 @@ public struct NetworkAddress: Hashable, Codable, Sendable, CustomStringConvertib
 
     public var isServer: Bool { share == nil }
 
-    /// The server alone (no account, share or folder).
+    /// No account, share or folder.
     public var server: NetworkAddress { NetworkAddress(scheme: scheme, host: host, port: port) }
 
-    /// The share root (keeps the account), or nil for a server.
+    /// Keeps the account; nil for a server.
     public var shareRoot: NetworkAddress? {
         share.map { NetworkAddress(scheme: scheme, host: host, port: port, user: user, share: $0) }
     }
@@ -69,8 +64,10 @@ public struct NetworkAddress: Hashable, Codable, Sendable, CustomStringConvertib
         return copy
     }
 
-    /// `smb://user@host/share/folder` (never contains a password).
-    public var url: URL {
+    /// Never contains a password. nil only when no URL can be formed (a malformed scheme or port).
+    public var url: URL? {
+        // URLComponents traps on these rather than failing.
+        guard scheme.range(of: "^[A-Za-z][A-Za-z0-9+.-]*$", options: .regularExpression) != nil, (port ?? 0) >= 0 else { return nil }
         var c = URLComponents()
         c.scheme = scheme
         c.host = host
@@ -78,15 +75,23 @@ public struct NetworkAddress: Hashable, Codable, Sendable, CustomStringConvertib
         c.user = user
         let parts = (share.map { [$0] } ?? []) + path
         c.path = parts.isEmpty ? "" : "/" + parts.joined(separator: "/")
-        return c.url ?? URL(string: "\(scheme)://\(host)")!
+        if let url = c.url { return url }
+        // URLComponents rejects hosts with spaces, "\" or "%" (Bonjour, mount table); URL(string:) takes them escaped.
+        guard let escapedHost = host.addingPercentEncoding(withAllowedCharacters: Self.hostNameAllowed) else { return nil }
+        let account = c.percentEncodedUser.map { $0 + "@" } ?? ""
+        let portSuffix = port.map { ":\($0)" } ?? ""
+        return URL(string: "\(scheme)://\(account)\(escapedHost)\(portSuffix)\(c.percentEncodedPath)")
     }
 
-    /// Windows notation: `\\host\share\folder`.
+    /// RFC 3986 reg-name characters, without "%" so it is escaped too.
+    private static let hostNameAllowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~!$&'()*+,;=")
+
+    /// `\\host\share\folder`.
     public var unc: String {
         (["\\\\" + host] + (share.map { [$0] } ?? []) + path).joined(separator: "\\")
     }
 
-    /// Host without a trailing `.local` / dot, as computers are named in the Network page.
+    /// Host without a trailing `.local` or dot, as on the Network page.
     public var hostDisplayName: String {
         var h = host
         if h.hasSuffix(".") { h.removeLast() }
@@ -94,7 +99,7 @@ public struct NetworkAddress: Hashable, Codable, Sendable, CustomStringConvertib
         return h
     }
 
-    /// Explorer's mapped-drive label: `Media (\\NAS-01)` (without a drive letter, DEC-019).
+    /// `Media (\\NAS-01)`, without a drive letter (DEC-019).
     public var driveLabel: String {
         guard let share else { return hostDisplayName }
         return "\(share) (\\\\\(hostDisplayName))"
@@ -104,19 +109,19 @@ public struct NetworkAddress: Hashable, Codable, Sendable, CustomStringConvertib
 
     // MARK: Identity (FE-187)
 
-    /// Same server: scheme, host and port, ignoring case and a trailing `.local.` dot.
+    /// Scheme, host and port, ignoring case and a trailing dot.
     public func sameServer(as other: NetworkAddress) -> Bool {
         scheme == other.scheme && Self.normalizedHost(host) == Self.normalizedHost(other.host) && (port ?? 0) == (other.port ?? 0)
     }
 
-    /// Same server and share (case-insensitive, like SMB). Accounts must match when both are known.
+    /// Accounts must match only when both are known.
     public func sameShare(as other: NetworkAddress) -> Bool {
         guard sameServer(as: other), let a = share, let b = other.share, a.lowercased() == b.lowercased() else { return false }
         if let u1 = user, let u2 = other.user { return Self.normalizedUser(u1) == Self.normalizedUser(u2) }
         return true
     }
 
-    /// A stable string for the share's identity: `smb://user@host:port/share`, lowercased.
+    /// Lowercased `smb://user@host:port/share`.
     public var identityKey: String {
         var key = scheme + "://"
         if let user { key += Self.normalizedUser(user) + "@" }
@@ -132,7 +137,7 @@ public struct NetworkAddress: Hashable, Codable, Sendable, CustomStringConvertib
         return h
     }
 
-    /// `DOMAIN;user` and `user` refer to the same account for matching purposes.
+    /// `DOMAIN;user` matches `user`.
     static func normalizedUser(_ user: String) -> String {
         let u = user.lowercased()
         if let semicolon = u.lastIndex(of: ";") { return String(u[u.index(after: semicolon)...]) }
@@ -141,8 +146,7 @@ public struct NetworkAddress: Hashable, Codable, Sendable, CustomStringConvertib
 
     // MARK: Mount table
 
-    /// Parses a mount table "from" name: smbfs `//user@host/share`, afpfs `afp_xxx`-style names are
-    /// not addresses and return nil; nfs `host:/export`.
+    /// Mount table "from" name: smbfs `//user@host/share` or nfs `host:/export`; others return nil.
     public static func fromMountSource(_ source: String, fileSystem: String) -> NetworkAddress? {
         switch fileSystem.lowercased() {
         case "smbfs":
@@ -150,7 +154,7 @@ public struct NetworkAddress: Hashable, Codable, Sendable, CustomStringConvertib
             var rest = String(source.dropFirst(2))
             var user: String?
             if let at = rest.lastIndex(of: "@"), let slash = rest.firstIndex(of: "/"), at < slash {
-                // "user:password@" never happens in the mount table, but "GUEST:@" does; keep the name only.
+                // "GUEST:@" occurs; keep the name only.
                 user = String(rest[..<at]).split(separator: ":", omittingEmptySubsequences: false).first.map(String.init)?.removingPercentEncoding
                 rest = String(rest[rest.index(after: at)...])
             }

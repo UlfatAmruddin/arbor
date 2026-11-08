@@ -69,8 +69,7 @@ extension Fixture {
     }
 }
 
-/// A small real HFS+ volume (for genuine cross-volume moves and disk-full errors). Nil if
-/// disk images can't be mounted on this machine; those tests then return early.
+/// A real HFS+ volume for cross-volume moves and disk-full errors; nil (test skipped) if mounting fails.
 final class ScratchVolume {
     let image: URL
     let mount: URL
@@ -179,7 +178,6 @@ struct TransferProgressTests {
                 if p.phase == .running, p.bytesDone > 8 * MB, paused.trip() { transfer.pause() }
             }, resolveConflict: neverAsked)
         }
-        // Wait until paused.
         for _ in 0..<12_000 where !transfer.isPaused { try await Task.sleep(nanoseconds: 10_000_000) }
         #expect(transfer.isPaused)
         let atPause = transfer.currentProgress.bytesDone
@@ -687,8 +685,7 @@ struct CopyUndoTests {
         let report = await fx.job(.copy, ["src/a.txt", "src/b.txt", "src/c.txt", "src/F", "src/G", "src/H"], to: "dst")
             .run(resolveConflict: neverAsked)
         #expect(report.fingerprints.count == 6)
-        // a: untouched. b: edited. c: replaced by a same-size file. F: Finder wrote .DS_Store.
-        // G: a file inside edited. H: deleted.
+        // a untouched, b edited, c same-size replacement, F gets .DS_Store, G inner file edited, H deleted.
         try "BB".write(to: fx.url("dst/b.txt"), atomically: false, encoding: .utf8)
         try FileManager.default.removeItem(at: fx.url("dst/c.txt"))
         try "Q".write(to: fx.url("dst/c.txt"), atomically: false, encoding: .utf8)
@@ -747,6 +744,30 @@ struct TransferRateTests {
         #expect(TransferRateEstimator.describeSpeed(45.25 * 1024 * 1024) == "45.2 MB/s")   // 1024-based, like Explorer
     }
 
+    @Test func remainingTimeOutOfRangeIsCalculating() {
+        for seconds in [Double.infinity, -.infinity, .nan, 1e9, 5.7e20, .greatestFiniteMagnitude] {
+            #expect(TransferRateEstimator.describeRemaining(seconds) == "Calculating…", "\(seconds)")
+        }
+        #expect(TransferRateEstimator.describeRemaining(1e8) == "About 1157 days")
+    }
+
+    @Test func emptyItemsAfterALargeFileNeverTrapTheEstimate() {
+        // 200 MB in 2 s, then only empty folders: each record decays the rate toward zero.
+        var rate = TransferRateEstimator()
+        var t = 0.0
+        while t < 2 { rate.record(bytes: Int64(t * 100) * MB, at: t); t += 0.1 }
+        let total = 200 * MB
+        while t < 60 {
+            rate.record(bytes: total, at: t)
+            if let eta = rate.secondsRemaining(MB, at: t) {
+                #expect(eta <= Double(MB) + 1, "at least 1 B/s, so at most 1 MB of seconds")
+                _ = TransferRateEstimator.describeRemaining(eta)
+            }
+            t += 0.1
+        }
+        #expect(rate.bytesPerSecond(at: t) == nil, "a rate under 1 B/s is Calculating…")
+    }
+
     @Test func progressFractionPrefersBytes() {
         var p = TransferProgress(completed: 0, total: 2, currentName: nil, phase: .discovering)
         #expect(p.fraction == nil)
@@ -756,5 +777,204 @@ struct TransferRateTests {
         p.bytesTotal = 100; p.bytesDone = 25
         #expect(p.fraction == 0.25)
         #expect(p.bytesRemaining == 75 && p.itemsRemaining == 5)
+    }
+}
+
+// MARK: - Items that change under a running copy or move
+
+final class DetailLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var items: [ItemResult] = []
+    func add(_ r: ItemResult) { lock.withLock { items.append(r) } }
+    var all: [ItemResult] { lock.withLock { items } }
+}
+
+final class ByteCount: @unchecked Sendable {
+    private let lock = NSLock()
+    private var sum: Int64 = 0
+    func add(_ n: Int64) { lock.withLock { sum += n } }
+    var total: Int64 { lock.withLock { sum } }
+}
+
+@Suite("Copy engine: concurrent changes")
+struct CopyEngineRaceTests {
+    private func engine() -> CopyEngine { CopyEngine(control: TransferControl(), allowClone: false, verb: "copy") }
+
+    @Test func failedPackageCopyKeepsAnItemThatAppearedAtTheTarget() throws {
+        let fx = try Fixture()
+        let source = try fx.file("src/Tool.app/Contents/Info.plist", "plist").deletingLastPathComponent().deletingLastPathComponent()
+        try #require(CopyEngine.isPackage(source))
+        try fx.file("dst/Tool.app/theirs.txt", "theirs")   // made by someone else after planning
+        let outcome = engine().copyItem(source, to: fx.url("dst/Tool.app"), moveSource: false)
+        guard case .failed = outcome else { Issue.record("expected failed, got \(outcome)"); return }
+        #expect(fx.read("dst/Tool.app/theirs.txt") == "theirs")
+        #expect(fx.exists("src/Tool.app/Contents/Info.plist"))
+    }
+
+    @Test func failedPackageCopyRemovesOnlyItsOwnTree() throws {
+        let fx = try Fixture()
+        try fx.file("src/Tool.app/Contents/a.txt", "a")
+        try fx.file("src/Tool.app/Contents/locked.txt", "l")
+        chmod(fx.url("src/Tool.app/Contents/locked.txt").path, 0)
+        defer { chmod(fx.url("src/Tool.app/Contents/locked.txt").path, 0o644) }
+        try fx.folder("dst")
+        let outcome = engine().copyItem(fx.url("src/Tool.app"), to: fx.url("dst/Tool.app"), moveSource: false)
+        guard case .failed = outcome else { Issue.record("expected failed, got \(outcome)"); return }
+        #expect(!fx.exists("dst/Tool.app"), "packages are all-or-nothing")
+    }
+
+    @Test func moveKeepsTheItemAPathLeadsToAfterTheParentIsSwappedForALink() throws {
+        let fx = try Fixture()
+        try fx.file("src/Project/notes.txt", "mine")
+        try fx.file("victim/notes.txt", "victim")
+        try fx.folder("dst")
+        let e = engine()
+        let swapped = Flag()
+        let log = DetailLog()
+        e.hooks.detail = { log.add($0) }
+        e.hooks.entryDone = { _ in
+            guard swapped.trip() else { return }   // right after notes.txt is copied
+            try? FileManager.default.moveItem(at: fx.url("src/Project"), to: fx.url("src/Project-old"))
+            try? FileManager.default.createSymbolicLink(at: fx.url("src/Project"), withDestinationURL: fx.url("victim"))
+        }
+        _ = e.copyItem(fx.url("src/Project"), to: fx.url("dst/Project"), moveSource: true)
+        #expect(fx.read("victim/notes.txt") == "victim", "a file outside the source is never removed")
+        #expect(!fx.exists("src/Project-old/notes.txt"), "the copied original is removed from the folder that was listed")
+        #expect(fx.exists("src/Project-old"), "the folder the path no longer leads to is kept")
+        #expect(fx.read("dst/Project/notes.txt") == "mine")
+        #expect(log.all.contains { if case .copiedButSourceRemains = $0.outcome { return true }; return false })
+    }
+
+    @Test func moveKeepsAnOriginalReplacedAfterItsCopy() throws {
+        let fx = try Fixture()
+        let file = try fx.file("src/a.txt", "copied")
+        try fx.folder("dst")
+        let e = engine()
+        e.hooks.entryDone = { _ in
+            try? FileManager.default.removeItem(at: file)
+            try? "newer".write(to: file, atomically: false, encoding: .utf8)
+        }
+        #expect(e.copyItem(file, to: fx.url("dst/a.txt"), moveSource: true) == .done)
+        #expect(fx.read("src/a.txt") == "newer")
+        #expect(fx.read("dst/a.txt") == "copied")
+
+        let plain = try fx.file("src/b.txt", "b")
+        #expect(engine().copyItem(plain, to: fx.url("dst/b.txt"), moveSource: true) == .done)
+        #expect(!fx.exists("src/b.txt"), "an unchanged original is still removed")
+    }
+
+    @Test func moveNeverTakesAFileOutsideTheSourceWhenTheParentIsSwappedBeforeAChild() throws {
+        let fx = try Fixture()
+        for name in ["a.txt", "b.txt"] {
+            try fx.file("src/Project/\(name)", "mine \(name)")
+            try fx.file("victim/\(name)", "victim \(name)")
+        }
+        try fx.folder("dst")
+        let e = engine()
+        let swapped = Flag()
+        e.hooks.entryDone = { _ in
+            guard swapped.trip() else { return }   // after the first child, before the second
+            try? FileManager.default.moveItem(at: fx.url("src/Project"), to: fx.url("src/Project-old"))
+            try? FileManager.default.createSymbolicLink(at: fx.url("src/Project"), withDestinationURL: fx.url("victim"))
+        }
+        _ = e.copyItem(fx.url("src/Project"), to: fx.url("dst/Project"), moveSource: true)
+        for name in ["a.txt", "b.txt"] {
+            #expect(fx.read("victim/\(name)") == "victim \(name)", "a file outside the source is never removed")
+            #expect(fx.exists("dst/Project/\(name)") != fx.exists("src/Project-old/\(name)"), "\(name) is in one place")
+            if let copied = fx.read("dst/Project/\(name)") { #expect(copied == "mine \(name)", "only the source's own content") }
+        }
+    }
+
+    @Test func movedPackageIsRemovedThroughRemoveTreeWithoutFollowingItsLinks() throws {
+        let fx = try Fixture()
+        try fx.file("src/Project/Tool.app/Contents/Info.plist", "plist")
+        try fx.file("src/Project/Tool.app/Contents/Resources/r.txt", "r")
+        try fx.file("outside/keep.txt", "keep")
+        try FileManager.default.createSymbolicLink(at: fx.url("src/Project/Tool.app/Contents/out"), withDestinationURL: fx.url("outside"))
+        try #require(CopyEngine.isPackage(fx.url("src/Project/Tool.app")))
+        try fx.folder("dst")
+        #expect(engine().copyItem(fx.url("src/Project"), to: fx.url("dst/Project"), moveSource: true) == .done)
+        #expect(!fx.exists("src/Project"), "the package and its emptied folder are gone")
+        #expect(fx.read("dst/Project/Tool.app/Contents/Resources/r.txt") == "r")
+        #expect(fx.read("outside/keep.txt") == "keep")
+    }
+
+    /// src/Project holds files listed before `name`; victim holds its own `name`.
+    /// After the first file is copied, Project is swapped for a link to victim.
+    private func moveWithParentSwappedBeforeAPackage(_ fx: Fixture, _ name: String) throws {
+        try fx.file("src/Project/\(name)/Contents/mine.txt", "mine")
+        try fx.file("victim/\(name)/Contents/theirs.txt", "theirs")
+        try fx.folder("dst")
+        let fd = open(fx.url("src/Project").path, O_RDONLY | O_DIRECTORY)
+        try #require(fd >= 0)
+        defer { close(fd) }
+        // Listing order is the file system's, so add files until one comes before the package.
+        for i in 0..<32 where FileOps.entryNames(of: fd)?.first ?? name == name {
+            try fx.file("src/Project/f\(i).txt", "mine \(i)")
+        }
+        try #require(FileOps.entryNames(of: fd)?.first != name, "the swap must fall before the package")
+        let e = engine()
+        let swapped = Flag()
+        e.hooks.entryDone = { _ in
+            guard swapped.trip() else { return }
+            try? FileManager.default.moveItem(at: fx.url("src/Project"), to: fx.url("src/Project-old"))
+            try? FileManager.default.createSymbolicLink(at: fx.url("src/Project"), withDestinationURL: fx.url("victim"))
+        }
+        _ = e.copyItem(fx.url("src/Project"), to: fx.url("dst/Project"), moveSource: true)
+        #expect(swapped.isSet)
+        #expect(fx.read("victim/\(name)/Contents/theirs.txt") == "theirs", "the outside package is never removed")
+        #expect(!fx.exists("dst/Project/\(name)/Contents/theirs.txt"), "the outside package is never copied")
+        let kept = fx.read("src/Project-old/\(name)/Contents/mine.txt")
+        let moved = fx.read("dst/Project/\(name)/Contents/mine.txt")
+        #expect((kept ?? moved) == "mine" && (kept == nil) != (moved == nil), "the real item is in exactly one place")
+    }
+
+    @Test func moveNeverTakesAnOutsidePackageWhenTheParentIsSwappedBeforeIt() throws {
+        let fx = try Fixture()
+        try moveWithParentSwappedBeforeAPackage(fx, "Tool.app")
+        try #require(CopyEngine.isPackage(fx.url("victim/Tool.app")))
+    }
+
+    @Test func aPlainFolderIsNotTakenForAPackageThroughASwappedParent() throws {
+        let fx = try Fixture()
+        try fx.folder("victim/Plain")
+        var info = [UInt8](repeating: 0, count: 32)
+        info[8] = 0x20   // kHasBundle
+        try #require(setxattr(fx.url("victim/Plain").path, "com.apple.FinderInfo", &info, 32, 0, 0) == 0)
+        try #require(CopyEngine.isPackage(fx.url("victim/Plain")))
+        try moveWithParentSwappedBeforeAPackage(fx, "Plain")
+        #expect(fx.read("src/Project-old/Plain/Contents/mine.txt") == "mine", "never removed as a whole package")
+    }
+
+    @Test func anOutsideFileFoundAfterASwapIsNotReadAtAll() throws {
+        let fx = try Fixture()
+        try fx.file("src/Project/a.txt", "a")
+        try fx.file("src/Project/b.txt", "b")
+        try fx.file("victim/a.txt", String(repeating: "v", count: 4 << 20))
+        try fx.file("victim/b.txt", String(repeating: "v", count: 4 << 20))
+        try fx.folder("dst")
+        let e = engine()
+        let swapped = Flag()
+        let counted = ByteCount()
+        e.hooks.bytes = { if $0 > 0 { counted.add($0) } }
+        e.hooks.entryDone = { _ in
+            guard swapped.trip() else { return }
+            try? FileManager.default.moveItem(at: fx.url("src/Project"), to: fx.url("src/Project-old"))
+            try? FileManager.default.createSymbolicLink(at: fx.url("src/Project"), withDestinationURL: fx.url("victim"))
+        }
+        _ = e.copyItem(fx.url("src/Project"), to: fx.url("dst/Project"), moveSource: true)
+        #expect(swapped.isSet)
+        #expect(counted.total <= 2, "the data stage stops before any of the outside file is copied")
+    }
+
+    @Test func entryNamesCanListTheSameDescriptorTwice() throws {
+        let fx = try Fixture()
+        try fx.file("f/a")
+        try fx.file("f/b")
+        let fd = open(fx.url("f").path, O_RDONLY | O_DIRECTORY)
+        try #require(fd >= 0)
+        defer { close(fd) }
+        #expect(FileOps.entryNames(of: fd)?.sorted() == ["a", "b"])
+        #expect(FileOps.entryNames(of: fd)?.sorted() == ["a", "b"])
     }
 }

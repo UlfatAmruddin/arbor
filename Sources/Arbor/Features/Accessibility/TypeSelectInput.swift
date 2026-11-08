@@ -1,11 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Type-to-select through the input method (FE-068). The file lists aren't text views, so typed keys used to
-/// arrive as raw characters and a Japanese or Chinese name couldn't be typed. This object is the lists' text
-/// input client: keys go through an input context of their own, the uncommitted (marked) text is shown in a
-/// small box at the top left of the list, and committed text drives type-to-select. While text is being
-/// composed every key belongs to the input method, so arrows pick candidates instead of moving the selection.
+/// Text input client for type-to-select in the file lists, so CJK names can be typed (FE-068).
+/// While composing, every key belongs to the input method (arrows pick candidates, not rows).
 final class TypeSelectInput: NSObject, NSTextInputClient {
     private weak var view: NSView?
     private let onCommit: (String) -> Void
@@ -15,7 +12,7 @@ final class TypeSelectInput: NSObject, NSTextInputClient {
     private var passedThrough = false
     private lazy var box = CompositionBox()
 
-    /// `onCommit` receives each committed piece of text (a letter, or a whole composed word).
+    /// `onCommit` gets each committed piece: a letter or a whole composed word.
     init(view: NSView, onCommit: @escaping (String) -> Void) {
         self.view = view
         self.onCommit = onCommit
@@ -123,7 +120,7 @@ final class TypeSelectInput: NSObject, NSTextInputClient {
     var debugText: String { hasMarkedText() ? "composing \"\(markedText)\"" : "idle" }
 }
 
-/// The marked (uncommitted) text, underlined like an input method shows it, in a small bordered box.
+/// The marked (uncommitted) text, underlined, in a small bordered box.
 final class CompositionBox: NSView {
     private let label = NSTextField(labelWithString: "")
 
@@ -163,8 +160,7 @@ final class CompositionBox: NSView {
     }
 }
 
-/// Type-to-select for a table-based list (Details): Explorer's rules (`TypeSelect`) on committed text from the
-/// input method, instead of NSTableView's own type-select, which reads raw key characters.
+/// Details type-to-select: `TypeSelect` rules on committed IME text, not NSTableView's raw-key version.
 final class ListTypeSelect {
     private var buffer = TypeSelect()
     private let names: () -> [String]

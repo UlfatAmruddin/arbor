@@ -1,11 +1,8 @@
 import AppKit
 import ArborCore
 
-/// "Verify after copying" (FE-130): an optional, per-job pass after a copy finishes that reads every
-/// copy back and compares size and SHA-256 with the original (`CopyVerifier`). It is reported as its
-/// own state ("Verified" / "Verification failed"), never folded into "copied". Off by default.
-/// Moves aren't verified: a cross-volume move removes each original right after its copy, so there
-/// is nothing left to compare against afterwards. Main thread, except the pass itself.
+/// "Verify after copying" (FE-130): reads copies back and compares size and SHA-256 (`CopyVerifier`),
+/// reported as its own state. Off by default. Moves aren't verified: the originals are gone. Main thread, except the pass.
 enum JobVerification {
     private static var requested: [UUID: Bool] = [:]
     private static var running: [UUID: (done: Int64, total: Int64)] = [:]
@@ -44,10 +41,9 @@ enum JobVerification {
             OperationCenter.shared.post()
         }
         let control = job.transfer.control
-        // Headless test runs may slow verification down (`ARBOR_VERIFY_THROTTLE`, bytes per second)
-        // so scripts can photograph the "Verifying copies…" state. Ignored in normal use.
-        let throttle = AppDelegate.isHeadless ? ProcessInfo.processInfo.environment["ARBOR_VERIFY_THROTTLE"].flatMap(Double.init) : nil
-        // A dedicated thread: hashing large files must not hold one of Swift's shared executor threads.
+        // `ARBOR_VERIFY_THROTTLE` (bytes/s) slows headless runs so scripts can photograph "Verifying copies…".
+        let throttle = AppDelegate.isHeadless ? Automation.environment["ARBOR_VERIFY_THROTTLE"].flatMap(Double.init) : nil
+        // Own thread: hashing large files must not hold a shared executor thread.
         let result: VerificationResult = await withCheckedContinuation { continuation in
             let thread = Thread {
                 var last = Date.distantPast
@@ -76,8 +72,7 @@ enum JobVerification {
         }
     }
 
-    /// After the job's own report: says whether the copies matched (status bar), or lists the
-    /// files that didn't (alert, like the end-of-job problem summary).
+    /// After the job's report: a status-bar line if copies matched, else an alert listing the mismatches.
     static func report(_ job: OperationCenter.Job) {
         guard let result = results.removeValue(forKey: job.id) else { requested[job.id] = nil; return }
         requested[job.id] = nil

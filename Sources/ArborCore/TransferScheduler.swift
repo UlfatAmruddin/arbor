@@ -1,22 +1,15 @@
 import Foundation
 
-/// Decides when copy and move jobs start (FE-127). This goes beyond Explorer, which always runs
-/// jobs side by side: with both options off (the default) every job starts at once, like Windows.
-///
-/// - `queueSameDrive`: a job waits while another running job uses one of its drives (source or
-///   destination volume), so two transfers don't fight over the same disk. Jobs on other drives
-///   still start.
-/// - `concurrencyLimit`: at most this many jobs run at once (0 = no limit). Waiting jobs start in
-///   queue order; a job that has to wait for its drive doesn't hold back jobs on other drives.
-/// - Order: waiting jobs can be moved up or down. "Defer" holds a job back until nothing else is
-///   running or waiting (or until it is started by hand).
-/// - "Start now" runs a waiting job immediately, whatever the rules say.
+/// Decides when copy and move jobs start (FE-127). With both options off (default) all start at once, like Windows.
+/// - `queueSameDrive`: a job waits while a running job uses one of its drives; jobs on other drives still start.
+/// - `concurrencyLimit`: at most this many run (0 = no limit); a job waiting for its drive doesn't block others.
+/// - Waiting jobs can be reordered. "Defer" waits until nothing else runs or waits; "Start now" ignores the rules.
 public struct TransferScheduler: Sendable, Equatable {
     public enum State: String, Sendable { case waiting, running }
 
     public struct Entry: Sendable, Equatable {
         public let id: UUID
-        /// Volume identities the job reads from or writes to.
+        /// Volume identities the job reads or writes.
         public let drives: Set<String>
         public var state: State
         public var deferred: Bool
@@ -68,7 +61,7 @@ public struct TransferScheduler: Sendable, Equatable {
         return startable()
     }
 
-    /// The rules changed (settings); returns the jobs that may start now. Running jobs are never stopped.
+    /// Settings changed; returns the jobs that may start now. Running jobs are never stopped.
     public mutating func reconfigure(queueSameDrive: Bool, concurrencyLimit: Int) -> [UUID] {
         self.queueSameDrive = queueSameDrive
         self.concurrencyLimit = max(0, concurrencyLimit)
@@ -142,8 +135,7 @@ public struct TransferScheduler: Sendable, Equatable {
 }
 
 public extension FileOps {
-    /// A stable identity for the volume holding `url` (its file system ID), for "same drive" checks.
-    /// Uses the nearest existing ancestor, so a destination that doesn't exist yet still resolves.
+    /// Volume identity (file system ID) of `url`'s nearest existing ancestor, so a missing destination resolves.
     static func driveIdentity(_ url: URL) -> String? {
         var current = url.standardizedFileURL
         for _ in 0..<64 {

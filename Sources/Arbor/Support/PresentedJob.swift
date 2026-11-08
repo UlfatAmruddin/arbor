@@ -1,7 +1,6 @@
 import Foundation
 
-/// Wording and source that conflict dialogs show for a job whose transfer moves items out of a hidden
-/// staging folder: "Extracting 2 items from Archive.zip to Reports", not the staging folder's name.
+/// What conflict dialogs show for a job moving items out of a hidden staging folder (not its name).
 struct PresentedJob {
     var progressVerb: String
     var gerund: String

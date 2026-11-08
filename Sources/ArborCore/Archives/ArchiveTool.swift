@@ -1,7 +1,6 @@
 import Foundation
 
-/// Runs one system tool (`bsdtar`, `ditto`, `hdiutil`) with an argument array — never a shell
-/// string — and can be cancelled from another thread.
+/// Runs one system tool (`bsdtar`, `ditto`, `hdiutil`) with an argument array, never a shell string; cancellable.
 public final class ToolProcess: @unchecked Sendable {
     public struct Output: Sendable {
         public var status: Int32
@@ -9,6 +8,8 @@ public final class ToolProcess: @unchecked Sendable {
         /// The last part of stderr (bounded).
         public var stderr: String
         public var wasCancelled: Bool
+        /// stdout passed `stdoutLimit`; the tool was stopped and `stdout` is incomplete.
+        public var stdoutOverflowed: Bool
     }
 
     private let lock = NSLock()
@@ -36,9 +37,9 @@ public final class ToolProcess: @unchecked Sendable {
         return env
     }()
 
-    /// Runs to completion. `onStderrLine` sees each stderr line as it arrives (progress).
+    /// Runs to completion. `onStderrLine` sees each stderr line as it arrives (progress); past `stdoutLimit` it stops the tool.
     public func run(_ executable: String, _ arguments: [String], environment: [String: String] = ToolProcess.toolEnvironment,
-                    collectStdout: Bool = true, onStderrLine: ((Substring) -> Void)? = nil) throws -> Output {
+                    collectStdout: Bool = true, stdoutLimit: Int? = nil, onStderrLine: ((Substring) -> Void)? = nil) throws -> Output {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: executable)
         p.arguments = arguments
@@ -51,15 +52,15 @@ public final class ToolProcess: @unchecked Sendable {
 
         final class Collected: @unchecked Sendable {
             var stdout = Data()
+            var stdoutOverflowed = false
             var stderrTail = Data()
             let onLine: ((Substring) -> Void)?
             init(_ onLine: ((Substring) -> Void)?) { self.onLine = onLine }
         }
         let collected = Collected(onStderrLine)
         let group = DispatchGroup()
-        // The pipes are drained on dedicated threads, not the shared dispatch pool: callers block a pool
-        // thread while waiting here, and with several tools running at once the readers could never be
-        // scheduled (every run waited forever for its own reader).
+        // Drain pipes on dedicated threads: callers block pool threads here, so with several tools running
+        // pool-scheduled readers could starve and every run would wait forever.
         func reader(_ body: @escaping @Sendable () -> Void) {
             let thread = Thread(block: body)
             thread.qualityOfService = .utility
@@ -68,7 +69,17 @@ public final class ToolProcess: @unchecked Sendable {
         if collectStdout {
             group.enter()
             reader {
-                collected.stdout = out.fileHandleForReading.readDataToEndOfFile()
+                let handle = out.fileHandleForReading
+                while true {
+                    let chunk = handle.availableData
+                    if chunk.isEmpty { break }
+                    if let stdoutLimit, collected.stdout.count + chunk.count > stdoutLimit {
+                        // Keep draining (and discarding) so the tool never blocks on a full pipe.
+                        if !collected.stdoutOverflowed { collected.stdoutOverflowed = true; self.terminate() }
+                        continue
+                    }
+                    collected.stdout.append(chunk)
+                }
                 group.leave()
             }
         }
@@ -101,7 +112,13 @@ public final class ToolProcess: @unchecked Sendable {
         group.wait()
         lock.withLock { process = nil }
         return Output(status: p.terminationStatus, stdout: collected.stdout,
-                      stderr: String(decoding: collected.stderrTail, as: UTF8.self), wasCancelled: isCancelled)
+                      stderr: String(decoding: collected.stderrTail, as: UTF8.self), wasCancelled: isCancelled,
+                      stdoutOverflowed: collected.stdoutOverflowed)
+    }
+
+    /// Stops the running tool without marking the run cancelled.
+    private func terminate() {
+        lock.withLock { if let p = process, p.isRunning { p.terminate() } }
     }
 }
 
@@ -111,6 +128,7 @@ public enum ArchiveError: Error, LocalizedError, Equatable {
     case cancelled
     case nothingToExtract
     case unreadable(String)
+    case tooManyEntries
 
     public var errorDescription: String? {
         switch self {
@@ -119,6 +137,7 @@ public enum ArchiveError: Error, LocalizedError, Equatable {
         case .cancelled: return L10n.tr("The operation was cancelled.")
         case .nothingToExtract: return L10n.tr("There's nothing in the archive that can be extracted safely.")
         case .unreadable(let text): return text
+        case .tooManyEntries: return L10n.tr("The archive lists more items than Arbor can show.")
         }
     }
 
@@ -127,7 +146,7 @@ public enum ArchiveError: Error, LocalizedError, Equatable {
         let lines = stderr.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty && !$0.contains("Error exit delayed") }
             .map { $0.hasPrefix("bsdtar: ") ? String($0.dropFirst(8)) : $0 }
-            // -v progress ("x name", "a name") is not an error; keep only progress lines carrying one ("x name: failed").
+            // -v progress ("x name") isn't an error; keep only progress lines with one ("x name: failed").
             .compactMap { line -> String? in
                 guard line.hasPrefix("x ") || line.hasPrefix("a ") else { return line }
                 return line.contains(": ") ? String(line.dropFirst(2)) : nil
@@ -149,33 +168,66 @@ public enum ArchiveTool {
         public var warning: String?
     }
 
-    /// Lists an archive without extracting it. ZIP uses the central directory directly (adds compressed
-    /// sizes and encryption flags); everything else goes through bsdtar.
+    /// Upper bound on bsdtar listing output, so a hostile archive can't exhaust memory.
+    public static let listingByteLimit = 256 << 20
+    /// Upper bound on distinct paths (entries and implied folders) in a listing.
+    public static let maxPaths = 2 * ZipDirectory.maxEntries
+
+    /// Lists without extracting: ZIP via the central directory (compressed sizes, encryption), else bsdtar.
     public static func list(_ url: URL, process: ToolProcess = ToolProcess()) throws -> Listing {
-        if ArchiveFormat.detect(url) == .zip, let entries = try? ZipDirectory.read(url) {
-            return Listing(entries: entries, warning: nil)
+        if ArchiveFormat.detect(url) == .zip {
+            do {
+                let entries = try ZipDirectory.read(url)
+                try checkBounds(entries)
+                return Listing(entries: entries, warning: nil)
+            } catch ZipDirectory.ReadError.tooManyEntries, ArchiveError.tooManyEntries {
+                throw ArchiveError.tooManyEntries
+            } catch {
+                // A damaged directory: bsdtar may still read the local headers.
+            }
         }
         return try listWithBsdtar(url, process: process)
     }
 
+    /// Throws `tooManyEntries` when a listing has more entries, or implies more folders, than Arbor can index.
+    static func checkBounds(_ entries: [ArchiveEntry], maxEntries: Int = ZipDirectory.maxEntries, maxPaths: Int = maxPaths) throws {
+        guard entries.count <= maxEntries else { throw ArchiveError.tooManyEntries }
+        var tree = PathTree()
+        for entry in entries {
+            guard let parts = entry.components else { continue }
+            tree.insert(parts)
+            if tree.nodeCount > maxPaths { throw ArchiveError.tooManyEntries }
+        }
+    }
+
     /// bsdtar's view of the names, which is what extraction patterns must match.
     public static func listWithBsdtar(_ url: URL, process: ToolProcess = ToolProcess()) throws -> Listing {
-        let output = try process.run(bsdtar, ["-t", "-v", "--numeric-owner", "-f", url.path])
+        let output = try process.run(bsdtar, ["-t", "-v", "--numeric-owner", "-f", url.path], stdoutLimit: listingByteLimit)
+        return try listing(from: output)
+    }
+
+    /// Turns bsdtar's output into a listing, enforcing the size and entry bounds.
+    static func listing(from output: ToolProcess.Output, maxLines: Int = ZipDirectory.maxEntries, maxPaths: Int = maxPaths) throws -> Listing {
         if output.wasCancelled { throw ArchiveError.cancelled }
-        let parsed = BsdtarListing.parse(String(decoding: output.stdout, as: UTF8.self))
+        if output.stdoutOverflowed { throw ArchiveError.tooManyEntries }
+        var parsed = BsdtarListing.parse(String(decoding: output.stdout, as: UTF8.self), maxLines: maxLines)
+        if parsed.exceededLimit { throw ArchiveError.tooManyEntries }
+        let nothingReadable = parsed.entries.isEmpty
+        // A row that can't be read still exists: an unsafe stand-in keeps it out of whole-folder extraction.
+        parsed.entries += Array(repeating: ArchiveEntry(rawPath: "", kind: .special), count: parsed.malformedLines)
+        try checkBounds(parsed.entries, maxPaths: maxPaths)
         if output.status != 0 {
             let message = ArchiveError.summarize(output.stderr)
             if message.localizedCaseInsensitiveContains("passphrase") || message.localizedCaseInsensitiveContains("encrypt") {
                 throw ArchiveError.encrypted
             }
-            if parsed.entries.isEmpty { throw ArchiveError.unreadable(message.isEmpty ? "The archive couldn't be read." : message) }
+            if nothingReadable { throw ArchiveError.unreadable(message.isEmpty ? "The archive couldn't be read." : message) }
             return Listing(entries: parsed.entries, warning: message)
         }
         return Listing(entries: parsed.entries, warning: nil)
     }
 
-    /// The listing extraction plans from: bsdtar's names, renamed for ZIPs made on Windows (`ZipNames`),
-    /// and whether extraction must rewrite "\" to match (`extract(…rewritesBackslashes:)`).
+    /// Names for extraction plans: bsdtar's, renamed for Windows ZIPs (`ZipNames`), and whether "\" must be rewritten.
     public static func extractionListing(_ url: URL, process: ToolProcess = ToolProcess()) throws -> (listing: Listing, rewritesBackslashes: Bool) {
         var listing = try listWithBsdtar(url, process: process)
         guard ArchiveFormat.detect(url) == .zip, (try? ZipDirectory.usesWindowsSeparators(url)) == true else { return (listing, false) }
@@ -185,9 +237,8 @@ public enum ArchiveTool {
 
     // MARK: Extraction
 
-    /// Runs bsdtar for a plan into an empty staging folder. Ownership, file flags and ACLs are not
-    /// restored (they could lock the user out); bsdtar's own refusal of `..`, absolute names and
-    /// writes through symlinks stays on as a second line of defense.
+    /// Runs bsdtar for a plan into an empty staging folder. Ownership, flags and ACLs aren't restored (lockout risk);
+    /// bsdtar's own `..`, absolute-name and symlink checks stay on as a second line of defense.
     public static func extract(_ archive: URL, plan: ExtractionPlanner.Plan, into staging: URL,
                                process: ToolProcess, rewritesBackslashes: Bool = false, onEntry: (() -> Void)? = nil) throws {
         var args = ["-x", "-v", "-f", archive.path, "-C", staging.path, "--no-same-owner", "--no-fflags", "--no-acls"]
@@ -223,9 +274,8 @@ public enum ArchiveTool {
 
     // MARK: Creation
 
-    /// The command that writes `sources` (all in one folder) to `output`.
-    /// A single item becomes a ZIP through `ditto`, which keeps Mac metadata the way Finder's Compress does
-    /// (`__MACOSX`); several items, 7z and TAR go through bsdtar, named relative to their folder.
+    /// The command writing `sources` (one folder) to `output`. A single item becomes a ZIP via `ditto`, keeping Mac
+    /// metadata like Finder (`__MACOSX`); otherwise bsdtar, with names relative to the folder.
     public static func createCommand(format: ArchiveCreateFormat, sources: [URL], output: URL, listFile: URL) -> (String, [String]) {
         if format == .zip, sources.count == 1 {
             let source = sources[0]

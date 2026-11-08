@@ -29,6 +29,10 @@ Examples of things to report privately:
   connections of its own, except to servers the user connects to).
 - Problems with the signed release itself (signature, notarization, the update or download path).
 
+Distribution builds (the downloadable releases) ignore the `ARBOR_*` test variables described in
+TESTING.md. A way to make a distribution build read them is worth reporting; problems that need them
+set affect only local development builds.
+
 Ordinary bugs and crashes that don't put data at risk can go in a normal issue.
 
 ## Supported versions

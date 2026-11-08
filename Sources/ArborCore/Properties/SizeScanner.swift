@@ -1,25 +1,23 @@
 import Foundation
 
-/// Logical size, allocated size ("Size on disk") and item counts of a selection, computed on demand
-/// (spec §15.3: never pre-scanned). Runs on the caller's queue; report progress and cancel.
+/// Selection size and counts, computed on demand, never pre-scanned (spec §15.3).
 public struct SizeTotals: Equatable, Sendable {
-    /// Sum of logical file sizes (bytes of content).
     public var size: Int64 = 0
-    /// Sum of allocated sizes: blocks actually used, including resource forks and metadata.
+    /// Allocated blocks, including resource forks and metadata.
     public var sizeOnDisk: Int64 = 0
-    /// Files (and symbolic links, which are counted, not followed) found inside folders.
+    /// Includes symbolic links (counted, not followed).
     public var files = 0
-    /// Folders found inside folders (packages count as folders: they are folders on disk).
+    /// Includes packages.
     public var folders = 0
-    /// Folders that couldn't be read (no permission); their contents are missing from the totals.
+    /// Folders without read permission; their contents are missing from the totals.
     public var unreadable = 0
 
     public init() {}
 
     public static func + (a: SizeTotals, b: SizeTotals) -> SizeTotals {
         var r = a
-        r.size += b.size
-        r.sizeOnDisk += b.sizeOnDisk
+        r.size = r.size.saturatingAdd(b.size)
+        r.sizeOnDisk = r.sizeOnDisk.saturatingAdd(b.sizeOnDisk)
         r.files += b.files
         r.folders += b.folders
         r.unreadable += b.unreadable
@@ -27,7 +25,6 @@ public struct SizeTotals: Equatable, Sendable {
     }
 }
 
-/// A cancellation flag shared between the UI and a background scan.
 public final class ScanCancellation: @unchecked Sendable {
     private let lock = NSLock()
     private var cancelled = false
@@ -40,7 +37,7 @@ public enum SizeScanner {
     static let keys: [URLResourceKey] = [.isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey, .totalFileSizeKey,
                                          .totalFileAllocatedSizeKey, .fileAllocatedSizeKey]
 
-    /// Size of one item without descending (a file, link, or an empty folder entry itself).
+    /// One item without descending; folders report 0.
     public static func entrySizes(_ url: URL) -> (size: Int64, onDisk: Int64, isDirectory: Bool, isLink: Bool) {
         let v = try? url.resourceValues(forKeys: Set(keys))
         let isLink = v?.isSymbolicLink ?? false
@@ -50,9 +47,8 @@ public enum SizeScanner {
         return (isDir ? 0 : size, isDir ? 0 : onDisk, isDir, isLink)
     }
 
-    /// Totals for a selection. Folders (and packages) are walked recursively; symbolic links are never
-    /// followed. `progress` is called at most every `interval` seconds with running totals.
-    /// The top-level items themselves are not counted in `files`/`folders` (Explorer's "Contains").
+    /// Runs on the caller's queue and never follows links. Top-level items are not counted in
+    /// `files`/`folders` (Explorer's "Contains"); `progress` fires at most every `interval`.
     public static func scan(_ urls: [URL], cancel: ScanCancellation, interval: TimeInterval = 0.1,
                             progress: ((SizeTotals) -> Void)? = nil) -> SizeTotals {
         var totals = SizeTotals()
@@ -66,8 +62,8 @@ public enum SizeScanner {
         for url in urls {
             if cancel.isCancelled { break }
             let top = entrySizes(url)
-            totals.size += top.size
-            totals.sizeOnDisk += top.onDisk
+            totals.size = totals.size.saturatingAdd(top.size)
+            totals.sizeOnDisk = totals.sizeOnDisk.saturatingAdd(top.onDisk)
             guard top.isDirectory else { continue }
             var unreadable = 0
             let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: keys, options: []) { _, _ in
@@ -81,8 +77,8 @@ public enum SizeScanner {
                     totals.folders += 1
                 } else {
                     totals.files += 1
-                    totals.size += entry.size
-                    totals.sizeOnDisk += entry.onDisk
+                    totals.size = totals.size.saturatingAdd(entry.size)
+                    totals.sizeOnDisk = totals.sizeOnDisk.saturatingAdd(entry.onDisk)
                 }
                 tick()
             }

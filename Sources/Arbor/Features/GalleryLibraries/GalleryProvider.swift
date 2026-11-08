@@ -2,8 +2,7 @@ import AppKit
 import ArborCore
 import CoreServices
 
-/// The Gallery location (FE-075). One page per window: a reload (Refresh, after Trash or rename, or
-/// a change in a source folder) reuses the page on screen so scroll position and selection survive.
+/// The Gallery location (FE-075). Reloads reuse the page on screen so scroll and selection survive.
 final class GalleryProvider: LocationProvider {
     func handles(_ location: Location) -> Bool { location == .gallery }
 
@@ -19,14 +18,13 @@ final class GalleryProvider: LocationProvider {
         return nil
     }
 
-    /// FSEvents on the collection's folders (recursive, coalesced): new, renamed or removed photos
-    /// show up without a manual refresh.
+    /// FSEvents on the collection's folders, so photo changes show up without a refresh.
     func watch(_ location: Location, onChange: @escaping () -> Void) -> AnyObject? {
         GalleryWatch(onChange: onChange)
     }
 
     func title(for location: Location) -> String { L10n.tr("Gallery") }
-    /// Items are real files: rename and Trash act on them. New/Paste have no meaning here (no target folder).
+    /// Items are real files; New/Paste don't apply (no target folder).
     func allowsItemEditing(in location: Location) -> Bool { true }
     func targetFolder(for location: Location) -> URL? { nil }
 }
@@ -54,7 +52,7 @@ final class GalleryWatch {
     deinit { if let observer { NotificationCenter.default.removeObserver(observer) } }
 }
 
-/// A recursive, coalescing file-system watcher (FSEvents). Calls back on the main queue.
+/// Recursive, coalescing FSEvents watcher; calls back on the main queue.
 final class TreeWatcher {
     private var stream: FSEventStreamRef?
     private let onChange: () -> Void

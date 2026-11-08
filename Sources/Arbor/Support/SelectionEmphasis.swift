@@ -1,13 +1,9 @@
 import AppKit
 
-/// One rule for how selections are drawn, shared by Details, the icon layouts, the navigation pane and the
-/// Home / This Mac / Gallery / Network tiles (Windows 11): the accent tint while the list has keyboard focus
-/// in the active window, the neutral grey (`Theme.selectionInactive`) otherwise.
-///
-/// Headless runs never have a key window, so there the window counts as active unless a script turns that
-/// off with `windowactive:0` (to check the inactive look).
+/// Shared selection look: accent tint while the list has focus in the active window, else `Theme.selectionInactive`.
+/// Headless runs have no key window, so they count as active unless a script sets `windowactive:0`.
 enum SelectionEmphasis {
-    /// Posted when a script changes `headlessWindowActive`; views that draw selections redraw.
+    /// Posted when a script changes `headlessWindowActive`.
     static let changed = Notification.Name("ArborSelectionEmphasisChanged")
 
     static var headlessWindowActive = true {
@@ -18,20 +14,19 @@ enum SelectionEmphasis {
         }
     }
 
-    /// The window is the one the user is working in.
     static func windowIsActive(_ window: NSWindow?) -> Bool {
         guard let window else { return false }
         return AppDelegate.isHeadless ? headlessWindowActive : window.isKeyWindow
     }
 
-    /// `view` (or something inside it, like a rename field) has keyboard focus in the active window.
+    /// `view` or a subview (e.g. a rename field) has focus in the active window.
     static func hasFocus(_ view: NSView) -> Bool {
         guard let window = view.window, windowIsActive(window) else { return false }
         guard let responder = window.firstResponder as? NSView else { return false }
         return responder === view || responder.isDescendant(of: view)
     }
 
-    /// Current location in the navigation pane while the window is inactive (lighter than `Theme.navSelection`).
+    /// Navigation pane location while the window is inactive.
     static let navInactive = Theme.overlay(lightAlpha: 0.05, darkAlpha: 0.06)
     /// Accent marks (navigation pane bar, Gallery selection ring) while the window is inactive.
     static let inactiveMark = Theme.dynamic(light: 0x9A9A9A, dark: 0x7A7A7A)
@@ -41,7 +36,7 @@ enum SelectionEmphasis {
         focused ? (hovered ? Theme.selectionHover : Theme.selection) : Theme.selectionInactive
     }
 
-    /// Calls `onChange` whenever the window's active state may have changed (key / resign key, scripted toggle).
+    /// Calls `onChange` whenever the window's active state may have changed.
     final class Observer {
         private var tokens: [NSObjectProtocol] = []
         private let onChange: () -> Void

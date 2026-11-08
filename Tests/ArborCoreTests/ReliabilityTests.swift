@@ -2,9 +2,7 @@ import Foundation
 import Testing
 @testable import ArborCore
 
-// Behavior and safety fixes: undo of moves, ZIP backslash names, display paths, queued-job journals,
-// folder properties on limited volumes, and the headless-safety audit (docs/features/qa-core.md,
-// qa-places.md, file-operations.md).
+// Behavior and safety fixes (docs/features/qa-core.md, qa-places.md, file-operations.md).
 
 // MARK: - Undo Move plans (QA-CORE-5)
 
@@ -45,8 +43,7 @@ import Testing
                 == [MoveBack.Item(from: URL(fileURLWithPath: "/h/a (2).txt"), to: URL(fileURLWithPath: "/h/a.txt"))])
     }
 
-    /// The job half of an undo across volumes: a normal move job brings the file back and removes it from
-    /// the other volume only after the copy.
+    /// Cross-volume undo: a move job brings the file back, removing the other copy only after copying.
     @Test func crossVolumeItemsGoBackThroughAMoveJob() async throws {
         guard let volume = ScratchVolume(megabytes: 12) else { return }
         let fx = try Fixture()
@@ -153,8 +150,7 @@ import Testing
 
         let fx = try Fixture()
         let existing = try fx.folder("L1")
-        // The temporary folder lives under /var, a link to /private/var; spell both folders the long way,
-        // as a folder picker or a stored library may.
+        // /var links to /private/var; use the long spelling, as a folder picker or stored library may.
         guard existing.path.hasPrefix("/var/") else { return }
         let real = URL(fileURLWithPath: "/private" + existing.path)
         let missing = real.deletingLastPathComponent().appendingPathComponent("L2")
@@ -259,9 +255,7 @@ struct FolderPropertyLossTests {
 
 // MARK: - Headless safety audit
 
-/// Headless test runs must never open anything on the user's screen, so every request to the system goes
-/// through `SystemOpen` (Sources/Arbor/Support/SystemOpen.swift), which only logs it in headless runs.
-/// This fails when app code calls the system directly.
+/// Headless runs must never open anything on screen, so app code must reach the system via `SystemOpen`.
 @Suite struct SystemOpenAuditTests {
     static let forbidden = [
         "NSWorkspace.shared.open(", "activateFileViewerSelecting", "setDesktopImageURL",

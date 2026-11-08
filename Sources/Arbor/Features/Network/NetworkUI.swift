@@ -365,7 +365,7 @@ final class TileSectionsView: NSView {
     var onSelectionChange: (() -> Void)?
     var emptyView: NSView? { didSet { oldValue?.removeFromSuperview(); if let emptyView { addSubview(emptyView) }; needsLayout = true } }
     private let inset = NSEdgeInsets(top: 8, left: 16, bottom: 16, right: 16)
-    /// The search box's text: only tiles whose titles contain it are shown.
+    /// Only tiles whose titles contain this are shown.
     var filterText = "" { didSet { if filterText != oldValue { setSections(unfiltered) } } }
     private var unfiltered: [TileSection] = []
 
@@ -438,7 +438,7 @@ final class TileSectionsView: NSView {
 
     override func layout() {
         super.layout()
-        // Track the scroll view's visible width so tiles wrap instead of running off the right edge.
+        // Track the visible width so tiles wrap instead of overflowing.
         let width = max(superview?.bounds.width ?? bounds.width, 300)
         let tile = NetworkTileView.size
         let columns = max(1, Int((width - inset.left - inset.right + 4) / (tile.width + 4)))

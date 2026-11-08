@@ -1,10 +1,7 @@
 import Foundation
 
-/// What the user meant when they put files on the clipboard (FE-084, spec §8.2).
-///
-/// Cut is an intent, not a Boolean: it only applies while the system pasteboard still
-/// holds exactly the content this app wrote. Once another app (or another copy) changes
-/// the pasteboard, a paste becomes a plain copy and cut marks disappear.
+/// What the user meant by putting files on the clipboard (FE-084, spec §8.2). Cut holds only while the
+/// pasteboard has exactly what Arbor wrote; once it changes, paste is a copy and cut marks disappear.
 public struct TransferIntent: Equatable, Sendable {
     public let kind: TransferKind
     public let urls: [URL]
@@ -41,28 +38,25 @@ public enum StatusText {
         return n == 1 ? L10n.tr("1 item") : L10n.format("%@ items", number)
     }
 
-    /// Explorer's adaptive size (1024-based, three significant digits): status bar, tiles, tooltips, dialogs.
-    /// The Details view's Size column uses `ExplorerSize.detailsColumn` instead.
+    /// Explorer's adaptive 1024-based size (three significant digits); the Size column uses `ExplorerSize.detailsColumn`.
     public static func bytes(_ n: Int64) -> String {
         ExplorerSize.adaptive(n)
     }
 
-    /// "12 items", "3 of 120 items match “rep”", plus "   2 selected · 4.1 MB".
-    /// Size is shown only when every selected item has a known size.
+    /// "12 items", "3 of 120 items match “rep”", plus "   2 selected · 4.1 MB" (size only if all are known).
     public static func summary(visible: Int, total: Int, query: String, selected: [FileItem]) -> String {
         let q = query.trimmingCharacters(in: .whitespaces)
         var text = q.isEmpty ? items(total) : "\(counts.string(from: NSNumber(value: visible)) ?? "\(visible)") of \(items(total)) match “\(q)”"
         if !selected.isEmpty {
             text += "     \(selected.count) selected"
             let sizes = selected.compactMap(\.size)
-            if sizes.count == selected.count { text += " · \(bytes(sizes.reduce(0, +)))" }
+            if sizes.count == selected.count { text += " · \(bytes(sizes.saturatingSum()))" }
         }
         return text
     }
 
-    /// Explorer's status bar wording: "12 items  |  1 item selected  4.1 KB  |".
-    /// A filtered folder reads "3 of 120 items match “rep”  |". Size is shown only when every
-    /// selected item has a known size (folders have none).
+    /// Explorer's status bar: "12 items  |  1 item selected  4.1 KB  |"; filtered: "3 of 120 items match “rep”  |".
+    /// Size only when every selected item has one (folders don't).
     public static func explorerSummary(visible: Int, total: Int, query: String, selected: [FileItem]) -> String {
         let q = query.trimmingCharacters(in: .whitespaces)
         let shown = counts.string(from: NSNumber(value: visible)) ?? "\(visible)"
@@ -72,7 +66,7 @@ public enum StatusText {
             var text = selected.count == 1 ? L10n.tr("1 item selected")
                 : L10n.format("%@ items selected", counts.string(from: NSNumber(value: selected.count)) ?? "\(selected.count)")
             let sizes = selected.compactMap(\.size)
-            if sizes.count == selected.count { text += "  \(bytes(sizes.reduce(0, +)))" }
+            if sizes.count == selected.count { text += "  \(bytes(sizes.saturatingSum()))" }
             parts.append(text)
         }
         return parts.map { $0 + "  |" }.joined(separator: "  ")

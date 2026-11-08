@@ -25,11 +25,10 @@ enum AccessibilityFeature: ExplorerFeature {
     }
 }
 
-/// `ARBOR_RTL=1` lays the app out right to left (like an Arabic or Hebrew system language), to check
-/// mirroring and truncation without changing the system (FE-204).
+/// `ARBOR_RTL=1` forces a right-to-left layout to check mirroring and truncation (FE-204).
 enum LayoutDirection {
     static func applyEnvironment() {
-        guard ProcessInfo.processInfo.environment["ARBOR_RTL"] == "1" else { return }
+        guard Automation.environment["ARBOR_RTL"] == "1" else { return }
         var arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
         arguments["NSForceRightToLeftWritingDirection"] = true
         arguments["AppleTextDirection"] = true
@@ -37,9 +36,7 @@ enum LayoutDirection {
     }
 }
 
-/// Keeps keyboard focus somewhere useful (FE-203): when a refresh, navigation, tab switch, page change
-/// or pane toggle removes or hides the focused view, focus moves to the items (or the page) instead of
-/// being lost.
+/// When the focused view is removed or hidden, focus moves to the items or page (FE-203).
 enum FocusKeeper {
     static func install() {
         WindowHooks.didDisplay.observe("accessibility.keep-focus") { c, _ in schedule(c) }
@@ -65,8 +62,7 @@ enum FocusKeeper {
         return view.window !== window || view.isHiddenOrHasHiddenAncestor
     }
 
-    /// Windows whose first content has been shown (a new window starts with focus on the items, like
-    /// Explorer, not on whichever text field AppKit picked before the items loaded).
+    /// New windows start focused on the items, not a text field AppKit picked before they loaded.
     private static var started = Set<ObjectIdentifier>()
 
     static func repair(_ c: BrowserWindowController) {

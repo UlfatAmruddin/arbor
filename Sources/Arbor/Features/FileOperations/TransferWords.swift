@@ -1,9 +1,7 @@
 import Foundation
 import ArborCore
 
-/// Translations of the verbs that transfers and presented jobs carry as English words ("Copying", "moved",
-/// "extracted"). The progress, conflict and failure dialogs place them into sentences; the string table gets
-/// them from here, so the transfer model itself stays free of presentation.
+/// Translations of the English verbs transfers carry ("Copying", "moved"), so the transfer model stays presentation-free.
 enum TransferWords {
     private static let words: [String: String] = [
         "Copying": L10n.tr("Copying"), "Moving": L10n.tr("Moving"), "Extracting": L10n.tr("Extracting"),

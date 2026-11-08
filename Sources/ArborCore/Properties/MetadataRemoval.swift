@@ -2,11 +2,8 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-/// Explorer's "Remove Properties and Personal Information" → "Create a copy with all possible
-/// properties removed" (FE-152), for images only. The original is never modified: ImageIO copies the
-/// compressed image data without re-encoding (`CGImageDestinationCopyImageSource`) and replaces the
-/// metadata with only the orientation, so the copy looks the same. EXIF (camera, dates), GPS, XMP
-/// and IPTC (authors, keywords, copyright) are dropped. Other types are not offered.
+/// "Remove Properties" as a clean image copy (FE-152): pixels copied without re-encoding, metadata
+/// reduced to orientation. The original is never modified.
 public enum MetadataRemoval {
     public static let supportedTypes: [UTType] = [.jpeg, .png, .heic, .tiff]
 
@@ -28,7 +25,7 @@ public enum MetadataRemoval {
         }
     }
 
-    /// Writes a cleaned copy next to the original ("Photo - Copy.jpg") and returns its URL.
+    /// Defaults to "Photo - Copy.jpg" beside the original.
     @discardableResult
     public static func createCleanCopy(of url: URL, to destination: URL? = nil) throws -> URL {
         guard canRemove(from: url) else { throw Failure.unsupported }
@@ -48,7 +45,7 @@ public enum MetadataRemoval {
             CGImageMetadataSetValueMatchingImageProperty(metadata, kCGImagePropertyTIFFDictionary, kCGImagePropertyTIFFOrientation,
                                                          NSNumber(value: orientation))
         }
-        // Write to a temporary name first so a failure never leaves a half-written copy.
+        // Temp name first so a failure never leaves a half-written copy.
         let temp = folder.appendingPathComponent(".arbor-clean-\(UUID().uuidString).\(url.pathExtension)")
         guard let dest = CGImageDestinationCreateWithURL(temp as CFURL, type, 1, nil) else { throw Failure.writeFailed }
         let options: [CFString: Any] = [
@@ -60,8 +57,7 @@ public enum MetadataRemoval {
         var error: Unmanaged<CFError>?
         var ok = CGImageDestinationCopyImageSource(dest, source, options as CFDictionary, &error)
         if !ok {
-            // Formats that can't be copied losslessly with new metadata (e.g. some PNGs): re-add the
-            // image itself without any properties.
+            // Lossless copy failed (some PNGs): re-add the image without properties.
             guard let retry = CGImageDestinationCreateWithURL(temp as CFURL, type, 1, nil),
                   let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
                 try? FileManager.default.removeItem(at: temp)

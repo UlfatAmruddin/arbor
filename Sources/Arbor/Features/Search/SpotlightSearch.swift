@@ -2,9 +2,8 @@ import Foundation
 import CoreServices
 import ArborCore
 
-/// Spotlight index query scoped to one folder (or the whole Mac) (FE-143). Streams matching paths in
-/// batches, stops once the initial gathering is done (freshness comes from `FileEventWatcher`), and
-/// gives up after a timeout so an unresponsive index can't leave a search "running" forever.
+/// Spotlight query scoped to a folder or the whole Mac (FE-143). Streams paths in batches, stops after
+/// initial gathering (`FileEventWatcher` keeps it fresh), and times out so a stuck index can't hang a search.
 final class SpotlightSearch: NSObject {
     struct Hit {
         let path: String
@@ -106,7 +105,7 @@ final class SpotlightSearch: NSObject {
     private static var stateCache: [String: SpotlightIndexState] = [:]
     private static let stateLock = NSLock()
 
-    /// Whether Spotlight indexes the volume holding `url` (`mdutil -s`), cached per volume. Blocking: call off the main thread.
+    /// Whether Spotlight indexes `url`'s volume (`mdutil -s`), cached per volume. Blocking: call off main.
     static func indexState(for url: URL?) -> SpotlightIndexState {
         let volume = (try? (url ?? URL(fileURLWithPath: "/")).resourceValues(forKeys: [.volumeURLKey]).volume)?.path ?? "/"
         stateLock.lock()
@@ -133,8 +132,7 @@ final class SpotlightSearch: NSObject {
     }
 }
 
-/// File-system change notifications for a folder tree (FSEvents), used to keep search results fresh
-/// after the initial search (FE-146). Delivers changed paths in batches on a background queue.
+/// FSEvents for a folder tree, keeping search results fresh (FE-146). Batches paths on a background queue.
 final class FileEventWatcher {
     private var stream: FSEventStreamRef?
     private let queue = DispatchQueue(label: "Arbor search events", qos: .utility)

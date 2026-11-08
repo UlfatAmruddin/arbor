@@ -1,8 +1,6 @@
 import AppKit
 
-/// Right-to-left layout for the chrome that positions its parts by hand (FE-204). Stack views, tables,
-/// the tree and the status bar mirror themselves; the tab strip and the breadcrumb call these helpers
-/// at the end of `layout()` so their parts run right to left too, with chevrons pointing left.
+/// Right-to-left mirroring for hand-laid-out chrome (FE-204); call at the end of `layout()`.
 enum RightToLeft {
     static func isActive(_ view: NSView) -> Bool { view.userInterfaceLayoutDirection == .rightToLeft }
 
@@ -15,7 +13,7 @@ enum RightToLeft {
         }
     }
 
-    /// The breadcrumb: every part mirrored; separators point left (the path reads right to left).
+    /// The breadcrumb: every part mirrored; separators point left.
     static func mirrorBreadcrumb(_ bar: NSView, chevrons: [ChromeButton]) {
         guard isActive(bar) else { return }
         for view in bar.subviews where !view.isHidden { flip(view, in: bar.bounds.width) }

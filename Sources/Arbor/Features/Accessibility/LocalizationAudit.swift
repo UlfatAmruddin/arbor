@@ -1,11 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Scripted localization check (FE-204). Run with `ARBOR_PSEUDO_LOC=1`: `l10naudit:/path` appends every piece
-/// of visible text in every open window (labels, buttons, placeholders, pop-up and segment titles, table
-/// headers, tab labels, tooltips, accessibility labels and help) that did not come from the string table, and
-/// every label or button whose text doesn't fit its frame. Names of files, folders and volumes are skipped:
-/// they are never translated.
+/// Localization check (FE-204), with `ARBOR_PSEUDO_LOC=1`: `l10naudit:/path` appends visible text not
+/// from the string table and text that doesn't fit its frame. File names are skipped (never translated).
 ///
 ///     plain: NSTextField "Size on disk:"
 ///     clipped: NSButton "[Ŕéšţöŕé ðéƒáüļţš·····]" needs 182 has 150
@@ -21,8 +18,7 @@ enum LocalizationAudit {
     static func report(_ controller: BrowserWindowController?) -> String {
         var names = Set<String>()
         if let controller {
-            // Names and type descriptions come from the file system and Launch Services (already in the
-            // user's language).
+            // Names and type descriptions come from the system, already localized.
             controller.visibleItems.forEach { names.insert($0.name); names.insert($0.typeDescription) }
             controller.location.folderURL?.pathComponents.forEach { names.insert($0) }
         }

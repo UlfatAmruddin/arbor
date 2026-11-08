@@ -2,8 +2,7 @@ import AppKit
 import UniformTypeIdentifiers
 import ArborCore
 
-/// Search results commands: "Search options ▾" and "Close search" in the command bar (Explorer shows
-/// them while searching), "Open file location" for results, and "Save search" (FE-136, FE-137, FE-138).
+/// Search command-bar items (FE-136, FE-137, FE-138): Search options ▾, Close search, Open file location, Save search.
 enum SearchCommands {
     static func isSearch(_ location: Location?) -> Bool {
         if case .search? = location { return true }
@@ -99,7 +98,7 @@ enum SearchCommands {
             return item
         }))
 
-        // Kind ▸ — Explorer's list; Windows-only kinds are shown disabled with the reason (DEC-019).
+        // Kind ▸ — Windows-only kinds are disabled with the reason (DEC-019).
         let kindActive = activeValue(.kind).flatMap(SearchKind.lookup)
         let kinds: [(String, String?)] = [
             ("Calendar", "calendar"), ("Communication", "communication"), ("Contact", "contact"), ("Document", "document"),
@@ -123,7 +122,7 @@ enum SearchCommands {
             return item
         }))
 
-        // Other properties ▸ — inserts the property into the box, like Explorer.
+        // Other properties ▸ — inserts the property into the box.
         items.append(submenu(L10n.tr("Other properties"), [("Type", "type:"), ("Name", "name:"), ("Folder path", "folderpath:"), ("Tags", "tags:")].map { title, text in
             ClosureMenuItem(title) { controller.insertIntoBox(text) }
         }))
@@ -159,7 +158,7 @@ enum SearchCommands {
         return items
     }
 
-    /// A greyed-out entry with the reason in its tooltip (no action, so menus never enable it).
+    /// Disabled entry with the reason as tooltip (no action, so menus never enable it).
     private static func disabled(_ title: String, _ reason: String) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false
@@ -228,8 +227,8 @@ enum SearchCommands {
         try SavedSearch(request: request, volumeUUID: uuid, bookmark: bookmark).encoded().write(to: url, options: .atomic)
     }
 
-    /// The search a saved file describes. The scope is found by bookmark first (it follows moves), then by
-    /// path, and a path on a different disk than the one saved is not used.
+    /// The search a saved file describes. Scope by bookmark first (follows moves), then path;
+    /// a path on a different disk than the saved one is not used.
     static func location(forSavedSearch url: URL) throws -> Location {
         let saved = try SavedSearch.decode(Data(contentsOf: url))
         var scope: URL?

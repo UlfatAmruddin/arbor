@@ -1,12 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Mouse and trackpad navigation (FE-012, FE-016):
-/// - Mouse buttons 4 and 5 (the side "Back"/"Forward" buttons; AppKit numbers them 3 and 4) go Back and Forward.
-/// - A two-finger horizontal swipe goes Back/Forward when "Swipe between pages" is on in System Settings ▸
-///   Trackpad, but only once the content under the pointer can't scroll further that way, so horizontal
-///   scrolling in List view and wide Details columns keeps working. Three-finger swipes (when the system
-///   is set to them) work too. Go ▸ Swipe to Navigate turns both off.
+/// Mouse buttons 4/5 (AppKit numbers them 3/4) and trackpad swipes go Back/Forward (FE-012, FE-016).
+/// A swipe navigates only once the content under the pointer can't scroll further that way.
 enum PointerNavigation {
     static let prefKey = "swipeNavigation"
     private static var monitors: [Any] = []

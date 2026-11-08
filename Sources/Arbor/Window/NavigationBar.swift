@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Explorer search box: rounded field, "Search <location>", magnifier at the right,
-/// accent underline while focused. Calls the window's `SearchController`.
+/// Explorer search box; forwards to the window's `SearchController`.
 final class SearchBox: NSView, NSTextFieldDelegate {
     var onChange: ((String) -> Void)?
     var onSubmit: ((String) -> Void)?
@@ -113,7 +112,7 @@ final class SearchBox: NSView, NSTextFieldDelegate {
     }
 }
 
-/// Explorer's navigation row: Back, Forward, Up, the address bar, and the search box.
+/// Back, Forward, Up, Refresh, the address bar and the search box.
 final class NavigationBar: ThemeBackgroundView {
     let back = ChromeButton(symbol: "arrow.left", tooltip: "Back (⌘[ or Delete)")
     let forward = ChromeButton(symbol: "arrow.right", tooltip: "Forward (⌘])")

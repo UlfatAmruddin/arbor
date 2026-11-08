@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// The Folder Options dialog (FE-042, FE-043): General · View · Search pages with Windows' controls,
-/// order and wording, OK / Cancel / Apply, and Restore Defaults per page. Values live in `Prefs`.
+/// Folder Options dialog (FE-042, FE-043) with Windows' pages, order and wording. Values live in `Prefs`.
 final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate {
     static private(set) var shared: FolderOptionsWindowController?
 
@@ -511,7 +510,7 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
     }
 
     func windowWillClose(_ notification: Notification) {
-        // Cancel semantics: unapplied edits are dropped; the next opening starts from the saved values.
+        // Cancel: unapplied edits are dropped; the next opening starts from saved values.
         draft = FolderOptionsDraft(current: FolderOptionsPrefs.current(), disabledKeys: FolderOptionsPrefs.runtimeDisabledKeys)
         historyNote.stringValue = ""
         update()
@@ -565,10 +564,8 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
     }
 }
 
-/// "Clear Arbor history" (Folder Options › Privacy). Features that keep history (recent files, frequent
-/// folders, address suggestions) register a clearer that returns how many entries it removed.
+/// "Clear Arbor history": features that keep history register a clearer returning how many entries it removed.
 enum FolderOptionsHistory {
-    /// Each contribution adds how many entries it removed.
     static let clearers = Pipeline<Int, Void>(
         "FolderOptionsHistory.clearers", "Clears a feature's history for \"Clear Arbor history\"; adds the count removed.",
         signature: "(removed) -> removed")
@@ -577,10 +574,7 @@ enum FolderOptionsHistory {
 
     @discardableResult
     static func clear() -> Int {
-        var removed = 0
-        let documents = NSDocumentController.shared
-        removed += documents.recentDocumentURLs.count
-        documents.clearRecentDocuments(nil)
-        return clearers.apply(removed)
+        // Counted here; cleared by FolderOptionsFeature's `historyCleared` observer, so Home's menu item clears them too.
+        clearers.apply(NSDocumentController.shared.recentDocumentURLs.count)
     }
 }

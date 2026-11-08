@@ -14,6 +14,9 @@ enum FileOperationsFeature: ExplorerFeature {
             placements: [.mainMenu("Window", operationsSection, 10)],
             isEnabled: { _ in OperationCenter.shared.hasActiveJobs },
             perform: { _ in OperationsWindow.shared.show() }))
+        NotificationCenter.default.addObserver(forName: HomeStore.historyCleared, object: nil, queue: .main) { _ in
+            OperationHistory.shared.clear()
+        }
         registerScriptSteps()
         JobRecovery.checkSoon()
     }

@@ -8,12 +8,11 @@ protocol TabStripDelegate: AnyObject {
     func tabStripMove(from: Int, to: Int)
     func tabStripDetach(_ index: Int)
     func tabStripMenu(for index: Int) -> NSMenu?
-    /// A tab was dragged out of the strip and released at a screen point: merge it into the window
-    /// whose tab row is there, or tear it off into a new window (FE-020).
+    /// A tab was dropped outside the strip at a screen point: merge or tear off (FE-020).
     func tabStripTearOff(_ index: Int, at screenPoint: NSPoint, grabOffset: NSPoint)
     /// The only tab is being dragged: the window moves with it and may merge into another window.
     func tabStripDragWindow(with event: NSEvent)
-    /// While a tab is dragged outside its strip: show where it would land (nil clears).
+    /// Where a tab dragged outside its strip would land (nil clears).
     func tabStripDragHover(at screenPoint: NSPoint?)
 }
 
@@ -29,9 +28,8 @@ struct TabStripItem: Equatable {
     var tooltip: String
 }
 
-/// Explorer-style tabs in the title bar row (FE-017–FE-020): icon + title + close button; the active
-/// tab joins the navigation row below; "+" follows the last tab. Tabs shrink to a minimum width and
-/// then scroll. Empty space drags the window; double-clicking it zooms (Mac convention).
+/// Explorer-style title-bar tabs (FE-017–FE-020). Tabs shrink to a minimum width, then scroll;
+/// empty space drags the window and double-click zooms.
 final class TabStripView: NSView {
     weak var delegate: TabStripDelegate?
     var leadingInset: CGFloat = Theme.trafficLightInset { didSet { needsLayout = true } }
@@ -41,7 +39,7 @@ final class TabStripView: NSView {
     private let scroll = TabScrollView()
     private let document = FlippedView()
     let plusButton = ChromeButton(symbol: "plus", tooltip: "New tab (⌘T)")
-    /// Overflow arrows, shown only when the tabs don't fit at their minimum width (WinUI TabView style).
+    /// Overflow arrows, shown only when tabs don't fit at minimum width.
     let scrollLeftButton = ChromeButton(symbol: "chevron.left", tooltip: "Scroll tab list backward")
     let scrollRightButton = ChromeButton(symbol: "chevron.right", tooltip: "Scroll tab list forward")
     /// Insertion marker while another window's tab hovers over this strip.
@@ -230,7 +228,7 @@ final class TabStripView: NSView {
         plusButton.frame = NSRect(x: plusX, y: buttonY, width: plusButton.fixedWidth!, height: 28)
         RightToLeft.mirror(self, [scroll, plusButton, scrollLeftButton, scrollRightButton], contents: document, [tabViews])   // FE-204
         if RightToLeft.isActive(self) {
-            // The arrows keep pointing at the side they scroll toward: swap them back after mirroring.
+            // Swap the arrows back after mirroring so they point the way they scroll.
             let left = scrollLeftButton.frame
             scrollLeftButton.frame = scrollRightButton.frame
             scrollRightButton.frame = left
@@ -253,7 +251,7 @@ final class TabStripView: NSView {
             + " back=\(scrollLeftButton.isEnabled) forward=\(scrollRightButton.isEnabled)"
     }
 
-    /// Scripted checks: drop tab `index` (0-based) after dragging it `dx` points along the row, as the mouse does.
+    /// Scripted checks: drag tab `index` by `dx` points along the row and drop it.
     func scriptDrag(_ index: Int, by dx: CGFloat) {
         guard tabViews.indices.contains(index) else { return }
         let view = tabViews[index]
@@ -294,7 +292,6 @@ final class TabStripView: NSView {
     }
 }
 
-/// One tab.
 final class TabItemView: NSView {
     weak var strip: TabStripView?
     var index = 0
@@ -351,7 +348,7 @@ final class TabItemView: NSView {
 
     override func layout() {
         super.layout()
-        let closeX = RightToLeft.isActive(self) ? body.minX + 6 : body.maxX - 28   // FE-204: ✕ on the trailing (left) side
+        let closeX = RightToLeft.isActive(self) ? body.minX + 6 : body.maxX - 28   // FE-204: ✕ on the trailing side
         closeButton.frame = NSRect(x: closeX, y: (bounds.height - 22) / 2, width: 22, height: 22)
     }
 
@@ -363,7 +360,7 @@ final class TabItemView: NSView {
         } else if isHovered {
             fillRounded(NSRect(x: b.minX + 2, y: b.minY + 2, width: b.width - 4, height: b.height - 6), radius: 6, Theme.hover)
         }
-        // Right to left (FE-204): icon and title start at the right, the ✕ and the separator sit on the left.
+        // Right to left (FE-204): icon and title on the right, ✕ and separator on the left.
         let rtl = RightToLeft.isActive(self)
         if showsTrailingSeparator {
             Theme.tabSeparator.setFill()
@@ -414,9 +411,8 @@ final class TabItemView: NSView {
     override func mouseEntered(with event: NSEvent) { isHovered = true }
     override func mouseExited(with event: NSEvent) { isHovered = false }
 
-    /// Press selects (like Explorer); dragging along the strip reorders; dragging out of the tab row tears the
-    /// tab off into a new window, or merges it into the window whose tab row it is dropped on (FE-020).
-    /// The only tab of a window drags the window itself (and can merge the same way).
+    /// Press selects; dragging along the strip reorders; dragging out tears off or merges (FE-020).
+    /// A window's only tab drags the window itself.
     override func mouseDown(with event: NSEvent) {
         guard let strip, let window else { return }
         strip.delegate?.tabStripSelect(index)
@@ -442,7 +438,7 @@ final class TabItemView: NSView {
                 lastX = min(max(startX + dx, 0), maxX)
                 setFrameOrigin(NSPoint(x: lastX, y: frame.minY))
             }
-            // Out of the tab row (with a little slack): the tab follows the pointer as a floating image.
+            // Out of the tab row (with some slack): the tab follows the pointer as an image.
             let inStrip = strip.convert(next.locationInWindow, from: nil)
             detached = dragging && (inStrip.y < -Theme.tabTearOffSlack || inStrip.y > strip.bounds.height + Theme.tabTearOffSlack
                                     || inStrip.x < -Theme.tabTearOffSlack || inStrip.x > strip.bounds.width + Theme.tabTearOffSlack)

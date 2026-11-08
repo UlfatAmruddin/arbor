@@ -1,15 +1,13 @@
 import AppKit
 import ArborCore
 
-/// One Explorer window: a custom tab strip, navigation row, command bar, navigation pane, item
-/// view, side pane and status bar. Views exist once per window; each tab is a `TabState`.
+/// One Explorer window. Views exist once per window; each tab is a `TabState`.
 final class BrowserWindowController: NSWindowController, TabStripDelegate {
     var onClose: (() -> Void)?
 
     private(set) var tabs: [TabState] = []
     private(set) var activeIndex = 0
     var activeTab: TabState { tabs[activeIndex] }
-    /// The active tab's location (the folder or place on screen).
     var location: Location { activeTab.location }
     var history: NavigationHistory { activeTab.history }
 
@@ -21,11 +19,10 @@ final class BrowserWindowController: NSWindowController, TabStripDelegate {
     let navPane = NavigationPaneController()
     let sidePane = SidePaneContainer()
     let statusBar = StatusBarView()
-    // Window internals, shared with the extensions in BrowserWindowController+*.swift (Swift has no
-    // cross-file private). Features use the API listed in docs/ARCHITECTURE.md instead.
+    // Internals shared with the +*.swift extensions (no cross-file private); features use docs/ARCHITECTURE.md.
     let contentHost = ThemeBackgroundView(Theme.contentBackground)
     let split = ExplorerSplitView()
-    /// The view for the active tab's items (nil while a custom page is shown).
+    /// Nil while a custom page is shown.
     private(set) var itemView: ItemViewController?
     var shownPage: NSViewController?
     var watchToken: AnyObject?
@@ -82,7 +79,7 @@ final class BrowserWindowController: NSWindowController, TabStripDelegate {
         window?.title = activeTab.title
     }
 
-    /// Opens a tab. New tabs go to the end, like Explorer.
+    /// Opens a tab at the end, like Explorer.
     @discardableResult
     func openTab(_ location: Location, select: [String] = [], activate shouldActivate: Bool = true, state: TabState? = nil) -> TabState {
         let tab = state ?? TabState(location: location, viewMode: Prefs.defaultViewMode, sortOrder: Prefs.sortOrder)
@@ -198,8 +195,7 @@ final class BrowserWindowController: NSWindowController, TabStripDelegate {
         (NSApp.delegate as? AppDelegate)?.openWindow(tabs: [tab])
     }
 
-    /// Removes a tab, keeping its history and view state, so another window can adopt it (tear-off and
-    /// merge, FE-020). Taking the last tab closes this window.
+    /// Detaches a tab with its history and view state for another window to adopt (FE-020); last tab closes the window.
     func takeTab(at index: Int) -> TabState? {
         guard let tab = tab(at: index), tabs.indices.contains(index) else { return nil }
         if tab === activeTab { captureViewState(tab) }

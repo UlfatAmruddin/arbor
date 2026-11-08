@@ -1,12 +1,9 @@
 import AppKit
 import ArborCore
 
-/// Previous Versions ▸ copies of the item in Time Machine backups (FE-155), listed from
-/// `tmutil listbackups` when macOS lets Arbor read them. Without Full Disk Access that is explained,
-/// with a button to the Privacy settings, never shown as "no versions". "Open" opens a read-only copy
-/// (folders open in a new tab; backups are read-only); "Restore…" copies the version back into the
-/// item's folder as a normal copy job, so an existing item is never replaced without the usual
-/// Replace / Skip / Keep both decision.
+/// Previous Versions: copies in Time Machine backups (FE-155), from `tmutil listbackups`.
+/// Missing Full Disk Access is explained, never shown as "no versions". Open shows a read-only copy;
+/// Restore… is a normal copy job, so an existing item is never replaced without asking.
 final class TimeMachineVersionsView: NSStackView {
     private enum State: Equatable {
         case loading, versions, none, needsAccess, notConfigured, unavailable(String)
@@ -30,7 +27,7 @@ final class TimeMachineVersionsView: NSStackView {
 
     /// Headless runs record what would be opened instead of launching apps.
     static var lastOpened: String?
-    /// The most recently loaded section (scripts select rows in it).
+    /// Last loaded section; scripts select rows in it.
     static weak var latest: TimeMachineVersionsView?
 
     init(controller: PropertiesWindowController?) {
@@ -88,7 +85,7 @@ final class TimeMachineVersionsView: NSStackView {
         let token = self.token
         state = .loading
         show()
-        let env = ProcessInfo.processInfo.environment
+        let env = Automation.environment
         let overrideBackups = AppDelegate.isHeadless ? env["ARBOR_TM_BACKUPS"] : nil
         let overrideAccess = AppDelegate.isHeadless ? env["ARBOR_TM_ACCESS"] : nil
         DispatchQueue.global(qos: .utility).async { [weak self] in
@@ -176,7 +173,7 @@ final class TimeMachineVersionsView: NSStackView {
             Self.lastOpened = "tab: \(version.url.path)"
             return
         }
-        // A locked copy in a temporary folder: the backup itself is never opened for editing.
+        // Opens a read-only temp copy; the backup itself is never opened for editing.
         let folder = TemporaryFiles.versionsFolder.appendingPathComponent(UUID().uuidString)
         let stamp = PropertyFormat.shortDate(version.date).replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: ".")
         let (base, ext) = NameRules.splitExtension(item.lastPathComponent, treatAsFolder: false)
@@ -184,14 +181,13 @@ final class TimeMachineVersionsView: NSStackView {
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             try FileManager.default.copyItem(at: version.url, to: target)
-            try FileFlags.update(target, locked: true)
+            try TemporaryFiles.makeVersionCopyReadOnly(target)
             if AppDelegate.isHeadless {
-                // Scripted runs record it and leave nothing locked behind in the temporary folder.
-                Self.lastOpened = "file: \(target.lastPathComponent) locked=\((try? FileFlags.read(target).isLocked) == true)"
-                _ = try? FileFlags.update(target, locked: false)
+                // Scripted runs only record it and leave no temp files.
+                Self.lastOpened = "file: \(target.lastPathComponent) readOnly=\(!FileManager.default.isWritableFile(atPath: target.path))"
                 try? FileManager.default.removeItem(at: folder)
             } else {
-                SystemOpen.open(target)
+                VersionCopies.open(target, in: folder)
             }
         } catch {
             PropertiesWindowController.present(message: L10n.tr("The version couldn't be opened."), info: error.localizedDescription, window: controller?.window)
@@ -216,7 +212,7 @@ final class TimeMachineVersionsView: NSStackView {
 
     func scriptSelect(_ i: Int) { if versions.indices.contains(i) { select(i) } }
 
-    /// "open" or "restore" (the document-versions list above has buttons with the same titles).
+    /// "open" or "restore" (the versions list has buttons with these titles).
     func scriptPress(_ which: String) {
         let button = which == "open" ? openButton : restoreButton
         if button.isEnabled { button.onClick?(button) }

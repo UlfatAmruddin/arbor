@@ -3,6 +3,40 @@
 All notable user-visible changes. Versions follow `VERSION`; requirement IDs refer to [docs/SPEC.md](docs/SPEC.md) and
 their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 
+## Unreleased
+
+### Privacy
+- Clear Arbor history (Folder Options and Home) now also clears recent searches, operation history, the address bar's
+  recent locations, recent documents (Open Recent) and open tabs' Back/Forward.
+- Copies opened from Previous Versions are read-only and are removed when the app showing them quits.
+
+### Digital Signatures
+- A signature shows as OK only when it chains to Apple (Apple, Mac App Store, Developer ID, notarized), and every
+  architecture slice has to pass.
+- Ad hoc code shows as "Signed locally (ad hoc)" with the signer "Ad hoc (no certificate)"; self-signed code shows its
+  signer as "Unknown developer (unverified name: …)".
+- When the signer isn't identified by an Apple-issued certificate and there is no secure timestamp, the signing time is
+  labelled "stated by the signer, not verified".
+
+### Files
+- Archives: unknown member types and unreadable listing rows are kept out of whole-archive extraction, link loops and
+  very long link chains count as escaping, and listings too large to show are refused ("The archive lists more items
+  than Arbor can show."). Links in extracted items are checked on disk, so names the volume treats as equal
+  (such as "ſ" and "s") can't point a link outside the destination. Crafted ZIP64 values no longer crash Arbor.
+- The time-remaining text no longer crashes on very long estimates.
+- Empty Trash only deletes from real Trash folders, without following links.
+- A copy or move keeps the original and the target when either changed while the job ran.
+- Access-list and group edits apply only to the item the editor opened, and are refused if it was moved or replaced or
+  a folder above it became a link.
+- Content search reads only regular files and never waits on pipes or devices.
+- Very large or malformed sizes, durations and years in file metadata no longer crash Arbor; size totals stop at the
+  largest value instead.
+- Network addresses with unusual host names no longer crash Arbor.
+
+### Distribution
+- Distribution builds ignore the `ARBOR_*` test variables.
+- Ad-hoc signed releases use the hardened runtime.
+
 ## 0.2.0
 
 The window now follows Windows 11 File Explorer's layout and behavior, and most of Explorer's places, views and dialogs
@@ -56,7 +90,7 @@ exist.
 
 ### Known limitations
 - No Windows reference machine was used: parity is based on Microsoft documentation and recalled behavior.
-- English only; unsigned builds until a Developer ID is available.
+- English only; ad-hoc signed builds until a Developer ID is available.
 
 ## 0.1.0
 

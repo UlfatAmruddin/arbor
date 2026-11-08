@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Wraps whichever Preview pane is registered so selecting an online-only file never downloads it
-/// (FE-162): the pane shows "Download to preview" and waits for a deliberate click.
+/// Stops the Preview pane from downloading online-only files until "Download to preview" is clicked (FE-162).
 final class CloudAwarePreviewPane: NSView, SidePaneProvider {
     var view: NSView { self }
     private let inner: SidePaneProvider

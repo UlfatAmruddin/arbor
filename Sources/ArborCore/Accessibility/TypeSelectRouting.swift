@@ -1,12 +1,9 @@
 import Foundation
 
-/// Which keys pressed in the file list go to the input method for type-to-select (FE-068). Explorer passes
-/// typed text through the IME, so Japanese, Chinese or Korean names can be found by typing them; Arbor does
-/// the same through an input context of its own.
+/// Which file-list keys go to the input method for type-to-select (FE-068), so CJK names can be typed.
 public enum TypeSelectRouting {
-    /// True when the key types text: printable characters without ⌘ or ⌃. Space only continues a name that
-    /// is already being typed (otherwise it belongs to the list: Quick Look, check boxes). While the input
-    /// method is composing (`composing`), every key belongs to it, including arrows, Return and Escape.
+    /// True for printable keys without ⌘/⌃. Space only continues a name being typed (else Quick Look, check boxes).
+    /// While `composing`, every key goes to the input method, including arrows, Return and Escape.
     public static func goesToInputMethod(characters: String?, command: Bool, control: Bool,
                                          typeSelectActive: Bool, composing: Bool) -> Bool {
         if composing { return true }

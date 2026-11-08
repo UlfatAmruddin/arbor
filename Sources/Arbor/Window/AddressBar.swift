@@ -1,10 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Explorer address bar (FE-003, FE-004, FE-005): location icon, breadcrumb segments separated by
-/// ">" chevrons that list subfolders and a "«" menu for collapsed ancestors. Refresh sits left of the
-/// bar in the navigation row (Windows 11); it calls `onRefresh`, which features may wrap.
-/// Click empty space or press ⌘L to type a path; Return resolves, Escape restores.
+/// Explorer address bar (FE-003, FE-004, FE-005): breadcrumbs with subfolder chevrons and a "«" overflow menu.
+/// Click empty space or ⌘L to type a path; Return resolves, Escape restores.
 final class AddressBar: NSView, NSTextFieldDelegate {
     var onNavigate: ((Location) -> Void)?
     var onSubmit: ((String) -> Void)?
@@ -12,9 +10,9 @@ final class AddressBar: NSView, NSTextFieldDelegate {
 
     private let iconView = NSImageView()
     private let field = NSTextField()
-    /// "▾" at the right end: recent locations (Windows 11 address bar).
+    /// "▾" at the right end: recent locations.
     let recentButton = ChromeButton(symbol: "chevron.down", tooltip: "Recent locations")
-    /// Supplies the recent-locations list; the button hides while there is no provider.
+    /// The recent button hides while there is no provider.
     static let recentLocations = Provided<(() -> [Location])?>(
         "AddressBar.recentLocations", "The address bar's recent locations (▾); hidden without a provider.",
         signature: "() -> [Location]", default: nil)
@@ -35,12 +33,12 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         }
     }
 
-    /// What the field shows when editing: the path for folders, otherwise the place's name.
+    /// Editing text: the path for folders, else the place's name.
     var editText: String {
         if let custom = Self.editTextProviders.first(location) { return custom }
         return location.folderURL?.path ?? LocationRegistry.provider(for: location).title(for: location)
     }
-    /// Features may supply the editable text for their locations (e.g. `\\server\share`).
+    /// Feature-supplied editing text (e.g. `\\server\share`).
     static let editTextProviders = Handlers<Location, String>(
         "AddressBar.editTextProviders", "The text the address field edits for a location; nil = path or title.",
         signature: "(location) -> text?")
@@ -214,7 +212,6 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         showMenu(recent, current: location, from: button, emptyText: L10n.tr("No recent locations"))
     }
 
-    /// The recent-locations menu entries (also for scripted checks).
     var recentMenuEntries: [CrumbChild] {
         (Self.recentLocations.value?() ?? []).map { place in
             let provider = LocationRegistry.provider(for: place)
@@ -231,7 +228,7 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         showMenu(Array(hidden), current: nil, from: button)
     }
 
-    /// Visible segments, collapsed segments and each chevron's entries, for scripted checks.
+    /// For scripted checks.
     func debugDescription(includeMenus: Bool) -> String {
         layoutSubtreeIfNeeded()
         var lines = ["segments: " + crumbs.map(\.title).joined(separator: " > "),

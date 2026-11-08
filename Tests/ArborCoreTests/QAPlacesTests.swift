@@ -2,12 +2,10 @@ import Testing
 import Foundation
 @testable import ArborCore
 
-/// Regression tests for bugs found while testing places, search, archives and dialogs
-/// (docs/features/qa-places.md).
+/// Regressions from places, search, archive and dialog QA (docs/features/qa-places.md).
 
 @Suite struct ArchiveLinkChainTests {
-    /// "self" points at its own folder, so "self/.." is the folder *above* the extracted tree even though
-    /// the name looks like it stays inside. Links must be resolved through other links.
+    /// "self" is ".", so "self/.." escapes the tree; links must be resolved through other links.
     let chained = [
         ArchiveEntry(rawPath: "self", kind: .symlink, linkTarget: "."),
         ArchiveEntry(rawPath: "esc", kind: .symlink, linkTarget: "self/../outside.txt"),
@@ -140,8 +138,7 @@ import Foundation
         let archive = fx.url("out/odd.\(format.fileExtension)")
         try ArchiveTool.create(format: format, sources: Self.names.map { fx.url("src/" + $0) }, output: archive, process: ToolProcess())
         let listing = try ArchiveTool.listWithBsdtar(archive)
-        // libarchive reads "\" in ZIP names as a folder separator (as Windows does); "back\slash.txt"
-        // comes back as back/slash.txt. Every other name survives.
+        // libarchive reads "\" in ZIP names as a separator (like Windows); every other name survives.
         let expected = Set(Self.names.map { format == .zip ? $0.replacingOccurrences(of: "\\", with: "/") : $0 })
         #expect(Set(listing.entries.compactMap(\.path)) == expected, "\(format)")
 

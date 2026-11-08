@@ -1,10 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Gallery (FE-075): photos and videos from the collection's folders, newest first, grouped under
-/// month headers, in justified rows without file names, with a date rail on the right.
-/// Every tile is a real file: selection feeds the window's commands (Open, Copy, Delete via Trash,
-/// Share, Quick Look, Open file location) through `LocationPageSelection`.
+/// Gallery (FE-075): photos and videos newest first under month headers, in justified rows, with a date rail.
+/// Tiles are real files: selection feeds the window's commands via `LocationPageSelection`.
 final class GalleryPageController: NSViewController, LocationPageStatus, LocationPageSelection {
     weak var host: LocationHost?
     let grid = GalleryGridView()
@@ -15,7 +13,7 @@ final class GalleryPageController: NSViewController, LocationPageStatus, Locatio
     private var pendingReload: DispatchWorkItem?
     private var attached = false
     private var showsPartialCoverage = false
-    /// Text typed in the search box: only photos and videos whose names contain it are shown.
+    /// Search box text: only names containing it are shown.
     var filterText = ""
 
     init(host: LocationHost?) {
@@ -231,8 +229,7 @@ final class GalleryRootView: ThemeBackgroundView {
 
 // MARK: - Grid
 
-/// The justified thumbnail grid. Only visible tiles are drawn and only tiles near the viewport
-/// request thumbnails; requests for tiles that scroll away are cancelled.
+/// Draws only visible tiles; requests thumbnails near the viewport and cancels the rest.
 final class GalleryGridView: NSView, NSDraggingSource {
     weak var page: GalleryPageController?
     var rowHeight: CGFloat = 184 { didSet { if rowHeight != oldValue { relayout() } } }
@@ -663,9 +660,8 @@ final class GalleryGridView: NSView, NSDraggingSource {
 
 // MARK: - Date rail
 
-/// The timeline on the right edge (Gallery's date scrollbar): years at their position in the
-/// collection, a tick per month, the visible span, and a month bubble while hovering or dragging.
-/// Click or drag to jump; it snaps to the month under the pointer.
+/// Gallery's date scrollbar: years, month ticks, visible span, and a month bubble on hover or drag.
+/// Click or drag to jump; snaps to the month under the pointer.
 final class GalleryDateRail: NSView {
     static let width: CGFloat = 58
 

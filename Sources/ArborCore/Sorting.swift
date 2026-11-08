@@ -16,12 +16,11 @@ public enum SortKey: String, CaseIterable, Sendable {
 public struct FileSortOrder: Equatable, Sendable {
     public var key: SortKey
     public var ascending: Bool
-    /// Folders stay above files regardless of sort column and direction (proposed improvement, FE-053).
+    /// Folders above files whatever the sort (proposed improvement, FE-053).
     public var foldersFirst: Bool
-    /// Sort by a Details column that isn't a `SortKey` (Date created, Dimensions…). Overrides `key`.
+    /// A Details column that isn't a `SortKey` (Date created, Dimensions…); overrides `key`.
     public var column: ColumnID?
-    /// Further keys for ties, most important first (FE-235). The previous primary column becomes
-    /// the first of these when the user sorts by another column.
+    /// Tie-break keys, most important first (FE-235); the previous primary becomes the first on re-sort.
     public var thenBy: [SortCriterion] = []
 
     public init(key: SortKey = .name, ascending: Bool = true, foldersFirst: Bool = true) {
@@ -30,11 +29,9 @@ public struct FileSortOrder: Equatable, Sendable {
         self.foldersFirst = foldersFirst
     }
 
-    /// The column the order is primarily by.
     public var primaryColumn: ColumnID { column ?? ColumnID(key.rawValue) }
 
-    /// Sorts by `column`. With `keepPrevious`, the old primary key becomes the first tie-breaker
-    /// (at most `maxSecondary` are kept).
+    /// With `keepPrevious`, the old primary becomes the first tie-breaker (at most `maxSecondary` kept).
     public mutating func setPrimary(_ column: ColumnID, ascending: Bool, keepPrevious: Bool = true, maxSecondary: Int = 2) {
         let previous = SortCriterion(primaryColumn, ascending: self.ascending)
         if let key = SortKey(rawValue: column.rawValue) {
@@ -50,7 +47,6 @@ public struct FileSortOrder: Equatable, Sendable {
     }
 }
 
-/// One sort key with its direction.
 public struct SortCriterion: Equatable, Sendable, Codable {
     public var column: ColumnID
     public var ascending: Bool
@@ -60,19 +56,16 @@ public struct SortCriterion: Equatable, Sendable, Codable {
     }
 }
 
-/// Deterministic ordering. Comparisons only use values already in memory, never disk I/O.
-///
-/// Names use Finder-style natural ordering (`localizedStandardCompare`). That is NOT a
-/// claim of exact parity with Explorer's comparator; see spec §6.3.
+/// Deterministic ordering from in-memory values only, never disk I/O. Names use `localizedStandardCompare`
+/// (Finder-style), not an exact match of Explorer's comparator (spec §6.3).
 public enum FileSorter {
-    /// Values for columns that aren't in the listing (DEC-024). A handler answers for the columns it owns,
-    /// `.some(nil)` while a value is still loading; nil lets the next handler answer. The app's metadata
-    /// cache answers last. Missing values (still loading) sort last.
+    /// Values for non-listing columns (DEC-024). A handler returns `.some(nil)` while loading, nil to defer to
+    /// the next handler; the metadata cache answers last. Missing values sort last.
     public static let columnValues = Handlers<(FileItem, ColumnID), ColumnValue?>(
         "FileSorter.columnValues", "Sort values for columns that aren't in the listing (extra columns, metadata).",
         signature: "(item, column) -> value? (nil = not mine, .some(nil) = still loading)")
 
-    /// A non-listing column's value from `columnValues` (nil = unknown or still loading).
+    /// Value from `columnValues`; nil = unknown or still loading.
     @inlinable
     public static func columnValue(_ item: FileItem, _ column: ColumnID) -> ColumnValue? {
         columnValues.first((item, column)) ?? nil
@@ -104,7 +97,7 @@ public enum FileSorter {
         return a.url.path < b.url.path
     }
 
-    /// Result already accounts for direction. Missing values always sort last.
+    /// Accounts for direction; missing values always sort last.
     static func compareKey(_ a: FileItem, _ b: FileItem, _ order: FileSortOrder) -> ComparisonResult {
         func directed(_ r: ComparisonResult) -> ComparisonResult { order.ascending ? r : r.reversed }
         if let column = order.column { return compareColumn(a, b, column, ascending: order.ascending) }
@@ -116,7 +109,7 @@ public enum FileSorter {
         }
     }
 
-    /// Any catalog column, via `columnValues` for non-listing columns.
+    /// Any catalog column; non-listing ones via `columnValues`.
     static func compareColumn(_ a: FileItem, _ b: FileItem, _ column: ColumnID, ascending: Bool) -> ComparisonResult {
         if let key = SortKey(rawValue: column.rawValue) {
             return compareKey(a, b, FileSortOrder(key: key, ascending: ascending, foldersFirst: false))
@@ -141,7 +134,7 @@ public enum FileSorter {
     }
 }
 
-/// Filters the current folder by name. This is a filter, not a recursive search.
+/// Filters the current folder by name (not a recursive search).
 public enum FileFilter {
     public static func matches(_ item: FileItem, query: String) -> Bool {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)

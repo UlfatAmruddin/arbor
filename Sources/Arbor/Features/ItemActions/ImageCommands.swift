@@ -1,10 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Image actions (FE-097): Set as desktop background, Rotate right, Rotate left — in the contextual
-/// command bar and the item context menu, only when every selected item supports them.
-/// Print is omitted: macOS has no public "print this file with its default app" API, and a button
-/// that only opens the file would be a fake feature (DEC-019).
+/// Image actions (FE-097), shown only when every selected item supports them. No Print: macOS has
+/// no public print-with-default-app API, and a button that only opens the file would be fake (DEC-019).
 enum ImageCommands {
     static func register() {
         let r = CommandRegistry.shared
@@ -63,8 +61,8 @@ enum ImageCommands {
         }
     }
 
-    /// Undo turns the images back the other way (exact for both lossless methods); Redo turns them again.
-    /// `clockwise` is the turn this step undoes; `actionName` names the user's original action in both directions.
+    /// Undo turns the images back (exact for both lossless methods); redo turns them again.
+    /// `clockwise` is the turn this step undoes; `actionName` is the original action's name.
     static func registerUndo(_ urls: [URL], clockwise: Bool, actionName: String) {
         let center = OperationCenter.shared
         center.undoManager.registerUndo(withTarget: center) { _ in
@@ -81,8 +79,7 @@ enum ImageCommands {
         center.undoManager.setActionName(actionName)
     }
 
-    /// Sets the picture for every screen's current desktop (Explorer sets it for all monitors).
-    /// Headless test runs never change the real wallpaper; they report what would happen.
+    /// Sets the picture on every screen's desktop; headless runs only report it.
     static func setBackground(_ ctx: CommandContext) {
         guard let item = ctx.single, let window = ctx.window else { return }
         if AppDelegate.isHeadless {

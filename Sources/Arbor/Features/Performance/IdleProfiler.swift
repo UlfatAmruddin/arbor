@@ -1,13 +1,11 @@
+import ArborCore
 import Darwin
 import Foundation
 
-/// Finds what keeps a supposedly idle app busy, from inside the process (benchmark `idle` step with
-/// `ARBOR_IDLE_PROFILE=1`). Every 10 ms it looks at each thread; a thread that used CPU since the last
-/// look has its call stack recorded (frame-pointer walk while the thread is briefly suspended). The
-/// report lists CPU per thread and the most frequent stacks. Its own thread's CPU is reported apart, so
-/// the idle measurement can leave it out. Debug instrumentation only: never on in normal use.
+/// What keeps an idle app busy (`ARBOR_IDLE_PROFILE=1`, benchmark `idle` step); debug only. Every 10 ms, threads
+/// that used CPU get their stack sampled while suspended. Its own CPU is reported apart so idle figures can exclude it.
 final class IdleProfiler: @unchecked Sendable {
-    static var isRequested: Bool { ProcessInfo.processInfo.environment["ARBOR_IDLE_PROFILE"] == "1" }
+    static var isRequested: Bool { Automation.environment["ARBOR_IDLE_PROFILE"] == "1" }
 
     private struct ThreadRecord {
         var name: String
@@ -130,8 +128,7 @@ final class IdleProfiler: @unchecked Sendable {
         return String(cString: buffer)
     }
 
-    /// Return addresses from the thread's frame-pointer chain, innermost first. The thread is suspended
-    /// while its stack is read, and every frame must lie inside its stack.
+    /// Frame-pointer return addresses, innermost first; read while suspended, every frame must lie in the stack.
     private static func stack(of thread: thread_act_t) -> [UInt]? {
         #if arch(arm64)
         guard let pthread = pthread_from_mach_thread_np(thread) else { return nil }

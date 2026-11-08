@@ -100,6 +100,21 @@ struct NavigationHistoryTests {
         #expect(entry?.topVisibleName == "w.txt")
     }
 
+    @Test func clearingBackForwardKeepsCurrentLocation() {
+        var h = NavigationHistory(start: a)
+        h.visit(b)
+        h.visit(c)
+        h.goBack()
+        h.saveState(selectedNames: ["x.txt"], topVisibleName: nil)
+        h.clearBackForward()
+        #expect(!h.canGoBack && !h.canGoForward)
+        #expect(h.current.url == b)
+        #expect(h.current.selectedNames == ["x.txt"])
+        // A tab rebuilt from the saved session has no Back/Forward either.
+        let saved = SessionTab(history: h, viewMode: "details", sort: FileSortOrder())
+        #expect(saved.back.isEmpty && saved.forward.isEmpty)
+    }
+
     @Test func historyIsBounded() {
         var h = NavigationHistory(start: a, limit: 3)
         for i in 0..<10 { h.visit(URL(fileURLWithPath: "/f\(i)")) }

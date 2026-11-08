@@ -1,9 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Cloud status (FE-189–FE-198, FE-162, FE-113, FE-244): iCloud Drive and File Provider roots in the
-/// navigation pane, a Status column and icon badges from the system's ubiquitous-item keys, and the
-/// provider actions a third-party app can actually request. See docs/features/cloud.md.
+/// Cloud status (FE-189–FE-198, FE-162, FE-113, FE-244). See docs/features/cloud.md.
 enum CloudFeature: ExplorerFeature {
     static let id = "cloud"
     static let section = MenuSection(rank: 550, name: "cloud")
@@ -20,8 +18,7 @@ enum CloudFeature: ExplorerFeature {
             // Root folders get the provider's name and icon (tab, address bar); listing stays with the folder provider.
             LocationRegistry.register(CloudRootProvider(base: LocationRegistry.provider(for: .folder(sample.url))))
         }
-        // Early: a cloud folder that sits inside a mounted network share (a network home folder) still gets
-        // cloud crumbs, as before the extension points (the later-registered builder used to win).
+        // Early, so a cloud folder inside a mounted network share still gets cloud crumbs.
         Breadcrumbs.register("cloud.crumbs", order: .early) { location in
             guard let url = location.folderURL, let root = CloudEnvironment.root(containing: url) else { return nil }
             return crumbs(for: url, in: root)
@@ -85,9 +82,8 @@ enum CloudFeature: ExplorerFeature {
 
     // MARK: Copying out of the cloud (FE-113)
 
-    /// Copying (or moving out of the provider) downloads online-only content. Ask first when the
-    /// sources include folders (their content can't be checked without a recursive scan) or files
-    /// known to be online-only. Moves inside the same provider folder are renames and never ask.
+    /// Copying out downloads online-only content: ask first for folders (unchecked) or online-only files.
+    /// Moves within the same provider folder are renames and never ask.
     static func hydrationPrompt(_ kind: TransferKind, _ sources: [URL], _ destination: URL) -> TransferPreflight.Prompt? {
         let cloudSources = sources.prefix(200).filter { CloudEnvironment.root(containing: $0) != nil }
         guard let first = cloudSources.first, let root = CloudEnvironment.root(containing: first) else { return nil }
@@ -153,8 +149,7 @@ enum CloudFeature: ExplorerFeature {
 
     enum Action { case download, evict }
 
-    /// Asks the system, then reports what actually happened: request errors at once, then the
-    /// state the items reach (polled for a bounded time, never assumed).
+    /// Reports request errors at once, then polls (bounded) for the state the items actually reach.
     static func run(_ action: Action, _ items: [FileItem], window: BrowserWindowController?) {
         guard !items.isEmpty else { NSSound.beep(); return }
         let urls = items.map(\.url)
@@ -237,8 +232,7 @@ enum CloudFeature: ExplorerFeature {
     }
 }
 
-/// A cloud root shown under its provider name ("OneDrive – Personal") with a cloud icon. Everything
-/// else is delegated to the folder provider that was registered before.
+/// A cloud root under its provider name and icon; the rest goes to the previously registered provider.
 final class CloudRootProvider: LocationProvider {
     private let base: LocationProvider
     init(base: LocationProvider) { self.base = base }

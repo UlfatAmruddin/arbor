@@ -1,7 +1,6 @@
 import AppKit
 
-/// The browser window: full-size content under a transparent title bar, with the native
-/// close/minimize/zoom buttons centered in our tab row, and window-level key bindings.
+/// Full-size content under a transparent title bar, traffic lights in the tab row, window key bindings.
 final class BrowserWindow: NSWindow {
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 1180, height: 740),
@@ -39,8 +38,7 @@ final class BrowserWindow: NSWindow {
         layoutTrafficLights()
     }
 
-    /// Window-scope key bindings from the command registry (⌃Tab, ⇧⌘1…8 …). Not while editing text,
-    /// unless the binding uses ⌘ or ⌃.
+    /// Window-scope command bindings; while editing text only those using ⌘ or ⌃.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if event.type == .keyDown, let command = CommandRegistry.shared.command(for: event, scope: .window),
            let controller = windowController as? BrowserWindowController {

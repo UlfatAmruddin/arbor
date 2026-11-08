@@ -2,8 +2,7 @@ import Foundation
 import CoreGraphics
 import UniformTypeIdentifiers
 
-/// Identity of one thumbnail in the shared cache (FE-149, spec §15.3): the same path with a different
-/// modification date or size is a different image, and each requested pixel size is its own entry.
+/// Shared-cache key (FE-149, spec §15.3): another modification date, size or pixel size is another entry.
 public struct ThumbnailKey: Hashable, Sendable {
     public let path: String
     public let modified: TimeInterval
@@ -22,19 +21,17 @@ public struct ThumbnailKey: Hashable, Sendable {
         self.pixels = pixels
     }
 
-    /// The same file version at another pixel size.
     public func resized(_ pixels: Int) -> ThumbnailKey {
         ThumbnailKey(path: path, modified: modified, size: size, pixels: pixels)
     }
 }
 
 public enum ThumbnailPolicy {
-    /// Pixel sizes the views request; a larger cached size can stand in for a smaller one.
+    /// A larger cached size can stand in for a smaller one.
     public static func pixelSize(points: CGFloat, scale: CGFloat) -> Int { Int((points * scale).rounded(.up)) }
 
-    /// Explorer shows thumbnails instead of icons for pictures, videos and documents with a thumbnail
-    /// handler, at Medium icons and larger (windows11-reference §7). Arbor generates them for images,
-    /// PDFs and movies; everything else keeps its icon. Decided by extension only (no disk access).
+    /// Thumbnails for images, PDFs and movies at Medium icons and up, like Explorer (windows11-reference §7);
+    /// other files keep their icon. Decided by extension only (no disk access).
     public static func wantsThumbnail(_ item: FileItem, iconPoints: CGFloat, iconsOnly: Bool) -> Bool {
         guard !iconsOnly, iconPoints >= 32, !item.isFolder, !item.isPackage else { return false }
         let ext = item.url.pathExtension
@@ -43,20 +40,18 @@ public enum ThumbnailPolicy {
         return type.conforms(to: .movie) || (type.conforms(to: .audiovisualContent) && !type.conforms(to: .audio))
     }
 
-    /// What the Details pane's large preview area shows for one selected item.
+    /// What the Details pane's preview area shows.
     public enum PanePreview: Equatable, Sendable {
-        /// The type (or custom) icon: folders, packages, and text whose thumbnail would be a nearly blank page.
+        /// Type or custom icon: folders, packages, and text (its thumbnail looks blank).
         case icon
-        /// A picture, video frame or PDF/office page from the system's thumbnail generator.
+        /// Picture, video frame or PDF/office page from the system thumbnail generator.
         case thumbnail
-        /// A rendered document page (PDF, office, iWork, e-book): drawn with a border so a white page stays
-        /// visible on the white pane.
+        /// A rendered document page, bordered so a white page shows on the white pane.
         case page
     }
 
-    /// Explorer's Details pane shows a thumbnail where a thumbnail handler exists (pictures, videos,
-    /// documents) and the type's icon otherwise; plain text, source code, CSV, JSON, Markdown and logs show
-    /// their icon. (A text "thumbnail" is a white page with a few tiny lines, which looked blank.)
+    /// Like Explorer's Details pane: a thumbnail where a handler exists, else the type icon. Plain text, code,
+    /// CSV, JSON, Markdown and logs show the icon (their thumbnail is a near-blank page).
     public static func panePreview(_ item: FileItem, iconsOnly: Bool) -> PanePreview {
         guard !iconsOnly, !item.isFolder, !item.isPackage else { return .icon }
         if wantsThumbnail(item, iconPoints: 128, iconsOnly: false) {
@@ -80,8 +75,7 @@ public enum ThumbnailPolicy {
     }
 }
 
-/// Shortens a name in the middle so it fits, keeping the start and the extension visible (DEC-013).
-/// `fits` measures a candidate; the search is logarithmic in the name length.
+/// Middle-truncates a name to fit, keeping start and extension (DEC-013); binary search over `fits`.
 public enum MiddleTruncation {
     public static func fit(_ name: String, ellipsis: String = "…", fits: (String) -> Bool) -> String {
         if fits(name) { return name }

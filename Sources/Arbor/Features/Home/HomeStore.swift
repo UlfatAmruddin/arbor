@@ -41,13 +41,11 @@ extension Prefs {
 
 // MARK: - History, favorites and pin identity
 
-/// What Home remembers: folder visits, files opened through Arbor, "Remove from Recent" marks,
-/// favorites and the identity of pinned folders. All of it is a projection (FE-239): nothing here
-/// ever moves, renames or deletes the items it points at. Stored in `Prefs.store`, so headless
-/// test runs use their throwaway domain.
+/// What Home remembers: visits, opened files, removals, favorites, pin identities. Projection only
+/// (FE-239): never moves, renames or deletes items. In `Prefs.store` (a throwaway domain in tests).
 enum HomeStore {
     static let changed = Notification.Name("ArborHomeStoreChanged")
-    /// Posted by "Clear history" so other features (address bar history…) can clear theirs.
+    /// Posted by "Clear history" so other features (search, operations, Back/Forward, address bar) clear theirs.
     static let historyCleared = Notification.Name("ArborHistoryCleared")
 
     static let recentDays = 30
@@ -121,8 +119,7 @@ enum HomeStore {
         save(f, Key.frequency)
     }
 
-    /// "Clear history": frequent folders, Recent (Arbor's list and everything Spotlight reports
-    /// up to now) and removal marks. Pins and favorites stay, as in Explorer.
+    /// "Clear history": frequent folders, Recent (incl. Spotlight's so far) and removal marks; pins and favorites stay.
     static func clearHistory() {
         save(FolderFrequency(), Key.frequency, notify: false)
         save(RecentLog(), Key.recent, notify: false)
@@ -152,7 +149,7 @@ enum HomeStore {
         save(favorites.filter { !paths.contains($0.path) }, Key.favorites)
     }
 
-    /// Stores paths found by resolving references (a favorite or pin that was renamed or moved).
+    /// Stores paths resolved for renamed or moved favorites and pins.
     static func applyMoves(favorites moves: [String: String], pins pinMoves: [String: String]) {
         if !moves.isEmpty {
             save(favorites.map { ref in
@@ -174,7 +171,7 @@ enum HomeStore {
         }
     }
 
-    /// Keeps an identity for each pinned folder, so a renamed pin is followed (called when pins change).
+    /// Keeps each pinned folder's identity so renamed pins are followed (call when pins change).
     static func syncPinReferences() {
         var refs = pinReferences
         let pinned = QuickAccess.urls.map { HomePaths.normalized($0.path) }

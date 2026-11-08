@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Checks before a copy or move starts. A check returns a prompt when the user should decide first
-/// (e.g. copying out of a cloud folder downloads online-only files, FE-113); nil lets it run.
+/// Pre-transfer checks: a prompt when the user should decide first (e.g. cloud downloads, FE-113), nil to run.
 enum TransferPreflight {
     struct Prompt {
         let message: String

@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - History (FE-135)
 
-/// Recent searches shown under the search box, most recent first. Clearable.
+/// Recent searches, most recent first.
 public struct SearchHistory: Codable, Equatable, Sendable {
     public private(set) var entries: [String]
     public var limit: Int
@@ -12,8 +12,7 @@ public struct SearchHistory: Codable, Equatable, Sendable {
         self.limit = limit
     }
 
-    /// Records a query. `refining` (a search that ran while typing) replaces the newest entry when one
-    /// extends the other, so typing "rep", "repo", "report" leaves one entry, not three.
+    /// With `refining` (search while typing), the newest entry is replaced when either extends the other.
     public mutating func record(_ query: String, refining: Bool = false) {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return }
@@ -29,8 +28,7 @@ public struct SearchHistory: Codable, Equatable, Sendable {
     public mutating func remove(_ query: String) { entries.removeAll { $0 == query } }
     public mutating func clear() { entries.removeAll() }
 
-    /// What the dropdown lists: recent searches when the box is empty, otherwise earlier searches
-    /// containing the typed text (not the text itself).
+    /// Recent searches for an empty box, otherwise earlier searches containing the text (not the text itself).
     public func suggestions(for text: String, max: Int = 8) -> [String] {
         let t = text.trimmingCharacters(in: .whitespaces)
         if t.isEmpty { return Array(entries.prefix(max)) }
@@ -42,9 +40,8 @@ public struct SearchHistory: Codable, Equatable, Sendable {
 
 // MARK: - Saved searches (FE-138)
 
-/// A saved search: a small JSON `.arborsearch` file. Opening it reruns the search.
-/// The scope is stored as a path plus its volume UUID and an optional bookmark, so a moved folder can
-/// still be found and a same-named folder on another disk isn't silently searched instead.
+/// A saved `.arborsearch` file. The scope keeps path, volume UUID and bookmark, so a moved folder is
+/// still found and a same-named folder on another disk isn't searched instead.
 public struct SavedSearch: Codable, Equatable, Sendable {
     public static let fileExtension = "arborsearch"
     public static let formatName = "arbor.search"
@@ -117,7 +114,7 @@ public struct SavedSearch: Codable, Equatable, Sendable {
         return search
     }
 
-    /// A file name for the query, like Explorer ("report.search-ms" → "report.arborsearch").
+    /// File name for the query ("report" → "report.arborsearch").
     public static func suggestedFileName(for query: String) -> String {
         let cleaned = query.map { "/:\\\n\r\t".contains($0) ? "-" : $0 }
         var base = String(cleaned).trimmingCharacters(in: .whitespaces)
@@ -129,8 +126,7 @@ public struct SavedSearch: Codable, Equatable, Sendable {
 
 // MARK: - Identity (merge/dedupe)
 
-/// Identity used to merge index hits with direct-scan hits: the same directory entry seen twice is
-/// one result, but two hard links to one file (different entries) stay two results (spec §3.2).
+/// Merge key for index and scan hits: one entry seen twice is one result; hard links stay separate (spec §3.2).
 public struct FileIdentity: Hashable, Sendable {
     public let device: UInt64
     public let inode: UInt64
@@ -143,7 +139,7 @@ public struct FileIdentity: Hashable, Sendable {
         entry = (!isDirectory && linkCount > 1) ? path.precomposedStringWithCanonicalMapping.lowercased() : nil
     }
 
-    /// Reads the identity with `lstat` (does not follow symbolic links). nil if the item is gone.
+    /// Read with `lstat` (links not followed); nil if the item is gone.
     public static func of(path: String) -> FileIdentity? {
         var st = stat()
         guard lstat(path, &st) == 0 else { return nil }
@@ -154,7 +150,7 @@ public struct FileIdentity: Hashable, Sendable {
 
 // MARK: - Coverage (FE-140, FE-141, FE-144)
 
-/// What a search did and didn't cover. The status line never claims completeness it doesn't have.
+/// What a search did and didn't cover, so the status line never overclaims.
 public struct SearchCoverage: Equatable, Sendable {
     public enum Phase: Equatable, Sendable {
         case searching
@@ -165,24 +161,24 @@ public struct SearchCoverage: Equatable, Sendable {
     }
 
     public var phase: Phase = .searching
-    /// Folders that couldn't be opened (permission). The first few paths are kept for the details.
+    /// Folders denied by permissions; the first few paths are kept.
     public var deniedFolders: [String] = []
     public var deniedCount = 0
     /// Folders that failed for other reasons (I/O error, vanished volume).
     public var unreadableCount = 0
-    /// Other disks mounted inside the scope that weren't entered.
+    /// Mounted disks inside the scope that weren't entered.
     public var skippedVolumes: [String] = []
     /// The scope folder doesn't exist or its disk isn't connected.
     public var scopeUnavailable: String?
-    /// The query needs the Spotlight index (contents of non-text files, authors) and it's off or unknown.
+    /// The query needs the Spotlight index (non-text contents, authors) and it's off or unknown.
     public var indexUnavailable = false
     /// Spotlight didn't answer in time.
     public var indexTimedOut = false
-    /// Searching everywhere (This Mac) uses the index only.
+    /// Searching This Mac uses the index only.
     public var indexOnly = false
     /// Files whose contents couldn't be checked directly (not plain text, too large, not downloaded).
     public var contentUnchecked = 0
-    /// Contents relied on the Spotlight index for files Arbor can't read as text.
+    /// Contents of files Arbor can't read as text came from the index.
     public var contentFromIndex = false
     public var archivesUnreadable = 0
     public var resultLimit: Int?

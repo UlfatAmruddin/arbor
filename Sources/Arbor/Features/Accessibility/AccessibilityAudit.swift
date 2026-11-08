@@ -1,8 +1,7 @@
 import AppKit
 
-/// Scripted VoiceOver check (FE-200): `axaudit:/path` walks the accessibility tree of every open window
-/// (main windows, dialogs, sheets) and appends each control VoiceOver would announce without a name, and
-/// each empty row:
+/// Scripted VoiceOver check (FE-200): `axaudit:/path` appends every unnamed control and empty row
+/// in every open window:
 ///
 ///     unlabeled: "Folder Options" AXButton (DialogButton)
 ///     axaudit: 3 windows, 214 controls, 0 problems
@@ -73,7 +72,7 @@ enum AccessibilityAudit {
         }
     }
 
-    /// Reads an attribute through the attribute-based API (works for AppKit's private row and cell proxies).
+    /// Attribute-based API, so it also works for AppKit's private row and cell proxies.
     static func attribute(_ object: NSObject, _ name: String) -> Any? {
         let getter = NSSelectorFromString("accessibilityAttributeValue:")
         guard object.responds(to: getter) else { return nil }

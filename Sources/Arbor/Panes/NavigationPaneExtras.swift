@@ -1,8 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Extra top-level nodes features add to the navigation pane, e.g. cloud roots after Gallery (where
-/// Explorer shows OneDrive) and the Trash after Network. Builders run on every rebuild, so keep them cheap.
+/// Extra top-level nodes from features (cloud roots after Gallery, Trash after Network).
+/// Builders run on every rebuild, so keep them cheap.
 ///
 ///     NavigationPaneExtras.register(.afterNetwork, "trash.navigation-node") { [NavNode(kind: .place, title: "Trash", location: .trash)] }
 enum NavigationPaneExtras {
@@ -20,8 +20,7 @@ enum NavigationPaneExtras {
 
     static func nodes(_ position: Position) -> [NavNode] { builders.apply([], position) }
 
-    /// Rebuilds the pane in every window (after a node's icon or the set of nodes changed).
-    /// Coalesced: a disk image mount posts several changes, and each rebuild reads names on the main thread.
+    /// Rebuilds the pane in every window. Coalesced: one disk image mount posts several changes.
     static func refreshAll() {
         pendingRefresh?.cancel()
         let work = DispatchWorkItem { refreshAllNow() }

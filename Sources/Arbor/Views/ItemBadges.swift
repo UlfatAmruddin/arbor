@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Small status glyphs composited onto item icons of 32 pt and up (icon views). The Details view
-/// shows the same information in a column instead, so its 16 pt icons stay clean.
+/// Status glyphs on icons of 32 pt and up; Details shows this in a column instead.
 enum ItemBadges {
     static let providers = Handlers<FileItem, NSImage>(
         "ItemBadges.providers", "A status glyph on icons of 32 pt and up (cloud status).", signature: "(item) -> badge?")

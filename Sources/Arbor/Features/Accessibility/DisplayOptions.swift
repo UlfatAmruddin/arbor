@@ -1,19 +1,12 @@
 import AppKit
 import ArborCore
 
-/// Mac display accommodations (FE-201) and the file list text size (FE-050, FE-202).
-///
-/// - Increase contrast: borders, separators, secondary text, hover and selection get stronger variants,
-///   selected items get an outline, and the keyboard focus rectangle is thicker.
-/// - Reduce motion: the few animations (search progress fade) are skipped.
-/// - Reduce transparency: Arbor draws opaque surfaces already (no vibrancy); nothing changes.
-/// - Text size: View ▸ Text size scales Details rows, icon labels and the navigation pane.
-///
-/// Scripted checks force these with `ARBOR_CONTRAST=1`, `ARBOR_REDUCE_MOTION=1`, `ARBOR_TEXT_SIZE=130`.
+/// Display accommodations (FE-201) and text size (FE-050, FE-202). Reduce transparency needs nothing
+/// (no vibrancy). Scripts force them with `ARBOR_CONTRAST=1`, `ARBOR_REDUCE_MOTION=1`, `ARBOR_TEXT_SIZE=130`.
 extension Theme {
-    private static let environment = ProcessInfo.processInfo.environment
+    private static let environment = Automation.environment
 
-    /// Increase contrast is on (System Settings ▸ Accessibility ▸ Display, or `ARBOR_CONTRAST=1`).
+    /// System setting, or `ARBOR_CONTRAST=1`.
     static var increasedContrast: Bool {
         environment["ARBOR_CONTRAST"] == "1" || NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
     }
@@ -59,14 +52,13 @@ extension Theme {
     }
 }
 
-/// View ▸ Text size (Explorer's equivalent is Windows' "Make text bigger"; Arbor scales the file
-/// list and the navigation pane, leaving the fixed-size chrome alone so nothing clips).
+/// View ▸ Text size: scales the file list and navigation pane, not the fixed-size chrome, so nothing clips.
 enum TextSize {
     static let key = "textSize"
 
     static var level: TextSizeLevel {
         get {
-            if let forced = ProcessInfo.processInfo.environment["ARBOR_TEXT_SIZE"].flatMap(Int.init).flatMap(TextSizeLevel.init) { return forced }
+            if let forced = Automation.environment["ARBOR_TEXT_SIZE"].flatMap(Int.init).flatMap(TextSizeLevel.init) { return forced }
             return TextSizeLevel(rawValue: Prefs.store.integer(forKey: key)) ?? .standard
         }
         set {

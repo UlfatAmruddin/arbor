@@ -1,10 +1,8 @@
 import Foundation
 import Darwin
 
-/// Finder tags and Finder comments (FE-161). These are stored by macOS *next to* the file (extended
-/// attributes), not inside it, so they never change the file's content and are lost when a file is
-/// copied to a disk or service that drops extended attributes. Embedded metadata (EXIF, ID3, PDF
-/// info) is separate and read-only here (`SpotlightMetadata`).
+/// Finder tags and comments (FE-161), stored in extended attributes, so lost on copies that drop xattrs.
+/// Embedded metadata is separate (`SpotlightMetadata`).
 public enum FinderMetadata {
     public static let commentAttribute = "com.apple.metadata:kMDItemFinderComment"
 
@@ -14,14 +12,13 @@ public enum FinderMetadata {
         (try? url.resourceValues(forKeys: [.tagNamesKey]).tagNames) ?? []
     }
 
-    /// Replaces the item's Finder tags. An empty list removes them.
+    /// An empty list removes them.
     public static func setTags(_ tags: [String], on url: URL) throws {
         let clean = normalizedTags(tags)
         try (url as NSURL).setResourceValue(clean, forKey: .tagNamesKey)
     }
 
-    /// Splits "Red; Work, Taxes 2026" into ["Red", "Work", "Taxes 2026"]; trims, drops empties and
-    /// duplicates (case-insensitive, first spelling kept). Explorer separates tags with semicolons.
+    /// Splits on ; , or newline; trims and drops empties and case-insensitive duplicates.
     public static func parseTags(_ text: String) -> [String] {
         normalizedTags(text.components(separatedBy: CharacterSet(charactersIn: ";,\n")))
     }
@@ -37,20 +34,17 @@ public enum FinderMetadata {
         return result
     }
 
-    /// "Red; Work" (the editable text form).
     public static func tagText(_ tags: [String]) -> String { tags.joined(separator: "; ") }
 
     // MARK: Comments
 
-    /// The Finder comment, from the extended attribute Finder and Spotlight use.
     public static func comment(of url: URL) -> String {
         guard let data = readAttribute(commentAttribute, of: url) else { return "" }
         if let value = try? PropertyListSerialization.propertyList(from: data, format: nil) as? String { return value }
         return String(data: data, encoding: .utf8) ?? ""
     }
 
-    /// Writes (or with "" removes) the comment attribute. Finder may also cache comments in the folder's
-    /// .DS_Store, which only Finder writes; Spotlight and Arbor read the attribute.
+    /// "" removes it. Finder may also cache comments in .DS_Store, which only Finder writes.
     public static func setComment(_ comment: String, on url: URL) throws {
         let text = comment.trimmingCharacters(in: .whitespacesAndNewlines)
         if text.isEmpty {
@@ -77,7 +71,6 @@ public enum FinderMetadata {
         return read == length ? data : nil
     }
 
-    /// Names of the item's extended attributes (for the Details tab's "Attributes" note).
     public static func attributeNames(of url: URL) -> [String] {
         let path = url.path
         let length = listxattr(path, nil, 0, XATTR_NOFOLLOW)
@@ -87,19 +80,16 @@ public enum FinderMetadata {
         return buffer.split(separator: 0).map { String(decoding: $0.map { UInt8(bitPattern: $0) }, as: UTF8.self) }
     }
 
-    /// "Where from" for downloaded files and whether macOS quarantines it (Explorer's "This file came
-    /// from another computer" note).
     public static func isQuarantined(_ url: URL) -> Bool {
         readAttribute("com.apple.quarantine", of: url) != nil
     }
 
-    /// Explorer's "Unblock": removes macOS's quarantine mark from a downloaded file, so Gatekeeper
-    /// no longer asks before it opens. Only done when the user ticks Unblock and applies.
+    /// Explorer's "Unblock" (stops Gatekeeper's prompt); only on explicit user action.
     public static func removeQuarantine(from url: URL) throws {
         if removexattr(url.path, "com.apple.quarantine", XATTR_NOFOLLOW) != 0, errno != ENOATTR { throw POSIXError.current }
     }
 
-    /// The download source URLs recorded by browsers ("Where from").
+    /// Download sources recorded by browsers.
     public static func whereFroms(of url: URL) -> [String] {
         guard let data = readAttribute("com.apple.metadata:kMDItemWhereFroms", of: url),
               let list = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String] else { return [] }

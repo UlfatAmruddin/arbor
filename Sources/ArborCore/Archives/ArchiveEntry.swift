@@ -7,9 +7,11 @@ public struct ArchiveEntry: Sendable, Hashable {
         case file, directory, symlink, hardlink
         /// Device, FIFO or socket: never extracted.
         case special
+        /// A type the listing doesn't name ("?" and others): never extracted.
+        case unknown
     }
 
-    /// The name exactly as the archive tool reports it. Extraction patterns are built from this.
+    /// Name exactly as the archive tool reports it; extraction patterns use this.
     public var rawPath: String
     public var kind: Kind
     /// Uncompressed size; nil when unknown.
@@ -20,16 +22,18 @@ public struct ArchiveEntry: Sendable, Hashable {
     /// Symlink or hard-link target, as stored.
     public var linkTarget: String?
     public var isEncrypted: Bool
-    /// The name bsdtar knows the member by, when Arbor reads it differently (a ZIP made on Windows, see
-    /// `ZipNames`). Extraction patterns use this; nil = `rawPath`.
+    /// bsdtar's name when Arbor reads it differently (Windows ZIPs, `ZipNames`); used by extraction. nil = `rawPath`.
     public var storedPath: String?
+
+    /// Declared sizes are capped so sums over a listing can't overflow (2M entries × 2 TiB < Int64.max).
+    public static let maxDeclaredSize: Int64 = 1 << 41
 
     public init(rawPath: String, kind: Kind, size: Int64? = nil, compressedSize: Int64? = nil,
                 modified: Date? = nil, linkTarget: String? = nil, isEncrypted: Bool = false) {
         self.rawPath = rawPath
         self.kind = kind
-        self.size = size
-        self.compressedSize = compressedSize
+        self.size = size.map { min(max($0, 0), Self.maxDeclaredSize) }
+        self.compressedSize = compressedSize.map { min(max($0, 0), Self.maxDeclaredSize) }
         self.modified = modified
         self.linkTarget = linkTarget
         self.isEncrypted = isEncrypted
@@ -39,6 +43,14 @@ public struct ArchiveEntry: Sendable, Hashable {
     public var components: [String]? { ArchivePath.components(rawPath) }
     /// "a/b/c" for safe names.
     public var path: String? { components?.joined(separator: "/") }
+
+    /// Space saved as a whole percent (the Ratio column); nil when either size is unknown.
+    public var savedPercent: Int? {
+        guard let size, let packed = compressedSize else { return nil }
+        guard size > 0 else { return 0 }
+        // Clamped in Double first: an out-of-range value would trap in Int().
+        return Int(min(max(100 - Double(packed) * 100 / Double(size), 0), 100).rounded())
+    }
 }
 
 /// Entry-path sanitizer (FE-170). An entry is extracted only if its name stays inside the destination.
@@ -47,8 +59,12 @@ public enum ArchivePath {
         case empty, absolute, parentReference, invalidCharacter, tooLong
     }
 
+    /// PATH_MAX: longer names or link targets can't be used on disk, and would make per-prefix work costly.
+    public static let maxPathBytes = 1024
+
     /// Why a raw entry name is unsafe, or nil if it is fine.
     public static func problem(_ raw: String) -> Problem? {
+        if raw.utf8.count > maxPathBytes { return .tooLong }
         if raw.contains("\u{0}") { return .invalidCharacter }
         if raw.hasPrefix("/") { return .absolute }
         // "C:\x" or "C:/x": a drive-letter path from Windows tools is absolute too.
@@ -69,10 +85,9 @@ public enum ArchivePath {
         return raw.split(separator: "/", omittingEmptySubsequences: true).filter { $0 != "." }.map(String.init)
     }
 
-    /// Whether a symlink stored at `entry` (components) with `target` resolves inside the tree rooted at
-    /// `base` (components). Absolute targets are never safe.
+    /// Whether a symlink at `entry` with `target` resolves inside `base` (all components); absolute targets never do.
     public static func linkStaysInside(entry: [String], target: String, base: [String] = []) -> Bool {
-        guard !target.isEmpty, !target.hasPrefix("/"), !target.contains("\u{0}") else { return false }
+        guard target.utf8.count <= maxPathBytes, !target.isEmpty, !target.hasPrefix("/"), !target.contains("\u{0}") else { return false }
         guard entry.count > base.count, Array(entry.prefix(base.count)) == base else { return false }
         var resolved = Array(entry.dropLast())
         for part in target.split(separator: "/", omittingEmptySubsequences: true) {
@@ -86,45 +101,10 @@ public enum ArchivePath {
         }
         return resolved.count >= base.count
     }
-
-    /// Like `linkStaysInside(entry:target:base:)`, but resolves the way the file system will: a component
-    /// naming another link is replaced by that link's target before `..` is applied, so "self → ." makes
-    /// "self/../x" point above the tree. `linkTarget` returns the target of the link at a path (components),
-    /// or nil if that path isn't a link. Loops and long chains count as escaping.
-    public static func linkStaysInside(entry: [String], target: String, base: [String] = [],
-                                       linkTarget: ([String]) -> String?) -> Bool {
-        guard entry.count > base.count, Array(entry.prefix(base.count)) == base else { return false }
-        var expansions = 0
-        func resolve(from folder: [String], _ target: String) -> [String]? {
-            guard !target.isEmpty, !target.hasPrefix("/"), !target.contains("\u{0}") else { return nil }
-            var resolved = folder
-            for part in target.split(separator: "/", omittingEmptySubsequences: true) {
-                switch part {
-                case ".": continue
-                case "..":
-                    guard resolved.count > base.count else { return nil }
-                    resolved.removeLast()
-                default:
-                    resolved.append(String(part))
-                    if let next = linkTarget(resolved) {
-                        expansions += 1
-                        guard expansions <= 32 else { return nil }
-                        resolved.removeLast()
-                        guard let expanded = resolve(from: resolved, next) else { return nil }
-                        resolved = expanded
-                    }
-                }
-            }
-            return resolved
-        }
-        guard let resolved = resolve(from: Array(entry.dropLast()), target) else { return false }
-        return resolved.count >= base.count && Array(resolved.prefix(base.count)) == base
-    }
 }
 
-/// A browsable tree built from a flat listing. Folders that only appear inside other entries'
-/// paths ("a/b.txt" with no "a/" entry) are synthesized. Entries with unsafe names are kept out of
-/// the tree and counted, so the UI can say they exist but won't be extracted.
+/// A browsable tree from a flat listing. Implied folders are synthesized; unsafe names are kept out
+/// and counted so the UI can say they won't be extracted.
 public struct ArchiveIndex: Sendable {
     public struct Node: Sendable {
         public var name: String
@@ -133,9 +113,18 @@ public struct ArchiveIndex: Sendable {
         public var entry: ArchiveEntry?
     }
 
-    /// Children by folder path ("" = root), keyed by name.
-    public private(set) var folders: [String: [String: Node]] = ["": [:]]
+    /// Folders form a tree (id 0 = root), not full-path keys, so deep names cost linear memory.
+    private struct Folder: Sendable {
+        var nodes: [String: Node] = [:]
+        var subfolders: [String: Int] = [:]
+    }
+    private var tree: [Folder] = [Folder()]
+    /// Names that point outside the archive (absolute, `..`, invalid characters).
     public private(set) var unsafeCount = 0
+    /// Names too long to extract.
+    public private(set) var tooLongCount = 0
+    /// Listing rows that couldn't be read (stand-ins with no name).
+    public private(set) var unreadableCount = 0
     public private(set) var encryptedCount = 0
     public private(set) var entryCount = 0
     public private(set) var totalSize: Int64 = 0
@@ -145,45 +134,60 @@ public struct ArchiveIndex: Sendable {
     }
 
     private mutating func add(_ entry: ArchiveEntry) {
-        guard let parts = entry.components else { unsafeCount += 1; return }
+        guard let parts = entry.components else {
+            if entry.rawPath.isEmpty { unreadableCount += 1 } else if ArchivePath.problem(entry.rawPath) == .tooLong { tooLongCount += 1 } else { unsafeCount += 1 }
+            return
+        }
         entryCount += 1
         if entry.isEncrypted { encryptedCount += 1 }
-        if entry.kind == .file, let size = entry.size { totalSize += size }
-        var folder = ""
+        if entry.kind == .file, let size = entry.size { totalSize = totalSize.saturatingAdd(max(size, 0)) }
+        var folder = 0
         for (i, name) in parts.enumerated() {
-            let isLast = i == parts.count - 1
-            let path = folder.isEmpty ? name : folder + "/" + name
-            if isLast {
-                let isDirectory = entry.kind == .directory || folders[path] != nil
-                folders[folder, default: [:]][name] = Node(name: name, isDirectory: isDirectory,
-                                                          entry: isDirectory && entry.kind != .directory ? nil : entry)
-                if isDirectory, folders[path] == nil { folders[path] = [:] }
+            if i == parts.count - 1 {
+                let isDirectory = entry.kind == .directory || tree[folder].subfolders[name] != nil
+                tree[folder].nodes[name] = Node(name: name, isDirectory: isDirectory,
+                                                entry: isDirectory && entry.kind != .directory ? nil : entry)
+                if isDirectory { _ = subfolder(name, in: folder) }
             } else {
-                if folders[folder]?[name]?.isDirectory != true {
+                if tree[folder].nodes[name]?.isDirectory != true {
                     // A synthesized folder; it also wins over a same-named file entry (malformed archive).
-                    let existing = folders[folder]?[name]?.entry
-                    folders[folder, default: [:]][name] = Node(name: name, isDirectory: true,
-                                                              entry: existing?.kind == .directory ? existing : nil)
+                    let existing = tree[folder].nodes[name]?.entry
+                    tree[folder].nodes[name] = Node(name: name, isDirectory: true,
+                                                    entry: existing?.kind == .directory ? existing : nil)
                 }
-                if folders[path] == nil { folders[path] = [:] }
+                folder = subfolder(name, in: folder)
             }
-            folder = path
         }
+    }
+
+    private mutating func subfolder(_ name: String, in parent: Int) -> Int {
+        if let id = tree[parent].subfolders[name] { return id }
+        tree.append(Folder())
+        tree[parent].subfolders[name] = tree.count - 1
+        return tree.count - 1
+    }
+
+    private func folderID(_ parts: some Sequence<String>) -> Int? {
+        var id = 0
+        for part in parts {
+            guard let next = tree[id].subfolders[part] else { return nil }
+            id = next
+        }
+        return id
     }
 
     /// The children of a folder inside the archive, or nil if there is no such folder.
     public func children(of path: String) -> [Node]? {
-        let key = path.isEmpty ? "" : (ArchivePath.components(path)?.joined(separator: "/") ?? path)
-        return folders[key].map { Array($0.values) }
+        let parts = path.isEmpty ? [] : (ArchivePath.components(path) ?? path.split(separator: "/").map(String.init))
+        return folderID(parts).map { Array(tree[$0].nodes.values) }
     }
 
     public func node(at path: String) -> Node? {
         guard let parts = ArchivePath.components(path), let name = parts.last else { return nil }
-        return folders[parts.dropLast().joined(separator: "/")]?[name]
+        return folderID(parts.dropLast()).flatMap { tree[$0].nodes[name] }
     }
 
-    /// Listing rows for a folder inside `archive`. Item URLs are `archive/inner/path`, which don't exist
-    /// on disk; `ArchiveItemRef` maps them back.
+    /// Listing rows for a folder in `archive`; URLs (`archive/inner/path`) don't exist on disk, see `ArchiveItemRef`.
     public func items(in path: String, archive: URL, includeHidden: Bool) -> [FileItem]? {
         guard let nodes = children(of: path) else { return nil }
         let folderPath = path.isEmpty ? "" : (ArchivePath.components(path)?.joined(separator: "/") ?? path)
@@ -202,7 +206,7 @@ public struct ArchiveIndex: Sendable {
 
     /// The system's kind name for a file extension (the same source the folder listing uses).
     public static func typeDescription(name: String, isDirectory: Bool) -> String {
-        // System descriptions can be lower-case ("folder", "text"); the Type column capitalizes like Explorer.
+        // System kind names can be lower-case; the Type column capitalizes like Explorer.
         func capitalized(_ s: String) -> String { s.prefix(1).uppercased() + s.dropFirst() }
         if isDirectory { return capitalized(UTType.folder.localizedDescription ?? "Folder") }
         let ext = NameRules.splitExtension(name, treatAsFolder: false).ext ?? ""

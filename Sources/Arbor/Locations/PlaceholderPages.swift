@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// "Not available yet" page for locations whose feature hasn't been built (DEC-019: an honest
-/// boundary instead of a fake page). Features replace this by registering a real provider.
+/// "Not available yet" page for unbuilt features (DEC-019: honest boundary, no fake page).
 final class PlaceholderProvider: LocationProvider {
     private let accepts: (Location) -> Bool
     init(locations: @escaping (Location) -> Bool) { accepts = locations }
@@ -57,7 +56,7 @@ final class PlaceholderPageController: NSViewController, LocationPageStatus {
 
 // MARK: - Home (placeholder)
 
-/// Basic Home page: Quick access tiles. The Home feature replaces this with Recent/Favorites.
+/// Basic Home: Quick access tiles. The Home feature replaces it.
 final class HomeProvider: LocationProvider {
     func handles(_ location: Location) -> Bool { location == .home }
 
@@ -165,7 +164,7 @@ final class HomePageController: NSViewController, LocationPageStatus {
     }
 }
 
-/// A Home tile: large icon, name, small caption. Hover and press like Explorer.
+/// Home tile: large icon, name, caption; Explorer-style hover and press.
 final class TileButton: NSView {
     var onClick: (() -> Void)?
     var onMiddleClick: (() -> Void)?
@@ -236,8 +235,7 @@ final class FlippedView: NSView {
 
 // MARK: - This Mac (placeholder)
 
-/// Mounted volumes as items, so the standard Details view, sorting and opening work.
-/// The This Mac feature replaces this with drive tiles and capacity bars.
+/// Mounted volumes as plain items for the standard views; the This Mac feature replaces it.
 final class ThisMacProvider: LocationProvider {
     func handles(_ location: Location) -> Bool { location == .thisMac }
 

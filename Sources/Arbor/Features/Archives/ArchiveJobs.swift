@@ -1,13 +1,12 @@
 import AppKit
 import ArborCore
 
-/// Extraction (Extract All, copy out, open a member, drag out), compression, new empty ZIPs and
-/// disk-image mounting. Every job runs off the main thread, shows in the status bar through
-/// `OperationCenter` activities, and can be cancelled there.
+/// Extraction, compression, new ZIPs and disk-image mounts; all run off the main thread as
+/// cancellable `OperationCenter` activities.
 enum ArchiveJobs {
     // MARK: - Session folder for opened members and clipboard copies
 
-    /// Per-launch temporary folder. Folders left by earlier launches are removed lazily.
+    /// Per-launch temporary folder; earlier launches' folders are removed lazily.
     static let sessionFolder: URL = {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("Arbor Archives", isDirectory: true)
         let mine = root.appendingPathComponent("session-\(getpid())-\(UUID().uuidString.prefix(8))", isDirectory: true)
@@ -60,8 +59,8 @@ enum ArchiveJobs {
         }
     }
 
-    /// Plans, guards, extracts into a staging folder on the destination's volume, verifies, then moves
-    /// the items into place with the app's conflict rules (Keep Both default, Replace = Trash).
+    /// Extracts into staging on the destination's volume, verifies, then moves into place with the
+    /// conflict rules (Keep Both default, Replace = Trash).
     static func extract(_ request: ExtractRequest, window: NSWindow?, completion: @escaping (Result<ExtractResult, Error>) -> Void) {
         let cancel = JobCancel()
         let process = cancel.process
@@ -86,7 +85,7 @@ enum ArchiveJobs {
                 let plan = ExtractionPlanner.plan(entries: listing.entries, roots: request.roots, base: request.base)
                 if plan.hasEncrypted { throw ArchiveError.encrypted }
                 if plan.isEmpty {
-                    throw plan.rejected.isEmpty ? ArchiveError.nothingToExtract : Failure.message(rejectionText(plan.rejected, header: "Nothing could be extracted safely."))
+                    throw plan.rejected.isEmpty ? ArchiveError.nothingToExtract : Failure.message(rejectionText(plan.rejected, header: L10n.tr("Nothing could be extracted safely.")))
                 }
 
                 // Zip-bomb and space guard before anything is written (FE-170).
@@ -184,7 +183,7 @@ enum ArchiveJobs {
             box.report = await transfer.run(resolveConflict: { conflict in
                 await withCheckedContinuation { continuation in
                     DispatchQueue.main.async {
-                        // Same Windows-style conflict dialogs as copy/move (FileOperations' ConflictFlow).
+                        // Same conflict dialogs as copy/move (ConflictFlow).
                         let job = OperationCenter.Job(transfer: transfer, window: window)
                         job.presentedAs = .extracting(archive)
                         ConflictFlow.run([conflict], job: job) { continuation.resume(returning: $0.first ?? ConflictDecision(.cancel)) }
@@ -240,8 +239,10 @@ enum ArchiveJobs {
     }
 
     static func rejectionText(_ rejected: [(entry: ArchiveEntry, reason: ExtractionPlanner.Rejection)], header: String) -> String {
-        let lines = rejected.prefix(8).map { "• \($0.entry.rawPath): \($0.reason.rawValue)" }
-        let more = rejected.count > 8 ? "\n…and \(rejected.count - 8) more." : ""
+        let lines = rejected.prefix(8).map {
+            "• \($0.entry.rawPath.isEmpty ? ExtractionPlanner.unreadableName : $0.entry.rawPath): \($0.reason.text)"
+        }
+        let more = rejected.count > 8 ? "\n" + L10n.format("…and %d more.", rejected.count - 8) : ""
         return header + "\n\n" + lines.joined(separator: "\n") + more
     }
 
@@ -251,8 +252,9 @@ enum ArchiveJobs {
         rejected += result.removedAfterwards.map { (ArchiveEntry(rawPath: $0, kind: .special), ExtractionPlanner.Rejection.linkOutside) }
         guard !rejected.isEmpty else { return }
         let count = rejected.count
-        let text = rejectionText(rejected, header: L10n.format("%@ left out for your safety:", "\(count == 1 ? "This item was" : "These items were")"))
-        ArchiveFeature.alert(count == 1 ? "1 item wasn't extracted." : "\(count) items weren't extracted.", text, in: window)
+        let header = count == 1 ? L10n.tr("This item was left out for your safety:") : L10n.tr("These items were left out for your safety:")
+        let title = count == 1 ? L10n.tr("1 item wasn't extracted.") : L10n.format("%d items weren't extracted.", count)
+        ArchiveFeature.alert(title, rejectionText(rejected, header: header), in: window)
     }
 
     static func show(_ error: Error, title: String, window: NSWindow?) {
@@ -265,8 +267,7 @@ enum ArchiveJobs {
 
     // MARK: - Compression
 
-    /// Compress to ▸ / Send to ▸ Compressed (zipped) folder: one archive next to the selection, named after
-    /// the first item, then inline rename (FE-164).
+    /// One archive next to the selection, named after the first item, then inline rename (FE-164).
     static func compress(_ items: [FileItem], format: ArchiveCreateFormat, window controller: BrowserWindowController?) {
         guard let first = items.first else { return }
         let folder = first.url.deletingLastPathComponent().standardizedFileURL
@@ -355,8 +356,7 @@ enum ArchiveJobs {
         if Location.folder(folder) == controller.location { controller.refreshSelecting([name], rename: name) }
     }
 
-    /// Undo of a created archive moves it to the Trash, unless it changed since (FE-129: never clobber);
-    /// Redo puts it back, under the same action name.
+    /// Undo trashes the created archive unless it changed since (FE-129); Redo puts it back.
     static func registerUndoCreate(_ url: URL, action: String) {
         let stamp = ArchiveCatalog.stamp(of: url)
         let um = OperationCenter.shared.undoManager

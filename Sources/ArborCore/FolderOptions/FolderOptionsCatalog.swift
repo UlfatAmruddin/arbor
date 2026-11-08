@@ -41,7 +41,7 @@ public enum OptionValue: Equatable, Hashable, Codable, Sendable, CustomStringCon
 public struct OptionChoice: Equatable, Sendable {
     public let value: String
     public let title: String
-    /// Indentation of this choice below the parent (Windows nests the underline choices).
+    /// Indent level (Windows nests the underline choices).
     public let level: Int
     /// Only enabled while another key has a given value (e.g. underline style needs single-click).
     public let enabledWhen: (key: String, value: String)?
@@ -61,7 +61,7 @@ public struct OptionChoice: Equatable, Sendable {
 /// One control in Folder Options.
 public struct FolderOptionItem: Sendable {
     public enum Kind: Sendable {
-        /// A folder-icon node in the Advanced settings tree ("Files and Folders", "Navigation pane").
+        /// A folder-icon node in the Advanced tree.
         case group
         case check
         /// A node whose children are radio buttons ("Hidden files and folders").
@@ -75,9 +75,9 @@ public struct FolderOptionItem: Sendable {
     public let kind: Kind
     public let defaultValue: OptionValue?
     public let tab: FolderOptionsTab
-    /// Group box (General/Search) or tree group (View) this item belongs to.
+    /// Group box (General/Search) or tree group (View).
     public let section: String
-    /// When set, the control is shown disabled with this one-line Mac explanation (DEC-019).
+    /// When set, the control is disabled with this Mac explanation (DEC-019).
     public let unavailableReason: String?
 
     public init(_ key: String, _ title: String, kind: Kind = .check, default value: OptionValue?, tab: FolderOptionsTab,
@@ -101,11 +101,8 @@ public struct FolderOptionItem: Sendable {
     }
 }
 
-/// Every control on Windows 11's Folder Options pages, in Windows order and wording, adapted to the Mac
-/// (FE-042, FE-043). Items macOS can't support stay visible but disabled with an explanation.
-///
-/// Keys are preference names. A few map onto older preferences with the opposite meaning in the app
-/// (`hideExtensions` ↔ `showExtensions`, `hiddenFiles` ↔ `showHidden`); the app bridges those.
+/// Windows 11's Folder Options controls in Windows order and wording (FE-042, FE-043); unsupported ones stay visible, disabled.
+/// Keys are preference names; the app bridges the inverted ones (`hideExtensions` ↔ `showExtensions`, `hiddenFiles` ↔ `showHidden`).
 public enum FolderOptionsCatalog {
     public static let files = L10n.tr("Files and Folders")
     public static let navigation = L10n.tr("Navigation pane")
@@ -223,12 +220,11 @@ public enum FolderOptionsCatalog {
     }
 }
 
-/// The dialog's working copy (OK / Cancel / Apply semantics, FE-248). Changes stay in the draft until
-/// committed; Cancel simply drops the draft. "Restore Defaults" only touches the current page.
+/// The dialog's working copy (OK / Cancel / Apply, FE-248). "Restore Defaults" only touches the current page.
 public struct FolderOptionsDraft: Sendable {
     public private(set) var committed: [String: OptionValue]
     public private(set) var values: [String: OptionValue]
-    /// Keys the app reports as unavailable at run time (e.g. libraries not installed).
+    /// Keys unavailable at run time (e.g. libraries not installed).
     public var disabledKeys: Set<String>
 
     public init(current: [String: OptionValue], disabledKeys: Set<String> = []) {
@@ -253,7 +249,7 @@ public struct FolderOptionsDraft: Sendable {
 
     public var isDirty: Bool { !changedKeys.isEmpty }
 
-    /// Whether a control is enabled given the draft (unavailable items and dependent radios).
+    /// False while the choice's `enabledWhen` dependency isn't met.
     public func isEnabled(_ choice: OptionChoice) -> Bool {
         guard let dependency = choice.enabledWhen else { return true }
         return values[dependency.key]?.string == dependency.value
@@ -263,7 +259,7 @@ public struct FolderOptionsDraft: Sendable {
         for (key, value) in FolderOptionsCatalog.defaults(for: tab) where !disabledKeys.contains(key) { values[key] = value }
     }
 
-    /// Makes the draft the committed state and returns what changed (Apply / OK).
+    /// Commits the draft and returns what changed (Apply / OK).
     @discardableResult
     public mutating func commit() -> [String: OptionValue] {
         var changes: [String: OptionValue] = [:]
@@ -272,7 +268,7 @@ public struct FolderOptionsDraft: Sendable {
         return changes
     }
 
-    /// Takes values that changed outside the dialog (menu toggles) for keys the user hasn't edited.
+    /// Picks up outside changes (menu toggles) for keys the user hasn't edited.
     public mutating func refresh(from current: [String: OptionValue]) {
         let edited = Set(changedKeys)
         for (key, value) in current where !edited.contains(key) { values[key] = value }

@@ -1,12 +1,10 @@
 import Foundation
 import UniformTypeIdentifiers
 
-// The query model behind Explorer-style search (spec §10, FE-134, FE-236, FE-237).
-// `AQSParser` turns typed text into a `SearchExpression`; `SearchEvaluator` tests files against it;
-// `SpotlightPredicate` translates it for the Spotlight index.
+// Search query model (spec §10, FE-134, FE-236, FE-237): `AQSParser` builds it, `SearchEvaluator`
+// and `SpotlightPredicate` consume it.
 
-/// A searchable property. Its identity is the canonical Windows property name, which never depends on
-/// the UI language (FE-237). The words users type ("name:", "size:") are English mnemonics that map here.
+/// Identified by the canonical Windows property name, independent of UI language (FE-237).
 public enum SearchProperty: String, CaseIterable, Sendable {
     case name = "System.FileName"
     case fileExtension = "System.FileExtension"
@@ -24,7 +22,7 @@ public enum SearchProperty: String, CaseIterable, Sendable {
 
     public var canonicalName: String { rawValue }
 
-    /// The mnemonic Arbor writes when it adds a restriction (Search options menu).
+    /// Written by the Search options menu.
     public var keyword: String {
         switch self {
         case .name: return "name"
@@ -41,7 +39,6 @@ public enum SearchProperty: String, CaseIterable, Sendable {
         }
     }
 
-    /// Label for match reasons ("Matched: Name").
     public var label: String {
         switch self {
         case .name: return L10n.tr("Name")
@@ -67,7 +64,7 @@ public enum SearchProperty: String, CaseIterable, Sendable {
         }
     }
 
-    /// English mnemonics accepted in the search box (the UI is English; see DEC-search-6).
+    /// English only (DEC-search-6).
     public static let mnemonics: [String: SearchProperty] = [
         "name": .name, "filename": .name, "file": .name,
         "ext": .fileExtension, "fileext": .fileExtension, "fileextension": .fileExtension, "extension": .fileExtension,
@@ -82,7 +79,7 @@ public enum SearchProperty: String, CaseIterable, Sendable {
         "folder": .folderPath, "folderpath": .folderPath, "path": .folderPath,
     ]
 
-    /// Canonical names, including documented synonyms. Matched case-insensitively.
+    /// Lowercased, including documented synonyms.
     public static let canonicalNames: [String: SearchProperty] = [
         "system.filename": .name, "system.itemnamedisplay": .name, "system.itemname": .name,
         "system.fileextension": .fileExtension,
@@ -97,19 +94,17 @@ public enum SearchProperty: String, CaseIterable, Sendable {
         "system.itemfolderpathdisplay": .folderPath, "system.itemfoldernamedisplay": .folderPath,
     ]
 
-    /// Resolves a typed property name (mnemonic or canonical). Nil for anything unknown.
     public static func lookup(_ name: String) -> SearchProperty? {
         let key = name.lowercased()
         return mnemonics[key] ?? canonicalNames[key]
     }
 }
 
-/// Windows "Kind" values with a real macOS equivalent, plus a few Arbor extensions (archive, font).
+/// Windows kinds with a macOS equivalent, plus archive and font.
 public enum SearchKind: String, CaseIterable, Sendable {
     case folder, document, picture, music, video, text, program, link, archive, email, contact,
          calendar, playlist, savedSearch, font, communication, unknown
 
-    /// Title as it appears in Explorer's Search options ▸ Kind menu.
     public var title: String {
         switch self {
         case .folder: return L10n.tr("Folder")
@@ -132,7 +127,6 @@ public enum SearchKind: String, CaseIterable, Sendable {
         }
     }
 
-    /// The value Arbor writes after `kind:`.
     public var keyword: String {
         switch self {
         case .savedSearch: return "savedsearch"
@@ -163,7 +157,7 @@ public enum SearchKind: String, CaseIterable, Sendable {
         "unknown": .unknown,
     ]
 
-    /// Explorer kinds that only exist on Windows (DEC-019: explained, never faked).
+    /// Windows-only kinds: explained, never faked (DEC-019).
     public static let windowsOnly: [String: String] = [
         "game": "Game", "games": "Game",
         "instantmessage": "Instant Message", "instant message": "Instant Message", "im": "Instant Message",
@@ -174,7 +168,7 @@ public enum SearchKind: String, CaseIterable, Sendable {
 
     public static func lookup(_ value: String) -> SearchKind? { aliases[value.lowercased()] }
 
-    /// Classifies an item using its uniform type (no disk access).
+    /// No disk access.
     public func matches(typeIdentifier: String?, isFolder: Bool, isPackage: Bool, isSymbolicLink: Bool, name: String) -> Bool {
         let ext = (name as NSString).pathExtension.lowercased()
         let type = typeIdentifier.flatMap { UTType($0) } ?? (ext.isEmpty ? nil : UTType(filenameExtension: ext))
@@ -216,7 +210,7 @@ public enum SearchKind: String, CaseIterable, Sendable {
         }
     }
 
-    /// Spotlight content types for the index query (nil = not expressible).
+    /// nil when Spotlight can't express it.
     var spotlightTypes: [String]? {
         switch self {
         case .folder: return ["public.folder"]
@@ -240,24 +234,23 @@ public enum SearchKind: String, CaseIterable, Sendable {
     }
 }
 
-/// How a text value is compared. Comparison ignores case, diacritics and width.
+/// Always ignores case, diacritics and width.
 public enum TextMatchMode: String, Sendable {
     case contains, equals, beginsWith, wildcard
 }
 
-/// What one restriction tests.
 public enum SearchTest: Equatable, Sendable {
     case text(String, TextMatchMode)
-    /// Half-open byte range [lower, upper). nil bounds are open.
+    /// Half-open [lower, upper); nil bounds are open.
     case sizeRange(lower: Int64?, upper: Int64?)
-    /// Half-open date range [lower, upper).
+    /// Half-open [lower, upper).
     case dateRange(lower: Date?, upper: Date?)
     case kind(SearchKind)
-    /// The property has no value (`System.Keywords:=[]`).
+    /// `prop:=[]`.
     case isEmpty
 }
 
-/// A free-text word or phrase (property nil) or a property restriction.
+/// A nil property means free text.
 public struct SearchTerm: Equatable, Sendable {
     public var property: SearchProperty?
     public var test: SearchTest
@@ -272,14 +265,13 @@ public struct SearchTerm: Equatable, Sendable {
     }
 }
 
-/// A parsed query. Mixed AND/OR are folded strictly left to right, like AQS (FE-236).
+/// Mixed AND/OR fold strictly left to right, like AQS (FE-236).
 public indirect enum SearchExpression: Equatable, Sendable {
     case term(SearchTerm)
     case and(SearchExpression, SearchExpression)
     case or(SearchExpression, SearchExpression)
     case not(SearchExpression)
 
-    /// Every term, for capability checks ("does this query need file contents?").
     public var terms: [SearchTerm] {
         switch self {
         case .term(let t): return [t]
@@ -290,7 +282,7 @@ public indirect enum SearchExpression: Equatable, Sendable {
 
     public var properties: Set<SearchProperty> { Set(terms.compactMap(\.property)) }
 
-    /// A compact, unambiguous rendering used by tests and logs, e.g. `((a AND b) OR name~=c)`.
+    /// Unambiguous form for tests and logs.
     public var debugDescription: String {
         switch self {
         case .term(let t): return t.debugDescription
@@ -322,7 +314,7 @@ extension SearchTerm {
     }
 }
 
-/// A query the parser rejected. The message is shown to the user; nothing is silently ignored.
+/// The message is shown to the user.
 public struct SearchSyntaxError: Error, Equatable, Sendable, LocalizedError {
     public let message: String
     public init(_ message: String) { self.message = message }

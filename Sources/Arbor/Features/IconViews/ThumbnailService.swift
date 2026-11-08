@@ -3,13 +3,12 @@ import ImageIO
 import QuickLookThumbnailing
 import ArborCore
 
-/// App-wide thumbnail cache (FE-149, FE-243, spec §15.3): one byte budget shared by every window and
-/// tab, keyed by path + modification date + size + pixel size, so a replaced file never shows a stale
-/// image. Cost is decoded bitmap bytes. Main thread only.
+/// App-wide thumbnail cache (FE-149, FE-243, spec §15.3): one byte budget for all windows, keyed by
+/// path + mod date + size + pixel size so replaced files never show stale. Main thread only.
 final class ThumbnailService {
     static let shared = ThumbnailService()
 
-    /// Decoded-bytes budget. 64 MB holds ~64 Extra large (512 px) or ~1,700 Medium (96 px) thumbnails.
+    /// Decoded-bytes budget; 64 MB ≈ 64 Extra large or ~1,700 Medium thumbnails.
     static var defaultByteLimit: Int { CacheBudgets.thumbnailBytes }   // ARBOR_THUMBNAIL_BUDGET_MB overrides
 
     let cache = ByteBudgetCache<ThumbnailKey, CGImage>(byteLimit: ThumbnailService.defaultByteLimit)
@@ -31,8 +30,7 @@ final class ThumbnailService {
         pressure = source
     }
 
-    /// The best cached image for an item: the exact size, else the smallest larger one (downscaled
-    /// when drawn), else a smaller one as a placeholder while the right size loads (`exact` false).
+    /// Best cached image: exact size, else smallest larger, else a smaller placeholder (`exact` false).
     func image(for key: ThumbnailKey) -> (image: CGImage, exact: Bool)? {
         if let hit = cache.value(for: key) { return (hit, true) }
         var placeholder: CGImage?
@@ -68,13 +66,11 @@ final class ThumbnailService {
     }
 }
 
-/// Per-view thumbnail requests (FE-242): only for items on screen, a few at a time, cancelled when they
-/// scroll away or the folder changes. Late results are checked against the request generation and the
-/// item's identity before they're used.
+/// Per-view thumbnail requests (FE-242): on-screen items only, a few at a time, cancelled on scroll
+/// or folder change. Late results are checked against the generation and the item's identity.
 final class ThumbnailLoader {
     private var inFlight: [ThumbnailKey: QLThumbnailGenerator.Request] = [:]
-    /// Keys already requested while they stayed on screen. If the cache evicts one of them (budget
-    /// smaller than the screenful) it shows its icon instead of being regenerated in a loop.
+    /// Keys requested while on screen; an evicted one shows its icon instead of regenerating in a loop.
     private var attempted = Set<ThumbnailKey>()
     private var generation = 0
     let maxConcurrent = 8
@@ -134,8 +130,7 @@ final class ThumbnailLoader {
     deinit { reset() }
 }
 
-/// Pixel dimensions for the Content layout ("Dimensions: 1920 x 1080"), read from image headers off the
-/// main thread for visible items only, cached by file version.
+/// Pixel dimensions for Content, read from headers off-main for visible items, cached by file version.
 final class ImageInfoService {
     static let shared = ImageInfoService()
     private let cache = ByteBudgetCache<ThumbnailKey, String>(byteLimit: 5000)
@@ -143,7 +138,7 @@ final class ImageInfoService {
     private let queue = DispatchQueue(label: "arbor.imageinfo", qos: .utility)
     private let lock = NSLock()
     private var currentGeneration = 0
-    /// Read from the background queue too, so it's behind a lock.
+    /// Also read from the background queue, hence the lock.
     private var generation: Int { lock.withLock { currentGeneration } }
 
     func dimensions(for item: FileItem) -> String? { cache.value(for: ThumbnailKey(item: item, pixels: 0)) }

@@ -1,21 +1,17 @@
 import Foundation
 import CoreGraphics
 
-/// Grid geometry for the non-Details layouts (FE-029, FE-030, FE-031): every cell has the same size, so
-/// frames, hit tests and keyboard moves are arithmetic. Nothing is stored per item, which keeps
-/// 100,000-item folders cheap (spec §15.3).
-///
-/// - `.rows` fills left → right, then the next row (icons, Small icons, Tiles, Content); scrolls vertically.
-/// - `.columns` fills top → bottom, then the next column (List); scrolls horizontally.
+/// Uniform-cell grid for non-Details layouts (FE-029, FE-030, FE-031): all geometry is arithmetic, nothing per item
+/// (spec §15.3). `.rows` scrolls vertically (icons, Tiles, Content); `.columns` horizontally (List).
 public struct ItemFlowLayout: Equatable, Sendable {
     public enum Flow: Sendable { case rows, columns }
 
     public enum Move: Sendable { case left, right, up, down, home, end, pageUp, pageDown }
 
     public var flow: Flow
-    /// Cell size. With `stretchesWidth` the width is computed from the viewport.
+    /// With `stretchesWidth`, the width follows the viewport.
     public var itemSize: CGSize
-    /// Gap between neighboring cells (width: horizontal, height: vertical).
+    /// Gap between cells (width: horizontal, height: vertical).
     public var spacing: CGSize
     public var insetTop: CGFloat
     public var insetLeft: CGFloat
@@ -46,7 +42,6 @@ public struct ItemFlowLayout: Equatable, Sendable {
         self.minimumStretchWidth = minimumStretchWidth
     }
 
-    /// Recomputes rows and columns for `count` items in a visible area of `viewport`.
     public mutating func update(count: Int, viewport: CGSize) {
         self.count = max(0, count)
         self.viewport = viewport
@@ -67,7 +62,7 @@ public struct ItemFlowLayout: Equatable, Sendable {
         }
     }
 
-    /// Size of the scrollable content (at least the viewport along the non-scrolling axis).
+    /// At least the viewport along the non-scrolling axis.
     public var contentSize: CGSize {
         switch flow {
         case .rows:
@@ -80,7 +75,6 @@ public struct ItemFlowLayout: Equatable, Sendable {
         }
     }
 
-    /// Row and column of an item in the grid.
     public func position(of index: Int) -> (row: Int, column: Int) {
         switch flow {
         case .rows: return (index / columns, index % columns)
@@ -102,7 +96,7 @@ public struct ItemFlowLayout: Equatable, Sendable {
         return index < count ? index : nil
     }
 
-    /// Frame of a cell in content coordinates (top-left origin).
+    /// Content coordinates, top-left origin.
     public func frame(at index: Int) -> CGRect {
         let (row, column) = position(of: index)
         return CGRect(x: insetLeft + CGFloat(column) * (itemSize.width + spacing.width),
@@ -140,7 +134,7 @@ public struct ItemFlowLayout: Equatable, Sendable {
         return result.sorted()
     }
 
-    /// The item whose cell contains `point`, if any (gaps and insets return nil).
+    /// Nil in gaps and insets.
     public func index(at point: CGPoint) -> Int? {
         let rowPitch = itemSize.height + spacing.height
         let columnPitch = itemSize.width + spacing.width
@@ -151,8 +145,7 @@ public struct ItemFlowLayout: Equatable, Sendable {
         return frame(at: index).contains(point) ? index : nil
     }
 
-    /// The item nearest to the start of the visible area (for scroll restoration): the first cell of the
-    /// first row (or column) that is at least half visible.
+    /// For scroll restoration: first cell of the first at-least-half-visible row (or column).
     public func firstVisibleIndex(in visible: CGRect) -> Int? {
         guard count > 0 else { return nil }
         switch flow {
@@ -167,7 +160,7 @@ public struct ItemFlowLayout: Equatable, Sendable {
         }
     }
 
-    /// Scroll origin that puts `index`'s row (or column) at the top (or left) edge, clamped to the content.
+    /// Puts `index`'s row (or column) at the leading edge, clamped to the content.
     public func scrollOrigin(toShowAtStart index: Int) -> CGPoint {
         let frame = frame(at: index)
         let content = contentSize
@@ -181,7 +174,7 @@ public struct ItemFlowLayout: Equatable, Sendable {
         }
     }
 
-    /// Number of whole rows (`.rows`) or columns (`.columns`) that fit in the visible area.
+    /// Whole rows (`.rows`) or columns (`.columns`) that fit.
     public func pageLines(visible: CGSize) -> Int {
         switch flow {
         case .rows: return max(1, Int((visible.height / max(1, itemSize.height + spacing.height)).rounded(.down)))
@@ -189,9 +182,8 @@ public struct ItemFlowLayout: Equatable, Sendable {
         }
     }
 
-    /// Keyboard target for a spatial move (FE-060). With no current item every move lands on the first
-    /// item, except End. Moves never wrap past the first or last item. Down/Right into a partial last
-    /// row (or column) lands on the last item, like Explorer.
+    /// Keyboard target (FE-060). No current item: End goes last, all else first. Never wraps; moving into
+    /// a partial last row (or column) lands on the last item, like Explorer.
     public func target(from current: Int?, move: Move, visible: CGSize = .zero) -> Int? {
         guard count > 0 else { return nil }
         guard let current, current >= 0, current < count else { return move == .end ? count - 1 : 0 }

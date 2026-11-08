@@ -1,9 +1,8 @@
 import AppKit
 import ArborCore
 
-/// "File In Use", "File Access Denied", "Not Enough Space", "Item Not Found", "Interrupted Action"
-/// (FE-120, FE-121; windows11-reference §9.6). Names the item, says why, and offers Try Again,
-/// Skip (when skipping makes sense) and Cancel. The job waits; nothing is retried automatically.
+/// Failure dialogs (FE-120, FE-121; windows11-reference §9.6): Try Again, Skip when it makes sense, Cancel.
+/// The job waits; nothing is retried automatically.
 final class FailureDialog: FileOpsDialog {
     private let completion: (FailureDecision) -> Void
     private let applyAll = NSButton(checkboxWithTitle: L10n.tr("Do this for all current items"), target: nil, action: nil)

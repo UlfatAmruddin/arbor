@@ -1,14 +1,10 @@
 import AppKit
 import ArborCore
 
-/// Keyboard focus regions of a browser window (FE-062, FE-199): F6 / Shift+F6 and Tab / Shift+Tab move
-/// between tabs, address bar, search box, command bar, navigation pane, items and side pane, in
-/// Explorer's order. Inside the tab strip and the command bar, arrow keys move between buttons
-/// (one Tab stop per toolbar, like Windows); pages with several sections (Home) keep their own Tab order
-/// before focus moves on (DEC-accessibility-2).
+/// Focus regions (FE-062, FE-199), cycled by F6 and Tab in Explorer's order. Toolbars are one Tab stop
+/// with arrows inside; multi-section pages keep their own Tab order first (DEC-accessibility-2).
 enum FocusRegions {
-    /// True while a keyboard command moves focus, so flat chrome buttons accept it then and only then
-    /// (a mouse click on a command bar button must not take focus away from the file list).
+    /// Flat chrome buttons accept focus only while this is set, so clicks don't take it from the file list.
     static var movingFocus = false
 
     // MARK: Where focus is
@@ -69,8 +65,7 @@ enum FocusRegions {
         return target
     }
 
-    /// Tab / Shift+Tab: the next stop inside a page or pane with several (Home sections, Details pane
-    /// fields), else the next region.
+    /// Tab / Shift+Tab: the next stop inside a multi-stop page or pane, else the next region.
     static func tab(_ c: BrowserWindowController, forward: Bool) {
         // The navigation row: Back · Forward · Up · Refresh (one toolbar stop) · address field · ▾.
         if let view = focusedView(in: c.window), region(of: view, in: c) == .address {
@@ -156,8 +151,7 @@ enum FocusRegions {
         descendants(of: c.tabStrip, as: TabItemView.self).sorted { $0.index < $1.index }
     }
 
-    /// The navigation row's buttons in Windows 11 order (enabled ones): Back, Forward, Up, Refresh, then the
-    /// address bar's recent-locations ▾.
+    /// Enabled navigation buttons in Windows 11 order, then the address bar's ▾.
     static func navigationButtons(in c: BrowserWindowController) -> [ChromeButton] {
         [c.navBar.back, c.navBar.forward, c.navBar.up, c.navBar.refresh, c.addressBar.recentButton]
             .filter { !$0.isHiddenOrHasHiddenAncestor && $0.isEnabled }
@@ -259,8 +253,7 @@ enum FocusRegions {
 // MARK: - Focus visual (windows11-reference §15: two-ring rectangle on keyboard focus only)
 
 enum FocusVisual {
-    /// Draws Explorer's keyboard focus rectangle inside `rect`: an outer ring in the text color and an
-    /// inner ring in the background color, so it shows on any fill.
+    /// Outer ring in the text color, inner in the background color, so it shows on any fill.
     static func draw(in rect: NSRect, radius: CGFloat) {
         let outer = NSBezierPath(roundedRect: rect.insetBy(dx: 1, dy: 1), xRadius: radius + 1, yRadius: radius + 1)
         outer.lineWidth = Theme.increasedContrast ? 2.5 : 2

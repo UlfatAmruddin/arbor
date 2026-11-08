@@ -1,11 +1,7 @@
 import Foundation
 
-/// The Mac counterpart of Windows' "protected operating system files" (FE-045, reference §16).
-///
-/// Windows hides items marked both Hidden and System. macOS has no System attribute, so Arbor treats
-/// as protected: bookkeeping files macOS creates in any folder or volume (`.DS_Store`, `.Spotlight-V100`,
-/// `._` AppleDouble files…), and the hidden UNIX folders at the root of the startup disk (`/usr`, `/private`…).
-/// They only matter while hidden items are shown; with hidden items off they're already invisible.
+/// Mac stand-in for Windows' "protected operating system files" (FE-045, reference §16): macOS bookkeeping
+/// files (`.DS_Store`, `._*`…) and hidden folders at the startup disk root. Only matters while hidden items show.
 public enum ProtectedSystemItems {
     public static let names: Set<String> = [
         ".DS_Store", ".localized", ".fseventsd", ".Spotlight-V100", ".Trashes", ".TemporaryItems",
@@ -17,7 +13,7 @@ public enum ProtectedSystemItems {
         "$RECYCLE.BIN", "System Volume Information", "desktop.ini", "Thumbs.db",
     ]
 
-    /// True for an item the "Hide protected operating system files" setting hides.
+    /// True for items "Hide protected operating system files" hides.
     public static func isProtected(name: String, parentPath: String, isHidden: Bool) -> Bool {
         if names.contains(name) { return true }
         if name.hasPrefix("._") { return true }
@@ -25,8 +21,7 @@ public enum ProtectedSystemItems {
     }
 
     public static func filter(_ items: [FileItem]) -> [FileItem] {
-        // The parent path is only needed for hidden items; building it for every row of a 100,000-entry
-        // listing cost more than the rest of the filter.
+        // Build the parent path only for hidden items; doing it per row dominated large listings.
         items.filter { item in
             if names.contains(item.name) || item.name.hasPrefix("._") { return false }
             guard item.isHidden else { return true }
@@ -35,12 +30,10 @@ public enum ProtectedSystemItems {
     }
 }
 
-/// Sync providers that own a folder (FE-043 "Show sync provider notifications"): iCloud Drive and
-/// File Provider apps under ~/Library/CloudStorage (Dropbox, Google Drive, OneDrive, Box…).
+/// The sync provider owning a folder (FE-043): iCloud Drive or a File Provider under ~/Library/CloudStorage.
 public enum SyncProviderDetector {
     public struct Provider: Equatable, Sendable {
         public let name: String
-        /// The provider's root folder.
         public let root: String
     }
 

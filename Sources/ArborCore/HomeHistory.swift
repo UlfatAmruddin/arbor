@@ -1,18 +1,14 @@
 import Foundation
 
-// Logic behind Home (FE-069–FE-072, FE-206, FE-239): frequent folders, recent files and the
-// references that keep a favorite or pin attached to the real item. Everything here is a
-// projection: removing an entry never touches the file it points at.
+// Home logic (FE-069–FE-072, FE-206, FE-239). Removing an entry never touches the file it points at.
 
-/// A persistent pointer to a real file or folder (spec §3.2: a path alone is not identity).
-/// It keeps the volume and file ID, a bookmark and the last known path, so a rename or move on the
-/// same volume is followed, and a different item later created at the old path isn't mistaken
-/// for the original.
+/// A persistent pointer to a real item (spec §3.2: a path alone is not identity). File ID, bookmark and
+/// last path follow renames and moves without mistaking a new item at the old path for the original.
 public struct ItemReference: Codable, Equatable, Sendable {
-    /// The last known path (callers may update it after `resolve()` finds the item elsewhere).
+    /// Callers may update it after `resolve()` finds the item elsewhere.
     public var path: String
     public var bookmark: Data?
-    /// Inode and file-system ID (`statfs.f_fsid`) when the reference was made.
+    /// Inode and `statfs.f_fsid` at creation.
     public var fileID: UInt64?
     public var fsid: [Int32]?
 
@@ -23,7 +19,7 @@ public struct ItemReference: Codable, Equatable, Sendable {
         self.fsid = fsid
     }
 
-    /// Creates a reference for an existing item (no UI, no mounting).
+    /// No UI, no mounting.
     public init(url: URL) {
         let url = url.standardizedFileURL
         let id = Self.identity(of: url.path)
@@ -45,7 +41,7 @@ public struct ItemReference: Codable, Equatable, Sendable {
         return (0..<Int(count)).contains { list[$0].f_fsid.val.0 == fsid[0] && list[$0].f_fsid.val.1 == fsid[1] }
     }
 
-    /// The item's current location, or nil when it is gone or was moved to a Trash.
+    /// Nil when the item is gone or in a Trash.
     public func resolve() -> URL? {
         let fm = FileManager.default
         // 1. By file ID on its volume: follows renames and moves, never fooled by a replacement.
@@ -94,8 +90,7 @@ public enum HomePaths {
 
 // MARK: - Frequent folders
 
-/// Counts folder visits for Quick access's "frequent folders" (Explorer's frecency list).
-/// Bounded: when full, the entry with the lowest score is forgotten.
+/// Frecency-ranked folder visits for Quick access; when full, the lowest score is dropped.
 public struct FolderFrequency: Codable, Equatable, Sendable {
     public struct Entry: Codable, Equatable, Sendable {
         public var path: String
@@ -159,8 +154,7 @@ public struct FolderFrequency: Codable, Equatable, Sendable {
         return a.lastVisit < b.lastVisit
     }
 
-    /// The most frequently used folders, best first. Folders visited fewer than `minimumVisits`
-    /// times and paths in `excluding` (pinned or removed folders) are left out.
+    /// Best first; skips folders under `minimumVisits` and those in `excluding` (pinned or removed).
     public func ranked(now: Date, limit: Int, minimumVisits: Int = 2, excluding: Set<String> = []) -> [String] {
         let excluded = Set(excluding.map(HomePaths.normalized))
         return entries
@@ -216,11 +210,8 @@ public struct RecentLog: Codable, Equatable, Sendable {
 }
 
 public enum RecentMerge {
-    /// Merges recent-file sources into one list (newest first). Entries are identified by their
-    /// current path (references are resolved first, so a renamed file is one entry, not two).
-    /// - `removed`: path → when the user chose "Remove from Recent". Hidden until opened again later.
-    /// - `clearedAt`: "Clear File Explorer history" hides everything used up to that moment.
-    /// - `cutoff`: oldest date shown.
+    /// Newest first, keyed by resolved path. `removed`: hidden until used again after removal;
+    /// `clearedAt`: hides everything up to then; `cutoff`: oldest date shown.
     public static func merge(_ lists: [[RecentEntry]], removed: [String: Date] = [:], clearedAt: Date? = nil,
                              cutoff: Date, limit: Int) -> [RecentEntry] {
         var newest: [String: RecentEntry] = [:]
@@ -241,15 +232,14 @@ public enum RecentMerge {
             .map { $0 }
     }
 
-    /// Drops removal marks older than the cutoff (they can't hide anything any more), so the
-    /// stored map stays bounded.
+    /// Drops removal marks older than the cutoff (they hide nothing), keeping the map bounded.
     public static func prune(removed: [String: Date], cutoff: Date, capacity: Int = 500) -> [String: Date] {
         let kept = removed.filter { $0.value >= cutoff }
         guard kept.count > capacity else { return kept }
         return Dictionary(uniqueKeysWithValues: kept.sorted { $0.value > $1.value }.prefix(capacity).map { ($0.key, $0.value) })
     }
 
-    /// Files that Recent never lists: hidden items, anything in a Library or Trash folder, apps.
+    /// Recent never lists hidden items, ~/Library or Trash contents, or apps.
     public static func isEligible(path: String, home: String) -> Bool {
         let p = HomePaths.normalized(path)
         let parts = p.split(separator: "/")

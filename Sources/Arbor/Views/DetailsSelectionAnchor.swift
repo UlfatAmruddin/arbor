@@ -1,12 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Keeps Shift-arrow range selection working across a reload.
-///
-/// NSTableView remembers the anchor and the moving end of a range by row number. When a folder changes
-/// while a range is selected (a file appears inside the range), the selection is restored by item, but
-/// the remembered rows now point at other items, so the next ⇧↑ grew the range instead of shrinking it
-/// (docs/ACCEPTANCE.md, T08). The ends are remembered by item and re-applied after the reload.
+/// Keeps Shift-arrow range selection working across a reload (T08). NSTableView tracks range ends by row,
+/// which point at other items after a reload; so the ends are kept by item and re-applied.
 struct SelectionEnds {
     let anchor: URL
     let lead: URL
@@ -26,7 +22,7 @@ extension DetailsViewController {
         return SelectionEnds(anchor: anchorItem.url, lead: leadItem.url)
     }
 
-    /// Selects the same rows again, anchor first and lead last, so ⇧↑/⇧↓ continue from the same items.
+    /// Reselects anchor first, lead last, so ⇧↑/⇧↓ continue from the same items.
     func restoreSelectionEnds(_ ends: SelectionEnds?) {
         guard let ends else { return }
         let selected = table.selectedRowIndexes

@@ -1,9 +1,8 @@
 import AppKit
 import ArborCore
 
-/// App-wide network state: which shares are mounted, the mapped-drive list, connecting and
-/// reconnecting (FE-176, FE-177, FE-187). Everything here runs on the main thread and never touches a
-/// network file system directly: mount state comes from the mount table, mounts are asynchronous.
+/// App-wide network state: mounts, mapped drives, (re)connecting (FE-176, FE-177, FE-187).
+/// Main thread only and no network file system I/O: mount state comes from the mount table.
 final class NetworkCenter {
     static let shared = NetworkCenter()
     /// Posted when mapped drives, their status, or mounted shares change.
@@ -19,25 +18,24 @@ final class NetworkCenter {
 
     let services: NetworkServicing
     let isFake: Bool
-    /// How long a connection attempt may take before Arbor gives up and offers Retry.
+    /// Connection timeout before offering Retry.
     let mountTimeout: TimeInterval
-    /// How long a folder listing on a share may take before the "not responding" page (FE-179).
+    /// Listing timeout before the "not responding" page (FE-179).
     let listingTimeout: TimeInterval
 
     private(set) var drives: MappedDriveList
     private var connecting: [UUID: NetworkCancellable] = [:]
     private var lastErrors: [UUID: String] = [:]
-    /// Mount points the user disconnected on purpose: never reconnect those by ourselves.
+    /// Mount points the user disconnected on purpose; never auto-reconnect them.
     private var userDisconnected: Set<String> = []
     private var policy = ReconnectPolicy()
-    /// Network mount points seen this session → their share, so a tab inside one that vanishes can
-    /// show "disconnected" with Reconnect instead of an empty or missing folder.
+    /// Network mount points seen this session, so a vanished one shows "disconnected" + Reconnect.
     private(set) var remembered: [String: MountedShare] = [:]
     private var observers: [NSObjectProtocol] = []
     private static let storeKey = "network.mappedDrives"
 
     init(services: NetworkServicing? = nil) {
-        let env = ProcessInfo.processInfo.environment
+        let env = Automation.environment
         if let services {
             self.services = services
             isFake = services is FakeNetworkServices
@@ -64,7 +62,7 @@ final class NetworkCenter {
 
     // MARK: Mount state (no I/O)
 
-    /// Cached briefly: providers ask for every folder they might handle (titles, icons, chrome).
+    /// Cached briefly: providers ask for every folder they might handle.
     private var cachedShares: (time: Date, shares: [MountedShare])?
 
     func mountedShares() -> [MountedShare] {
@@ -77,12 +75,11 @@ final class NetworkCenter {
 
     func invalidateMounts() { cachedShares = nil }
 
-    /// The mounted network share that holds `url`, if any.
     func share(containing url: URL) -> MountedShare? {
         mountedShares().filter { $0.contains(url) }.max { $0.mountPoint.path.count < $1.mountPoint.path.count }
     }
 
-    /// A share that was mounted this session (or is a mapped drive) and holds `url`, but is gone now.
+    /// A share seen this session (or mapped) that holds `url` but is gone now.
     func disconnectedShare(containing url: URL) -> MountedShare? {
         guard share(containing: url) == nil else { return nil }
         var candidate = remembered.values.filter { $0.contains(url) }.max { $0.mountPoint.path.count < $1.mountPoint.path.count }
@@ -93,7 +90,7 @@ final class NetworkCenter {
                 if share.contains(url) { candidate = share; break }
             }
         }
-        // Something else (a local disk) may be mounted there now. Not a network path, so this check is cheap.
+        // Something local may be mounted there now; cheap to check.
         if candidate != nil, !isFake, FileManager.default.fileExists(atPath: url.path) { return nil }
         return candidate
     }
@@ -119,8 +116,7 @@ final class NetworkCenter {
 
     // MARK: Connecting
 
-    /// Connects to a share (reusing an existing mount) and returns the folder to show: the share's
-    /// mount point plus any folders in the address. Times out after `mountTimeout`; cancellable.
+    /// Connects (reusing a mount); returns mount point + address subfolders. Cancellable, times out after `mountTimeout`.
     @discardableResult
     func connect(_ address: NetworkAddress, options: MountOptions = MountOptions(),
                  completion: @escaping (Result<URL, NetworkError>) -> Void) -> NetworkCancellable {
@@ -179,7 +175,7 @@ final class NetworkCenter {
             case .failure(let error): completion(.failure(error))
             case .success(let folder):
                 let mounted = self.share(containing: folder)
-                // The account the system actually used (from the mount table) becomes part of the identity.
+                // The account actually used (from the mount table) is part of the identity.
                 var identity = address
                 if let user = mounted?.address?.user, address.user == nil { identity = identity.withUser(user) }
                 let drive = self.drives.add(MappedDrive(address: identity, reconnectAtSignIn: reconnectAtSignIn,
@@ -194,7 +190,7 @@ final class NetworkCenter {
         }
     }
 
-    /// Reconnect a mapped drive (This Mac "Reconnect", launch, or after it vanished).
+    /// Reconnects a mapped drive (This Mac, launch, or after it vanished).
     @discardableResult
     func reconnect(_ drive: MappedDrive, allowUI: Bool, completion: ((Result<URL, NetworkError>) -> Void)? = nil) -> NetworkCancellable {
         if let running = connecting[drive.id] { return running }
@@ -220,7 +216,7 @@ final class NetworkCenter {
         return token
     }
 
-    /// "Reconnect at sign-in": Arbor reconnects these drives when it starts, silently (Keychain only).
+    /// "Reconnect at sign-in" drives, silently at launch (Keychain only).
     func reconnectAtLaunch() {
         for drive in policy.atLaunch(drives, mounted: mountedShares()) {
             reconnect(drive, allowUI: false)
@@ -237,7 +233,7 @@ final class NetworkCenter {
 
     // MARK: Disconnecting
 
-    /// "Disconnect network drive": unmounts; a mapped drive's mapping is removed, like Explorer.
+    /// Unmounts; a mapped drive's mapping is removed too, like Explorer.
     func disconnect(_ share: MountedShare, force: Bool, completion: @escaping (Result<Void, NetworkError>) -> Void) {
         let mapped = mappedDrive(for: share)
         userDisconnected.insert(share.mountPoint.path)
@@ -280,7 +276,7 @@ final class NetworkCenter {
         invalidateMounts()
         guard let url = url?.standardizedFileURL else { return }
         let byUser = userDisconnected.contains(url.path)
-        // A mapped drive that vanished on its own (server restarted, Wi-Fi dropped): try once, silently.
+        // A mapped drive vanished on its own (server restart, Wi-Fi): retry once, silently.
         if !byUser, let drive = drives.drives.first(where: { $0.lastMountPoint == url.path }),
            policy.shouldReconnect(drive, userDisconnected: false) {
             DispatchQueue.main.asyncAfter(deadline: .now() + (isFake ? 0.5 : 3)) { [weak self] in
@@ -297,7 +293,7 @@ final class NetworkCenter {
         Prefs.store.set(drives.encoded(), forKey: Self.storeKey)
     }
 
-    /// Reads the volume UUID off the main thread (a network volume may be slow to answer).
+    /// Off the main thread: a network volume may be slow to answer.
     private func captureVolumeUUID(_ id: UUID, _ mountPoint: URL) {
         guard !isFake else { return }
         DispatchQueue.global(qos: .utility).async { [weak self] in
@@ -315,7 +311,7 @@ final class NetworkCenter {
     private var capacities: [String: (time: Date, free: Int64, total: Int64)] = [:]
     private var capacityRequests: Set<String> = []
 
-    /// Free and total bytes for a mounted share, if known; otherwise starts reading it and posts `changed` when done.
+    /// Free/total bytes if known; otherwise starts reading and posts `changed` when done.
     func capacity(of share: MountedShare) -> (free: Int64, total: Int64)? {
         let key = share.mountPoint.path
         if let hit = capacities[key], Date().timeIntervalSince(hit.time) < 60 { return (hit.free, hit.total) }

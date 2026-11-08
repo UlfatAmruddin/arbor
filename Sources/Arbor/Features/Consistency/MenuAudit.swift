@@ -1,13 +1,9 @@
 import AppKit
 import ArborCore
 
-/// Context menus only list commands that can act on what was right-clicked, in every location
-/// (docs/features/consistency.md). Each rule hides a registered command in context menus where it
-/// can't apply; the command bar and the menu bar keep showing it greyed, like Explorer.
+/// Hides commands in context menus where they can't apply; the command bar and menu bar keep them greyed.
 enum MenuAudit {
-    /// Commands that, in a context menu, are left out rather than greyed when they're disabled:
-    /// they're disabled only because the place or the item doesn't support them (This Mac's drives
-    /// can't be cut or trashed, search results have no folder to create shortcuts in…).
+    /// Left out of context menus (not greyed) when disabled: the place or item can't support them.
     static let hiddenWhenDisabled = ["edit.cut", "edit.copy", "file.rename",
                                      "file.trash", "file.share", "file.createShortcut", "file.openInTerminal", "file.copyPath",
                                      "file.showInFinder"]
@@ -39,8 +35,7 @@ enum MenuAudit {
         for id in notInArchive {
             hide(id, "consistency.not-in-archive") { $0.location?.archiveFile != nil && $0.surface != .treeContextMenu }
         }
-        // New and Paste on the background need a folder to put items in (search results, Home, Gallery
-        // have none); in folders they stay, greyed while the clipboard is empty, like Explorer.
+        // New and Paste need a folder; in folders they stay, greyed while the clipboard is empty.
         for id in ["menu.new", "edit.paste", "edit.pasteShortcut", "edit.pasteMove"] {
             hide(id, "consistency.background-needs-folder") { ctx in
                 ctx.surface == .backgroundContextMenu && (ctx.targetFolder == nil || !ctx.allowsEditing)
@@ -56,14 +51,12 @@ enum MenuAudit {
         [.itemContextMenu, .backgroundContextMenu, .treeContextMenu].contains(ctx.surface)
     }
 
-    /// Hides a command in context menus while `rule` holds; it stays available elsewhere. These rules
-    /// only ever hide, so their order among other overrides doesn't change the result.
+    /// Hides a command in context menus while `rule` holds; rules only hide, so their order doesn't matter.
     static func hide(_ commandID: String, _ id: String, when rule: @escaping (CommandContext) -> Bool) {
         CommandRegistry.shared.hide(commandID, id) { ctx in isContextMenu(ctx) && rule(ctx) }
     }
 
-    /// A disconnected mapped drive (its row stands for a share that isn't mounted): only opening,
-    /// reconnecting and disconnecting apply.
+    /// A disconnected mapped drive: only opening, reconnecting and disconnecting apply.
     static func involvesDisconnectedDrive(_ ctx: CommandContext) -> Bool {
         let urls = ctx.surface == .treeContextMenu ? [ctx.treeLocation?.folderURL ?? ctx.targetFolder].compactMap { $0 } : ctx.selection.map(\.url)
         return urls.contains { NetworkThisMac.drive(forPlaceholder: $0) != nil }

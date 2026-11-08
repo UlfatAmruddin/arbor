@@ -2,8 +2,7 @@ import Foundation
 
 // MARK: - Focus regions (F6 / Shift+F6, Tab / Shift+Tab; FE-062, FE-199)
 
-/// The parts of a browser window that keyboard focus cycles through, in Explorer's F6 order:
-/// tabs → address bar → search box → command bar → navigation pane → items → side pane.
+/// Focus regions in Explorer's F6 order: tabs → address bar → search → command bar → nav pane → items → side pane.
 public enum FocusRegion: String, CaseIterable, Sendable {
     case tabs, address, search, commandBar, navigationPane, items, sidePane
 
@@ -21,9 +20,7 @@ public enum FocusRegion: String, CaseIterable, Sendable {
 }
 
 public enum FocusCycle {
-    /// The region after (or before) `current`, skipping regions that can't take focus now (hidden
-    /// navigation pane, no side pane). From nowhere, forward starts at the items (where focus usually
-    /// lives) and backward at the region before them.
+    /// The next (or previous) focusable region. From nowhere, forward starts at the items, backward just before them.
     public static func next(from current: FocusRegion?, forward: Bool, available: Set<FocusRegion>) -> FocusRegion? {
         let order = FocusRegion.allCases
         guard !available.isEmpty else { return nil }
@@ -41,8 +38,7 @@ public enum FocusCycle {
 
 // MARK: - Announcements (spec §16.2: announce location, selection count, job results; throttle)
 
-/// Coalesces bursts (selection changes while holding Shift+Down): the first one is spoken at once,
-/// later ones at most every `interval`, and only the latest text of a burst is spoken.
+/// Coalesces bursts (Shift+Down): the first is spoken at once, then only the latest text at most every `interval`.
 public struct AnnouncementThrottle: Sendable {
     public var interval: TimeInterval
     private(set) public var lastSpoken: TimeInterval?
@@ -77,8 +73,7 @@ public struct AnnouncementThrottle: Sendable {
 }
 
 public enum AnnouncementText {
-    /// "3 items selected". A single item is read by VoiceOver from the row itself, so it isn't repeated;
-    /// clearing a multiple selection says so.
+    /// "3 items selected". A single item isn't repeated (VoiceOver reads the row); clearing a multiple selection is.
     public static func selection(count: Int, previous: Int) -> String? {
         if count >= 2 { return count == previous ? nil : L10n.format("%@ items selected", StatusText.number(count)) }
         if count == 0, previous >= 2 { return L10n.tr("Selection cleared") }
@@ -128,8 +123,7 @@ public enum TextSizeLevel: Int, CaseIterable, Sendable {
     /// A font size at this level, rounded to half points.
     public func fontSize(_ base: Double) -> Double { (base * scale * 2).rounded() / 2 }
 
-    /// A row height that keeps the same breathing room around the larger text: the base height grows
-    /// by the extra line height, never less than the text needs (no clipped glyphs).
+    /// Base row height grown by the extra line height, never less than the text needs.
     public func rowHeight(_ base: Double, fontSize baseFont: Double) -> Double {
         let extra = (fontSize(baseFont) - baseFont) * 1.3
         return (base + max(0, extra)).rounded(.up)
@@ -141,10 +135,8 @@ public enum TextSizeLevel: Int, CaseIterable, Sendable {
 public enum SwipeNavigation {
     public enum Direction: Equatable, Sendable { case back, forward }
 
-    /// Whether a two-finger horizontal scroll that is just beginning should become a Back/Forward swipe.
-    /// It must be clearly horizontal, and the content under the pointer must already be at its edge in
-    /// that direction, so horizontal scrolling (List view, wide Details columns) keeps working.
-    /// `deltaX` > 0 means the content moves right (fingers move right): Back, like Safari.
+    /// Whether a starting two-finger horizontal scroll becomes Back/Forward: clearly horizontal, content already at
+    /// its edge (so List/Details still scroll). `deltaX` > 0 (fingers right) means Back, like Safari.
     public static func decision(deltaX: Double, deltaY: Double, canScrollLeft: Bool, canScrollRight: Bool) -> Direction? {
         guard abs(deltaX) > 0.5, abs(deltaX) > abs(deltaY) * 2 else { return nil }
         if deltaX > 0 { return canScrollLeft ? nil : .back }
@@ -162,13 +154,11 @@ public enum SwipeNavigation {
 // MARK: - Tree "expand all" (FE-061: Num * expands every folder under the node)
 
 public enum TreeExpansion {
-    /// Explorer's `*` expands the whole subtree. Reading every subfolder of a big tree is the kind of
-    /// recursive scan the spec rules out (§15.3), so expansion stops after this many folders and this depth.
+    /// Explorer's `*` expands the whole subtree; bounded to avoid the recursive scan the spec rules out (§15.3).
     public static let maxNodes = 400
     public static let maxDepth = 6
 
-    /// Breadth-first order of nodes to expand under `root`, bounded by `maxNodes` / `maxDepth`.
-    /// `children` returns a node's subfolders (read on demand).
+    /// Breadth-first expansion order under `root`, bounded; `children` reads subfolders on demand.
     public static func plan<Node>(root: Node, children: (Node) -> [Node], maxNodes: Int = maxNodes,
                                   maxDepth: Int = maxDepth) -> (nodes: [Node], truncated: Bool) {
         var result: [Node] = []

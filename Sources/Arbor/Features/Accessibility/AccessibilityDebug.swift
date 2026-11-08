@@ -133,9 +133,8 @@ enum AccessibilityDebug {
     }
 }
 
-/// Writes the accessibility hierarchy as indented lines: role[/subrole] "label" (title) = value, then
-/// states (selected, focused, disabled, expanded, actions). Ignored containers are flattened like
-/// VoiceOver flattens them. Long lists are cut after `perElement` children.
+/// Indented `role[/subrole] "label" (title) = value` lines plus states; ignored containers are
+/// flattened like VoiceOver does, and lists cut after `perElement` children.
 enum AXDump {
     static let perElement = 60
     static let maxLines = 6000
@@ -147,7 +146,7 @@ enum AXDump {
         return lines.joined(separator: "\n") + "\n"
     }
 
-    /// Reads an accessibility property by its key (works for AppKit's private row/cell proxies too).
+    /// By key, so it also works for AppKit's private row/cell proxies.
     private static func get(_ object: NSObject, _ key: String, getter: String? = nil) -> Any? {
         if object.responds(to: NSSelectorFromString(getter ?? key)) { return object.value(forKey: key) }
         // Table/outline rows and header proxies only answer the attribute-based API.

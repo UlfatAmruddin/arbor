@@ -1,10 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Compress to ▸ Additional options (Windows 11 24H2 "Create archive", FE-168): destination, name,
-/// archive format, compression method and level, and whether hidden items inside folders go in.
-/// Written with the system bsdtar into a staging folder on the destination's volume, then moved in
-/// under a free name (never over an existing file), like the other Compress to items.
+/// Compress to ▸ Additional options (FE-168). bsdtar writes into staging on the destination's volume,
+/// then the archive moves in under a free name, never over an existing file.
 final class CompressOptionsDialog: FileOpsDialog {
     private let sources: [URL]
     private weak var browser: BrowserWindowController?
@@ -19,7 +17,7 @@ final class CompressOptionsDialog: FileOpsDialog {
     private let problem = FileOpsStyle.label("", font: FileOpsStyle.captionFont, color: SheetColors.failure, wraps: true)
     private lazy var create = WinButton(L10n.tr("Create"), accent: true) { [weak self] in self?.createArchive() }
     private let formats: [ArchiveOutputFormat]
-    /// The name last proposed; while the user hasn't typed their own, changing the format proposes anew.
+    /// Last proposed name; until the user types one, a format change proposes anew.
     private var suggestedName = ""
 
     static var current: CompressOptionsDialog? { open.last as? CompressOptionsDialog }
@@ -140,8 +138,7 @@ final class CompressOptionsDialog: FileOpsDialog {
     @objc private func formatChanged() {
         options.format = format
         options.method = format.methods[0]
-        // A proposed name follows the format ("Photos.zip" → "Photos.tar.gz", "notes.txt" → "notes.txt.gz");
-        // a name the user typed keeps its stem and gets the new extension.
+        // A proposed name follows the format; a typed name keeps its stem and gets the new extension.
         let proposal = Self.suggestedName(for: format, sources: sources)
         nameField.stringValue = nameField.stringValue == suggestedName ? proposal
             : ArchiveCreateOptions.name(nameField.stringValue, withExtensionFor: format)

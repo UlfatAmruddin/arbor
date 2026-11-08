@@ -2,8 +2,7 @@ import AppKit
 import ArborCore
 import UniformTypeIdentifiers
 
-/// Dragging a member out of an archive (FE-163): a file promise. The member is extracted only when
-/// the drop target asks for it (Finder, the Desktop, another Arbor window), into the folder it names.
+/// Dragging an archive member out (FE-163): a file promise, extracted only when the drop target asks.
 final class ArchiveMemberPromise: NSFilePromiseProvider, NSFilePromiseProviderDelegate {
     let ref: ArchiveItemRef
     let isFolder: Bool
@@ -53,9 +52,8 @@ final class ArchiveMemberPromise: NSFilePromiseProvider, NSFilePromiseProviderDe
     }
 }
 
-/// Accepts file promises dropped on an Arbor folder (archive members from another window, Mail or
-/// Photos items): they're received into a staging folder on the destination's volume, then moved in
-/// with the usual conflict rules, so nothing is ever overwritten without a decision.
+/// Accepts dropped file promises: received into staging on the destination's volume, then moved in
+/// with the usual conflict rules so nothing is overwritten without a decision.
 enum PromiseDrop {
     static func register() {
         ItemHooks.registerDropHandler(ItemHooks.DropHandler(

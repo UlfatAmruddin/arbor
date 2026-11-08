@@ -1,13 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Explorer's "Extract Compressed (Zipped) Folders" wizard (FE-163): one page, shown as a sheet.
-///
-///     Select a Destination and Extract Files
-///     Files will be extracted to this folder:
-///     [ /Users/me/Downloads/Photos              ] [Browse…]
-///     ☑ Show extracted files when complete
-///                                          [Extract] [Cancel]
+/// Explorer's "Extract Compressed (Zipped) Folders" wizard (FE-163), as a one-page sheet.
 final class ExtractWizard: NSWindowController, NSTextFieldDelegate {
     private static var open: [ExtractWizard] = []
 
@@ -206,6 +200,6 @@ final class ExtractWizard: NSWindowController, NSTextFieldDelegate {
 }
 
 extension Theme {
-    /// Wizard headings in Explorer are a deep blue in light mode, light blue in dark mode.
+    /// Explorer's heading blue: deep in light mode, light in dark mode.
     static let wizardHeading = dynamic(light: 0x1E3287, dark: 0x99C2FF)
 }

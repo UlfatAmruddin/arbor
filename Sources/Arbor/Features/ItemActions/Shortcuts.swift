@@ -2,8 +2,7 @@ import AppKit
 import ArborCore
 import UniformTypeIdentifiers
 
-/// Windows shortcuts are macOS **aliases** here (FE-092, spec §14): Finder-compatible bookmark
-/// files that follow the target when it moves. Symbolic links are a separate, clearly named action.
+/// Shortcuts are macOS aliases (FE-092, spec §14), which follow moved targets; symlinks are a separate action.
 enum Shortcuts {
     enum Failure: LocalizedError {
         case cannotCreate(String, String)
@@ -14,8 +13,7 @@ enum Shortcuts {
 
     // MARK: Creating
 
-    /// Writes an alias to `target` in `folder`. `name` defaults to "<target> - Shortcut" (made unique).
-    /// Never overwrites an existing item.
+    /// Writes an alias to `target` in `folder` ("<target> - Shortcut" by default, made unique); never overwrites.
     @discardableResult
     static func createAlias(to target: URL, in folder: URL, name: String? = nil) throws -> URL {
         let finalName = name.map { n in ShortcutNaming.numbered(n) { FileOps.exists(folder.appendingPathComponent($0)) } }
@@ -32,7 +30,7 @@ enum Shortcuts {
         return destination
     }
 
-    /// A Mac Internet shortcut (.webloc) for a web address typed in the Create Shortcut wizard.
+    /// A .webloc for a web address from the Create Shortcut wizard.
     static func createWebLocation(_ url: URL, in folder: URL, name: String) throws -> URL {
         let finalName = ShortcutNaming.numbered(name + ".webloc") { FileOps.exists(folder.appendingPathComponent($0)) }
         let destination = folder.appendingPathComponent(finalName)
@@ -48,8 +46,7 @@ enum Shortcuts {
         return destination
     }
 
-    /// Creates shortcuts for several targets, registers one undo, and returns the created URLs.
-    /// Failures are collected and shown once.
+    /// Creates shortcuts with one undo; returns the created URLs and reports failures once.
     @discardableResult
     static func createShortcuts(to targets: [URL], in folder: URL, window: BrowserWindowController?) -> [URL] {
         var created: [URL] = []
@@ -62,7 +59,7 @@ enum Shortcuts {
         return created
     }
 
-    /// Undo of created shortcut files moves them to the Trash (never deletes), and redo puts them back.
+    /// Undo moves created shortcuts to the Trash (never deletes); redo puts them back.
     static func registerUndoCreate(_ urls: [URL], name: String) {
         let center = OperationCenter.shared
         center.undoManager.registerUndo(withTarget: center) { center in
@@ -116,7 +113,7 @@ enum Shortcuts {
         return values.name ?? values.path.map { ($0 as NSString).lastPathComponent }
     }
 
-    /// The target's folder-ness recorded in the alias (no resolution, no disk access beyond the alias).
+    /// Whether the alias recorded a folder target (reads only the alias).
     static func recordedTargetIsFolder(_ alias: URL) -> Bool? {
         guard let data = try? URL.bookmarkData(withContentsOf: alias),
               let values = URL.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey], fromBookmarkData: data) else { return nil }
@@ -149,8 +146,7 @@ enum Shortcuts {
         }
     }
 
-    /// Explorer's "Problem with Shortcut" message, with the same offer to delete the shortcut
-    /// (moved to the Trash, undoable).
+    /// Explorer's "Problem with Shortcut", offering to delete it (to the Trash, undoable).
     static func showProblem(alias: FileItem, targetName: String?, window: BrowserWindowController) {
         let alert = NSAlert()
         alert.alertStyle = .warning
@@ -176,14 +172,13 @@ enum Shortcuts {
 
     // MARK: Icon overlay
 
-    /// A small curved arrow in a rounded white box at the bottom-left corner of shortcut and
-    /// symbolic-link icons. Original artwork drawn in code (DEC-018).
+    /// Curved-arrow badge at the bottom-left of shortcut and symlink icons; original artwork (DEC-018).
     static func decorate(_ item: FileItem, _ icon: NSImage, size: CGFloat) -> NSImage? {
         let linkish = item.isSymbolicLink || (!item.isFolder && isAlias(item.url))
         guard linkish else { return nil }
         let base: NSImage
         if !item.isFolder, isAlias(item.url) {
-            // Show what the alias points to (folder art or the target type's icon) rather than a blank page.
+            // Show the target's icon (folder art or type icon) rather than a blank page.
             if recordedTargetIsFolder(item.url) == true {
                 base = IconProvider.shared.folderIcon(size: size)
             } else if let type = targetContentType(item.url) {

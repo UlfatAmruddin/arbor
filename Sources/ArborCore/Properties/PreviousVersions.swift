@@ -1,12 +1,7 @@
 import Foundation
 
-/// The Previous Versions tab's real sources on macOS (FE-155). Explorer lists File History and
-/// restore-point copies; the Mac has two different, real facilities:
-/// - **Document versions** (`NSFileVersion`): the per-file version store that apps using Auto Save
-///   write ("File › Revert To › Browse All Versions"). These can be listed and restored per file.
-/// - **Time Machine**: backups and local APFS snapshots of the whole disk. `tmutil` reports status
-///   and snapshot dates without administrator rights; browsing a file inside them is done in the
-///   Time Machine app. Arbor never invents backup entries.
+/// Previous Versions tab sources (FE-155): `NSFileVersion` (Auto Save versions, restorable per file)
+/// and Time Machine status via `tmutil`. Arbor never invents backup entries.
 public struct DocumentVersion: Equatable, Sendable {
     public var date: Date?
     public var name: String
@@ -15,7 +10,7 @@ public struct DocumentVersion: Equatable, Sendable {
 }
 
 public enum DocumentVersions {
-    /// Other versions of a file in the version store, newest first (empty for folders or none).
+    /// Newest first.
     public static func list(_ url: URL) -> [DocumentVersion] {
         (NSFileVersion.otherVersionsOfItem(at: url) ?? [])
             .map { DocumentVersion(date: $0.modificationDate, name: $0.localizedName ?? url.lastPathComponent,
@@ -23,7 +18,7 @@ public enum DocumentVersions {
             .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
     }
 
-    /// "Restore To…": copies a version to a new location. Never overwrites an existing item.
+    /// "Restore To…"; never overwrites.
     public static func restore(_ version: DocumentVersion, to destination: URL) throws {
         guard !FileManager.default.fileExists(atPath: destination.path) else {
             throw CocoaError(.fileWriteFileExists, userInfo: [NSFilePathErrorKey: destination.path])
@@ -31,8 +26,7 @@ public enum DocumentVersions {
         try FileManager.default.copyItem(at: version.url, to: destination)
     }
 
-    /// "Restore": replaces the current file with the version. The current contents are first saved as
-    /// a new version, so the restore can itself be undone from this tab.
+    /// Saves the current contents as a version first, so the restore is undoable.
     public static func restoreInPlace(_ version: DocumentVersion, of url: URL) throws {
         guard let match = (NSFileVersion.otherVersionsOfItem(at: url) ?? []).first(where: { $0.url == version.url }) else {
             throw CocoaError(.fileNoSuchFile)
@@ -42,7 +36,7 @@ public enum DocumentVersions {
     }
 }
 
-/// What `tmutil` says about Time Machine. Parsing is separate from running for tests.
+/// Parsing is separate from running so it can be tested.
 public struct TimeMachineStatus: Equatable, Sendable {
     public struct Destination: Equatable, Sendable {
         public var name: String
@@ -52,7 +46,7 @@ public struct TimeMachineStatus: Equatable, Sendable {
 
     public var destinations: [Destination]
     public var localSnapshotDates: [Date]
-    /// Whether `tmutil` ran at all (it may be missing or blocked).
+    /// False when `tmutil` is missing or blocked.
     public var available: Bool
 
     public var isConfigured: Bool { !destinations.isEmpty }
@@ -63,7 +57,7 @@ public struct TimeMachineStatus: Equatable, Sendable {
         self.available = available
     }
 
-    /// Parses `tmutil destinationinfo -X` (a plist with a "Destinations" array; empty dict when none).
+    /// `tmutil destinationinfo -X` plist.
     public static func parseDestinations(_ data: Data) -> [Destination] {
         guard let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
               let list = plist["Destinations"] as? [[String: Any]] else { return [] }
@@ -73,7 +67,7 @@ public struct TimeMachineStatus: Equatable, Sendable {
         }
     }
 
-    /// Parses `tmutil listlocalsnapshotdates /` lines like `2026-11-07-101530`.
+    /// `tmutil listlocalsnapshotdates` lines like `2026-11-07-101530`.
     public static func parseSnapshotDates(_ text: String) -> [Date] {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
@@ -84,7 +78,7 @@ public struct TimeMachineStatus: Equatable, Sendable {
             .sorted(by: >)
     }
 
-    /// Runs `tmutil` (read-only verbs, arguments as an array, bounded time). Call off the main thread.
+    /// Read-only `tmutil` verbs with a timeout. Call off the main thread.
     public static func read(volume: URL, timeout: TimeInterval = 5) -> TimeMachineStatus {
         let tool = URL(fileURLWithPath: "/usr/bin/tmutil")
         guard FileManager.default.isExecutableFile(atPath: tool.path) else { return TimeMachineStatus(available: false) }
@@ -95,7 +89,7 @@ public struct TimeMachineStatus: Equatable, Sendable {
                                  localSnapshotDates: dates.map { parseSnapshotDates(String(decoding: $0, as: UTF8.self)) } ?? [])
     }
 
-    /// Whether Time Machine excludes the item (`tmutil isexcluded`), nil when unknown.
+    /// nil when unknown.
     public static func isExcluded(_ url: URL, timeout: TimeInterval = 5) -> Bool? {
         guard let out = run(URL(fileURLWithPath: "/usr/bin/tmutil"), ["isexcluded", url.path], timeout: timeout) else { return nil }
         let text = String(decoding: out, as: UTF8.self)

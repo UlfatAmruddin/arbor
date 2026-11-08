@@ -22,6 +22,7 @@ cat "$ROOT/state.txt"
 ```
 
 Environment:
+- Every `ARBOR_*` variable is read through `ArborCore/Automation.swift` and ignored by distribution builds (signed with a Team ID, or marked `ArborDistribution` by `scripts/sign-and-notarize.sh`; a plain `scripts/build-app.sh release` build still reads them), so run these against `scripts/build-app.sh` output, not a packaged app.
 - `ARBOR_HEADLESS=1`: invisible, click-through window, no Dock icon. Preferences (pins, view mode, sort, panes) go to a throwaway domain that `quit` deletes, and window/split/column geometry is neither read nor saved, so runs never change the user's settings. Nothing outside Arbor's windows opens either: files, apps, Finder, Terminal, Mail, the share picker, Quick Look, settings pages, the desktop picture and disk images are only logged (`log:` → `system open: …`; everything goes through `Support/SystemOpen.swift`, enforced by `SystemOpenAuditTests`).
 - `ARBOR_APPEARANCE=light|dark`: forces the appearance (check both).
 - The path argument opens that folder; without it the window opens Home.

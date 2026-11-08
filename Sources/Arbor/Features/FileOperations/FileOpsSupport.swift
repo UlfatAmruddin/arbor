@@ -7,15 +7,13 @@ extension Prefs {
         NotificationCenter.default.post(name: changed, object: nil, userInfo: ["key": key])
     }
 
-    /// Folder Options ▸ "Display delete confirmation dialog". Off by default, like Windows 11
-    /// (windows11-reference §9.5). Permanent deletion always asks.
+    /// Off by default like Windows 11 (windows11-reference §9.5); permanent deletion always asks.
     static var displayDeleteConfirmation: Bool {
         get { store.bool(forKey: "displayDeleteConfirmation") }
         set { setFileOps(newValue, "displayDeleteConfirmation") }
     }
 
-    /// Folder Options ▸ "Hide folder merge conflicts". Windows' default is on (merge silently);
-    /// Arbor's default is off so a merge is always confirmed (DEC-fileops-3).
+    /// On by default like Windows: folders merge silently, the prompt is opt-in (DEC-fileops-3).
     static var hideFolderMergeConflicts: Bool {
         get { store.object(forKey: "hideFolderMergeConflicts") as? Bool ?? true }   // Windows default: on
         set { setFileOps(newValue, "hideFolderMergeConflicts") }
@@ -30,10 +28,9 @@ extension Prefs {
 
 /// Where job journals live and how jobs are configured.
 enum FileOpsEnvironment {
-    /// `ARBOR_JOURNAL_DIR`, else a private folder for headless test runs (never the user's
-    /// journals), else ~/Library/Application Support/Arbor/Jobs.
+    /// `ARBOR_JOURNAL_DIR`, else a private folder in headless runs, else ~/Library/Application Support/Arbor/Jobs.
     static let journalDirectory: URL = {
-        let env = ProcessInfo.processInfo.environment
+        let env = Automation.environment
         if let path = env["ARBOR_JOURNAL_DIR"] { return URL(fileURLWithPath: path) }
         if AppDelegate.isHeadless {
             return TemporaryFiles.headlessFolder("journal")
@@ -47,11 +44,10 @@ enum FileOpsEnvironment {
         try? JobJournal(directory: journalDirectory, kind: kind, sources: sources, destination: destination)
     }
 
-    /// Headless test runs may slow transfers down (`ARBOR_TRANSFER_THROTTLE`, bytes per second)
-    /// so scripts can photograph and pause a running job. Ignored in normal use.
+    /// `ARBOR_TRANSFER_THROTTLE` (bytes/s) slows headless runs so scripts can photograph and pause a job.
     static var transferOptions: FileTransfer.Options {
         var options = FileTransfer.Options()
-        if AppDelegate.isHeadless, let text = ProcessInfo.processInfo.environment["ARBOR_TRANSFER_THROTTLE"], let limit = Int64(text), limit > 0 {
+        if AppDelegate.isHeadless, let text = Automation.environment["ARBOR_TRANSFER_THROTTLE"], let limit = Int64(text), limit > 0 {
             options.bytesPerSecondLimit = limit
             options.allowClone = false
         }
@@ -62,14 +58,12 @@ enum FileOpsEnvironment {
 // MARK: - Undo Copy (FE-129)
 
 extension OperationCenter {
-    /// Undo Copy moves the copies to the Trash, but only those unchanged since they were made
-    /// (same inode, size and dates; folders: every entry). Anything edited, replaced or renamed
-    /// since is left alone and named. Redo puts the trashed copies back.
+    /// Trashes only copies unchanged since made (same inode, size, dates; folders: every entry);
+    /// anything changed is left alone and named. Redo puts them back.
     func registerUndoCopy(_ copies: [(url: URL, fingerprint: ItemFingerprint)]) {
         guard !copies.isEmpty else { return }
         undoManager.registerUndo(withTarget: self) { center in
-            // Redo must be registered while this undo runs; the box is filled when the
-            // background check finishes.
+            // Redo must be registered during this undo; the box is filled when the background check ends.
             let box = UndoCopyResult()
             center.undoManager.registerUndo(withTarget: center) { c in c.redoCopy(box) }
             center.undoManager.setActionName(L10n.tr("Copy"))

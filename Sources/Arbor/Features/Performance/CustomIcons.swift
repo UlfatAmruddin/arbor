@@ -1,14 +1,11 @@
 import AppKit
 import ArborCore
 
-/// Custom Finder icons on ordinary files (a picture pasted onto a document in Get Info). File icons are looked
-/// up per type for speed (DEC-performance-3), which used to drop these. Now each file whose icon is drawn is
-/// checked once, in the background, for Finder's custom-icon flag; only files that have it get their own icon
-/// (also read in the background), and the lists redraw. Only rows on screen ask, so a 100,000-item folder
-/// costs a few dozen checks, not a scan. Results are kept for `maxAge` and at most `capacity` files.
+/// Finder custom icons on ordinary files, which per-type lookup (DEC-performance-3) used to drop. Only on-screen
+/// rows ask; each file is checked once in the background. Bounded by `maxAge` and `capacity`.
 final class CustomIcons {
     static let shared = CustomIcons()
-    /// Posted (coalesced) on the main queue when custom icons were found; lists redraw their icons.
+    /// Posted (coalesced) on main when custom icons were found.
     static let found = Notification.Name("ArborCustomIconsFound")
 
     static let capacity = 4_096
@@ -25,8 +22,7 @@ final class CustomIcons {
     private var notifyScheduled = false
     private let queue = DispatchQueue(label: "Arbor custom icons", qos: .utility)
 
-    /// The file's custom icon if it has one; nil when it doesn't or isn't known yet (a check is scheduled).
-    /// Main thread only.
+    /// Nil if none or not known yet (a check is then scheduled). Main thread only.
     func icon(for url: URL) -> NSImage? {
         guard Thread.isMainThread else { return nil }
         let path = url.path
@@ -35,7 +31,7 @@ final class CustomIcons {
         return entry?.icon
     }
 
-    /// Checks done so far (scripted checks): files checked, files with a custom icon, checks waiting.
+    /// For scripted checks: files checked, with a custom icon, waiting.
     var debugText: String {
         "checked=\(entries.count) custom=\(entries.values.filter { $0.icon != nil }.count) pending=\(pending.count)"
     }
@@ -85,7 +81,6 @@ extension CustomIcons {
 }
 
 extension DetailsViewController {
-    /// Re-fetches the icons of the rows on screen.
     func reloadVisibleIcons() {
         let rows = table.rows(in: table.visibleRect)
         let column = table.column(withIdentifier: NSUserInterfaceItemIdentifier("name"))

@@ -35,8 +35,7 @@ enum PropertiesTabs {
 
 // MARK: - Previous Versions
 
-/// Document versions (NSFileVersion) and Time Machine status (FE-155). Nothing is invented: an empty
-/// list says so, and Time Machine browsing is handed to the Time Machine app.
+/// Document versions (NSFileVersion) and Time Machine status (FE-155). Nothing invented; browsing opens Time Machine.
 final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
     let title = L10n.tr("Previous Versions")
     let view: NSView
@@ -195,7 +194,7 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
 
     private var current: DocumentVersion? { selected.flatMap { versions.indices.contains($0) ? versions[$0] : nil } }
 
-    /// Opens a read-only copy so the stored version itself is never edited.
+    /// Opens a read-only copy so the stored version is never edited.
     private func openVersion() {
         guard let version = current, let url = model.single?.url else { return }
         let folder = TemporaryFiles.versionsFolder.appendingPathComponent(UUID().uuidString)
@@ -205,8 +204,8 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             try DocumentVersions.restore(version, to: target)
-            try FileFlags.update(target, locked: true)
-            SystemOpen.open(target)
+            try TemporaryFiles.makeVersionCopyReadOnly(target)
+            VersionCopies.open(target, in: folder)
         } catch {
             PropertiesWindowController.present(message: L10n.tr("The version couldn't be opened."), info: error.localizedDescription, window: controller?.window)
         }
@@ -222,7 +221,7 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let target = panel.url else { return }
             do {
-                // The save panel already asked before replacing; never delete an existing item here.
+                // The save panel already confirmed replacing; never delete an existing item here.
                 if FileManager.default.fileExists(atPath: target.path) {
                     _ = try SystemTrash.trash(target)
                 }
@@ -274,8 +273,7 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
 
 // MARK: - Customize (folders)
 
-/// "Optimize this folder for:" (stored per folder for views and Folder Options to read; see
-/// `FolderTemplateStore`) and the folder icon (NSWorkspace.setIcon), FE-154.
+/// "Optimize this folder for:" (via `FolderTemplateStore`) and the folder icon (NSWorkspace.setIcon), FE-154.
 final class CustomizeTab: PropertiesTab, PropertiesTabDebug {
     let title = L10n.tr("Customize")
     let view: NSView
@@ -435,8 +433,7 @@ final class SharingTab: PropertiesTab {
 
 // MARK: - Drives
 
-/// A drive's General tab: label, type, file system, used/free/capacity with a pie chart, and
-/// "Disk Cleanup" handed to macOS Storage settings (FE-183 boundary).
+/// Label, type, file system, usage pie; "Disk Cleanup" opens Storage settings (FE-183 boundary).
 final class DriveGeneralTab: PropertiesTab, PropertiesTabDebug {
     let title = L10n.tr("General")
     let view: NSView
@@ -673,7 +670,9 @@ final class SignaturesTab: PropertiesTab, PropertiesTabDebug {
         status.stringValue = info.statusText
         let (symbol, color): (String, NSColor) = {
             switch info.status {
-            case .valid: return info.isAdHoc ? ("checkmark.seal", Theme.secondaryText) : ("checkmark.seal.fill", SheetColors.success)
+            case .valid where info.isVerified: return ("checkmark.seal.fill", SheetColors.success)
+            case .valid where info.trust == .untrusted: return ("exclamationmark.triangle", Theme.secondaryText)
+            case .valid: return ("checkmark.seal", Theme.secondaryText)
             case .unsigned: return ("seal", Theme.secondaryText)
             case .invalid: return ("xmark.seal.fill", SheetColors.failure)
             }
@@ -683,8 +682,8 @@ final class SignaturesTab: PropertiesTab, PropertiesTabDebug {
         signer.stringValue = info.signerName ?? "—"
         team.stringValue = info.teamIdentifier ?? "—"
         identifier.stringValue = info.identifier ?? "—"
-        timestamp.stringValue = info.signingDate.map { PropertyFormat.longDate($0) } ?? "Not available"
-        chain.stringValue = info.certificates.isEmpty ? "No certificates." : info.certificates.enumerated().map { "\(String(repeating: "  ", count: $0.offset))\($0.element)" }.joined(separator: "\n")
+        timestamp.stringValue = info.signingTimeText ?? L10n.tr("Not available")
+        chain.stringValue = info.certificates.isEmpty ? L10n.tr("No certificates.") : info.certificates.enumerated().map { "\(String(repeating: "  ", count: $0.offset))\($0.element)" }.joined(separator: "\n")
     }
 
     func reload() {}

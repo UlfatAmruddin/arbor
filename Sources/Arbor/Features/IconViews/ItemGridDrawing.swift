@@ -1,10 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Geometry and drawing for the grid layouts: Windows 11-style rounded hover and selection, names
-/// centered under large icons (wrapping, shortened in the middle, full name when selected), single-line
-/// names beside small icons, Tiles (name · type · size) and Content rows (name · type · dimensions ·
-/// date · size).
+/// Geometry and drawing for the icon, Tiles and Content layouts, in Windows 11 style.
 extension ItemGridView {
     // MARK: Text measurement (cached; visible items only)
 
@@ -39,8 +36,7 @@ extension ItemGridView {
         return width
     }
 
-    /// The name as shown under an icon: whole if it fits in the allowed lines, else shortened in the
-    /// middle so the extension stays visible (DEC-013).
+    /// Name under an icon: whole if it fits, else shortened in the middle to keep the extension (DEC-013).
     func fittedLabel(_ text: String, width: CGFloat, lines: Int) -> String {
         let limit = CGFloat(lines) * metrics.lineHeight + 1
         if wrappedHeight(text, width: width) <= limit { return text }
@@ -169,7 +165,7 @@ extension ItemGridView {
             NSRect(x: g.cell.minX + 8, y: g.cell.maxY - 1, width: g.cell.width - 16, height: 1).fill(using: .sourceOver)
         }
         if expanded, isSelected {
-            // The expanded label overlaps the next row: give it a solid base so text below doesn't show through.
+            // The expanded label overlaps the next row: give it a solid base.
             fillRounded(g.highlight, radius: radius, Theme.contentBackground)
             fillRounded(g.highlight, radius: radius, active ? Theme.selection : Theme.selectionInactive)
         }

@@ -6,7 +6,7 @@ import ArborCore
 struct HomeTile: Equatable {
     let url: URL
     let name: String
-    /// The folder's location, shown under the name (its parent folder).
+    /// The folder's parent, shown under the name.
     let subtitle: String
     let isPinned: Bool
 
@@ -26,19 +26,18 @@ struct HomeSnapshot {
     var recent: [HomeRow] = []
     var showsRecent = true
     var showsFrequent = true
-    /// Spotlight couldn't be asked (headless run without a scope, or the query failed).
+    /// Spotlight unavailable (headless without a scope, or the query failed).
     var spotlightUsed = false
 
     var itemCount: Int { quickAccess.count + favorites.count + (showsRecent ? recent.count : 0) }
 }
 
-/// Builds Home's content off the main thread: resolves references, stats files and asks
-/// Spotlight for recently used files (spec §15: no slow I/O on the main thread).
+/// Builds Home's content off the main thread (spec §15: no slow I/O on main).
 enum HomeLoader {
-    /// The folder Spotlight searches for recent files: the user's home. Headless runs use
-    /// `ARBOR_RECENT_SPOTLIGHT_SCOPE` (a fixture) or skip Spotlight, so tests never list real files.
+    /// Spotlight scope for Recent: home. Headless runs use `ARBOR_RECENT_SPOTLIGHT_SCOPE` or skip
+    /// Spotlight, so tests never list real files.
     static var spotlightScope: URL? {
-        let env = ProcessInfo.processInfo.environment
+        let env = Automation.environment
         if let scope = env["ARBOR_RECENT_SPOTLIGHT_SCOPE"] { return scope.isEmpty ? nil : URL(fileURLWithPath: scope) }
         return AppDelegate.isHeadless ? nil : FileManager.default.homeDirectoryForCurrentUser
     }
@@ -46,7 +45,7 @@ enum HomeLoader {
     @discardableResult
     static func load(completion: @escaping (HomeSnapshot) -> Void) -> LoadHandle {
         let handle = LoadHandle()
-        // Inputs are read on the main thread (preferences), the rest happens in the background.
+        // Preferences are read on main; the rest runs in the background.
         let pins = QuickAccess.urls
         let pinRefs = HomeStore.pinReferences
         let showsFrequent = Prefs.showFrequentFolders
@@ -95,7 +94,7 @@ enum HomeLoader {
             }
             if handle.isCancelled { return }
 
-            // Recent: files opened in Arbor plus Spotlight's "last used" dates in the home folder.
+            // Recent: files opened in Arbor plus Spotlight's "last used" dates.
             if showsRecent {
                 let arbor = log.records.compactMap { record -> RecentEntry? in
                     guard let url = record.reference.resolve() else { return nil }
@@ -132,7 +131,7 @@ enum HomeLoader {
         HomeRow(item: item, date: date, location: (item.url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath)
     }
 
-    /// Files whose Spotlight "last used" date is within the cutoff, newest first, bounded.
+    /// Files Spotlight saw used within the cutoff, newest first, bounded.
     static func spotlightRecents(scope: URL, since: Date, handle: LoadHandle) -> [RecentEntry] {
         let days = max(1, Int((Date().timeIntervalSince(since) / 86_400).rounded()))
         let text = "kMDItemLastUsedDate >= $time.today(-\(days))" as CFString

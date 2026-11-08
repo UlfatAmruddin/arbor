@@ -4,7 +4,7 @@ public enum PathResolution: Equatable, Sendable {
     case folder(URL)
     /// An existing file: show its folder and select it.
     case file(URL)
-    /// A server address to hand to the system's connect flow.
+    /// For the system's connect flow.
     case network(URL)
 }
 
@@ -31,10 +31,9 @@ public enum PathResolutionError: Error, Equatable, LocalizedError {
     }
 }
 
-/// Resolves text typed into the address bar (FE-005, FE-013, FE-014).
-/// Never executes the text: there is no shell evaluation of any kind.
+/// Resolves address-bar text (FE-005, FE-013, FE-014). Never evaluated by a shell.
 public struct PathResolver: Sendable {
-    /// Returns nil if nothing exists at the path, otherwise whether it is a directory.
+    /// nil if nothing exists, else whether it is a directory.
     public typealias Probe = @Sendable (String) -> Bool?
 
     public static let liveProbe: Probe = { path in
@@ -59,7 +58,7 @@ public struct PathResolver: Sendable {
         }
         guard !text.isEmpty else { return .failure(.empty) }
 
-        // Windows UNC path: \\server\share\folder → smb://server/share/folder; \\server alone → smb://server
+        // UNC \\server\share\folder → smb://server/share/folder
         if text.hasPrefix("\\\\") {
             let parts = text.split(separator: "\\").map(String.init)
             // "\\\share" has no server name.
@@ -87,7 +86,7 @@ public struct PathResolver: Sendable {
             guard let url = URL(string: text) ?? URL(string: text.addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed) ?? "") else {
                 return .failure(.invalidAddress(text))
             }
-            // "smb://" or "smb:///share" names no server; never hand that to the system's connect flow.
+            // "smb:///share" names no server; never pass it to the connect flow.
             guard let host = url.host, !host.isEmpty else { return .failure(.invalidAddress(text)) }
             return .success(.network(url))
         } else if text == "~" {
@@ -112,10 +111,8 @@ public struct PathResolver: Sendable {
         }
     }
 
-    /// Letter case and Unicode normalization as stored on disk, like Explorer showing “Desktop”
-    /// after `c:\users\me\desktop` was typed. Without it a typed folder would be a different
-    /// location from the same folder opened by clicking (history, pins, per-folder views,
-    /// QA-CORE-2). Symbolic links are kept as typed; components that don't exist are unchanged.
+    /// Case and Unicode form as stored on disk, so a typed folder matches the clicked one (QA-CORE-2).
+    /// Symlinks and missing components stay as typed.
     public static func onDiskSpelling(_ url: URL) -> URL {
         var result = URL(fileURLWithPath: "/")
         for component in url.standardizedFileURL.pathComponents.dropFirst() {

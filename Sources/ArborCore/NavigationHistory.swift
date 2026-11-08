@@ -4,11 +4,10 @@ import Foundation
 public struct NavigationEntry: Equatable, Sendable {
     public var location: Location
     public var selectedNames: [String]
-    /// The same selection as URLs: names repeat in search results, so Back/Forward restore by item.
+    /// Names repeat in search results, so Back/Forward restore by URL.
     public var selectedURLs: [URL] = []
     public var topVisibleName: String?
 
-    /// The folder, for folder locations.
     public var url: URL? { location.folderURL }
 
     public init(location: Location, selectedNames: [String] = [], topVisibleName: String? = nil) {
@@ -22,9 +21,7 @@ public struct NavigationEntry: Equatable, Sendable {
     }
 }
 
-/// Per-tab Back/Forward history. Up is a separate parent transition, not a history move.
-/// Callers should only commit a transition after the destination loaded successfully,
-/// so a failed navigation leaves history untouched.
+/// Per-tab Back/Forward history (Up is separate). Commit only after the destination loads.
 public struct NavigationHistory: Sendable {
     public private(set) var backStack: [NavigationEntry] = []
     public private(set) var forwardStack: [NavigationEntry] = []
@@ -45,7 +42,7 @@ public struct NavigationHistory: Sendable {
     public func peekBack() -> NavigationEntry? { backStack.last }
     public func peekForward() -> NavigationEntry? { forwardStack.last }
 
-    /// Branch navigation. Visiting the current location is not a new entry.
+    /// Visiting the current location is not a new entry.
     public mutating func visit(_ location: Location, selectedNames: [String] = []) {
         guard location != current.location else {
             if !selectedNames.isEmpty { current.selectedNames = selectedNames }
@@ -61,7 +58,7 @@ public struct NavigationHistory: Sendable {
         visit(.folder(url.standardizedFileURL), selectedNames: selectedNames)
     }
 
-    /// Replaces the current entry's location without a new Back step (refining a search query).
+    /// No new Back step (e.g. refining a search query).
     public mutating func replaceCurrent(with location: Location) {
         current = NavigationEntry(location: location)
     }
@@ -82,14 +79,20 @@ public struct NavigationHistory: Sendable {
         return next
     }
 
-    /// Records selection and scroll anchor for the current entry before leaving it.
+    /// "Clear Arbor history": forgets Back and Forward; the tab stays where it is.
+    public mutating func clearBackForward() {
+        backStack.removeAll()
+        forwardStack.removeAll()
+    }
+
+    /// Call before leaving the current entry.
     public mutating func saveState(selectedNames: [String], selectedURLs: [URL] = [], topVisibleName: String?) {
         current.selectedNames = selectedNames
         current.selectedURLs = selectedURLs
         current.topVisibleName = topVisibleName
     }
 
-    /// Plain parent folder, for walking up to a folder that still exists. Use `Location.parent` for Up.
+    /// For walking up to a folder that still exists; Up uses `Location.parent`.
     public static func parent(of url: URL) -> URL? {
         let url = url.standardizedFileURL
         guard url.path != "/" else { return nil }

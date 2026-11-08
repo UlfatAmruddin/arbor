@@ -1,10 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Extra large / Large / Medium / Small icons, List, Tiles and Content (FE-029–FE-031). One instance
-/// switches between the seven layouts in place, so selection and scroll position survive ⇧⌘1…⇧⌘8.
-/// Sorting and filtering happen in the window; this view only displays and reports, exactly like
-/// `DetailsViewController`.
+/// Icon, List, Tiles and Content layouts (FE-029–FE-031) in one view, so selection and scroll survive
+/// ⇧⌘1…⇧⌘8. Display only; sorting and filtering live in the window, as for `DetailsViewController`.
 final class IconViewController: NSViewController, ItemViewController, ItemGridHost, NSTextFieldDelegate {
     static let modes: [ViewMode] = [.extraLargeIcons, .largeIcons, .mediumIcons, .smallIcons, .list, .tiles, .content]
 
@@ -96,8 +94,8 @@ final class IconViewController: NSViewController, ItemViewController, ItemGridHo
 
     // MARK: Showing items
 
-    /// Replaces the items. Keeps selection and scroll position on refresh, waits while renaming so
-    /// typed text isn't lost (spec §8.1), and drops thumbnails work when the folder changes.
+    /// Replaces items, keeping selection and scroll; waits while renaming (spec §8.1) and drops
+    /// thumbnail work when the folder changes.
     func display(_ update: ItemViewUpdate) {
         _ = view
         if renamingItem != nil {
@@ -135,7 +133,7 @@ final class IconViewController: NSViewController, ItemViewController, ItemGridHo
         emptyLabel.isHidden = !items.isEmpty
     }
 
-    /// Compact view, check boxes, extensions or "Always show icons" changed: re-measure and redraw.
+    /// Display options changed: re-measure and redraw.
     func reloadRows() {
         guard isViewLoaded else { return }
         grid.configure(mode: viewMode, keepTop: true)

@@ -1,11 +1,8 @@
 import AppKit
 import ArborCore
 
-/// "Restore previous folder windows at launch" (FE-024) and window placement recovery (FE-026).
-///
-/// While the option is on, the open windows (frame, tabs, each tab's location, Back/Forward and view)
-/// are written to Application Support/Arbor/Session.json whenever they change, so a crash or logout
-/// loses nothing. Turning the option off deletes the file. Only keys are saved, never listings (FE-251).
+/// "Restore previous folder windows at launch" (FE-024) and off-screen window recovery (FE-026).
+/// While on, windows are saved to Session.json on every change (keys only, never listings, FE-251); off deletes it.
 enum SessionRestore {
     static var fileURL: URL? { FolderOptionsStorage.url("Session.json") }
     private static var lastWritten: Data?

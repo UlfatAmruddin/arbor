@@ -1,11 +1,7 @@
 import Foundation
 
-/// Archive formats Arbor can browse (spec §13.1: a capability matrix, not a checkbox).
-///
-/// Every format is read through the system's libarchive (`/usr/bin/bsdtar`); ZIP listings also
-/// come from Arbor's own central-directory reader, which adds compressed sizes and encryption flags.
-/// Creating is limited to ZIP, 7z and TAR, like Windows 11 24H2's "Compress to". Nothing here
-/// modifies an existing archive.
+/// Archive formats Arbor can browse (spec §13.1), all read via system libarchive (`/usr/bin/bsdtar`);
+/// ZIP also via Arbor's central-directory reader. Creates ZIP, 7z and TAR only; never modifies archives.
 public enum ArchiveFormat: String, Sendable, CaseIterable {
     case zip, sevenZip, tar, tarGzip, tarBzip2, tarXz, tarZstd, rar, cpio, iso
 
@@ -50,7 +46,7 @@ public enum ArchiveFormat: String, Sendable, CaseIterable {
         }
     }
 
-    /// Whether Arbor can write this format (as a new archive; existing archives are never modified).
+    /// Whether Arbor can create this format (existing archives are never modified).
     public var canCreate: Bool { ArchiveCreateFormat(rawValue: rawValue) != nil }
 }
 
@@ -108,8 +104,7 @@ public enum ArchiveNaming {
         uniqueName(newZipName, isTaken: isTaken)
     }
 
-    /// The archive created for a selection, named after `primary` (the first or right-clicked item):
-    /// "report.docx" → "report.zip", "Photos" → "Photos.zip", ".zshrc" → ".zshrc.zip".
+    /// Archive name for a selection, from `primary` (first or right-clicked item): "Photos" → "Photos.zip".
     public static func archiveName(for primary: String, isFolder: Bool, format: ArchiveCreateFormat,
                                    isTaken: (String) -> Bool) -> String {
         let base = NameRules.splitExtension(primary, treatAsFolder: isFolder).base

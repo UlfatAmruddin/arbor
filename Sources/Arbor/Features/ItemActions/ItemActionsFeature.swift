@@ -2,18 +2,17 @@ import AppKit
 import ArborCore
 
 extension MenuSection {
-    /// New ▸ file types, after Folder and Shortcut. Explorer lists them alphabetically by display name.
-    /// Orders: Bitmap image 10, Compressed (zipped) Folder 20 (archives feature), Rich Text Document 30,
-    /// Text Document 40.
+    /// New ▸ file type orders (alphabetical, as in Explorer): Bitmap image 10, Compressed (zipped)
+    /// Folder 20 (archives feature), Rich Text Document 30, Text Document 40.
     static let newFileTypes = MenuSection(rank: 20, name: "newFileTypes")
     /// Item context menu: Send to ▸, Create shortcut (after Share, before the tools section).
     static let sendTo = MenuSection(rank: 650, name: "sendTo")
-    /// Item context menu: image actions (Set as desktop background, Rotate right, Rotate left).
+    /// Item context menu: image actions.
     static let imageActions = MenuSection(rank: 460, name: "imageActions")
 }
 
 /// Item actions (FE-057, FE-064, FE-088, FE-089, FE-092, FE-096, FE-097, FE-100, FE-103, FE-106,
-/// FE-108, FE-109, FE-111): New ▸, shortcuts, Send to ▸, rename, selection, image actions and drag polish.
+/// FE-108, FE-109, FE-111).
 enum ItemActionsFeature: ExplorerFeature {
     static let id = "item-actions"
     /// Send to ▸ Compressed (zipped) folder runs the archives command.
@@ -72,7 +71,7 @@ enum NewItemCommands {
         }
     }
 
-    /// Creates the file, selects it and starts inline rename with the base name selected (Explorer).
+    /// Creates the file, selects it and starts rename on the base name (Explorer).
     static func create(_ template: NewItemTemplate, _ ctx: CommandContext) {
         guard let folder = ItemActionsFeature.writableFolder(ctx), let window = ctx.window else { NSSound.beep(); return }
         do {
@@ -131,7 +130,7 @@ enum ShortcutCommands {
                         window.refreshSelecting(created.map(\.lastPathComponent))
                     }
                 }),
-            // Advanced and clearly separate from shortcuts: a POSIX symbolic link (breaks if the target moves).
+            // A POSIX symbolic link, kept separate from shortcuts (breaks if the target moves).
             ExplorerCommand(
                 id: "file.createSymlink", title: "Create Symbolic Link",
                 placements: [.mainMenu("File", .new, 40)],
@@ -156,8 +155,7 @@ enum ShortcutCommands {
 
 // MARK: - Selection (FE-057)
 
-/// Select all / Select none / Invert selection, with Explorer's wording in the "…" menu. They act on
-/// the visible (filtered) items only; the status bar shows the resulting count.
+/// Select all / none / invert, in Explorer's wording; acts on visible (filtered) items only.
 enum SelectionCommands {
     static func register() {
         let r = CommandRegistry.shared

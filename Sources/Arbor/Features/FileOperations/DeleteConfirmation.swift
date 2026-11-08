@@ -1,9 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Delete confirmations in Explorer's wording (windows11-reference §9.5).
-/// Moving to the Trash asks only when Prefs "Display delete confirmation dialog" is on (Windows 11
-/// default: off). Permanent deletion always asks. Trash never silently becomes a permanent delete.
+/// Delete confirmations (windows11-reference §9.5). Trash asks only if the pref is on (Windows default: off);
+/// permanent deletion always asks. Trash never silently becomes a permanent delete.
 final class DeleteConfirmation: FileOpsDialog {
     enum Mode {
         case trash
@@ -78,12 +77,10 @@ final class DeleteConfirmation: FileOpsDialog {
     override func cancelled() { answer(false) }
 }
 
-/// Replaces the core Delete commands (same ids, placements and keys) with versions that use the
-/// Windows dialogs (`CommandRegistry.replace`).
+/// Replaces the core Delete commands (same ids, placements, keys) via `CommandRegistry.replace`.
 enum DeleteCommands {
     static func register() {
         let backspace = String(Character(UnicodeScalar(8)))
-        // The core Move to Trash and Delete Permanently, upgraded with Explorer's confirmations.
         let commands = [
             ExplorerCommand(
                 id: "file.trash", title: "Move to Trash", symbol: "trash", tooltip: "Delete (move to the Trash)",

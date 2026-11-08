@@ -1,16 +1,11 @@
 import Foundation
 
-/// A small append-only record of one copy/move job (FE-125, FE-128, spec §9.5).
-///
-/// One JSON object per line: a header (job, sources, destination, process), a `{"run":true}` line once
-/// the job may start (a queued job waits without it), then one event per top-level item state change. Appending keeps writes O(1) per change even for huge jobs.
-/// The file is deleted when the job ends normally, so any file left behind means the app
-/// crashed or was quit mid-job. Writes are not fsync'd: they survive an app crash (the kernel
-/// keeps them), not a power loss, which then shows fewer finished items than really finished.
-/// That errs on the safe side because retry re-checks every destination.
+/// Append-only JSONL record of one copy/move job (FE-125, FE-128, spec §9.5): header, `{"run":true}` once started, then one event per item change.
+/// Deleted on normal end, so a leftover file means a crash or quit mid-job.
+/// Not fsync'd: survives an app crash but not power loss, which is safe since retry re-checks every destination.
 public final class JobJournal: @unchecked Sendable {
     public struct Header: Codable, Sendable, Equatable {
-        /// 2: the journal says when the job started running (`markRunning`); version 1 journals don't.
+        /// 2 adds the run marker (`markRunning`).
         public var version = 2
         public let id: UUID
         public let pid: Int32
@@ -21,8 +16,7 @@ public final class JobJournal: @unchecked Sendable {
     }
 
     public enum ItemState: String, Codable, Sendable {
-        /// The worker began writing at the destination: from here until a final state, the
-        /// destination may hold a partial item.
+        /// Writing began; until a final state the destination may hold a partial item.
         case started
         case committed
         /// Cross-volume move: the copy is complete, the original couldn't be removed.
@@ -67,8 +61,7 @@ public final class JobJournal: @unchecked Sendable {
         try handle.seekToEnd()
     }
 
-    /// The job left the queue and runs now. A journal without this line belongs to a job that was still
-    /// waiting to start when the app stopped.
+    /// Job left the queue. Without this line, the job was still queued when the app stopped.
     public func markRunning() {
         lock.withLock {
             guard !closed, let data = try? Self.encoder.encode(RunMarker(run: true)) else { return }
@@ -83,8 +76,7 @@ public final class JobJournal: @unchecked Sendable {
         }
     }
 
-    /// The job ended (completed, cancelled or failed): its result was reported in the app,
-    /// so the journal is removed.
+    /// Job ended and its result was reported, so the journal is removed.
     public func finish() {
         lock.withLock {
             guard !closed else { return }
@@ -112,14 +104,13 @@ public final class JobJournal: @unchecked Sendable {
 
     // MARK: - Recovery
 
-    /// Journals left by processes that are no longer running. `isRunning` decides whether a
-    /// pid still belongs to a live Arbor process (whose jobs are not ours to review).
+    /// Journals left by dead processes; `isRunning` spots live Arbor pids, whose jobs aren't ours.
     public static func interrupted(in directory: URL, isRunning: (Int32) -> Bool = JobJournal.isArborRunning) -> [InterruptedJob] {
         let files = ((try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? [])
             .filter { $0.pathExtension == "jsonl" }
         return files.compactMap { file in
             guard let job = InterruptedJob(file: file) else {
-                // Unreadable: nothing can be recovered from it.
+                // Unreadable: nothing to recover.
                 return nil
             }
             if job.header.pid != getpid(), isRunning(job.header.pid) { return nil }
@@ -160,7 +151,7 @@ public struct InterruptedJob: Sendable {
     public let file: URL
     public let header: JobJournal.Header
     public let items: [Item]
-    /// The job was still waiting in the queue (it never started): nothing of it happened.
+    /// Still queued when the app stopped: nothing of it happened.
     public let wasWaiting: Bool
 
     public var kind: TransferKind { TransferKind(rawValue: header.kind) ?? .copy }
@@ -169,9 +160,7 @@ public struct InterruptedJob: Sendable {
     public var notDone: [Item] { items.filter { $0.status == .notDone } }
     public var uncertain: [Item] { items.filter { $0.status == .uncertain } }
 
-    /// Sources a retry should offer: not done or uncertain, and still present. Retrying goes
-    /// through the normal job, which re-checks every destination and asks about conflicts, so
-    /// an existing same-named item is never assumed to be the finished copy (FE-128).
+    /// Unfinished sources that still exist. Retry re-checks destinations, so a same-named item is never assumed finished (FE-128).
     public var retryableSources: [URL] {
         items.filter { $0.status != .completed }.map(\.source).filter(FileOps.exists)
     }
@@ -195,7 +184,7 @@ public struct InterruptedJob: Sendable {
         }
         self.file = file
         self.header = header
-        // Version 1 journals can't tell; treat them as started (the review then reads as before).
+        // Version 1 journals can't tell; treat them as started.
         wasWaiting = header.version >= 2 && !ran && last.isEmpty
         items = header.sources.enumerated().map { index, path in
             let event = last[index]
@@ -210,6 +199,5 @@ public struct InterruptedJob: Sendable {
         }
     }
 
-    /// Deletes the journal (after review).
     public func discard() { try? FileManager.default.removeItem(at: file) }
 }

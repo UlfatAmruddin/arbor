@@ -7,29 +7,26 @@ extension Prefs {
         NotificationCenter.default.post(name: changed, object: nil, userInfo: ["key": key])
     }
 
-    /// Beyond Explorer (FE-127): jobs that use a drive another running job uses wait their turn.
-    /// Off by default: Windows runs every transfer at once.
+    /// Jobs sharing a drive with a running job wait (FE-127). Off by default; Windows runs all at once.
     static var fileOpsQueueSameDrive: Bool {
         get { store.bool(forKey: "fileOpsQueueSameDrive") }
         set { setQueue(newValue, "fileOpsQueueSameDrive") }
     }
 
-    /// Beyond Explorer (FE-127): at most this many copy/move jobs at once; 0 = no limit (default).
+    /// Max concurrent copy/move jobs; 0 = no limit, the default (FE-127).
     static var fileOpsConcurrencyLimit: Int {
         get { max(0, store.integer(forKey: "fileOpsConcurrencyLimit")) }
         set { setQueue(max(0, newValue), "fileOpsConcurrencyLimit") }
     }
 
-    /// Beyond Explorer (FE-130): whether new copy jobs start with "Verify after copying" ticked. Off.
+    /// Default for new copy jobs' "Verify after copying" (FE-130). Off.
     static var fileOpsVerifyByDefault: Bool {
         get { store.bool(forKey: "fileOpsVerifyByDefault") }
         set { setQueue(newValue, "fileOpsVerifyByDefault") }
     }
 }
 
-/// Holds jobs back according to the queue settings and the user's reordering (FE-127), using
-/// `TransferScheduler`. With the default settings every job starts at once, as in Explorer.
-/// Main thread only.
+/// Holds jobs back per queue settings and user reordering (FE-127) via `TransferScheduler`. Main thread only.
 final class TransferQueueController {
     static let shared = TransferQueueController()
 
@@ -74,8 +71,7 @@ final class TransferQueueController {
         launch(scheduler.remove(job.id))
     }
 
-    /// A waiting job that is cancelled starts at once and ends immediately as "cancelled", so it
-    /// goes through the normal report and history like any other job.
+    /// A cancelled waiting job starts and ends at once, so it still gets a report and history entry.
     func jobCancelled(_ job: OperationCenter.Job) {
         guard pending[job.id] != nil else { return }
         if scheduler.entry(job.id) == nil { cancelledEarly.insert(job.id); return }
@@ -151,8 +147,7 @@ enum QueueOptionsMenu {
 
 // MARK: - Extra rows in a job's progress panel
 
-/// Under a job's percentage: the queue controls while it waits ("Start now", "Move up", "Move down",
-/// "Defer") and, for copies, "Verify after copying".
+/// Queue controls while a job waits and, for copies, "Verify after copying".
 final class JobPanelExtras: NSStackView {
     let job: OperationCenter.Job
     private let waitingLabel = FileOpsStyle.label("", font: FileOpsStyle.captionFont, color: Theme.secondaryText)

@@ -59,7 +59,7 @@ final class CommandBarView: ThemeBackgroundView {
         let b = ChromeButton(symbol: command.symbol ?? "questionmark", title: command.showsTitle ? command.title : "",
                              tooltip: command.tooltipText)
         if !command.showsTitle { b.fixedWidth = 36 }
-        if command.hasSubmenu, command.showsTitle { b.showsMenuIndicator = true }   // titled drop-downs get "▾" ("Collection ▾", "Search options ▾")
+        if command.hasSubmenu, command.showsTitle { b.showsMenuIndicator = true }   // titled drop-downs get "▾"
         b.setAccessibilityLabel(command.title)
         b.onClick = { [weak self] sender in self?.run(command, sender: sender) }
         b.identifier = NSUserInterfaceItemIdentifier(command.id)
@@ -143,8 +143,7 @@ final class CommandBarView: ThemeBackgroundView {
     }
 }
 
-/// Explorer status bar (FE-034): "12 items  |  1 item selected  4.1 KB  |" on the left, transfer
-/// progress, then view toggles (Details, Large icons) at the right end.
+/// Explorer status bar (FE-034): counts and selection size, transfer progress, view toggles at the right.
 final class StatusBarView: ThemeBackgroundView {
     private let summary = NSTextField(labelWithString: "")
     private let message = NSTextField(labelWithString: "")

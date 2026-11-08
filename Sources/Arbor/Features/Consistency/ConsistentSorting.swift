@@ -1,10 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Every column sorts, in every location (docs/features/consistency.md): the extra Details columns that
-/// features add (Trash's Original Location and Date Deleted, cloud Status, search Folder and Match,
-/// ZIP Compressed size / Password protected / Ratio, library Folder) get sort values, Sort ▾ lists
-/// them, and search results open in relevance order (FE-145) until another column is chosen.
+/// Every column sorts everywhere: features' extra columns get sort values and Sort ▾ entries, and
+/// search results open in relevance order (FE-145). See docs/features/consistency.md.
 enum ConsistentSorting {
     /// Sort values for columns that aren't in `ColumnCatalog`, by column id. nil = still loading.
     private static let values: [String: (FileItem) -> ColumnValue?] = makeValues()
@@ -108,8 +106,7 @@ enum ConsistentSorting {
             return
         }
         RelevanceMemory.setSearch(tab, false)
-        // Leaving results: relevance means nothing elsewhere, so the order from before the search returns
-        // (folders get theirs from Folder Options; other places keep the tab's last folder order).
+        // Leaving results restores the order from before the search.
         if SearchRelevance.isRelevance(tab.sortOrder) || (wasSearch && changed && location.folderURL == nil) {
             tab.sortOrder = RelevanceMemory.folderOrder(tab)
             tab.invalidateVisibleItems()
@@ -176,8 +173,7 @@ enum RelevanceMemory {
     }
 }
 
-/// The results being sorted: the session is looked up once per search (not per comparison), and
-/// scores are kept per path until the result count changes.
+/// Looks the session up once per search, not per comparison; scores are kept until the count changes.
 final class SearchSortContext {
     private static var cached: SearchSortContext?
 

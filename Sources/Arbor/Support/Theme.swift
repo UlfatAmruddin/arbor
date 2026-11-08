@@ -1,9 +1,8 @@
 import AppKit
+import ArborCore
 
-/// Colors and metrics approximating Windows 11 File Explorer (DEC-017, DEC-018).
-/// Values are our own approximations from public screenshots, not measured reference values
-/// (spec §4.3). Every color adapts to light and dark appearance; draw with them inside
-/// `draw(_:)` so they resolve against the view's appearance.
+/// Windows 11 Explorer colors and metrics, our own approximations from screenshots (DEC-017, DEC-018, spec §4.3).
+/// Use colors inside `draw(_:)` so they resolve against the view's appearance.
 enum Theme {
     // MARK: Surfaces
 
@@ -67,8 +66,7 @@ enum Theme {
 
     static let tabStripHeight: CGFloat = 40
     static let tabHeight: CGFloat = 32
-    /// Equal-width tabs between these bounds (WinUI TabView's defaults: 100 and 240 epx); past the
-    /// minimum the strip scrolls with arrow buttons.
+    /// Equal-width tab bounds (WinUI TabView defaults); below the minimum the strip scrolls.
     static let tabMinWidth: CGFloat = 100
     static let tabMaxWidth: CGFloat = 240
     static let tabScrollButtonWidth: CGFloat = 28
@@ -107,7 +105,7 @@ enum Theme {
         }
     }
 
-    /// Hover/pressed/selection overlays are about twice as strong with Increase contrast.
+    /// Overlays are about twice as strong with Increase contrast.
     static func overlay(lightAlpha: CGFloat, darkAlpha: CGFloat) -> NSColor {
         NSColor(name: nil) {
             let k: CGFloat = isHighContrast($0) ? 2.2 : 1
@@ -122,7 +120,7 @@ enum Theme {
 
     /// `ARBOR_APPEARANCE=light|dark` forces an appearance (used by scripted snapshots).
     static func applyEnvironmentAppearance() {
-        switch ProcessInfo.processInfo.environment["ARBOR_APPEARANCE"]?.lowercased() {
+        switch Automation.environment["ARBOR_APPEARANCE"]?.lowercased() {
         case "light": NSApp.appearance = NSAppearance(named: .aqua)
         case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
         default: break
@@ -166,9 +164,8 @@ class ThemeBackgroundView: NSView {
 
     override var isOpaque: Bool { false }
 
-    /// A plain fill (no hairlines, no subclass drawing) is the layer's background color instead of a
-    /// drawn bitmap: a window-sized backing store is ~14 MB at 2x, and the window has several of these
-    /// views stacked (docs/PERFORMANCE.md). Snapshots (`cacheDisplay`) still go through `draw(_:)`.
+    /// Plain fills use the layer color, not a bitmap (~14 MB per window-sized view at 2x, docs/PERFORMANCE.md).
+    /// Snapshots (`cacheDisplay`) still go through `draw(_:)`.
     override var wantsUpdateLayer: Bool {
         bottomLine == nil && topLine == nil && !Self.subclassDraws(type(of: self))
     }

@@ -53,7 +53,7 @@ struct TemporaryFilesTests {
             let file = folder.appendingPathComponent("Report (version).txt")
             try Data("v1".utf8).write(to: file)
             var values = URLResourceValues()
-            values.isUserImmutable = true   // opened copies are locked
+            values.isUserImmutable = true   // copies from earlier versions were locked
             var target = file
             try target.setResourceValues(values)
         }
@@ -65,6 +65,31 @@ struct TemporaryFilesTests {
         let removed = TemporaryFiles.sweepLeftovers(in: dir, now: now, isRunning: { _ in true })
         #expect(removed == ["Arbor Versions/old"])
         #expect(names(versions) == ["recent"])
+    }
+
+    @Test func versionCopiesAreReadOnlyButRemovableByAPlainUnlink() throws {
+        let dir = try makeDirectory()
+        defer { TemporaryFiles.removeTree(dir) }
+        let fm = FileManager.default
+        let folder = dir.appendingPathComponent("Arbor Versions").appendingPathComponent(UUID().uuidString)
+        let file = folder.appendingPathComponent("Report (version).txt")
+        let package = folder.appendingPathComponent("Notes (version).rtfd")
+        let inner = package.appendingPathComponent("TXT.rtf")
+        try fm.createDirectory(at: package, withIntermediateDirectories: true)
+        try Data("v1".utf8).write(to: file)
+        try Data("v1".utf8).write(to: inner)
+
+        try TemporaryFiles.makeVersionCopyReadOnly(file)
+        try TemporaryFiles.makeVersionCopyReadOnly(package)
+        for item in [file, inner] {
+            #expect(try FileFlags.read(item).isLocked == false)
+            #expect((try fm.attributesOfItem(atPath: item.path)[.posixPermissions] as? Int) == 0o444)
+            #expect(!fm.isWritableFile(atPath: item.path))
+        }
+        #expect(fm.isExecutableFile(atPath: package.path))   // the package stays readable
+        // What the system's temp cleanup does after a crash or force quit: a plain unlink.
+        try fm.removeItem(at: folder)
+        #expect(!fm.fileExists(atPath: folder.path))
     }
 
     @Test func removeTreeUnlocksLockedItems() throws {

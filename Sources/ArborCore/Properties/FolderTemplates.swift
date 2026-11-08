@@ -15,17 +15,8 @@ public enum FolderTemplate: String, CaseIterable, Sendable {
     }
 }
 
-/// Per-folder template choices, persisted in a `UserDefaults` dictionary.
-///
-/// **Shared API for other features (Folder Options, views, columns):**
-/// - Storage key `folderTemplates` in the app's preferences (`Prefs.store`): a dictionary keyed by
-///   the standardized folder path without a trailing slash, whose values are `["template": <FolderTemplate.rawValue>,
-///   "subfolders": Bool]`.
-/// - Read with `FolderTemplateStore(defaults: Prefs.store).effectiveTemplate(for: url)`; it returns
-///   the folder's own choice, else the nearest ancestor's choice made with "Also apply this template
-///   to all subfolders", else nil (meaning "not chosen": auto-detect or General items).
-/// - The app posts `Notification.Name("ArborFolderTemplateChanged")` (object: the folder URL) after
-///   a change, and `Prefs.changed` with `userInfo["key"] == "folderTemplates"`.
+/// Per-folder templates in `Prefs.store` under `folderTemplates`: normalized path → `["template", "subfolders"]`.
+/// Changes post `ArborFolderTemplateChanged` (object: folder URL) and `Prefs.changed`.
 public struct FolderTemplateStore {
     public static let key = "folderTemplates"
     public let defaults: UserDefaults
@@ -43,14 +34,14 @@ public struct FolderTemplateStore {
 
     private var all: [String: [String: Any]] { defaults.dictionary(forKey: Self.key) as? [String: [String: Any]] ?? [:] }
 
-    /// The folder's own choice (not inherited).
+    /// Not inherited.
     public func choice(for url: URL) -> Choice? {
         guard let entry = all[Location.normalizedPath(url)],
               let raw = entry["template"] as? String, let template = FolderTemplate(rawValue: raw) else { return nil }
         return Choice(template: template, appliesToSubfolders: entry["subfolders"] as? Bool ?? false)
     }
 
-    /// The folder's choice, else the closest ancestor's that applies to subfolders.
+    /// Own choice, else the nearest ancestor's that applies to subfolders; nil means not chosen.
     public func effectiveTemplate(for url: URL) -> FolderTemplate? {
         if let own = choice(for: url) { return own.template }
         var current = url.standardizedFileURL
@@ -61,7 +52,7 @@ public struct FolderTemplateStore {
         return nil
     }
 
-    /// Sets (or with nil clears) a folder's template.
+    /// nil clears.
     public func set(_ choice: Choice?, for url: URL) {
         var dict = all
         let key = Location.normalizedPath(url)

@@ -1,8 +1,7 @@
 import Foundation
 import UniformTypeIdentifiers
 
-/// Identifies a Details column (FE-035, FE-036). `SortKey` raw values are column ids too
-/// ("name", "dateModified", "type", "size").
+/// A Details column (FE-035, FE-036). `SortKey` raw values are column ids too.
 public struct ColumnID: RawRepresentable, Hashable, Sendable, Codable, ExpressibleByStringLiteral, CustomStringConvertible {
     public let rawValue: String
     public init(rawValue: String) { self.rawValue = rawValue }
@@ -10,7 +9,7 @@ public struct ColumnID: RawRepresentable, Hashable, Sendable, Codable, Expressib
     public init(stringLiteral value: String) { rawValue = value }
     public var description: String { rawValue }
 
-    // From the listing (always in memory).
+    // From the listing.
     public static let name: ColumnID = "name"
     public static let dateModified: ColumnID = "dateModified"
     public static let type: ColumnID = "type"
@@ -20,7 +19,7 @@ public struct ColumnID: RawRepresentable, Hashable, Sendable, Codable, Expressib
     public static let dateAccessed: ColumnID = "dateAccessed"
     public static let sizeOnDisk: ColumnID = "sizeOnDisk"
     public static let tags: ColumnID = "tags"
-    // Content metadata (Spotlight, ImageIO, AudioToolbox, AVFoundation), read lazily.
+    // Content metadata, read lazily.
     public static let itemDate: ColumnID = "itemDate"
     public static let dimensions: ColumnID = "dimensions"
     public static let width: ColumnID = "width"
@@ -40,8 +39,8 @@ public struct ColumnID: RawRepresentable, Hashable, Sendable, Codable, Expressib
     public static let comments: ColumnID = "comments"
 }
 
-/// One cell's value. Absent metadata, unsupported metadata and still-loading metadata are kept
-/// apart (spec §6.2, §16.1): loading is the absence of a value in `ColumnValueStore`.
+/// One cell's value; empty, unknown and unsupported stay distinct (spec §6.2, §16.1).
+/// Loading is the absence of a value in `ColumnValueStore`.
 public enum ColumnValue: Equatable, Sendable {
     case text(String)
     case number(Double)
@@ -53,14 +52,13 @@ public enum ColumnValue: Equatable, Sendable {
     case bitRate(Double)
     case dimensions(width: Int, height: Int)
     case list([String])
-    /// The property applies to this item, which simply has none (an untitled document, no tags).
+    /// Applies, but the item has none (no tags).
     case empty
-    /// The property applies but couldn't be read (damaged image, unreadable file).
+    /// Applies but couldn't be read.
     case unknown
-    /// The property doesn't apply to this kind of item (Dimensions of a text file).
+    /// Doesn't apply (Dimensions of a text file).
     case unsupported
 
-    /// True for values that carry data.
     public var hasValue: Bool {
         switch self {
         case .empty, .unknown, .unsupported: return false
@@ -71,7 +69,7 @@ public enum ColumnValue: Equatable, Sendable {
     }
 }
 
-/// How a column's values are bucketed for grouping and header filters (docs/research/windows11-reference.md §6.1).
+/// Buckets for grouping and header filters (windows11-reference.md §6.1).
 public enum GroupStyle: String, Sendable {
     /// A – H · I – P · Q – Z · 0 – 9 · Other.
     case alphabet
@@ -81,22 +79,19 @@ public enum GroupStyle: String, Sendable {
     case size
     /// Very short · Short · Medium · Long · Very long.
     case duration
-    /// One group per distinct value.
     case distinct
 }
 
-/// Where a column's values come from.
 public enum ColumnSource: Sendable {
-    /// Already in `FileItem` (no I/O).
+    /// In `FileItem`; no I/O.
     case listing
-    /// File-system attributes (one stat/xattr read per item, off the main thread).
+    /// One stat/xattr read per item, off the main thread.
     case fileSystem
-    /// Content metadata (Spotlight or file parsing, off the main thread).
+    /// Spotlight or file parsing, off the main thread.
     case content
 }
 
-/// Everything the Details view needs to know about a column (spec §6.2: key, label, value state,
-/// formatter, width/minimum, alignment, sortable/filterable, fetch policy).
+/// Everything the Details view needs about a column (spec §6.2).
 public struct ColumnDescriptor: Sendable {
     public let id: ColumnID
     public let title: String
@@ -105,12 +100,11 @@ public struct ColumnDescriptor: Sendable {
     public let alignRight: Bool
     public let source: ColumnSource
     public let groupStyle: GroupStyle
-    /// Listed in the header's right-click checklist (Windows: Name, Date modified, Type, Size,
-    /// Date created, Authors, Tags, Title).
+    /// Listed in the header's right-click checklist.
     public let isCommon: Bool
-    /// Extra words the Choose Details search box matches ("duration" finds Length).
+    /// Choose Details search synonyms ("duration" finds Length).
     public let keywords: [String]
-    /// Value for `.listing` columns; other sources are read by `MetadataReader`.
+    /// For `.listing` columns; others are read by `MetadataReader`.
     public let listingValue: (@Sendable (FileItem) -> ColumnValue)?
 
     public init(id: ColumnID, title: String, width: Double, minWidth: Double = 50, alignRight: Bool = false,
@@ -129,8 +123,7 @@ public struct ColumnDescriptor: Sendable {
     }
 }
 
-/// All columns the Details view can show. Features may add their own (e.g. Trash's "Date deleted"
-/// with a `listingValue`): `ColumnCatalog.register(...)`.
+/// All Details columns; features add their own via `register` (e.g. Trash's "Date deleted").
 public enum ColumnCatalog {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var registered: [ColumnDescriptor] = builtIn
@@ -147,7 +140,6 @@ public enum ColumnCatalog {
 
     public static func title(_ id: ColumnID) -> String { descriptor(id).map { L10n.tr($0.title) } ?? id.rawValue }
 
-    /// Columns read from the listing never need loading.
     public static func needsLoading(_ id: ColumnID) -> Bool { (descriptor(id)?.source ?? .listing) != .listing }
 
     public static let builtIn: [ColumnDescriptor] = [
@@ -203,11 +195,11 @@ public enum ColumnCatalog {
 
 // MARK: - Values and formatting
 
-/// Supplies values for columns that aren't in the listing. Returns nil while a value is loading.
+/// Values for non-listing columns; nil while loading.
 public typealias ColumnValueLookup = (FileItem, ColumnID) -> ColumnValue?
 
 public enum ColumnValues {
-    /// The value of `column` for `item`: from the listing, else from `lookup` (nil = loading).
+    /// From the listing, else `lookup` (nil = loading).
     public static func value(_ item: FileItem, _ column: ColumnID, lookup: ColumnValueLookup?) -> ColumnValue? {
         if let d = ColumnCatalog.descriptor(column), let listing = d.listingValue { return listing(item) }
         return lookup?(item, column)
@@ -227,18 +219,18 @@ public enum ColumnValues {
         return f
     }()
 
-    /// Cell text. Loading shows "…", unknown "—", empty and unsupported show nothing (like Explorer).
+    /// Loading "…", unknown "—", empty and unsupported blank, as in Explorer.
     public static func text(_ value: ColumnValue?, column: ColumnID = "") -> String {
         guard let value else { return "…" }
         switch value {
         case .text(let s): return s
         case .number(let n):
-            if column == .year { return String(Int(n)) }
+            if column == .year { return Int(checked: n).map(String.init) ?? "" }
             return integer.string(from: NSNumber(value: n)) ?? "\(n)"
         case .date(let d): return dateFormatter.string(from: d)
-        case .bytes(let b): return ExplorerSize.detailsColumn(b)   // Details size columns: always KB
+        case .bytes(let b): return ExplorerSize.detailsColumn(b)   // always KB
         case .duration(let s): return durationText(s)
-        case .bitRate(let b): return "\(Int((b / 1000).rounded()))kbps"
+        case .bitRate(let b): return Int(checked: (b / 1000).rounded()).map { "\($0)kbps" } ?? ""
         case .dimensions(let w, let h): return "\(w) x \(h)"
         case .list(let l): return l.joined(separator: "; ")
         case .empty, .unsupported: return ""
@@ -246,13 +238,14 @@ public enum ColumnValues {
         }
     }
 
-    /// Explorer's Length format: hh:mm:ss.
+    /// hh:mm:ss, as Explorer's Length.
     public static func durationText(_ seconds: Double) -> String {
+        guard seconds.isFinite, seconds >= 0, seconds < 1e12 else { return "—" }
         let total = Int(seconds.rounded())
         return String(format: "%02d:%02d:%02d", total / 3600, (total / 60) % 60, total % 60)
     }
 
-    /// Spoken/tooltip description of a cell's state.
+    /// For VoiceOver and tooltips.
     public static func stateDescription(_ value: ColumnValue?) -> String? {
         switch value {
         case nil: return L10n.tr("Loading…")
@@ -263,7 +256,7 @@ public enum ColumnValues {
         }
     }
 
-    /// Comparable form for sorting. nil sorts last in both directions.
+    /// nil sorts last in both directions.
     public enum SortValue: Comparable {
         case number(Double)
         case text(String)
@@ -294,7 +287,7 @@ public enum ColumnValues {
 
 // MARK: - Column sets per folder kind (FE-040)
 
-/// Explorer's folder templates ("Optimize this folder for"), plus the Downloads special case.
+/// Explorer's "Optimize this folder for" templates, plus Downloads.
 public enum FolderKind: String, CaseIterable, Sendable, Codable {
     case general, documents, pictures, music, videos, downloads
 
@@ -309,8 +302,7 @@ public enum FolderKind: String, CaseIterable, Sendable, Codable {
         }
     }
 
-    /// Folder type discovery from content (RECALL-m): at least 3 files, 70 % or more of them
-    /// pictures, music or videos. Nil = no clear kind. Uses file name extensions only (no I/O).
+    /// RECALL-m: 3+ files, 70 %+ pictures, music or videos, by extension only (no I/O); else nil.
     public static func discover(_ items: [FileItem]) -> FolderKind? {
         let files = items.filter { !$0.isFolder }
         guard files.count >= 3 else { return nil }
@@ -335,10 +327,10 @@ public struct ColumnSpec: Equatable, Sendable, Codable {
     }
 }
 
-/// The ordered columns of a Details view plus its default grouping. Name is always first and can't be hidden.
+/// Ordered Details columns plus default grouping; Name is always first and can't be hidden.
 public struct ColumnSet: Equatable, Sendable, Codable {
     public var columns: [ColumnSpec]
-    /// Default Group by for folders of this kind (nil = none).
+    /// nil = no grouping.
     public var groupBy: ColumnID?
     public var groupAscending: Bool
 
@@ -368,7 +360,7 @@ public struct ColumnSet: Equatable, Sendable, Codable {
         }
     }
 
-    /// Shows or hides a column. Hiding Name is ignored; shown columns are appended at the end.
+    /// Hiding Name is ignored; shown columns are appended.
     public mutating func setVisible(_ id: ColumnID, _ visible: Bool) {
         if visible {
             if !contains(id) { columns.append(ColumnSpec(id)) }
@@ -381,14 +373,14 @@ public struct ColumnSet: Equatable, Sendable, Codable {
         if let i = columns.firstIndex(where: { $0.id == id }) { columns[i].width = width }
     }
 
-    /// Moves a column to an index (Name stays first).
+    /// Name stays first.
     public mutating func move(_ id: ColumnID, to index: Int) {
         guard id != .name, let from = columns.firstIndex(where: { $0.id == id }) else { return }
         let spec = columns.remove(at: from)
         columns.insert(spec, at: min(max(index, 1), columns.count))
     }
 
-    /// Default sets (docs/research/windows11-reference.md §5.1).
+    /// windows11-reference.md §5.1.
     public static func defaults(for kind: FolderKind) -> ColumnSet {
         let general: [ColumnID] = [.name, .dateModified, .type, .size]
         switch kind {

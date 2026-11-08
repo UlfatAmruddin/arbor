@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Something a context menu can tell apart by section ("quickAccess", "recent", "drives"…).
-/// Pages pass the clicked grid or list as the command context's `sender`.
+/// Lets context menus tell sections apart; pages pass the clicked grid as the command `sender`.
 protocol SectionTagged: AnyObject {
     var sectionID: String { get }
 }
@@ -11,16 +10,16 @@ protocol TileGridDelegate: AnyObject {
     func tileGrid(_ grid: TileGridView, open indexes: [Int], inNewTab: Bool)
     func tileGridSelectionChanged(_ grid: TileGridView)
     func tileGridMenu(_ grid: TileGridView) -> NSMenu?
-    /// Keys the grid doesn't use itself (window commands: Back, F5, Space…). Return true if handled.
+    /// Keys the grid doesn't use (window commands). Return true if handled.
     func tileGrid(_ grid: TileGridView, unhandledKey event: NSEvent) -> Bool
     /// The file URL dragged out for a tile (nil: the tile can't be dragged).
     func tileGrid(_ grid: TileGridView, dragURLAt index: Int) -> URL?
     /// The folder a drop onto a tile goes into (nil: not a drop target).
     func tileGrid(_ grid: TileGridView, dropFolderAt index: Int) -> URL?
-    /// Drop on the grid's background (Quick access: pin folders). Return the operation, or [] to refuse.
+    /// Background drop (Quick access pins). Return [] to refuse.
     func tileGrid(_ grid: TileGridView, validateBackgroundDrop urls: [URL]) -> NSDragOperation
     func tileGrid(_ grid: TileGridView, acceptBackgroundDrop urls: [URL]) -> Bool
-    /// Moves arrow-key focus out of the grid (to the next or previous section). Return true if it moved.
+    /// Moves arrow focus to the next/previous section. Return true if it moved.
     func tileGrid(_ grid: TileGridView, leaveToward direction: Int) -> Bool
 }
 
@@ -32,8 +31,7 @@ extension TileGridDelegate {
     func tileGrid(_ grid: TileGridView, leaveToward direction: Int) -> Bool { false }
 }
 
-/// One tile. Subclasses add their content as subviews; the tile paints hover, selection, focus
-/// and drop highlight behind it (Explorer's rounded 4 px item backplate).
+/// One tile; subclasses add content, the tile paints hover, selection, focus and drop states behind it.
 class TileView: NSView {
     fileprivate(set) var index = 0
     fileprivate weak var grid: TileGridView?
@@ -42,14 +40,14 @@ class TileView: NSView {
     var isDropTarget = false { didSet { if isDropTarget != oldValue { needsDisplay = true } } }
     var showsFocus = false { didSet { if showsFocus != oldValue { needsDisplay = true } } }
     private var tracking: NSTrackingArea?
-    /// The tile's name label (Folder Options underlines it when items open with a single click).
+    /// Underlined by Folder Options when items open with a single click.
     weak var titleField: NSTextField?
 
     /// Folder Options › "Show pop-up description for folder and desktop items" (set by that feature).
     static let showsDescriptions = Provided<() -> Bool>(
         "TileView.showsDescriptions", "Whether page tiles show pop-up descriptions.", signature: "() -> Bool", default: { true })
     private var storedTip: String?
-    /// The tile's pop-up description; shown only while descriptions are turned on.
+    /// Shown only while descriptions are turned on.
     override var toolTip: String? {
         get { super.toolTip }
         set { storedTip = newValue; super.toolTip = Self.showsDescriptions.value() ? newValue : nil }
@@ -113,10 +111,7 @@ class TileView: NSView {
     override func accessibilityPerformPress() -> Bool { grid?.openTile(index, inNewTab: false); return true }
 }
 
-/// A wrapping grid of tiles with Explorer selection rules: click selects, ⌘-click toggles,
-/// ⇧-click extends, double-click or Return opens (⌘Return in a new tab), middle-click opens in a
-/// new tab, arrows move, right-click selects then shows the menu. Tiles can be dragged out and
-/// can accept drops.
+/// Wrapping tile grid with Explorer selection, open, drag and drop rules.
 final class TileGridView: NSView, SectionTagged, NSDraggingSource {
     weak var delegate: TileGridDelegate?
     let sectionID: String
@@ -149,7 +144,7 @@ final class TileGridView: NSView, SectionTagged, NSDraggingSource {
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
 
-    /// The grid has keyboard focus in the key window (selection is drawn in the accent tint).
+    /// Has focus in the key window (accent selection).
     var isActive: Bool { SelectionEmphasis.hasFocus(self) }
     private lazy var emphasisObserver = SelectionEmphasis.Observer { [weak self] in self?.tiles.forEach { $0.needsDisplay = true } }
 
@@ -215,7 +210,7 @@ final class TileGridView: NSView, SectionTagged, NSDraggingSource {
         for tile in tiles { tile.isSelected = selection.contains(tile.index) }
     }
 
-    /// Takes keyboard focus; with `selecting`, also selects the first (or last) tile if none is.
+    /// With `selecting`, also selects the first (or last) tile if none is.
     func takeFocus(selecting: Bool, fromEnd: Bool = false) {
         guard !tiles.isEmpty else { return }
         if selecting, selection.isEmpty { moveTo(fromEnd ? tiles.count - 1 : 0, extend: false) }
@@ -256,7 +251,7 @@ final class TileGridView: NSView, SectionTagged, NSDraggingSource {
     }
 
     fileprivate func tileMouseUp(_ tile: TileView, event: NSEvent) {
-        // Clicking an already-selected tile (without dragging) narrows the selection to it.
+        // A click on a selected tile (no drag) narrows the selection to it.
         if !mouseDownHandled, event.clickCount == 1 {
             focusIndex = tile.index
             anchor = tile.index
@@ -351,7 +346,7 @@ final class TileGridView: NSView, SectionTagged, NSDraggingSource {
         guard let current = focusIndex else { moveTo(0, extend: false); return }
         let target = current + step
         if target < 0 || target >= tiles.count {
-            // Up from the first row or down from the last row moves to the neighboring section.
+            // Past the first/last row: move to the neighboring section.
             if abs(step) == columns, delegate?.tileGrid(self, leaveToward: step > 0 ? 1 : -1) == true { return }
             if abs(step) == 1 || target < 0 { return }
             moveTo(tiles.count - 1, extend: extend)

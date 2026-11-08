@@ -4,8 +4,8 @@ import ArborCore
 
 // MARK: - Preview pane
 
-/// Read-only preview of the single selected file (FE-147). Never launches the file's editor.
-/// The Quick Look view is torn down whenever the pane hides so its memory is released.
+/// Read-only preview of the single selected file (FE-147); never launches an editor.
+/// The Quick Look view is torn down when hidden to free memory.
 final class PreviewPane: NSView, SidePaneProvider {
     var view: NSView { self }
 

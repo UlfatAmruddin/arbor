@@ -1,17 +1,13 @@
 import Foundation
 
-/// Cancel and pause for one job, shared between the UI and the job's worker thread.
-///
-/// What pausing means (FE-115, FE-257): the worker blocks at its next checkpoint, which is
-/// between files and between data chunks inside a file (copyfile reports roughly every 1 MB).
-/// The open file stays open and the copy continues from the same byte offset on resume.
-/// A same-volume move (a rename) or an APFS clone is instant and can't be paused halfway.
-/// Pausing lasts only while the app runs; quitting cancels, and the journal records the rest.
+/// Cancel and pause for one job, shared by the UI and the worker thread (FE-115, FE-257).
+/// Pausing blocks at the next checkpoint (between files or ~1 MB copyfile chunks) and resumes at the same
+/// offset; renames and APFS clones can't pause halfway. Quitting cancels; the journal records the rest.
 public final class TransferControl: @unchecked Sendable {
     private let condition = NSCondition()
     private var cancelled = false
     private var paused = false
-    /// Called (on the thread that changed it) after pause/resume/cancel.
+    /// Called on the changing thread after pause/resume/cancel.
     public var onChange: (@Sendable () -> Void)?
 
     public init() {}

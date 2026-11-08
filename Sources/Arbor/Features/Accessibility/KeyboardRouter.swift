@@ -5,18 +5,17 @@ import ArborCore
 ///
 /// | Keys | Does |
 /// |---|---|
-/// | F6 / ⇧F6 | Next / previous region (tabs, address, search, command bar, navigation pane, items, side pane) |
+/// | F6 / ⇧F6 | Next / previous region |
 /// | ⇥ / ⇧⇥ | Same, but stops at each section of a page or pane first |
 /// | ← → Home End | Move between tabs, or between command bar buttons, while one has focus |
 /// | Space / Return / ↓ | Press the focused button (↓ opens a drop-down) |
 /// | ⇧F10, Menu key | Context menu for the focused item(s), tree node or tab |
-/// | Esc | From the command bar or tabs: back to the items. After leaving the address/search box: focus returns to the items |
+/// | Esc | Back to the items from the command bar, tabs, or address/search box |
 /// | ⌥⌘ arrows | Icon layouts: move the focus without changing the selection (Explorer's Ctrl+arrows) |
 /// | ⌥Space | Icon layouts: select or deselect the focused item (Explorer's Ctrl+Space) |
 /// | * + − | Navigation pane: expand everything under the node / expand / collapse |
 ///
-/// While an input method has marked (uncommitted) text, every key without ⌘ goes straight to it, so
-/// window shortcuts (⌃Tab, F-keys, ⌥ letters) never steal composition keystrokes (FE-068).
+/// While an input method has marked text, every key without ⌘ goes to it (FE-068).
 enum KeyboardRouter {
     private static var monitor: Any?
 
@@ -36,7 +35,7 @@ enum KeyboardRouter {
             return true
         }
 
-        // The same for type-to-select text being composed in the file list (Escape cancels it, not the list).
+        // Same for type-to-select composition (Escape cancels it, not the list).
         if !mods.contains(.command), let list = window.firstResponder as? NSView, TypeSelectInput.isComposing(in: list) {
             list.keyDown(with: event)
             return true
@@ -82,8 +81,7 @@ enum KeyboardRouter {
             return true
         }
         if editingText, let region = FocusRegions.region(of: focused, in: c), region == .address || region == .search {
-            // The field handles Escape first (restore the path / clear the search); if that left focus
-            // nowhere, it goes back to the items, like Explorer.
+            // The field handles Escape first; if focus ends up nowhere, return it to the items.
             DispatchQueue.main.async { [weak c] in
                 guard let c, window.firstResponder === window else { return }
                 FocusRegions.focus(.items, in: c)
@@ -102,7 +100,7 @@ enum KeyboardRouter {
             c.selectTab(at: tab.index)
             FocusRegions.focus(.items, in: c)
             return true
-        case 51, 117:   // Delete closes the focused tab (Explorer: Ctrl+W; Delete on a focused tab)
+        case 51, 117:   // Delete closes the focused tab, like Explorer
             let index = tab.index
             c.closeTab(at: index)
             if let next = FocusRegions.tabViews(in: c).first(where: \.isSelected) { FocusRegions.makeFocused(next, in: c.window) }
@@ -130,9 +128,8 @@ enum KeyboardRouter {
 
     // MARK: Icon layouts: Explorer's Ctrl+arrow / Ctrl+Space without macOS's Control shortcuts
 
-    /// ⌃←/→ switch Spaces and ⌃Space switches input sources on a Mac, so the icon layouts take ⌥⌘arrows
-    /// (move focus only) and ⌥Space (toggle the focused item) as well (DEC-accessibility-3). They are
-    /// delivered to the grid as the Control versions it already understands.
+    /// ⌃arrows and ⌃Space are macOS shortcuts, so ⌥⌘arrows and ⌥Space are delivered to the grid as
+    /// the Control versions (DEC-accessibility-3).
     private static func gridKey(_ event: NSEvent, grid: ItemGridView, mods: NSEvent.ModifierFlags) -> Bool {
         let arrow = [123, 124, 125, 126, 115, 119, 116, 121].contains(Int(event.keyCode))
         let focusMove = arrow && mods.contains([.option, .command]) && !mods.contains(.control)
@@ -157,7 +154,7 @@ enum ContextMenuKey {
     static let presenter = Provided<(NSMenu, NSView, NSPoint) -> Void>(
         "ContextMenuKey.presenter", "Shows the menu the context-menu key opens.", signature: "(menu, view, point)",
         default: { menu, view, point in
-            if ProcessInfo.processInfo.environment["ARBOR_SCRIPT"] != nil {
+            if Automation.environment["ARBOR_SCRIPT"] != nil {
                 lastShown = (menu.items.filter { !$0.isSeparatorItem }.map(\.title), String(describing: type(of: view)), point)
                 return
             }

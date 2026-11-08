@@ -1,9 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Drag-and-drop extension points for items that aren't plain files on disk (archive members) and
-/// drops that carry file promises instead of URLs. Item views call these (Details, icon layouts);
-/// opening and extra columns use `InteractionHooks` and `DetailsColumns`.
+/// Drag-and-drop hooks for non-file items (archive members) and file-promise drops.
 ///
 ///     ItemHooks.registerDragWriter("archives.member-promise") { item in isMine(item) ? MyPromise(item) : nil }
 ///     ItemHooks.registerDropHandler(types: [...], operation: { info, dest in .copy }, accept: { info, dest, window in true })
@@ -19,7 +17,7 @@ enum ItemHooks {
         dragWriters.register(id, order: order, writer)
     }
 
-    /// A custom pasteboard writer (a file promise, say) for an item, or nil for the item's file URL.
+    /// Custom pasteboard writer (e.g. a file promise), or nil to drag the file URL.
     static func dragWriter(for item: FileItem) -> NSPasteboardWriting? { dragWriters.first(item) }
 
     // MARK: Dropping in (drops that carry no file URLs, such as file promises)
@@ -37,7 +35,7 @@ enum ItemHooks {
     /// Extra pasteboard types item views should register for.
     static var dropTypes: [NSPasteboard.PasteboardType] { dropHandlers.flatMap(\.types) }
 
-    /// The drag operation a handler offers for a drop with no file URLs, or nil to use the normal rules.
+    /// Operation for a drop with no file URLs; nil uses the normal rules.
     static func dropOperation(_ info: NSDraggingInfo, destination: URL?) -> NSDragOperation? {
         guard let destination, DropPolicy.fileURLs(from: info).isEmpty else { return nil }
         for handler in dropHandlers.reversed() { if let op = handler.operation(info, destination) { return op } }

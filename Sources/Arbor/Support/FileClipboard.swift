@@ -6,7 +6,7 @@ final class FileClipboard {
     static let shared = FileClipboard()
     static let changed = Notification.Name("ArborClipboardChanged")
     /// Headless test runs use a private pasteboard so they never overwrite the user's clipboard.
-    private let pasteboard = ProcessInfo.processInfo.environment["ARBOR_HEADLESS"] == nil
+    private let pasteboard = Automation.environment["ARBOR_HEADLESS"] == nil
         ? NSPasteboard.general
         : NSPasteboard(name: NSPasteboard.Name("io.github.arbor-files.test.\(getpid())"))
     private(set) var intent: TransferIntent?
@@ -39,9 +39,8 @@ final class FileClipboard {
     func isCut(_ url: URL) -> Bool { intent?.marksCut(url, changeCount: pasteboard.changeCount) ?? false }
 
     func finishedCut() {
-        // Like Explorer, a completed cut-and-paste empties the clipboard: the files it names have
-        // moved, so a second Paste would only report that they no longer exist (QA-CORE-3).
-        // Only content this app wrote is cleared; anything copied since is left alone.
+        // Like Explorer, a finished cut-and-paste empties the clipboard; a second Paste would only fail (QA-CORE-3).
+        // Only content this app wrote is cleared.
         if let intent, intent.kind == .move, intent.isCurrent(changeCount: pasteboard.changeCount) {
             pasteboard.clearContents()
         }

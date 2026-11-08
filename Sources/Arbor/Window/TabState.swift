@@ -1,9 +1,8 @@
 import AppKit
 import ArborCore
 
-/// One tab's state (B8, spec §3.3, §15.3). The window has one set of views; switching tabs swaps
-/// this state into them. Inactive tabs keep only compact state (location, history, selection names,
-/// scroll anchor, search text, view settings) plus a bounded cached listing so switching is instant.
+/// One tab's state (B8, spec §3.3, §15.3), swapped into the window's single set of views.
+/// Inactive tabs keep compact state plus a bounded cached listing so switching is instant.
 final class TabState {
     let id = UUID()
     var history: NavigationHistory
@@ -13,13 +12,13 @@ final class TabState {
     var searchText = ""
     /// Restored when the tab becomes active again.
     var selectedNames: [String] = []
-    /// The same selection as URLs, for listings where names repeat (search results, QA-CORE-4).
+    /// Same selection as URLs; names repeat in search results (QA-CORE-4).
     var selectedURLs: [URL] = []
     var topVisibleName: String?
 
-    /// The location whose content is loaded (nil before the first load finishes).
+    /// Nil before the first load finishes.
     var displayedLocation: Location?
-    /// Cached listing for `displayedLocation` (nil for custom pages, or evicted).
+    /// Listing for `displayedLocation` (nil for custom pages, or evicted).
     var items: [FileItem]? {
         didSet {
             if let old = oldValue, old.count >= 10_000 { BackgroundRelease.drop(old) }
@@ -36,10 +35,9 @@ final class TabState {
     var loadToken = UUID()
     var pendingLoad: LoadHandle?
     var renameAfterLoad: String?
-    /// Set while the tab's content is not on screen yet (restore selection/scroll when it arrives).
+    /// Content not on screen yet; restore selection/scroll when it arrives.
     var restoreOnDisplay = false
-    /// The next reload is a background check (folder watcher, tab switch): if the listing is unchanged it
-    /// leaves the view alone instead of rebuilding it.
+    /// Next reload is a background check (watcher, tab switch): an unchanged listing leaves the view alone.
     var quietReload = false
     var quietToken: UUID?
 
@@ -78,8 +76,7 @@ final class TabState {
         return result
     }
 
-    /// Feature hook (column header filters, FE-039): narrows the rows after the search text.
-    /// Call `invalidateVisibleItems()` whenever its result would change.
+    /// Column header filters (FE-039); call `invalidateVisibleItems()` when its result changes.
     static let visibleItemsFilter = Pipeline<[FileItem], TabState>(
         "TabState.visibleItemsFilter", "Narrows a tab's rows after the search text (column header filters).",
         signature: "(items, tab) -> items")
@@ -92,10 +89,8 @@ final class TabState {
     /// A background sort for this tab is running (scripted timing waits for it).
     private(set) var isSorting = false
 
-    /// Sorts a large listing off the main thread when the rows for the current query and order aren't cached
-    /// (FE-228). Returns false when the rows can be computed right away; otherwise the old order stays on screen
-    /// and `ready` runs on the main thread once the new rows are cached. A newer request, query or listing
-    /// makes an older result stale; it is dropped.
+    /// Sorts a large uncached listing off the main thread (FE-228). Returns false if rows can be computed now;
+    /// otherwise `ready` runs on main once cached. Stale results (newer request, query or listing) are dropped.
     func sortInBackground(then ready: @escaping () -> Void) -> Bool {
         guard let items else { return false }
         if let cache = visibleCache, cache.query == searchText, cache.order == sortOrder { return false }
@@ -120,8 +115,7 @@ final class TabState {
 
     // MARK: Bounded listing cache shared by all tabs (spec §15.3, FE-251)
 
-    /// Inactive tabs' listings share one byte budget (CacheBudgets.tabListingBytes), oldest evicted first;
-    /// an evicted tab lists its folder again when it's selected.
+    /// Inactive tabs share one listing byte budget, oldest evicted first; evicted tabs relist when selected.
     private(set) static var listingBudget = ListingBudget(byteLimit: CacheBudgets.tabListingBytes)
     private static var listed: [String: Weak] = [:]
     private struct Weak { weak var tab: TabState? }
@@ -159,8 +153,7 @@ final class TabState {
         TabState.listingBudget.remove(key)
     }
 
-    /// Set by the window for the tab on screen; active tabs are never evicted. An inactive tab also drops
-    /// its sorted copy of the rows (rebuilt when it is shown again).
+    /// Set for the tab on screen, which is never evicted; inactive tabs also drop their sorted rows.
     var isActive = false {
         didSet { if !isActive { visibleCache = nil } }
     }

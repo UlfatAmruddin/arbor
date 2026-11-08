@@ -2,8 +2,7 @@ import Foundation
 import Testing
 @testable import ArborCore
 
-// The extension-change warning named an empty extension for dotfiles: renaming ".env" to ".env.local"
-// said “If you change “.” to “.local”” (docs/ACCEPTANCE.md, T10).
+// T10: renaming ".env" to ".env.local" warned about changing “.” to “.local” (docs/ACCEPTANCE.md).
 @Suite("Extension change on rename")
 struct ExtensionChangeTests {
     @Test func dotfileGainingAnExtensionIsAnAddition() {

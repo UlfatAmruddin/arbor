@@ -1,11 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Roles, labels and actions for the custom-drawn chrome (FE-200): the tab strip is a tab group whose
-/// tabs are tab buttons with a "Close tab" action (the close button only exists on hover), the status
-/// bar and side pane are labelled groups, the item views are labelled, and the Gallery grid exposes
-/// its photos. Everything else (address bar, breadcrumb buttons and chevron menus, command bar toolbar,
-/// navigation tree) already uses real controls or `ChromeButton`, whose role and state are set there.
+/// Accessibility for the custom-drawn chrome (FE-200). Tabs get a "Close tab" action because the
+/// close button only exists on hover. Other chrome uses real controls or `ChromeButton`.
 enum ChromeAccessibility {
     static func install() {
         WindowHooks.didCreate.observe("accessibility.chrome-labels") { c in

@@ -1,8 +1,6 @@
 import Foundation
 
-/// What a drive's file system can do, for drive Properties (FE-188): the format (from
-/// `FileSystemCapabilities`) plus what the volume itself reports. Values the system doesn't report
-/// stay nil and are shown as "Unknown", never guessed.
+/// Drive Properties capabilities (FE-188); unreported values stay nil ("Unknown"), never guessed.
 public struct VolumeCapabilityReport: Equatable, Sendable {
     public var format: FileSystemCapabilities
     public var formatDescription: String?
@@ -16,14 +14,14 @@ public struct VolumeCapabilityReport: Equatable, Sendable {
     public var supportsCompression: Bool?
     public var isEncrypted: Bool?
     public var isJournaled: Bool?
-    /// Largest file the volume accepts, if it reports one (or the format's own limit).
+    /// Volume-reported limit, else the format's.
     public var maximumFileSize: Int64?
 
     public init(format: FileSystemCapabilities) { self.format = format }
 
     public var isReadOnly: Bool { format.isReadOnly }
 
-    /// A sentence for read-only drives (NTFS gets the specific reason).
+    /// NTFS gets its specific reason.
     public var readOnlyExplanation: String? {
         guard format.isReadOnly else { return nil }
         if format.kind == .ntfs {
@@ -33,7 +31,6 @@ public struct VolumeCapabilityReport: Equatable, Sendable {
         return L10n.tr("This drive is mounted read-only. Files can be opened and copied, but not changed.")
     }
 
-    /// Label and value rows in display order.
     public var rows: [(label: String, value: String)] {
         func yesNo(_ value: Bool?) -> String { value.map { $0 ? L10n.tr("Yes") : L10n.tr("No") } ?? L10n.tr("Unknown") }
         var rows: [(String, String)] = [
@@ -55,7 +52,7 @@ public struct VolumeCapabilityReport: Equatable, Sendable {
         return rows
     }
 
-    /// Limits worth telling the user, most important first (read-only first).
+    /// Most important first (read-only first).
     public var notes: [String] {
         var notes: [String] = []
         if let readOnly = readOnlyExplanation { notes.append(readOnly) }
@@ -71,13 +68,13 @@ public struct VolumeCapabilityReport: Equatable, Sendable {
 
     static func sizeText(_ bytes: Int64?) -> String {
         guard let bytes, bytes > 0 else { return L10n.tr("No practical limit") }
-        // Volumes report huge powers of two when there is no real limit.
+        // Huge powers of two mean no real limit.
         if bytes >= 1 << 60 { return L10n.tr("No practical limit") }
         if bytes == 4_294_967_295 { return L10n.tr("4 GB (minus 1 byte)") }
         return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 
-    /// Reads a volume's capabilities. Does disk I/O: call off the main thread.
+    /// Does disk I/O: call off the main thread.
     public static func read(_ url: URL) -> VolumeCapabilityReport? {
         let keys: Set<URLResourceKey> = [.volumeTypeNameKey, .volumeIsReadOnlyKey, .volumeLocalizedFormatDescriptionKey,
                                          .volumeSupportsCaseSensitiveNamesKey, .volumeSupportsCasePreservedNamesKey,
@@ -106,14 +103,14 @@ public struct VolumeCapabilityReport: Equatable, Sendable {
         report.isJournaled = v.volumeIsJournaling
         report.maximumFileSize = v.volumeMaximumFileSize.map(Int64.init)
         let root = v.volume ?? url
-        // _PC_XATTR_SIZE_BITS: 0 = no extended attributes; -1 = the volume doesn't say.
+        // _PC_XATTR_SIZE_BITS: 0 = no xattrs; -1 = unknown.
         let bits = pathconf(root.path, _PC_XATTR_SIZE_BITS)
         report.supportsExtendedAttributes = bits > 0 ? true : (bits == 0 ? false : nil)
         report.supportsTrash = supportsTrash(root, readOnly: report.isReadOnly)
         return report
     }
 
-    /// The Trash works where macOS has (or can make) a trash folder for the volume.
+    /// True where macOS has or can make a trash folder for the volume.
     static func supportsTrash(_ volume: URL, readOnly: Bool) -> Bool? {
         if readOnly { return false }
         if (try? FileManager.default.url(for: .trashDirectory, in: .userDomainMask, appropriateFor: volume, create: false)) != nil {

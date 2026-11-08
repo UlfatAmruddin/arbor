@@ -1,6 +1,5 @@
 import Foundation
 
-/// One search result: the item, its identity for merging, and why it matched.
 public struct SearchHit: Sendable {
     public let item: FileItem
     public let identity: FileIdentity
@@ -13,7 +12,7 @@ public struct SearchHit: Sendable {
     }
 }
 
-/// What a direct scan covered (folded into `SearchCoverage`).
+/// Folded into `SearchCoverage`.
 public struct DirectSearchReport: Sendable {
     public var cancelled = false
     public var limitReached = false
@@ -38,22 +37,20 @@ public struct DirectSearchReport: Sendable {
     }
 }
 
-/// The direct, index-free search (FE-141): walks the folder tree with bounded concurrency and tests every
-/// entry with `SearchEvaluator`. Cancellable at any point; symbolic links are never followed and each
-/// directory is entered once (by device+inode), so link loops and firmlinks can't repeat or hang;
-/// packages and other mounted disks aren't entered unless asked; results arrive in small batches.
+/// Index-free search (FE-141). Never follows links and enters each directory once (device+inode), so
+/// loops and firmlinks can't hang; skips packages and other volumes unless asked.
 public final class DirectSearch: @unchecked Sendable {
     public struct Configuration: Sendable {
         public var root: URL
         public var recursive = true
         public var includeHidden = false
-        /// Look inside packages (.app, .bundle…). Packages themselves are always candidates.
+        /// Packages themselves are always candidates.
         public var enterPackages = false
         public var searchArchives = false
         public var concurrency = 4
         public var maxContentBytes = TextContent.defaultMaxBytes
         public var resultLimit = 10_000
-        /// Batching: deliver after this many hits or this many seconds, whichever comes first.
+        /// Deliver after this many hits or seconds, whichever comes first.
         public var batchSize = 64
         public var batchInterval: TimeInterval = 0.15
 
@@ -103,7 +100,7 @@ public final class DirectSearch: @unchecked Sendable {
         lock.unlock()
     }
 
-    /// Starts the scan. `onHits` and `completion` run on background threads.
+    /// `onHits` and `completion` run on background threads.
     public func start(onHits: @escaping ([SearchHit]) -> Void, completion: @escaping (DirectSearchReport) -> Void) {
         lock.lock()
         guard !started else { lock.unlock(); return }
@@ -171,7 +168,7 @@ public final class DirectSearch: @unchecked Sendable {
         }
     }
 
-    /// Lists one directory, tests its entries, and returns subdirectories to enter.
+    /// Returns subdirectories to enter.
     private func process(_ dir: URL, fm: FileManager) -> [URL] {
         guard let id = FileIdentity.of(path: dir.path) else { return [] }
         lock.lock()
@@ -271,15 +268,15 @@ public final class DirectSearch: @unchecked Sendable {
 
     private enum ArchiveResult { case matched(Set<SearchReason>), noMatch, unreadable }
 
-    /// Entries tested per archive.
     static let archiveEntryLimit = 20_000
 
-    /// Tests the entries of a zip archive.
     private func archiveMatch(_ url: URL, folderPath: String) -> ArchiveResult {
-        guard let entries = try? ZipDirectory.read(url, limit: Self.archiveEntryLimit) else { return .unreadable }
+        guard let handle = FileHandle.openRegularFile(atPath: url.path) else { return .unreadable }
+        defer { try? handle.close() }
+        guard let entries = try? ZipDirectory.read(handle, limit: Self.archiveEntryLimit) else { return .unreadable }
         var reasons: Set<SearchReason> = []
         for entry in entries {
-            // Unsafe names (absolute, "..") are never shown by archive browsing either.
+            // nil for unsafe names (absolute, "..").
             guard let path = entry.path else { continue }
             let isFolder = entry.kind == .directory
             let name = (path as NSString).lastPathComponent

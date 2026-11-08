@@ -1,9 +1,7 @@
 import Foundation
 
-/// The order features register in: a stable topological sort of their `requires` (DEC-024).
-///
-/// Features keep the order they are listed in unless a requirement forces one later, so adding a
-/// feature never reshuffles the others. Problems are reported with the ids involved.
+/// Feature registration order: a stable topological sort of `requires` (DEC-024), so adding a
+/// feature never reshuffles the others.
 public enum FeatureGraph {
     public struct Node: Equatable, Sendable {
         public let id: String
@@ -16,11 +14,9 @@ public enum FeatureGraph {
     }
 
     public enum Problem: Error, Equatable, Sendable, CustomStringConvertible {
-        /// Two features use the same id.
         case duplicateID(String)
-        /// `feature` requires `missing`, which isn't listed.
         case missingDependency(feature: String, missing: String)
-        /// The features in the cycle, ending with the first again ("a → b → a").
+        /// Ends with the first id again ("a → b → a").
         case cycle([String])
 
         public var description: String {
@@ -35,7 +31,7 @@ public enum FeatureGraph {
         }
     }
 
-    /// The ids in registration order: every feature after the features it requires, otherwise in listed order.
+    /// Each feature after its requirements, otherwise in listed order.
     public static func order(_ nodes: [Node]) throws -> [String] {
         var seen = Set<String>()
         for node in nodes {
@@ -50,7 +46,6 @@ public enum FeatureGraph {
         var result: [String] = []
         var remaining = nodes
         while !remaining.isEmpty {
-            // The first listed feature whose requirements are all placed.
             guard let index = remaining.firstIndex(where: { $0.requires.allSatisfy(placed.contains) }) else {
                 throw Problem.cycle(cycle(in: remaining))
             }
@@ -61,7 +56,6 @@ public enum FeatureGraph {
         return result
     }
 
-    /// True when every feature comes after everything it requires.
     public static func satisfies(_ order: [String], _ nodes: [Node]) -> Bool {
         let position = Dictionary(order.enumerated().map { ($1, $0) }, uniquingKeysWith: { a, _ in a })
         return nodes.allSatisfy { node in
@@ -70,14 +64,14 @@ public enum FeatureGraph {
         }
     }
 
-    /// One cycle among nodes that can't be placed (each of them requires another one of them).
+    /// One cycle among the unplaceable nodes.
     private static func cycle(in nodes: [Node]) -> [String] {
         let byID = Dictionary(nodes.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         guard var current = nodes.first?.id else { return [] }
         var path: [String] = []
         while !path.contains(current) {
             path.append(current)
-            // Some requirement of a stuck node is itself stuck (otherwise the node could be placed).
+            // A stuck node always has a stuck requirement.
             guard let next = byID[current]?.requires.first(where: { byID[$0] != nil }) else { return path }
             current = next
         }

@@ -12,17 +12,16 @@ public struct GroupBucket: Hashable, Sendable {
         self.rank = rank
     }
 
-    /// Items without a value (folders when grouping by Size). Always listed last.
+    /// No value (e.g. folders by Size); always last.
     public static let unspecified = GroupBucket(id: "~unspecified", title: "Unspecified", rank: .infinity)
-    /// Metadata still being read. Listed after everything else.
+    /// Metadata still loading; always last.
     public static let loading = GroupBucket(id: "~loading", title: "Loading…", rank: .infinity)
 
     /// Sorted last whatever the direction.
     public var isTrailing: Bool { id.hasPrefix("~") }
 }
 
-/// "Now" and the calendar (time zone, first weekday, locale) used for date buckets. Inject a fixed
-/// one in tests.
+/// "Now" and the calendar for date buckets; inject fixed ones in tests.
 public struct GroupingContext: Sendable {
     public var now: Date
     public var calendar: Calendar
@@ -89,7 +88,7 @@ public enum Buckets {
 
     // MARK: Names
 
-    /// A – H · I – P · Q – Z · 0 – 9 · Other, in the reference's display order. Accents are folded (É → E); non-Latin letters are Other.
+    /// Accents fold (É → E); non-Latin letters are Other.
     public static func alphabet(_ text: String) -> GroupBucket {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         guard let first = trimmed.first else { return .unspecified }
@@ -109,8 +108,7 @@ public enum Buckets {
 
     // MARK: Durations
 
-    /// Length groups (RECALL-l): Very short (< 1 min) · Short (1 – 5 min) · Medium (5 – 30 min) ·
-    /// Long (30 – 60 min) · Very long (> 60 min).
+    /// Length groups (RECALL-l).
     public static func duration(_ seconds: Double?) -> GroupBucket {
         guard let seconds else { return .unspecified }
         func b(_ id: String, _ title: String, _ rank: Double) -> GroupBucket { GroupBucket(id: "length.\(id)", title: title, rank: rank) }
@@ -123,15 +121,14 @@ public enum Buckets {
         }
     }
 
-    /// One bucket per distinct value. Ranks are filled in by `FileGrouper` after sorting titles.
+    /// Ranks are filled in later by `FileGrouper`.
     public static func distinct(_ text: String) -> GroupBucket {
         text.isEmpty ? .unspecified : GroupBucket(id: "value.\(text)", title: text, rank: 0)
     }
 
     // MARK: Any column
 
-    /// Every bucket an item falls into for a column. Multi-valued columns (Tags, Authors) give one
-    /// bucket per value; grouping uses the first, filters match any.
+    /// Multi-valued columns (Tags, Authors) give one bucket per value; grouping uses the first, filters any.
     public static func buckets(for item: FileItem, column: ColumnID, ctx: GroupingContext,
                                lookup: ColumnValueLookup?) -> [GroupBucket] {
         guard let value = ColumnValues.value(item, column, lookup: lookup) else { return [.loading] }
@@ -162,8 +159,7 @@ public struct ItemGroup: Equatable, Sendable {
     }
 }
 
-/// Partitions already-sorted items into groups (FE-038). Items keep the current sort inside each
-/// group. View layouts that want groups call this with the tab's options (docs/features/grouping.md).
+/// Splits already-sorted items into groups, keeping the sort inside each (FE-038, docs/features/grouping.md).
 public enum FileGrouper {
     public static func group(_ sortedItems: [FileItem], by column: ColumnID, ascending: Bool,
                              context: GroupingContext = GroupingContext(), lookup: ColumnValueLookup? = nil) -> [ItemGroup] {
@@ -246,7 +242,7 @@ public struct ColumnFilters: Equatable, Sendable {
         isEmpty ? items : items.filter { matches($0, ctx: ctx, lookup: lookup) }
     }
 
-    /// The choices a column's dropdown lists: buckets present in `items`, in ascending order.
+    /// A column's dropdown choices: buckets present in `items`, ascending.
     public static func options(for column: ColumnID, items: [FileItem], ctx: GroupingContext = GroupingContext(),
                                lookup: ColumnValueLookup?) -> [GroupBucket] {
         var seen: [String: GroupBucket] = [:]

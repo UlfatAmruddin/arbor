@@ -1,11 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Item actions and Folder Options click behaviors in every layout, not just Details
-/// (docs/features/consistency.md):
-/// - Right-button drags start in the icon layouts too (the drop menu itself is DragPolish's).
-/// - Pages with items (Home, This Mac, Gallery) follow "Single-click to open an item (point to
-///   select)", underline titles always or on hover, and show pop-up descriptions only when that's on.
+/// Item actions and Folder Options click behaviors in every layout and page, not just Details.
 enum ItemActionsEverywhere {
     private static var monitors: [Any] = []
     private static let hover = PageHoverTracker()
@@ -45,8 +41,8 @@ enum ItemActionsEverywhere {
 
     // MARK: Right-button drag in icon layouts
 
-    /// Starts a drag once the right button moves a few points; a plain right click falls through to
-    /// the context menu. The pasteboard carries DragPolish's marker, so the drop shows its menu.
+    /// Starts a drag once the right button moves; a plain right click still opens the context menu.
+    /// The pasteboard carries DragPolish's marker so the drop shows its menu.
     static func rightDrag(_ view: NSView & NSDraggingSource, _ event: NSEvent, _ urls: @escaping () -> [URL]) -> Bool {
         guard let window = view.window else { return false }
         let start = event.locationInWindow
@@ -128,7 +124,7 @@ protocol PageItemSurface: AnyObject {
     func windowPoint(ofName name: String) -> NSPoint?
 }
 
-/// Point to select and hover underline on pages (the item views have their own, in Folder Options).
+/// Point to select and hover underline on pages.
 final class PageHoverTracker {
     private weak var surface: AnyObject?
     private(set) var slot: PageSlot?

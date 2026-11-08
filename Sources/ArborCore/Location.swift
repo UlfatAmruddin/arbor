@@ -1,18 +1,16 @@
 import Foundation
 
-/// What a search tab is looking for. The search feature extends this; keep it a plain value.
+/// What a search tab is looking for. Keep it a plain value.
 public struct SearchRequest: Hashable, Sendable {
     public var query: String
-    /// Folder the search covers. nil means "everywhere the search provider can reach".
+    /// nil means everywhere the provider can reach.
     public var scope: URL?
     public var recursive: Bool
-    /// Search options ▸ Advanced options (File contents, System files, Zipped files).
+    /// Search options ▸ Advanced options.
     public var options: SearchOptions = []
-    /// More places the search covers besides `scope`: the other folders of a library, pinned folders
-    /// outside the user folder (Home), other drives (This Mac). A file here is matched by itself.
+    /// Other library folders, pinned folders outside Home, other drives. A file here is matched by itself.
     public var extraScopes: [URL] = []
-    /// Key of the location the search was started from when that isn't the scope folder (Home, a
-    /// library, This Mac): its name titles the results and Up / Close search return there.
+    /// Where the search started when that isn't the scope (Home, a library, This Mac): titles the results; Up / Close search return there.
     public var originKey: String?
 
     public init(query: String, scope: URL? = nil, recursive: Bool = true, options: SearchOptions = [],
@@ -25,11 +23,10 @@ public struct SearchRequest: Hashable, Sendable {
         self.originKey = originKey
     }
 
-    /// The location the search was started from, if it isn't the scope folder.
     public var origin: Location? { originKey.flatMap(Location.init(key:)) }
 }
 
-/// Explorer's Advanced options for a search. Stored in the location key as `opts=csz`.
+/// Explorer's Advanced search options, stored in the location key as `opts=csz`.
 public struct SearchOptions: OptionSet, Hashable, Sendable, Codable {
     public let rawValue: Int
     public init(rawValue: Int) { self.rawValue = rawValue }
@@ -49,9 +46,7 @@ public struct SearchOptions: OptionSet, Hashable, Sendable, Codable {
     }
 }
 
-/// Anything a tab can show (spec §3.2): a real folder or a virtual namespace.
-///
-/// Equality and hashing use `key`, so `/a` and `/a/` are the same folder.
+/// Anything a tab can show (spec §3.2). Equality and hashing use `key`, so `/a` and `/a/` match.
 public enum Location: Hashable, Sendable, CustomStringConvertible {
     case folder(URL)
     case home
@@ -60,18 +55,16 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
     case network
     case trash
     case search(SearchRequest)
-    /// A folder inside an archive file. `innerPath` is "" for the archive's root, otherwise "a/b".
+    /// `innerPath` is "" for the archive's root, otherwise "a/b".
     case archive(URL, innerPath: String)
-    /// A library (a projection of several real folders), identified by name.
     case library(String)
-    /// A network server (`\\NAS`), or a share or folder on it before it is mounted (FE-078, FE-176).
+    /// A server (`\\NAS`), or a share or folder on it before mounting (FE-078, FE-176).
     case server(NetworkAddress)
 
     public static func == (lhs: Location, rhs: Location) -> Bool { lhs.key == rhs.key }
     public func hash(into hasher: inout Hasher) { hasher.combine(key) }
     public var description: String { key }
 
-    /// The real folder this location shows, if it is one.
     public var folderURL: URL? {
         if case .folder(let url) = self { return url.standardizedFileURL }
         return nil
@@ -106,8 +99,7 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
 
     // MARK: Persistence
 
-    /// Stable string identity, used for equality, persistence and per-location settings.
-    /// Forms: `folder:/path`, `home`, `thismac`, `gallery`, `network`, `trash`,
+    /// Stable identity for equality, persistence and per-location settings, e.g. `folder:/path`,
     /// `search?q=…&scope=/path&recursive=1`, `archive?file=/a.zip&inner=x/y`, `library?name=Documents`.
     public var key: String {
         switch self {
@@ -131,7 +123,7 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
         case .library(let name):
             return Self.compose("library", [URLQueryItem(name: "name", value: name)])
         case .server(let address):
-            return Self.compose("server", [URLQueryItem(name: "url", value: address.url.absoluteString)])
+            return Self.compose("server", [URLQueryItem(name: "url", value: address.url?.absoluteString ?? address.scheme + ":" + address.unc)])
         }
     }
 
@@ -177,10 +169,8 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
 
     // MARK: Up (FE-002)
 
-    /// The location Up goes to. A folder goes to its parent folder; a volume root goes to This Mac;
-    /// a search goes to its scope; an archive folder goes to its parent inside the archive, and the
-    /// archive root to the folder holding the archive; a library goes to Libraries. Home and the other
-    /// top-level places have none.
+    /// Where Up goes: a volume root to This Mac, a search to its origin or scope, an archive root to
+    /// its enclosing folder, a library to Libraries. Top-level places have none.
     public func parent(isVolumeRoot: (URL) -> Bool = Location.isVolumeRoot) -> Location? {
         switch self {
         case .folder(let url):
@@ -198,7 +188,7 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
             }
             return .archive(url, innerPath: parts.dropLast().joined(separator: "/"))
         case .library(let name):
-            // A library's Up is the Libraries page (FE-076); the Libraries page has none.
+            // FE-076: the Libraries page itself has no Up.
             return name == LibraryLogic.rootName ? nil : .library(LibraryLogic.rootName)
         case .server(let address):
             if !address.path.isEmpty { var up = address; up.path.removeLast(); return .server(up) }
@@ -208,16 +198,14 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
         }
     }
 
-    /// The root of a mounted volume ("/", "/Volumes/USB", …).
     public static func isVolumeRoot(_ url: URL) -> Bool {
-        // The kernel's mount table instead of a metadata read: this runs on the main thread for every
-        // tab title, icon and Up button, and a read can block on a slow network volume.
+        // Mount table, not a metadata read: runs on the main thread, and a read can block on a slow network volume.
         MountPoints.shared.isMountPoint(normalizedPath(url))
     }
 
     // MARK: Typed names
 
-    /// Words the address bar accepts for virtual places ("Home", "This Mac", "This PC", "Recycle Bin"…).
+    /// Address-bar words for virtual places.
     public static func keyword(_ text: String) -> Location? {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         switch t {
@@ -242,9 +230,9 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
         s.split(separator: "/").joined(separator: "/")
     }
 
-    /// Values are strictly percent-encoded so "&", "=" and "+" in a query survive a round trip.
+    /// Strict percent-encoding so "&", "=" and "+" survive a round trip.
     private static func compose(_ path: String, _ items: [URLQueryItem]) -> String {
-        // ASCII only: percentEncodedQueryItems traps on unencoded non-ASCII letters.
+        // ASCII only: percentEncodedQueryItems traps on unencoded non-ASCII.
         let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~/")
         var c = URLComponents()
         c.path = path

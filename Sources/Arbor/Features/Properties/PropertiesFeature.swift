@@ -5,8 +5,7 @@ import ArborCore
 /// tags/comments editing. FE-099, FE-148, FE-150–FE-157, FE-160, FE-161, FE-245.
 enum PropertiesFeature: ExplorerFeature {
     static let id = "properties"
-    /// Posted with the folder URL as object after a folder's "Optimize this folder for" changes.
-    /// See `FolderTemplateStore` (ArborCore) for the stored format.
+    /// Posted with the folder URL after its "Optimize this folder for" changes (format: `FolderTemplateStore`).
     static let folderTemplateChanged = Notification.Name("ArborFolderTemplateChanged")
 
     static func register() {
@@ -26,8 +25,7 @@ enum PropertiesFeature: ExplorerFeature {
         registerScriptSteps()
     }
 
-    /// What Properties describes: the selection, else the right-clicked tree node, else the folder on
-    /// screen (background menu, "…", or no selection).
+    /// The selection, else the right-clicked tree node, else the folder on screen.
     static func targets(_ ctx: CommandContext) -> [FileItem] {
         if !ctx.selection.isEmpty { return ctx.selection }
         if ctx.surface == .itemContextMenu { return [] }

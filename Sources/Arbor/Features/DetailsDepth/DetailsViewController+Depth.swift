@@ -1,12 +1,11 @@
 import AppKit
 import ArborCore
 
-/// Group headers (FE-038), column sets and lazily loaded metadata columns (FE-035, FE-036, FE-040),
-/// and the column header overlay with filters (FE-039) for the Details view.
+/// Details group headers, column sets, lazy metadata columns and header filters (FE-035, FE-036, FE-038, FE-039, FE-040).
 extension DetailsViewController {
     // MARK: Host tab
 
-    /// The tab this view shows (the window's active tab).
+    /// The window's active tab.
     var hostTab: TabState? {
         guard let window = itemDelegate as? BrowserWindowController, !window.tabs.isEmpty else { return nil }
         return window.activeTab
@@ -33,7 +32,7 @@ extension DetailsViewController {
         return groupStarts.lastIndex { $0 <= index }
     }
 
-    /// Splits sorted items into the tab's groups and returns them in display order.
+    /// Splits sorted items into groups, in display order.
     func regroup(_ sorted: [FileItem]) -> [FileItem] {
         if let o = hostOptions, let by = o.groupBy {
             groups = FileGrouper.group(sorted, by: by, ascending: o.groupAscending, lookup: DetailsDepth.lookup)
@@ -187,7 +186,7 @@ extension DetailsViewController {
 
     // MARK: Columns
 
-    /// Shows the tab's column set (FE-040): adds, removes, orders and sizes table columns.
+    /// Applies the tab's column set to the table (FE-040).
     func applyTabColumns() {
         guard let o = hostOptions else { return }
         let wanted = o.columns
@@ -366,7 +365,7 @@ extension DetailsViewController {
         return ColumnID(table.tableColumns[index].identifier.rawValue)
     }
 
-    /// Explorer draws a small chevron above the title; the overlay does, so the Mac triangle is removed.
+    /// The overlay draws the sort chevron, so the Mac triangle is removed.
     func hideNativeSortIndicators() {
         for column in table.tableColumns where table.indicatorImage(in: column) != nil { table.setIndicatorImage(nil, in: column) }
         table.highlightedTableColumn = nil
@@ -410,7 +409,7 @@ extension DetailsViewController {
 
     // MARK: Header filters
 
-    /// Opens the column's filter dropdown: a checklist of its buckets (FE-039).
+    /// Opens the column's filter dropdown (FE-039).
     func showFilter(column index: Int) {
         guard let id = columnID(at: index), let tab = hostTab, let overlay = headerOverlay else { return }
         let controller = ColumnFilterViewController(column: id)

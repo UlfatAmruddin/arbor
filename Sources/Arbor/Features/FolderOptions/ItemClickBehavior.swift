@@ -1,11 +1,10 @@
 import AppKit
 import ArborCore
 
-/// Folder Options behaviors in the file list (Details and the icon/list/tiles/content layouts):
-/// - "Single-click to open an item (point to select)" (FE-046): pointing selects after a pause, a plain click
-///   opens, ⌘/⇧-click still only select. Titles are underlined always or on hover in Details.
-/// - "When typing into list view: Automatically type into the Search Box".
-/// - "Show pop-up description for folder and desktop items" (infotips; the icon views read the same preference).
+/// Folder Options behaviors in the file list:
+/// - Single-click to open (FE-046): pointing selects after a pause, a click opens, ⌘/⇧-click only selects.
+/// - Typing into list view goes to the Search Box.
+/// - Pop-up descriptions (infotips), shared with the icon views.
 final class ItemClickBehavior: NSObject {
     static let shared = ItemClickBehavior()
 
@@ -128,8 +127,7 @@ final class ItemClickBehavior: NSObject {
     var debugLine: String { "hover slot: \(hover.slot.map(String.init) ?? "-")" }
 }
 
-/// The item view on screen, as the click behaviors see it: Details rows (group headers excluded) or the
-/// icon grid's items. A "slot" is a table row or a grid index.
+/// Details rows (no group headers) or icon grid items; a "slot" is a row or grid index.
 struct ItemSurface {
     private enum Kind { case table(DetailsViewController), grid(ItemGridView) }
     private let kind: Kind
@@ -220,8 +218,7 @@ struct ItemSurface {
     }
 }
 
-/// Tracks the item under the pointer: underlines it (Details, hover mode) and selects it after a pause
-/// (point to select). A separate tracking-area owner, so the item views need no changes.
+/// Hover underline and point-to-select, in its own tracking area so the item views need no changes.
 final class HoverTracker: NSResponder {
     private(set) weak var view: NSView?
     private var surface: ItemSurface?

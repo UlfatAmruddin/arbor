@@ -2,13 +2,9 @@ import AppKit
 
 /// Alerts about a browsing window are window-modal sheets on it, one at a time.
 ///
-/// An alert that arrives while the window already shows a sheet (another alert, a dialog, a wizard) waits
-/// its turn and appears when that sheet closes, instead of stacking or turning into an app-modal alert
-/// that blocks every window. An alert with the same text and buttons as one already showing or waiting
-/// in that window is merged into it: it isn't shown twice and its caller hears `.cancel` (the safe answer).
-/// Without any window (nothing open), the alert is app-modal as a last resort.
-///
-/// Scripted checks answer these sheets with `button:<title>`; headless runs keep them invisible.
+/// One arriving while a sheet shows waits for it to close (no stacking, no app-modal alert blocking
+/// every window). A duplicate of one showing or waiting is merged; its caller gets `.cancel` (the safe answer).
+/// With no window open, it is app-modal as a last resort. Scripts answer with `button:<title>`.
 enum AlertSheets {
     private final class Pending {
         let alert: NSAlert
@@ -33,8 +29,7 @@ enum AlertSheets {
 
     private static var queues: [ObjectIdentifier: WindowQueue] = [:]
 
-    /// Shows `alert` as a sheet on `window` (default: the frontmost browsing window), now or after the
-    /// sheets already waiting there.
+    /// Shows `alert` as a sheet on `window` (default: frontmost browsing window), now or after those waiting.
     static func present(_ alert: NSAlert, in window: NSWindow?, completion: ((NSApplication.ModalResponse) -> Void)? = nil) {
         if AppDelegate.isHeadless { alert.window.alphaValue = 0 }
         guard let host = window ?? BrowserWindowController.active?.window else {
@@ -63,12 +58,12 @@ enum AlertSheets {
         if let existing = queues[id], existing.window === window { return existing }
         let queue = WindowQueue(window)
         let center = NotificationCenter.default
-        // Another sheet (not one of ours) ended: the next alert may show now.
+        // Another (non-alert) sheet ended: the next alert may show.
         queue.observers.append(center.addObserver(forName: NSWindow.didEndSheetNotification, object: window, queue: .main) { [weak queue] _ in
             guard let queue else { return }
             DispatchQueue.main.async { pump(queue) }
         })
-        // The window closes: nobody can answer the waiting alerts, so they end as cancelled.
+        // Window closing: nobody can answer waiting alerts, so they cancel.
         queue.observers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { _ in
             guard let queue = queues.removeValue(forKey: id) else { return }
             queue.observers.forEach { center.removeObserver($0) }

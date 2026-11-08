@@ -1,8 +1,7 @@
 import Foundation
 
-/// Item and byte totals for the "Discovering items…" phase (FE-114, spec §9.2).
-/// Only counts are kept, never the item list, so memory stays flat for huge trees.
-/// Symbolic links are counted as one item and never followed. Package contents count.
+/// Item and byte totals for "Discovering items…" (FE-114, spec §9.2). Counts only, so memory stays flat;
+/// symlinks count as one item and aren't followed; package contents count.
 public struct TransferTotals: Sendable, Equatable {
     public var items: Int
     public var bytes: Int64
@@ -13,13 +12,12 @@ public struct TransferTotals: Sendable, Equatable {
     }
 
     public static func + (a: TransferTotals, b: TransferTotals) -> TransferTotals {
-        TransferTotals(items: a.items + b.items, bytes: a.bytes + b.bytes)
+        TransferTotals(items: a.items + b.items, bytes: a.bytes.saturatingAdd(b.bytes))
     }
 }
 
 public enum TransferDiscovery {
-    /// Counts `url` and everything under it. Returns nil if cancelled. Unreadable subfolders
-    /// count as what could be read; the copy reports them properly later.
+    /// Counts `url` and its contents; nil if cancelled. Unreadable subfolders count as far as readable.
     public static func measure(_ url: URL, control: TransferControl? = nil,
                                onProgress: ((TransferTotals) -> Void)? = nil) -> TransferTotals? {
         var info = stat()
@@ -38,7 +36,7 @@ public enum TransferDiscovery {
             }
             totals.items += 1
             if let v = try? child.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey]), v.isRegularFile == true {
-                totals.bytes += Int64(v.fileSize ?? 0)
+                totals.bytes = totals.bytes.saturatingAdd(Int64(v.fileSize ?? 0))
             }
         }
         if control?.isCancelled == true { return nil }
@@ -46,7 +44,7 @@ public enum TransferDiscovery {
     }
 }
 
-/// Size, date and identity of one directory entry at one moment, read with lstat.
+/// One directory entry's size, date and identity at one moment (lstat).
 public struct FileStamp: Sendable, Equatable, Codable {
     public let device: UInt64
     public let inode: UInt64
@@ -71,10 +69,8 @@ public struct FileStamp: Sendable, Equatable, Codable {
     }
 }
 
-/// Enough to tell later whether a copy is still exactly what this app made (FE-129):
-/// identity (device + inode), size and modification time of the item, plus, for folders,
-/// an order-independent hash over every entry's relative path, inode, size and date.
-/// ".DS_Store" files are ignored because Finder writes them just by looking.
+/// Tells later whether a copy is still exactly what Arbor made (FE-129): identity, size and date, plus for
+/// folders an order-independent hash of all entries. ".DS_Store" is ignored (Finder writes it on view).
 public struct ItemFingerprint: Sendable, Equatable, Codable {
     public let stamp: FileStamp
     public let entries: Int
@@ -127,7 +123,7 @@ public struct ItemFingerprint: Sendable, Equatable, Codable {
 public enum CopyUndo {
     public struct Plan: Sendable, Equatable {
         public var unchanged: [URL] = []
-        /// Edited, replaced or renamed since the copy: left alone.
+        /// Changed since the copy: left alone.
         public var changed: [URL] = []
         /// Already gone.
         public var missing: [URL] = []

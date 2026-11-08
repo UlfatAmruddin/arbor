@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Code-drawn Trash icons, empty and full (original artwork, DEC-018): a translucent grey-blue bin,
-/// with paper sheets showing over the rim when it holds items.
+/// Code-drawn Trash icons (original artwork, DEC-018): a grey-blue bin, with sheets over the rim when full.
 enum TrashIcon {
     private static let cache = NSCache<NSString, NSImage>()
 
@@ -24,7 +23,7 @@ enum TrashIcon {
         func p(_ x: CGFloat, _ y: CGFloat) -> NSPoint { NSPoint(x: rect.minX + x * u, y: rect.minY + y * u) }
 
         if full {
-            // Sheets behind the rim, tilted a little.
+            // Sheets behind the rim, slightly tilted.
             let back = NSBezierPath()
             back.move(to: p(9, 10)); back.line(to: p(12.5, 2.5)); back.line(to: p(20, 5)); back.line(to: p(18, 10)); back.close()
             Theme.rgb(0xFFFFFF).setFill(); back.fill()
@@ -43,7 +42,7 @@ enum TrashIcon {
             }
         }
 
-        // Body: a tapered bin.
+        // Tapered bin body.
         let body = NSBezierPath()
         body.move(to: p(6.5, 10)); body.line(to: p(25.5, 10)); body.line(to: p(23.4, 29))
         body.appendArc(from: p(23.2, 30), to: p(21.8, 30), radius: 1.2 * u)

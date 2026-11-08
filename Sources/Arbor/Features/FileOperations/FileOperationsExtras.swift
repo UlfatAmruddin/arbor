@@ -1,14 +1,11 @@
 import AppKit
 import ArborCore
 
-/// The file-operation features beyond the copy engine: operation history (FE-126), queue controls
-/// (FE-127), "Verify after copying" (FE-130), the "copy without its properties?" prompt, Compress to ▸
-/// Additional options (FE-168), access-list editing on the Security tab and Time Machine versions on
-/// the Previous Versions tab (FE-153, FE-155). Requires Archives and Properties, whose command and tabs
-/// it extends. See docs/features/file-operations.md.
+/// History (FE-126), queue (FE-127), verify (FE-130), property-loss prompt, Compress options (FE-168),
+/// ACL editing and Time Machine versions (FE-153, FE-155). See docs/features/file-operations.md.
 enum FileOperationsExtras: ExplorerFeature {
     static let id = "file-operations-extras"
-    /// Compress to ▸ Additional options extends the archives command; access lists and versions extend Properties.
+    /// Extends the archives command and the Properties tabs.
     static let requires = ["file-operations", "archives", "properties"]
     static func register() {
         TransferQueueController.shared.install()
@@ -112,7 +109,7 @@ enum FileOperationsExtras: ExplorerFeature {
             PermissionsEditorSheet.scriptSet(argument)
             return 0.4
         }
-        /// tmselect:N — selects a Time Machine version on the Previous Versions tab.
+        /// tmselect:N — selects a Previous Versions entry.
         DebugScript.registerStep("tmselect") { argument, _ in
             TimeMachineVersionsView.latest?.scriptSelect(Int(argument) ?? 0)
             return 0.3

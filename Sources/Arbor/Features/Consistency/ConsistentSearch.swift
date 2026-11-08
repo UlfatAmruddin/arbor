@@ -1,13 +1,8 @@
 import AppKit
 import ArborCore
 
-/// The search box in every location (docs/features/consistency.md):
-/// - Folders, Home, This Mac, libraries: a search ("Search Results in …"). Home also covers pinned
-///   folders and Favorites/Recent files outside the user folder; a library covers all its folders;
-///   This Mac covers the Spotlight index plus a direct scan of the other local drives.
-/// - Trash, archives, Network, the Libraries page and Gallery: the box filters what the page shows.
-/// - Pages with nothing to search (a disconnected drive, "not available" pages): the box is disabled
-///   with an explanation instead of accepting text that does nothing.
+/// The search box per location: folders and pages search, Trash/archives/Network/Gallery filter in
+/// place, and pages with nothing to search disable it. See docs/features/consistency.md.
 enum ConsistentSearch {
     static func register() {
         SearchRegistry.wrappers.add("consistency.search-box-per-location") { inner, window in
@@ -48,7 +43,7 @@ enum ConsistentSearch {
     }
 }
 
-/// Wraps the registered search controller and keeps the box honest about where it can't search.
+/// Wraps the registered search controller; disables the box where it can't search.
 final class ScopedSearchController: SearchController {
     private weak var window: BrowserWindowController?
     let inner: SearchController

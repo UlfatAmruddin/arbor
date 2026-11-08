@@ -1,24 +1,20 @@
 import Foundation
 
-/// One directory entry as shown in a listing.
-///
-/// `id` is the entry name, which is unique within one folder listing. It is a
-/// directory-entry identity, not a permanent object identity: a rename changes it
-/// and a replaced file keeps it. Never use row indexes as identity.
+/// One directory entry in a listing.
+/// `id` is the entry name: a rename changes it, a replaced file keeps it. Never use row indexes as identity.
 public struct FileItem: Hashable, Sendable, Identifiable {
     public let url: URL
     public let name: String
-    /// A container the user can navigate into (folders and symlinks to folders; not packages).
+    /// Folders and symlinks to folders; not packages.
     public let isFolder: Bool
-    /// A bundle such as `.app` that macOS presents as a single file.
+    /// A bundle such as `.app` shown as one file.
     public let isPackage: Bool
     public let isHidden: Bool
     public let isSymbolicLink: Bool
-    /// Logical size in bytes. `nil` means unknown or not applicable (folders), which is
-    /// different from a zero-byte file.
+    /// Bytes; `nil` means unknown or a folder (not the same as zero bytes).
     public let size: Int64?
     public let modified: Date?
-    /// Localized kind from the system's type database (for example "PDF document").
+    /// Localized kind, e.g. "PDF document".
     public let typeDescription: String
 
     public var id: String { name }
@@ -45,16 +41,15 @@ public struct FileItem: Hashable, Sendable, Identifiable {
         self.typeDescription = typeDescription
     }
 
-    /// Keys `init(url:)` reads; prefetch them when enumerating a folder. The kind ("PDF document") is
-    /// not among them: Launch Services computes it per file, which was half the time of listing a
-    /// 100,000-entry folder, so it comes from `TypeDescriptions` (one lookup per extension) instead.
+    /// Keys `init(url:)` reads; prefetch them when enumerating. The kind is left out on purpose: per-file
+    /// Launch Services lookups took half the listing time, so `TypeDescriptions` caches it per extension.
     public static let resourceKeys: [URLResourceKey] = [
         .nameKey, .isDirectoryKey, .isPackageKey, .isHiddenKey, .isSymbolicLinkKey,
         .fileSizeKey, .contentModificationDateKey, .isAliasFileKey,
     ]
     private static let resourceKeySet = Set(resourceKeys)
 
-    /// Reads metadata for an existing item. Returns nil if the item vanished.
+    /// Returns nil if the item vanished.
     public init?(url: URL) {
         guard let values = try? url.resourceValues(forKeys: Self.resourceKeySet) else { return nil }
         let name = values.name ?? url.lastPathComponent
@@ -63,7 +58,7 @@ public struct FileItem: Hashable, Sendable, Identifiable {
         var isPackage = values.isPackage ?? false
         var targetType: String?
         if isSymlink {
-            // Treat a link to a folder as a folder so it can be opened, without following it during listing.
+            // A link to a folder opens like a folder; the listing doesn't follow it.
             let target = url.resolvingSymlinksInPath()
             if let targetValues = try? target.resourceValues(forKeys: [.isDirectoryKey, .isPackageKey, .localizedTypeDescriptionKey]) {
                 isDirectory = targetValues.isDirectory ?? false
@@ -73,8 +68,7 @@ public struct FileItem: Hashable, Sendable, Identifiable {
         }
         let isFolder = isDirectory && !isPackage
         let isAlias = !isSymlink && (values.isAliasFile ?? false)   // symbolic links also report isAliasFile
-        // A listed URL keeps every prefetched resource value; dropping them saves ~40 % of a row's memory
-        // (0.4 KB per entry, measured on 100,000 entries). They are read again on demand.
+        // Dropping cached resource values saves ~40 % of a row's memory; they are re-read on demand.
         var stored = url
         stored.removeAllCachedResourceValues()
         self.init(

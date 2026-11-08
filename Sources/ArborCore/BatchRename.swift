@@ -1,6 +1,5 @@
 import Foundation
 
-/// One item taking part in a multi-item or batch rename.
 public struct RenameCandidate: Sendable, Equatable {
     public let url: URL
     public let isFolder: Bool
@@ -13,11 +12,9 @@ public struct RenameCandidate: Sendable, Equatable {
     }
 }
 
-/// Explorer's basic multi-item rename (FE-089): select several items, press F2, type one name, and
-/// every item becomes "Name (1).ext", "Name (2).ext"… in view order, each keeping its own extension.
+/// Explorer's multi-item rename (FE-089): one typed name gives "Name (1).ext", "Name (2).ext"… in view order.
 public enum MultiRename {
-    /// The base name the user meant. The edit box shows the edited item's extension, so a typed
-    /// "Holiday.jpg" for a .jpg means "Holiday" (each item keeps its own extension).
+    /// Strips the edited item's extension from the typed name ("Holiday.jpg" means "Holiday").
     public static func base(fromTyped typed: String, editedName: String, editedIsFolder: Bool) -> String {
         let t = typed.trimmingCharacters(in: .whitespaces)
         guard !editedIsFolder, let ext = NameRules.splitExtension(editedName, treatAsFolder: false).ext else { return t }
@@ -26,8 +23,7 @@ public enum MultiRename {
         return t
     }
 
-    /// New names, one per item, in the given (view) order. Numbers taken by items outside the batch
-    /// (`isTakenOutside(name, folder)`) are skipped, so nothing is ever overwritten.
+    /// One name per item; numbers taken outside the batch are skipped, so nothing is overwritten.
     public static func names(base: String, items: [RenameCandidate],
                              isTakenOutside: (String, URL) -> Bool) -> [String] {
         var used: [URL: Set<String>] = [:]
@@ -86,7 +82,7 @@ public struct BatchRenameOptions: Equatable, Sendable {
     public var replace = ""
     public var useRegex = false
     public var matchCase = false
-    /// Find and replace (and case changes) also see the extension.
+    /// Find/replace and case changes also apply to the extension.
     public var includeExtension = false
     public var caseStyle: RenameCaseStyle = .unchanged
     public var prefix = ""
@@ -97,7 +93,6 @@ public struct BatchRenameOptions: Equatable, Sendable {
     /// Minimum digits, zero padded ("007").
     public var numberDigits = 1
     public var numberAtStart = false
-    /// Text between the name and the number.
     public var numberSeparator = " "
     public var extensionHandling: ExtensionHandling = .keep
 
@@ -107,9 +102,9 @@ public struct BatchRenameOptions: Equatable, Sendable {
 public enum BatchRenameStatus: Equatable, Sendable {
     case unchanged
     case ok
-    /// Another item outside the batch already has this name.
+    /// Taken by an item outside the batch.
     case exists
-    /// Two items in the batch would get the same name.
+    /// Two batch items would get this name.
     case duplicate
     case invalid(String)
 
@@ -142,7 +137,6 @@ public struct BatchRenamePreview: Equatable, Sendable {
     public var problemCount: Int { rows.filter(\.status.isProblem).count }
     public var changeCount: Int { rows.filter { $0.status == .ok }.count }
     public var canApply: Bool { problemCount == 0 && changeCount > 0 }
-    /// The renames to perform, only when there are no problems.
     public var plan: [(url: URL, newName: String)] {
         rows.filter { $0.status == .ok }.map { ($0.item.url, $0.newName) }
     }
@@ -161,7 +155,7 @@ public enum BatchRenameError: Error, Equatable, LocalizedError {
 }
 
 public enum BatchRenamer {
-    /// The new name for one item (index = position in the batch, for numbering).
+    /// `index` is the position in the batch, for numbering.
     public static func transform(_ item: RenameCandidate, index: Int, options o: BatchRenameOptions) throws -> String {
         var (base, ext) = NameRules.splitExtension(item.name, treatAsFolder: item.isFolder)
         if o.includeExtension {
@@ -205,15 +199,14 @@ public enum BatchRenamer {
         return ext.map { "\(base).\($0)" } ?? base
     }
 
-    /// Computes every new name and flags problems before anything is renamed.
-    /// `existingNames(folder)` lists what is in a folder now (all entries, batch members included).
-    /// Names are compared case-insensitively: on the default Mac volume "a.txt" and "A.txt" collide.
+    /// Computes new names and flags problems. `existingNames` includes batch members.
+    /// Case-insensitive, since "a.txt" and "A.txt" collide on the default Mac volume.
     public static func preview(_ items: [RenameCandidate], options: BatchRenameOptions,
                                existingNames: (URL) -> [String]) throws -> BatchRenamePreview {
         let proposed = try items.enumerated().map { try transform($1, index: $0, options: options) }
         func key(_ s: String) -> String { s.precomposedStringWithCanonicalMapping.lowercased() }
 
-        // Final names per folder: batch items' new names plus untouched entries outside the batch.
+        // Final names per folder: new batch names plus untouched outside entries.
         var batchKeys: [URL: [String: Int]] = [:]
         for (i, item) in items.enumerated() { batchKeys[item.folder, default: [:]][key(proposed[i]), default: 0] += 1 }
         var outside: [URL: Set<String>] = [:]
@@ -240,10 +233,7 @@ public enum BatchRenamer {
         return BatchRenamePreview(rows: rows)
     }
 
-    /// Renames everything in `plan` or nothing. Names that swap or shift between batch members are
-    /// handled by renaming through temporary names first. On any failure, completed renames are
-    /// reverted and the error is thrown. Never overwrites an item (Renamer refuses).
-    /// Returns (old URL, new URL) pairs.
+    /// All or nothing: swaps go through temporary names, failures roll back. Never overwrites.
     @discardableResult
     public static func apply(_ plan: [(url: URL, newName: String)], fileManager: FileManager = .default) throws -> [(from: URL, to: URL)] {
         let changes = plan.filter { $0.url.lastPathComponent != $0.newName }
@@ -285,7 +275,6 @@ public enum BatchRenamer {
         }
     }
 
-    /// The plan that undoes `applied` (new names back to old names).
     public static func reversePlan(_ applied: [(from: URL, to: URL)]) -> [(url: URL, newName: String)] {
         applied.map { ($0.to, $0.from.lastPathComponent) }
     }

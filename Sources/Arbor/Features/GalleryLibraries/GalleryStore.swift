@@ -3,7 +3,7 @@ import ArborCore
 import ImageIO
 import UniformTypeIdentifiers
 
-/// Gallery preferences: the collection's folders and the thumbnail size.
+/// Gallery preferences: folders and thumbnail size.
 enum GalleryPrefs {
     static let changed = Notification.Name("ArborGalleryCollectionChanged")
     private static let collectionKey = "gallery.collection.v1"
@@ -49,11 +49,8 @@ enum GalleryPrefs {
     }
 }
 
-/// App-wide Gallery index: the photos and videos found in the collection's folders, newest first.
-///
-/// Shared by every Gallery page so returning to Gallery is instant; bounded to `limit` items
-/// (the newest are kept). Scans run off the main thread in batches and stop when no Gallery page is
-/// on screen (spec §15.3). Removing a folder from the collection only filters this index.
+/// App-wide Gallery index (newest first, capped at `limit`), shared so returning to Gallery is instant.
+/// Scans run off-main in batches and stop when no Gallery page is shown (spec §15.3).
 final class GalleryStore {
     static let shared = GalleryStore()
     static let changed = Notification.Name("ArborGalleryStoreChanged")
@@ -65,11 +62,11 @@ final class GalleryStore {
     private var lastScan: Date?
     private var clients = NSHashTable<AnyObject>.weakObjects()
     private(set) var isScanning = false
-    /// Folders in the collection that couldn't be read on the last scan (partial coverage).
+    /// Folders unreadable on the last scan (partial coverage).
     private(set) var unavailable: [URL] = []
     private var visibleCache: [GalleryItem]?
 
-    /// Items shown now: inside an included folder, newest first (or oldest first).
+    /// Items shown now: in an included folder, sorted by date.
     var items: [GalleryItem] {
         if let visibleCache { return visibleCache }
         let collection = GalleryPrefs.collection
@@ -92,7 +89,7 @@ final class GalleryStore {
         }
     }
 
-    /// A Gallery page appeared: show what's cached and rescan if the collection changed or the index is stale.
+    /// A page appeared: show the cache; rescan if the collection changed or the index is stale.
     func attach(_ client: AnyObject) {
         clients.add(client)
         refreshIfNeeded(force: false)
@@ -107,7 +104,7 @@ final class GalleryStore {
         }
     }
 
-    /// Refresh (F5) or a reload after Trash/rename: rescan now.
+    /// Refresh or a reload after Trash/rename: rescan now.
     func refresh() { refreshIfNeeded(force: true) }
 
     private func refreshIfNeeded(force: Bool) {
@@ -146,7 +143,7 @@ final class GalleryStore {
             self.scanner = nil
             self.unavailable = summary.unavailable
             if !summary.cancelled {
-                // A complete scan is the truth for its roots: drop items that no longer exist there.
+                // A complete scan is the truth for its roots: drop missing items.
                 let rootPaths = roots.map(\.path)
                 let missing = summary.unavailable.map(\.path)
                 self.itemSet.retain { key in
@@ -169,7 +166,7 @@ final class GalleryStore {
         if isScanning { isScanning = false; lastScan = nil; post() }
     }
 
-    /// Drops items right away after they were trashed or renamed (the next scan confirms).
+    /// Drops trashed or renamed items now; the next scan confirms.
     func forget(_ urls: [URL]) {
         itemSet.remove(keys: urls.map { Location.normalizedKey($0) })
         visibleCache = nil
@@ -186,14 +183,8 @@ struct GalleryScanSummary {
     var cancelled: Bool
 }
 
-/// Finds photos and videos under the collection's folders, off the main thread.
-///
-/// 1. Spotlight (`NSMetadataQuery`, `kMDItemContentTypeTree` = public.image / public.movie) gives
-///    most items with their date taken quickly when the folder is indexed.
-/// 2. A direct enumeration then covers what Spotlight missed (unindexed volumes, new files),
-///    reading EXIF dates and pixel sizes with ImageIO. Packages (Photos libraries) and hidden
-///    files are skipped; nothing is ever written.
-/// Batches are delivered on the main queue. `cancel()` stops both phases.
+/// Finds photos and videos off-main: Spotlight first (fast when indexed), then a direct enumeration
+/// for what it missed, with ImageIO EXIF. Skips packages and hidden files; never writes. `cancel()` stops both.
 final class GalleryScanner {
     var onBatch: (([GalleryItem]) -> Void)?
     var onFinish: ((GalleryScanSummary) -> Void)?
@@ -206,7 +197,7 @@ final class GalleryScanner {
     private var gatherObserver: NSObjectProtocol?
     private var known = Set<String>()
     /// `ARBOR_GALLERY_NO_SPOTLIGHT=1` forces the direct scan (tests).
-    private let useSpotlight = ProcessInfo.processInfo.environment["ARBOR_GALLERY_NO_SPOTLIGHT"] == nil
+    private let useSpotlight = Automation.environment["ARBOR_GALLERY_NO_SPOTLIGHT"] == nil
 
     private var cancelled: Bool {
         cancelLock.lock(); defer { cancelLock.unlock() }
@@ -230,7 +221,7 @@ final class GalleryScanner {
         gatherObserver = NotificationCenter.default.addObserver(forName: .NSMetadataQueryDidFinishGathering, object: query, queue: queue) { [weak self] _ in
             self?.spotlightFinished(query)
         }
-        // Spotlight can be disabled or slow: never wait more than a few seconds for it.
+        // Spotlight can be off or slow: wait a few seconds at most.
         let timeout = DispatchWorkItem { [weak self] in
             self?.queue.addOperation { self?.spotlightFinished(query) }
         }
@@ -347,7 +338,7 @@ final class GalleryScanner {
         return nil
     }
 
-    /// EXIF date taken and the displayed aspect ratio, read from the header only (no decoding).
+    /// EXIF date taken and displayed aspect ratio, from the header only.
     static func imageMetadata(_ url: URL) -> (taken: Date?, aspect: Double?) {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
               let props = CGImageSourceCopyPropertiesAtIndex(source, 0, [kCGImageSourceShouldCache: false] as CFDictionary) as? [CFString: Any]

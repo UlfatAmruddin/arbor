@@ -1,57 +1,39 @@
 import Foundation
 
-/// Copies one item (file, symbolic link, folder tree or package) with copyfile(3).
-/// Used only from a job's worker thread; blocking there (pause, waiting for a decision) is fine.
-///
-/// Fidelity (FE-123, FE-124):
-/// - `COPYFILE_ALL`: data, permissions, owner where allowed, ACLs, flags, extended attributes
-///   (Finder tags, Finder info, quarantine, resource forks), access and modification dates.
-///   The creation date is restored afterwards (copyfile sets it only when cloning).
-/// - `COPYFILE_CLONE`: an APFS clone when source and destination allow it, else a normal copy.
-/// - `COPYFILE_DATA_SPARSE`: holes in sparse files stay holes.
-/// - `COPYFILE_NOFOLLOW`: symbolic links are copied as links; their targets are never read.
-/// - `COPYFILE_EXCL`: never writes over an existing item, even one created a moment ago.
-/// - Each path is copied on its own, so two hard links become two independent files and editing
-///   one copy never changes the other.
-/// - Folders are walked here, not by copyfile, so pause/cancel/skip work per file and folder dates
-///   and permissions are applied after their contents. Packages (.app, .rtfd…) are units: a
-///   package that can't be copied completely is removed again, and a moved package's original is
-///   deleted only after the whole package copied.
-///
-/// Partial files: copyfile removes the destination when it fails or is cancelled; the engine also
-/// removes it itself if it is still there and is provably the file this job opened (same inode).
+/// Copies one item with copyfile(3); worker thread only, so blocking is fine (FE-123, FE-124).
+/// Flags: ALL (creation date restored after), CLONE, DATA_SPARSE, NOFOLLOW, EXCL (never overwrites).
+/// Hard links become independent files. Folders are walked here so pause/cancel/skip work per file;
+/// packages are all-or-nothing. Partial files are removed only if provably ours (same inode).
 final class CopyEngine {
     struct Hooks {
-        /// Bytes copied since the last call (negative when a failed file's bytes are un-counted).
+        /// Delta since the last call; negative when a failed file is un-counted.
         var bytes: (Int64) -> Void = { _ in }
-        /// One entry (file, link, folder, package) finished or was skipped.
+        /// An entry finished or was skipped.
         var entryDone: (_ totals: TransferTotals) -> Void = { _ in }
-        /// The file being worked on.
         var current: (URL) -> Void = { _ in }
-        /// Blocking: what to do about a failure.
+        /// Blocking.
         var failure: (TransferFailure) -> FailureDecision = { _ in FailureDecision(.skip) }
-        /// Problems below the top-level item (reported in the job's details).
+        /// Problems below the top-level item.
         var detail: (ItemResult) -> Void = { _ in }
-        /// Blocking: whether to copy a file whose properties the destination can't hold.
+        /// Blocking: the destination can't hold the file's properties.
         var metadata: (_ source: URL, _ target: URL) -> MetadataLossChoice = { _, _ in .copyWithout }
     }
 
     enum Outcome: Equatable {
         case done
-        /// Some entries inside a folder were skipped or failed.
         case partial
         case skipped(String)
         case failed(String)
-        /// `leftContent`: something this job made is still at the destination.
+        /// `leftContent`: something this job made is still there.
         case cancelled(leftContent: Bool)
     }
 
     let control: TransferControl
     let allowClone: Bool
     var hooks = Hooks()
-    /// The bytes still to copy in the job, for disk-full messages.
+    /// For disk-full messages.
     var bytesRemaining: () -> Int64? = { nil }
-    /// Debug/testing: caps the data rate so progress, pause and cancel can be observed.
+    /// Testing: caps the rate so progress, pause and cancel can be observed.
     var bytesPerSecondLimit: Int64?
     private var throttleStart: Date?
     private var throttledBytes: Int64 = 0
@@ -63,24 +45,41 @@ final class CopyEngine {
         self.verb = verb
     }
 
-    /// Copies `source` to `target` (which must not exist). With `moveSource`, each original
-    /// entry is removed right after its own copy succeeded (cross-volume move, FE-122).
-    func copyItem(_ source: URL, to target: URL, moveSource: Bool) -> Outcome {
+    /// `target` must not exist. `moveSource` removes each original after its own copy (FE-122).
+    /// `folder`: a descriptor of the source's parent, which the item is then looked up and removed relative to.
+    func copyItem(_ source: URL, to target: URL, moveSource: Bool, in folder: Int32? = nil) -> Outcome {
         guard control.checkpoint() else { return .cancelled(leftContent: false) }
         var info = stat()
-        guard lstat(source.path, &info) == 0 else {
-            return fail(source, target, .copying, errno: errno, retry: { [self] in copyItem(source, to: target, moveSource: moveSource) })
+        let found = folder.map { fstatat($0, source.lastPathComponent, &info, AT_SYMLINK_NOFOLLOW) } ?? lstat(source.path, &info)
+        guard found == 0 else {
+            return fail(source, target, .copying, errno: errno,
+                        retry: { [self] in copyItem(source, to: target, moveSource: moveSource, in: folder) })
         }
+        let original = moveSource ? Identity(info) : nil
         switch info.st_mode & S_IFMT {
         case S_IFDIR:
-            if Self.isPackage(source) { return copyPackage(source, to: target, moveSource: moveSource) }
-            return copyFolder(source, to: target, moveSource: moveSource)
+            // After a parent swap the path judged here may lead elsewhere; only the item found above can be a package.
+            var now = stat()
+            if Self.isPackage(source), lstat(source.path, &now) == 0, Identity(now) == Identity(info) {
+                return copyPackage(source, to: target, identity: Identity(info), original: original, in: folder)
+            }
+            return copyFolder(source, to: target, identity: Identity(info), original: original, in: folder)
         case S_IFREG, S_IFLNK:
             return copyLeaf(source, to: target, size: (info.st_mode & S_IFMT) == S_IFREG ? Int64(info.st_size) : 0,
-                            moveSource: moveSource)
+                            original: original, in: folder)
         default:
             hooks.entryDone(TransferTotals(items: 1))
             return .skipped("Special files (pipes, sockets, devices) aren't copied.")
+        }
+    }
+
+    /// Device and inode, to tell whether a path still leads to the same item.
+    struct Identity: Equatable {
+        let device: UInt64
+        let inode: UInt64
+        init(_ info: stat) {
+            device = UInt64(bitPattern: Int64(info.st_dev))
+            inode = UInt64(info.st_ino)
         }
     }
 
@@ -90,11 +89,11 @@ final class CopyEngine {
 
     // MARK: Files and links
 
-    private func copyLeaf(_ source: URL, to target: URL, size: Int64, moveSource: Bool) -> Outcome {
+    private func copyLeaf(_ source: URL, to target: URL, size: Int64, original: Identity?, in folder: Int32?) -> Outcome {
         if let early = checkMetadata(source, target, totals: TransferTotals(items: 1, bytes: size)) { return early }
         while true {
             hooks.current(source)
-            let error = copyData(source, to: target, size: size)
+            let error = copyData(source, to: target, size: size, expected: original)
             if error == 0 { break }
             if error == ECANCELED, control.isCancelled { return .cancelled(leftContent: false) }
             switch decide(source, target, .copying, error) {
@@ -106,17 +105,19 @@ final class CopyEngine {
             }
         }
         hooks.entryDone(TransferTotals(items: 1))
-        if moveSource { removeOriginal(source, copiedTo: target, isFolder: false) }
+        if let original { removeOriginal(source, copiedTo: target, isFolder: false, original: original, in: folder) }
         return .done
     }
 
-    /// Returns 0 or an errno. Never leaves a partial file behind.
-    func copyData(_ source: URL, to target: URL, size: Int64) -> Int32 {
+    /// 0 or an errno; never leaves a partial file. `expected`: refuse (ENOENT) if the path now opens another item.
+    func copyData(_ source: URL, to target: URL, size: Int64, expected: Identity? = nil) -> Int32 {
         guard let state = copyfile_state_alloc() else { return ENOMEM }
         defer { copyfile_state_free(state) }
         let context = CallbackContext(engine: self)
+        context.expected = expected
         var flags = COPYFILE_ALL | COPYFILE_NOFOLLOW | COPYFILE_EXCL | COPYFILE_DATA_SPARSE
-        if allowClone { flags |= COPYFILE_CLONE }
+        // Moves only come here across volumes, where a clone can't happen; a clone would skip the source check.
+        if allowClone, expected == nil { flags |= COPYFILE_CLONE }
         let result: Int32 = withExtendedLifetime(context) {
             copyfile_state_set(state, UInt32(COPYFILE_STATE_STATUS_CB), unsafeBitCast(copyCallback, to: UnsafeRawPointer.self))
             copyfile_state_set(state, UInt32(COPYFILE_STATE_STATUS_CTX), Unmanaged.passUnretained(context).toOpaque())
@@ -124,11 +125,12 @@ final class CopyEngine {
         }
         var error = result == 0 ? 0 : errno
         if error != 0, let reportedError = context.failure, reportedError != 0 { error = reportedError }
+        if context.sourceChanged { error = ENOENT }
         if error == 0 {
             var cloned: Int32 = 0
             copyfile_state_get(state, UInt32(COPYFILE_STATE_WAS_CLONED), &cloned)
             if cloned == 0 { Self.restoreCreationDate(from: source, to: target) }
-            // Clones and sparse holes report fewer (or no) bytes: count the rest now.
+            // Clones and sparse holes under-report bytes.
             if size > context.reported { hooks.bytes(size - context.reported) }
             return 0
         }
@@ -139,13 +141,13 @@ final class CopyEngine {
         return error == EEXIST ? EEXIST : (error == 0 ? EIO : error)
     }
 
-    /// Per-chunk callback state.
     final class CallbackContext {
         unowned let engine: CopyEngine
         var reported: Int64 = 0
         var destination: (device: UInt64, inode: UInt64)?
-        /// The errno of a data error reported through the callback.
         var failure: Int32?
+        var expected: Identity?
+        var sourceChanged = false
         init(engine: CopyEngine) { self.engine = engine }
 
         func handle(_ what: Int32, _ stage: Int32, _ state: copyfile_state_t?) -> Int32 {
@@ -156,9 +158,20 @@ final class CopyEngine {
                     if fstat(fd, &info) == 0 { destination = (UInt64(bitPattern: Int64(info.st_dev)), UInt64(info.st_ino)) }
                 }
             }
+            if sourceChanged { return COPYFILE_QUIT }   // stops the data stage before it copies someone else's file
+            if let wanted = expected, stage == COPYFILE_START, let state {
+                expected = nil
+                // A parent swapped for a link after the item was examined leads the path to someone else's file.
+                var fd: Int32 = -1
+                var info = stat()
+                if copyfile_state_get(state, UInt32(COPYFILE_STATE_SRC_FD), &fd) == 0, fd >= 0,
+                   fstat(fd, &info) == 0, Identity(info) != wanted {
+                    sourceChanged = true   // copyfile ignores a quit at the extended-attribute stage
+                    return COPYFILE_QUIT
+                }
+            }
             if what == COPYFILE_COPY_DATA, stage == COPYFILE_ERR {
-                // copyfile retries a failed write forever if told to continue (seen with ENOSPC):
-                // stop and report the real error.
+                // copyfile retries a failed write forever on continue (seen with ENOSPC).
                 failure = errno
                 return COPYFILE_QUIT
             }
@@ -193,11 +206,10 @@ final class CopyEngine {
         var values = URLResourceValues()
         values.creationDate = created
         var url = target
-        try? url.setResourceValues(values)   // best effort: locked items or some volumes refuse
+        try? url.setResourceValues(values)   // best effort
     }
 
-    /// Asks before copying an item whose properties the destination can't store ("copy this file
-    /// without its properties?"). Nil means go ahead.
+    /// Asks when the destination can't store the item's properties; nil means go ahead.
     private func checkMetadata(_ source: URL, _ target: URL, totals: TransferTotals?) -> Outcome? {
         switch hooks.metadata(source, target) {
         case .copyWithout: return nil
@@ -212,9 +224,8 @@ final class CopyEngine {
 
     // MARK: Folders
 
-    private func copyFolder(_ source: URL, to target: URL, moveSource: Bool) -> Outcome {
-        // The folder's own tags, comments, attributes or access list (its contents are asked about one by one).
-        // Skip leaves the whole folder out, like Explorer's "Skip" for that item.
+    private func copyFolder(_ source: URL, to target: URL, identity: Identity, original: Identity?, in parent: Int32?) -> Outcome {
+        // The folder's own properties; Skip leaves the whole folder out, as in Explorer.
         if let early = checkMetadata(source, target, totals: nil) { return early }
         while mkdir(target.path, 0o700) != 0 {
             let error = errno
@@ -226,13 +237,16 @@ final class CopyEngine {
             case .cancel: return .cancelled(leftContent: false)
             }
         }
+        // Children are reached through this descriptor, so a folder swapped for a link later is never followed.
+        var folder: Int32 = -1
         var names: [String]
         while true {
-            do {
-                names = try FileManager.default.contentsOfDirectory(atPath: source.path)
+            let (fd, listed, code) = Self.openFolder(source, in: parent, identity: identity)
+            if let listed {
+                folder = fd
+                names = listed
                 break
-            } catch {
-                let code = Int32((error as NSError).underlyingErrors.first.map { ($0 as NSError).code } ?? Int(EACCES))
+            } else {
                 switch decide(source, target, .readingFolder, code) {
                 case .retry: continue
                 case .skip(let why):
@@ -245,12 +259,13 @@ final class CopyEngine {
                 }
             }
         }
+        defer { close(folder) }
         var problems = 0
         var cancelled = false
         for name in names {
             guard control.checkpoint() else { cancelled = true; break }
             let child = source.appendingPathComponent(name)
-            let outcome = copyItem(child, to: target.appendingPathComponent(name), moveSource: moveSource)
+            let outcome = copyItem(child, to: target.appendingPathComponent(name), moveSource: original != nil, in: folder)
             switch outcome {
             case .done: break
             case .partial: problems += 1
@@ -268,13 +283,22 @@ final class CopyEngine {
         applyFolderMetadata(from: source, to: target)
         if cancelled { return .cancelled(leftContent: true) }
         hooks.entryDone(TransferTotals(items: 1))
-        if moveSource, problems == 0 { removeOriginal(source, copiedTo: target, isFolder: true) }
+        if let original, problems == 0 { removeOriginal(source, copiedTo: target, isFolder: true, original: original, in: parent) }
         return problems == 0 ? .done : .partial
     }
 
-    /// Permissions, flags, dates, ACLs and extended attributes of a folder, applied after its
-    /// contents so writing the contents doesn't change the dates (and a read-only folder could
-    /// still be filled).
+    /// The folder's descriptor and names while it is still the item with `identity`; else (-1, nil, errno).
+    static func openFolder(_ source: URL, in parent: Int32?, identity: Identity) -> (Int32, [String]?, Int32) {
+        let flags = O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+        let fd = parent.map { openat($0, source.lastPathComponent, flags) } ?? open(source.path, flags)
+        guard fd >= 0 else { return (-1, nil, errno) }
+        var info = stat()
+        guard fstat(fd, &info) == 0, Identity(info) == identity else { close(fd); return (-1, nil, ENOENT) }
+        guard let names = FileOps.entryNames(of: fd) else { let error = errno; close(fd); return (-1, nil, error) }
+        return (fd, names, 0)
+    }
+
+    /// Applied after the contents so dates stay put and read-only folders can be filled.
     private func applyFolderMetadata(from source: URL, to target: URL) {
         _ = copyfile(source.path, target.path, nil, copyfile_flags_t(COPYFILE_METADATA | COPYFILE_NOFOLLOW))
         Self.restoreCreationDate(from: source, to: target)
@@ -282,18 +306,21 @@ final class CopyEngine {
 
     // MARK: Packages
 
-    private func copyPackage(_ source: URL, to target: URL, moveSource: Bool) -> Outcome {
+    private func copyPackage(_ source: URL, to target: URL, identity: Identity, original: Identity?, in folder: Int32?) -> Outcome {
         if let early = checkMetadata(source, target, totals: nil) { return early }
         while true {
             hooks.current(source)
-            let (error, failedAt, bytes, items) = copyUnit(source, to: target)
+            let (error, failedAt, bytes, items, created) = copyUnit(source, to: target, identity: identity, moving: original != nil, in: folder)
             if error == 0 {
                 hooks.entryDone(TransferTotals(items: items))
                 break
             }
-            // Remove the incomplete package: this job created the whole tree.
             hooks.bytes(-bytes)
-            if FileOps.exists(target) { try? FileManager.default.removeItem(at: target) }
+            // Only the tree this job made: an item that appeared at the target meanwhile is kept.
+            var info = stat()
+            if let created, lstat(target.path, &info) == 0, Identity(info) == created {
+                try? FileManager.default.removeItem(at: target)
+            }
             if error == ECANCELED, control.isCancelled { return .cancelled(leftContent: false) }
             switch decide(failedAt, target, .copying, error) {
             case .retry: continue
@@ -303,60 +330,60 @@ final class CopyEngine {
             case .cancel: return .cancelled(leftContent: false)
             }
         }
-        if moveSource { removeOriginal(source, copiedTo: target, isFolder: false) }
+        if let original { removeOriginal(source, copiedTo: target, isFolder: false, original: original, in: folder) }
         return .done
     }
 
-    /// Copies a whole tree without prompting. Returns (0 or errno, failing path, bytes reported, entries).
-    private func copyUnit(_ source: URL, to target: URL) -> (Int32, URL, Int64, Int) {
+    /// No prompts. Walks through descriptors from `folder`, so only the item with `identity` is copied.
+    /// Returns (errno or 0, failing path, bytes reported, entries, the root folder it made).
+    private func copyUnit(_ source: URL, to target: URL, identity: Identity, moving: Bool, in folder: Int32?) -> (Int32, URL, Int64, Int, Identity?) {
         var reported: Int64 = 0
         var items = 0
+        var created: Identity?
         let outer = hooks.bytes
         hooks.bytes = { delta in reported += delta; outer(delta) }
         defer { hooks.bytes = outer }
-        func walk(_ src: URL, _ dst: URL) -> (Int32, URL) {
+        func walk(_ src: URL, _ dst: URL, in parent: Int32?, wanted: Identity?) -> (Int32, URL) {
             guard control.checkpoint() else { return (ECANCELED, src) }
             var info = stat()
-            guard lstat(src.path, &info) == 0 else { return (errno, src) }
+            let found = parent.map { fstatat($0, src.lastPathComponent, &info, AT_SYMLINK_NOFOLLOW) } ?? lstat(src.path, &info)
+            guard found == 0 else { return (errno, src) }
+            if let wanted, Identity(info) != wanted { return (ENOENT, src) }
             items += 1
             switch info.st_mode & S_IFMT {
             case S_IFDIR:
+                let (fd, listed, code) = Self.openFolder(src, in: parent, identity: Identity(info))
+                guard let names = listed else { return (code, src) }
+                defer { close(fd) }
                 guard mkdir(dst.path, 0o700) == 0 else { return (errno, src) }
-                let names: [String]
-                do { names = try FileManager.default.contentsOfDirectory(atPath: src.path) } catch { return (EACCES, src) }
+                if dst == target, lstat(dst.path, &info) == 0 { created = Identity(info) }
                 for name in names {
-                    let r = walk(src.appendingPathComponent(name), dst.appendingPathComponent(name))
+                    let r = walk(src.appendingPathComponent(name), dst.appendingPathComponent(name), in: fd, wanted: nil)
                     if r.0 != 0 { return r }
                 }
                 applyFolderMetadata(from: src, to: dst)
                 return (0, src)
             case S_IFREG, S_IFLNK:
-                let e = copyData(src, to: dst, size: (info.st_mode & S_IFMT) == S_IFREG ? Int64(info.st_size) : 0)
+                let e = copyData(src, to: dst, size: (info.st_mode & S_IFMT) == S_IFREG ? Int64(info.st_size) : 0,
+                                 expected: moving ? Identity(info) : nil)
                 return (e, src)
             default:
                 return (0, src)   // special files inside packages are left out
             }
         }
-        let (error, at) = walk(source, target)
-        return (error, at, reported, items)
+        let (error, at) = walk(source, target, in: folder, wanted: identity)
+        return (error, at, reported, items, created)
     }
 
     // MARK: Moving
 
-    /// Removes an original after its copy succeeded. A folder is removed only when empty
-    /// (apart from Finder's .DS_Store): originals are never deleted recursively unless they are a
-    /// package that was just copied completely.
-    private func removeOriginal(_ source: URL, copiedTo target: URL, isFolder: Bool) {
+    /// Folders only when empty (bar .DS_Store); never recursive except a fully copied package.
+    private func removeOriginal(_ source: URL, copiedTo target: URL, isFolder: Bool, original: Identity, in folder: Int32?) {
         while true {
-            let error: Int32
-            if isFolder {
-                guard FileOps.isEffectivelyEmpty(source) else { return }
-                unlink(source.appendingPathComponent(".DS_Store").path)
-                error = rmdir(source.path) == 0 ? 0 : errno
-            } else if Self.isPackage(source) {
-                error = (try? FileManager.default.removeItem(at: source)) != nil ? 0 : EACCES
-            } else {
-                error = unlink(source.path) == 0 ? 0 : errno
+            guard let error = removeIfUnchanged(source, isFolder: isFolder, original: original, in: folder) else {
+                hooks.detail(ItemResult(source: source, outcome: .copiedButSourceRemains(
+                    target, "Copied, but the original was replaced during the move, so it was kept.")))
+                return
             }
             if error == 0 || error == ENOENT { return }
             switch decide(source, target, .removingSource, error) {
@@ -367,6 +394,30 @@ final class CopyEngine {
                 return
             }
         }
+    }
+
+    /// 0 or an errno; nil when the path no longer leads to the item that was copied.
+    private func removeIfUnchanged(_ source: URL, isFolder: Bool, original: Identity, in folder: Int32?) -> Int32? {
+        // unlinkat below stays in this folder; the identity check refuses an item the path no longer leads to.
+        let parent = folder.map { dup($0) } ?? open(source.deletingLastPathComponent().path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)
+        guard parent >= 0 else { return errno }
+        defer { close(parent) }
+        let name = source.lastPathComponent
+        var info = stat()
+        guard fstatat(parent, name, &info, AT_SYMLINK_NOFOLLOW) == 0 else { return errno }
+        guard Identity(info) == original else { return nil }
+        if isFolder {
+            let folder = openat(parent, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+            guard folder >= 0 else { return errno }
+            defer { close(folder) }
+            guard fstat(folder, &info) == 0, Identity(info) == original else { return nil }
+            guard FileOps.entryNames(of: folder)?.allSatisfy({ $0 == ".DS_Store" }) == true else { return 0 }
+            unlinkat(folder, ".DS_Store", 0)
+            return unlinkat(parent, name, AT_REMOVEDIR) == 0 ? 0 : errno
+        }
+        // A fully copied package: removed level by level from the checked folder, never through a link.
+        if (info.st_mode & S_IFMT) == S_IFDIR { return FileOps.removeTree(name, in: parent) }
+        return unlinkat(parent, name, 0) == 0 ? 0 : errno
     }
 
     // MARK: Failures

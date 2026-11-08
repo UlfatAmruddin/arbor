@@ -5,11 +5,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var controllers: [BrowserWindowController] = []
     private var didLaunch = false
     private var pendingOpen: [URL] = []
-    static var isHeadless: Bool { ProcessInfo.processInfo.environment["ARBOR_HEADLESS"] != nil }
+    static var isHeadless: Bool { Automation.environment["ARBOR_HEADLESS"] != nil }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Folders and files earlier runs left in the temporary folder (crashed or killed test runs, old
-        // version copies). Off the main thread; it never touches this process's own files.
+        // Leftovers from crashed or killed earlier runs; never this process's own files.
         DispatchQueue.global(qos: .utility).async { TemporaryFiles.sweepLeftovers() }
         Theme.applyEnvironmentAppearance()
         Features.registerAll()
@@ -32,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DebugScript.runIfRequested()
     }
 
-    /// `Arbor /some/folder` from Terminal (FE-219). The argument is resolved like the address bar; never executed.
+    /// `Arbor /some/folder` from Terminal (FE-219): resolved like the address bar, never executed.
     private func launchLocation() -> (location: Location, select: [String])? {
         let args = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("-") }
         guard let arg = args.first else { return nil }
@@ -45,13 +44,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// New window. Explorer opens new windows and tabs to Home (DEC-020).
+    /// Opens to Home, like Explorer (DEC-020).
     @discardableResult
     func openWindow(at location: Location = WindowHooks.startLocation.value(), select: [String] = []) -> BrowserWindowController {
         register(BrowserWindowController(location: location, initialSelection: select))
     }
 
-    /// A window that adopts existing tabs (Move tab to new window).
+    /// Adopts existing tabs (Move tab to new window).
     @discardableResult
     func openWindow(tabs: [TabState], activeIndex: Int = 0) -> BrowserWindowController {
         register(BrowserWindowController(tabs: tabs, activeIndex: activeIndex))
@@ -68,23 +67,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         controller.showWindow(nil)
         if Self.isHeadless {
-            // Rendered and scriptable, but invisible and click-through, so test runs don't disturb the screen.
+            // Invisible and click-through, so test runs don't disturb the screen.
             window.alphaValue = 0
             window.ignoresMouseEvents = true
         }
         return controller
     }
 
-    // Dropping a folder on the Dock icon, or `open -a Arbor folder`: a new tab in the front window.
+    // Dock drop or `open -a Arbor folder`: a new tab in the front window.
     func application(_ application: NSApplication, open urls: [URL]) {
-        // Documents double-clicked in Finder can arrive before launch finished: open them once features exist.
+        // Finder opens can arrive before launch finishes: wait until features exist.
         guard didLaunch else { pendingOpen += urls; return }
         for url in urls {
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
             var location = Location.folder(isDirectory.boolValue ? url : url.deletingLastPathComponent())
             var select = isDirectory.boolValue ? [] : [url.lastPathComponent]
-            // Documents Arbor opens itself (a saved .arborsearch, an archive) show their location instead.
+            // Files Arbor opens itself (.arborsearch, archives) show their own location.
             if !isDirectory.boolValue, let item = FileItem(url: url), let own = LocationRegistry.locationForOpening(item) {
                 location = own
                 select = []
@@ -104,7 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        // Like other Mac apps the app keeps running, so a transfer can finish after its window closes.
+        // Keep running so a transfer can finish after its window closes.
         false
     }
 
@@ -116,7 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: L10n.tr("Keep Working"))
         alert.addButton(withTitle: L10n.tr("Quit Anyway"))
         if alert.runModal() == .alertSecondButtonReturn {
-            // Stop cleanly (no partial file left) and keep the jobs' journals for review next launch.
+            // No partial files left; journals are kept for review next launch.
             OperationCenter.shared.cancelAllForQuit { NSApp.reply(toApplicationShouldTerminate: true) }
             return .terminateLater
         }

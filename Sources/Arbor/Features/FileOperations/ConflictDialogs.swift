@@ -2,9 +2,8 @@ import AppKit
 import ArborCore
 import UniformTypeIdentifiers
 
-/// Conflict handling in Explorer's words (FE-117, FE-118, FE-119; windows11-reference §9.2–9.4).
-/// A batch is answered in Explorer's order: folders first ("Confirm Folder Replace"), then files
-/// ("Replace or Skip Files", optionally the compare dialog), then file/folder name clashes.
+/// Conflict dialogs (FE-117, FE-118, FE-119; windows11-reference §9.2–9.4).
+/// Asked in Explorer's order: folders, then files, then file/folder name clashes.
 enum ConflictFlow {
     /// Called from the job's worker; returns one decision per conflict, in order.
     static func resolve(_ conflicts: [Conflict], job: OperationCenter.Job) async -> [ConflictDecision] {
@@ -95,7 +94,7 @@ enum ConflictFlow {
 
 // MARK: - Replace or Skip Files
 
-/// "Replace or Skip Files": one dialog for every file conflict found at one folder level.
+/// "Replace or Skip Files": one dialog for all file conflicts at one folder level.
 final class ReplaceOrSkipDialog: FileOpsDialog {
     private let conflicts: [Conflict]
     private let job: OperationCenter.Job
@@ -190,8 +189,7 @@ final class ReplaceOrSkipDialog: FileOpsDialog {
 
 // MARK: - Compare ("Let me decide for each file")
 
-/// "N File Conflicts": pick which version of each file to keep. Both → keep both, with a number
-/// added to the copied file's name. Continue is enabled once every file has a choice.
+/// "N File Conflicts": pick a version per file; both keeps both, numbering the copied file.
 final class CompareDialog: FileOpsDialog, NSTableViewDataSource, NSTableViewDelegate {
     private let conflicts: [Conflict]
     private let completion: ([ConflictDecision]?) -> Void
@@ -340,7 +338,7 @@ final class CompareDialog: FileOpsDialog, NSTableViewDataSource, NSTableViewDele
     }
 }
 
-/// One file in the compare dialog: its name, then incoming (left) and existing (right) versions.
+/// One compare row: incoming version left, existing right.
 final class ConflictPairRow: NSView {
     private let onChange: (Int, Bool) -> Void
 
@@ -372,7 +370,7 @@ final class ConflictPairRow: NSView {
 
     static func compare(_ a: FileStamp?, _ b: FileStamp?) -> (sourceNewer: Bool, existingNewer: Bool, sourceLarger: Bool, existingLarger: Bool) {
         guard let a, let b else { return (false, false, false, false) }
-        // Whole seconds, like Explorer's displayed dates: sub-second differences aren't "newer".
+        // Whole seconds, like Explorer: sub-second differences aren't "newer".
         let delta = a.modified.timeIntervalSince(b.modified)
         return (delta >= 1, delta <= -1, a.size > b.size, b.size > a.size)
     }
@@ -404,8 +402,7 @@ final class ConflictPairRow: NSView {
 
 // MARK: - Folder merge
 
-/// "Confirm Folder Replace" (windows11-reference §9.4), worded for what Arbor does: the folders
-/// are merged and files with the same names are asked about separately, never replaced silently.
+/// "Confirm Folder Replace" (windows11-reference §9.4): folders are merged; same-named files are asked about separately.
 final class FolderMergeDialog: FileOpsDialog {
     private let completion: (ConflictDecision) -> Void
     private let applyAll = NSButton(checkboxWithTitle: L10n.tr("Do this for all current items"), target: nil, action: nil)
@@ -474,8 +471,7 @@ final class FolderMergeDialog: FileOpsDialog {
 
 // MARK: - File/folder name clash
 
-/// A file where a folder of the same name exists, or the reverse. They can't replace each other,
-/// so the choices are to keep both (the incoming item gets a number) or skip it.
+/// A file meets a same-named folder or vice versa: neither can replace the other, so keep both or skip.
 final class NameClashDialog: FileOpsDialog {
     private let completion: (ConflictDecision) -> Void
     private let applyAll = NSButton(checkboxWithTitle: L10n.tr("Do this for all current items"), target: nil, action: nil)

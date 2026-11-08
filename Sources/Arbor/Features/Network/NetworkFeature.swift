@@ -1,9 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Network: the Network page, servers and shares, Map/Disconnect network drive, network folders
-/// that time out instead of hanging, and `\\server\share` in the address bar (FE-014, FE-078,
-/// FE-176–FE-179, FE-187, FE-188). See docs/features/network.md.
+/// Network page, servers/shares, Map/Disconnect drive, timeouts instead of hangs, `\\server\share` addresses.
+/// FE-014, FE-078, FE-176–FE-179, FE-187, FE-188; see docs/features/network.md.
 enum NetworkFeature: ExplorerFeature {
     static let id = "network"
     /// This Mac lists mapped drives and its page reloads on network changes.
@@ -29,7 +28,7 @@ enum NetworkFeature: ExplorerFeature {
             return true
         })
 
-        // A tab inside a network share that went away stays put with "disconnected" + Reconnect (all tabs).
+        // A tab in a share that went away shows "disconnected" + Reconnect (all tabs).
         BrowserWindowController.volumeUnmountHandler.register("network.keep-disconnected-tabs", handles: { window, tab, _ in
             NetworkCenter.shared.invalidateMounts()
             guard let url = tab.location.folderURL, NetworkCenter.shared.disconnectedShare(containing: url) != nil else { return false }
@@ -73,7 +72,6 @@ enum NetworkFeature: ExplorerFeature {
         registerCommands()
         registerDebugSteps()
 
-        // Redraw navigation panes when mapped drives change state.
         NotificationCenter.default.addObserver(forName: NetworkCenter.changed, object: nil, queue: .main) { _ in
             NetworkThisMac.refresh()
             NavigationPaneExtras.refreshAll()
@@ -128,7 +126,7 @@ enum NetworkFeature: ExplorerFeature {
         })
     }
 
-    /// A chevron's subfolders on a share, read with a short deadline so a hung share can't freeze the menu.
+    /// Chevron subfolders with a short deadline, so a hung share can't freeze the menu.
     private static func childFolders(_ folder: URL) -> [CrumbChild] {
         let box = ResultBox()
         let done = DispatchSemaphore(value: 0)
@@ -153,7 +151,7 @@ enum NetworkFeature: ExplorerFeature {
         }
     }
 
-    /// The network drive a command acts on: the selected (or right-clicked) drive item.
+    /// The selected (or right-clicked) network drive.
     static func selectedShare(_ ctx: CommandContext) -> MountedShare? {
         guard let item = ctx.single else { return nil }
         let key = Location.normalizedKey(item.url)
@@ -274,7 +272,7 @@ enum NetworkFeature: ExplorerFeature {
             return 1.2
         }
         DebugScript.registerStep("disconnectcheck") { prefix, _ in DisconnectDrivesSheet.open?.check(prefix); return 0.3 }
-        // Double-click (open) a tile on the current network page by title; "nettile:new:Title" opens it in a new tab.
+        // Open a tile on the current page by title; "nettile:new:Title" opens it in a new tab.
         DebugScript.registerStep("nettile") { arg, window in
             var title = arg, newTab = false
             if arg.hasPrefix("new:") { title = String(arg.dropFirst(4)); newTab = true }
@@ -307,7 +305,7 @@ enum NetworkFeature: ExplorerFeature {
             FileManager.default.createFile(atPath: fake.root.appendingPathComponent(path).appendingPathComponent(".arbor-busy").path, contents: Data())
             return 0.3
         }
-        // `sheetsnapshot:` (the window's sheet as a PNG) is item-actions' step (ItemActionsDebug.swift).
+        // `sheetsnapshot:` lives in ItemActionsDebug.swift.
         // Log the text of the sheet or alert on the window.
         DebugScript.registerStep("sheetlog") { path, window in
             let sheet = window?.window?.attachedSheet

@@ -5,7 +5,7 @@ import ArborCore
 struct Crumb {
     let title: String
     let location: Location
-    /// Locations listed by the chevron after this segment; built only when the chevron is clicked.
+    /// The chevron's list, built only when clicked.
     let children: () -> [CrumbChild]
 }
 
@@ -15,7 +15,7 @@ struct CrumbChild {
     let icon: NSImage
 }
 
-/// Builds breadcrumbs for a location. Features with new location kinds can register a builder.
+/// Builds breadcrumbs; features with new location kinds register a builder.
 enum Breadcrumbs {
     static let builders = Handlers<Location, [Crumb]>(
         "Breadcrumbs.builders", "Breadcrumbs for location kinds the core doesn't build.", signature: "(location) -> [Crumb]?")
@@ -51,14 +51,14 @@ enum Breadcrumbs {
         }
     }
 
-    /// Entries for the chevron right after the location icon: top-level places.
+    /// Top-level places for the chevron after the location icon.
     static func rootChildren() -> [CrumbChild] {
         let places: [Location] = [.home, .gallery]
         let tail: [Location] = [.thisMac, .network, .trash]
         return places.map(child) + quickAccessChildren() + tail.map(child)
     }
 
-    /// Volume root ("Macintosh HD") down to the folder. Each chevron lists that folder's subfolders.
+    /// Volume root down to the folder.
     static func folderCrumbs(_ url: URL) -> [Crumb] {
         var chain: [URL] = []
         var current = url.standardizedFileURL

@@ -1,16 +1,11 @@
 import Foundation
 
-/// Copies of one item inside Time Machine backups, for the Previous Versions tab (FE-155).
-///
-/// `tmutil listbackups` gives each backup's folder (`…/2026-11-07-101530.backup`); inside it each
-/// backed-up volume has its own folder ("Macintosh HD - Data"), holding paths relative to that
-/// volume. Reading backups needs Full Disk Access; without it `tmutil` answers "Operation not
-/// permitted", which is reported as such (with a way to the Privacy settings), never as "no versions".
-/// Local APFS snapshots can't be read without mounting them as root, so they are only counted.
+/// An item's copy in a Time Machine backup (FE-155). Without Full Disk Access tmutil says "Operation
+/// not permitted", reported as such, never as "no versions". Local snapshots need root, so are only counted.
 public struct BackupVersion: Equatable, Sendable {
-    /// When the backup was taken.
+    /// Backup time.
     public var date: Date
-    /// The item inside the backup (read-only).
+    /// Read-only.
     public var url: URL
     public var modified: Date?
     public var size: Int64?
@@ -20,15 +15,12 @@ public struct BackupVersion: Equatable, Sendable {
 public enum TimeMachineBackups {
     public enum Listing: Equatable, Sendable {
         case backups([URL])
-        /// Time Machine has no backup disk.
         case notConfigured
-        /// Backups exist but macOS won't show them to Arbor without Full Disk Access.
         case needsFullDiskAccess
-        /// The backup disk isn't connected, or tmutil failed for another reason.
+        /// Disk not connected or tmutil failed.
         case unavailable(String)
     }
 
-    /// Lines of `tmutil listbackups` that are backup folders.
     public static func parseList(_ text: String) -> [URL] {
         text.split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -36,7 +28,7 @@ public enum TimeMachineBackups {
             .map { URL(fileURLWithPath: $0) }
     }
 
-    /// The date in a backup folder's name ("2026-11-07-101530.backup" or "2026-11-07-101530").
+    /// From "2026-11-07-101530[.backup]".
     public static func date(ofBackup url: URL) -> Date? {
         var name = url.lastPathComponent
         if name.hasSuffix(".backup") { name = String(name.dropLast(7)) }
@@ -48,7 +40,6 @@ public enum TimeMachineBackups {
         return f.date(from: name)
     }
 
-    /// Classifies tmutil's answer: listing text, error text, exit status.
     public static func classify(stdout: String, stderr: String, status: Int32, configured: Bool) -> Listing {
         let backups = parseList(stdout)
         if status == 0, !backups.isEmpty { return .backups(backups) }
@@ -62,7 +53,7 @@ public enum TimeMachineBackups {
         return .unavailable(message.isEmpty ? "Time Machine backups couldn't be listed." : message)
     }
 
-    /// Runs `tmutil listbackups` (read-only, argument array, bounded time). Call off the main thread.
+    /// Bounded by `timeout`. Call off the main thread.
     public static func list(configured: Bool, timeout: TimeInterval = 10) -> Listing {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/tmutil")
@@ -88,8 +79,7 @@ public enum TimeMachineBackups {
                         status: p.terminationStatus, configured: configured)
     }
 
-    /// Paths of `item` relative to a backed-up volume's folder. An item on the startup disk may be
-    /// stored under its Data-volume path ("/System/Volumes/Data/Users/…" → "Users/…").
+    /// Candidate paths inside a backed-up volume; startup-disk items may be under their Data-volume path.
     public static func relativePaths(of item: URL, volumeRoot: URL) -> [String] {
         let path = item.standardizedFileURL.path
         var root = volumeRoot.standardizedFileURL.path
@@ -103,9 +93,7 @@ public enum TimeMachineBackups {
         return results.filter { !$0.isEmpty && seen.insert($0).inserted }
     }
 
-    /// Every copy of `item` found in `backups`, newest first. Consecutive backups holding an
-    /// unchanged copy (same size and modification date) are listed once, at the newest backup, like
-    /// Explorer lists only versions that differ. Stops after `limit` versions.
+    /// Newest first; consecutive unchanged copies (same size and date) are listed once.
     public static func versions(of item: URL, volumeRoot: URL, in backups: [URL], limit: Int = 200,
                                 fileManager: FileManager = .default) -> [BackupVersion] {
         let relatives = relativePaths(of: item, volumeRoot: volumeRoot)
@@ -127,7 +115,7 @@ public enum TimeMachineBackups {
             let version = BackupVersion(date: date, url: hit, modified: values?.contentModificationDate,
                                         size: values?.fileSize.map(Int64.init), isFolder: values?.isDirectory ?? false)
             if let last = found.last, !version.isFolder, last.modified == version.modified, last.size == version.size {
-                continue   // unchanged since the newer backup already listed
+                continue   // unchanged
             }
             found.append(version)
             if found.count >= limit { break }
@@ -135,6 +123,5 @@ public enum TimeMachineBackups {
         return found
     }
 
-    /// Opens System Settings at Privacy & Security ▸ Full Disk Access.
     public static let fullDiskAccessSettingsURL = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!
 }

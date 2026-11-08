@@ -1,9 +1,8 @@
 import AppKit
 import ArborCore
 
-/// "Documents Library Locations" / "Gallery Locations": the folder list behind a library or the Gallery
-/// collection, with Add…, Remove, Set save location and Restore defaults (FE-076, FE-075).
-/// Changes apply on OK. Removing a folder only removes it from the list; its files stay where they are (FE-239).
+/// Folder list behind a library or the Gallery collection (FE-076, FE-075).
+/// Applies on OK; Remove only edits the list, files stay put (FE-239).
 final class LocationsDialog: NSObject, NSTableViewDataSource, NSTableViewDelegate {
     enum Mode {
         case library(String)
@@ -25,7 +24,7 @@ final class LocationsDialog: NSObject, NSTableViewDataSource, NSTableViewDelegat
     private weak var parent: NSWindow?
     private static var open: [LocationsDialog] = []
 
-    /// The dialog on screen, for scripted checks.
+    /// The dialog on screen, for scripts.
     static var current: LocationsDialog? { open.last }
 
     init(mode: Mode) {
@@ -205,8 +204,7 @@ final class LocationsDialog: NSObject, NSTableViewDataSource, NSTableViewDelegat
         checkAvailability()
     }
 
-    /// Folders that don't exist right now, checked off the main thread (they may be on a slow or
-    /// disconnected volume).
+    /// Folders missing right now, checked off-main (volumes may be slow or offline).
     private var missing = Set<String>()
 
     private func checkAvailability() {

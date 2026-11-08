@@ -1,18 +1,15 @@
 import AppKit
 import ArborCore
 
-/// Script steps and log lines used by scripts/acceptance.sh (docs/ACCEPTANCE.md).
-///
-/// - `menukey:<keys>` presses a menu shortcut such as `cmd+x`: the menu command with that shortcut is delivered
-///   the way its menu item delivers it (responder chain first). The `key:` step delivers keys to the window only.
-/// - `log:` gains a `clipboard:` line: what the pasteboard names, whether a paste would copy or move, and which
-///   listed items are drawn as cut.
+/// Script steps and log lines for scripts/acceptance.sh (docs/ACCEPTANCE.md):
+/// - `menukey:<keys>` (e.g. `cmd+x`) delivers that shortcut's menu command like its menu item
+///   (responder chain first); `key:` goes to the window only.
+/// - `log:` adds a `clipboard:` line: pasteboard names, copy or move, and which items are drawn as cut.
 enum AcceptanceScriptSteps: ExplorerFeature {
     static let id = "acceptance-steps"
     static func register() {
         DebugScript.registerStep("menukey") { spec, window in
-            // Headless windows are never key, so AppKit's own key-equivalent matching can't be used: find the menu
-            // command with this shortcut and deliver it the way its menu item does.
+            // Headless windows are never key, so AppKit can't match key equivalents: deliver it like its menu item.
             guard let window, let key = KeyNames.parse(spec) else { NSLog("DebugScript: bad key \(spec)"); return 0.5 }
             var flags: NSEvent.ModifierFlags = []
             if key.modifiers.contains("command") { flags.insert(.command) }

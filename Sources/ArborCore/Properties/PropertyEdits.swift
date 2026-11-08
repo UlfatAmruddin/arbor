@@ -1,13 +1,12 @@
 import Foundation
 
-/// The editable facts of one item, as read when the Properties window opened and as edited by the
-/// user. Apply writes only fields that differ (FE-150, spec §11.3), and refuses to clobber a
-/// field that another app changed meanwhile without asking.
+/// An item's editable facts (FE-150, spec §11.3). Apply writes only changed fields and never silently
+/// clobbers a field another app changed meanwhile.
 public struct EditableState: Equatable, Sendable {
     public var name: String
     public var locked: Bool
     public var hidden: Bool
-    /// POSIX mode bits (nil when unknown).
+    /// nil when unknown.
     public var mode: UInt16?
     public var tags: [String]
     public var comment: String
@@ -65,12 +64,11 @@ public enum EditableField: String, CaseIterable, Sendable {
 public struct PropertyApplyError: Error, LocalizedError {
     public var field: EditableField
     public var message: String
-    /// Where the item is after the failure (a rename may already have happened).
+    /// Location after the failure; a rename may already have happened.
     public var url: URL
     public var errorDescription: String? { "\(field.title): \(message)" }
 }
 
-/// A pending set of edits for one item.
 public struct PropertyChangePlan: Sendable {
     public var url: URL
     public var original: EditableState
@@ -88,17 +86,13 @@ public struct PropertyChangePlan: Sendable {
 
     public var hasChanges: Bool { !changedFields.isEmpty }
 
-    /// Fields the user changed that were also changed on disk since the window read them.
-    /// A field that now already holds the user's value is not a conflict.
+    /// Edited fields also changed on disk since reading, unless disk already holds the user's value.
     public func conflicts(with current: EditableState) -> [EditableField] {
         changedFields.filter { current.value(of: $0) != original.value(of: $0) && current.value(of: $0) != edited.value(of: $0) }
     }
 
-    /// Applies the changed fields in a safe order and returns the item's (possibly renamed) URL.
-    ///
-    /// Order: unlock if the item is locked and anything must change (a locked item refuses every
-    /// change), then permissions, hidden, tags, comment and unblock, then rename, then lock again if
-    /// the final state is locked. Stops at the first failure.
+    /// Unlocks first (a locked item refuses every change), renames last, then re-locks if needed.
+    /// Stops at the first failure; returns the possibly renamed URL.
     public func apply(fileManager: FileManager = .default) throws -> URL {
         let fields = changedFields
         guard !fields.isEmpty else { return url }

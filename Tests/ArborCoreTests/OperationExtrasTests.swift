@@ -455,14 +455,20 @@ struct ArchiveOptionsTests {
 
 @Suite("Access-list editing (FE-153)", .serialized)
 struct ACLEditingTests {
+    func target(_ url: URL) throws -> ACLTarget { try #require(ACLEditor.target(url)) }
+
+    /// Never leave an undeletable fixture.
+    func clear(_ url: URL) { if let t = ACLEditor.target(url) { try? ACLEditor.restore(nil, to: t) } }
+
     @Test func addRemoveAndUndo() throws {
         let fx = try Fixture()
         let file = try fx.file("f.txt")
-        defer { try? ACLEditor.restore(nil, to: file) }   // never leave an undeletable fixture
+        defer { clear(file) }
         #expect(ACLEditor.text(file) == nil)
         #expect(ACLEditor.canEdit(file))
+        let item = try target(file)
         let rule = ACLRule(principal: ACLPrincipal(.group, "everyone"), allow: false, level: .write)
-        let added = try ACLEditor.add(rule, to: file)
+        let added = try ACLEditor.add(rule, to: item)
         #expect(added.before == nil)
         let entries = ACLEntry.read(file)
         #expect(entries.count == 1)
@@ -473,13 +479,13 @@ struct ACLEditingTests {
         #expect(ACLEntry.read(file).isEmpty)
         #expect(EffectiveAccess.test(file).write)
 
-        _ = try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "staff"), allow: true, level: .read), to: file)
-        _ = try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "everyone"), allow: false, level: .modify), to: file)
+        _ = try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "staff"), allow: true, level: .read), to: item)
+        _ = try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "everyone"), allow: false, level: .modify), to: item)
         let order = ACLEntry.read(file).map(\.name)
         let removeIndex = try #require(order.firstIndex(of: "staff"))
         #expect(!ACLEntry.read(file).contains { !$0.allow && $0.permissions.contains("readsecurity") },
                 "a Deny never locks the owner out of the list")
-        let removed = try ACLEditor.remove(at: removeIndex, from: file)
+        let removed = try ACLEditor.remove(at: removeIndex, from: item)
         #expect(ACLEntry.read(file).map(\.name) == ["everyone"])
         #expect(removed.summary == "Removed: Allow staff (group): Read")
         #expect(ACLEntry.read(file).first?.levelTitle(isFolder: false) == "Modify", "a Deny of Modify is still called Modify")
@@ -490,8 +496,8 @@ struct ACLEditingTests {
     @Test func undoRefusesWhenChangedSince() throws {
         let fx = try Fixture()
         let file = try fx.file("f.txt")
-        defer { try? ACLEditor.restore(nil, to: file) }
-        let change = try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "staff"), allow: true, level: .read), to: file)
+        defer { clear(file) }
+        let change = try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "staff"), allow: true, level: .read), to: try target(file))
         _ = ScratchVolume.run("/bin/chmod", ["+a", "everyone deny delete", file.path])   // someone else's change
         #expect(throws: ACLEditError.changedSinceEdit) { try ACLEditor.undo(change) }
         #expect(ACLEntry.read(file).count == 2, "nothing was removed")
@@ -503,13 +509,13 @@ struct ACLEditingTests {
         defer { _ = ScratchVolume.run("/bin/chmod", ["-RN", folder.path]) }
         let rule = ACLRule(principal: ACLPrincipal(.group, "staff"), allow: true, level: .modify, inherit: true)
         #expect(rule.chmodEntry(isFolder: true).hasPrefix("group:staff allow list,add_file,search"))
-        try ACLEditor.add(rule, to: folder)
+        try ACLEditor.add(rule, to: try target(folder))
         let entry = try #require(ACLEntry.read(folder).first)
         #expect(entry.flags.contains("file_inherit") && entry.flags.contains("directory_inherit"))
         let child = try fx.file("F/new.txt")
         #expect(ACLEntry.read(child).first?.isInherited == true, "new items inside inherit it")
         #expect(throws: ACLEditError.unknownPrincipal("no-such-user-arbor")) {
-            try ACLEditor.add(ACLRule(principal: ACLPrincipal(.user, "no-such-user-arbor"), allow: true, level: .read), to: folder)
+            try ACLEditor.add(ACLRule(principal: ACLPrincipal(.user, "no-such-user-arbor"), allow: true, level: .read), to: try target(folder))
         }
         #expect(ACLPermissionLevel.fullControl.permissions(isFolder: false).contains("chown"))
         #expect(!ACLPermissionLevel.read.permissions(isFolder: true).contains("add_file"))
@@ -518,11 +524,133 @@ struct ACLEditingTests {
         #expect(!ACLEditor.canChangeOwner)
     }
 
+    @Test func changesNeverFollowALink() throws {
+        let fx = try Fixture()
+        let target = try fx.file("target.txt")
+        defer { clear(target) }
+        try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "staff"), allow: true, level: .read), to: try self.target(target))
+        let before = ACLEditor.text(target)
+        let link = fx.url("link.txt")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+        #expect(!ACLEditor.canEdit(link))
+        #expect(ACLEditor.target(link) == nil)
+
+        // The edited item becomes a link to the user's own file after the editor opened.
+        let item = try fx.file("item.txt")
+        let opened = try self.target(item)
+        try FileManager.default.removeItem(at: item)
+        try FileManager.default.createSymbolicLink(at: item, withDestinationURL: target)
+        #expect(throws: ACLEditError.itemReplaced) { try ACLEditor.restore(nil, to: opened) }
+        #expect(throws: ACLEditError.itemReplaced) {
+            try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "everyone"), allow: false, level: .write), to: opened)
+        }
+        #expect(ACLEditor.text(target) == before, "the link's target is untouched")
+    }
+
+    @Test func changesNeverFollowAParentSwappedForALink() throws {
+        let fx = try Fixture()
+        let mine = try fx.file("ssh/id_rsa")   // the user's own file elsewhere
+        defer { clear(mine) }
+        try fx.file("share/dir/id_rsa")
+        let opened = try target(fx.url("share/dir/id_rsa"))
+        let change = try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "staff"), allow: true, level: .read), to: opened)
+        defer { clear(fx.url("share/moved/id_rsa")) }
+        // After the editor opened, the folder above the item is replaced by a link to the user's folder.
+        try FileManager.default.moveItem(at: fx.url("share/dir"), to: fx.url("share/moved"))
+        try FileManager.default.createSymbolicLink(at: fx.url("share/dir"), withDestinationURL: fx.url("ssh"))
+        #expect(throws: ACLEditError.itemReplaced) {
+            try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "everyone"), allow: false, level: .write), to: opened)
+        }
+        #expect(throws: ACLEditError.itemReplaced) { try ACLEditor.remove(at: 0, from: opened) }
+        #expect(throws: ACLEditError.itemReplaced) { try ACLEditor.undo(change) }
+        #expect(throws: ACLEditError.itemReplaced) { try ACLEditor.restore(nil, to: opened) }
+        let staff = try #require(ACLEditor.currentUserGroups().first { $0.name == "staff" })
+        #expect(throws: ACLEditError.itemReplaced) { try ACLEditor.changeGroup(opened, to: staff.id) }
+        #expect(ACLEditor.text(mine) == nil, "the user's own file behind the link is untouched")
+        // Even a fresh target taken through the link would be the other file, not the one that was opened.
+        #expect(ACLEditor.target(fx.url("share/dir/id_rsa")) != opened)
+    }
+
+    @Test func aHardLinkRenamedOverTheItemAfterTheCheckIsNeverChanged() throws {
+        let fx = try Fixture()
+        let mine = try fx.file("home/history")   // the user's own file elsewhere
+        defer { clear(mine) }
+        let item = try fx.file("share/item.txt")
+        let opened = try target(item)
+        try FileManager.default.linkItem(at: mine, to: fx.url("share/decoy"))
+        let originalGroup = try ItemSecurity.read(mine).groupName
+        // Between the check and the write, a hard link to the user's file is renamed over the item.
+        ACLEditor.beforeWrite = { _ = rename(fx.url("share/decoy").path, item.path) }
+        defer { ACLEditor.beforeWrite = nil }
+        #expect(throws: ACLEditError.itemReplaced) {
+            try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "everyone"), allow: true, level: .read), to: opened)
+        }
+        try FileManager.default.removeItem(at: item)
+        try fx.file("share/item.txt")
+        let other = ACLEditor.currentUserGroups().first { $0.name != originalGroup }?.id ?? getgid()
+        try FileManager.default.linkItem(at: mine, to: fx.url("share/decoy"))
+        #expect(throws: ACLEditError.itemReplaced) { try ACLEditor.changeGroup(try target(item), to: other) }
+        #expect(ACLEditor.text(mine) == nil, "the user's other file keeps its list")
+        #expect(try ItemSecurity.read(mine).groupName == originalGroup, "and its group")
+    }
+
+    @Test func anUnreadableItemIsWrittenByIdentityNotByPath() throws {
+        let fx = try Fixture()
+        let mine = try fx.file("home/secret")
+        _ = chmod(mine.path, 0)   // so the swapped-in file can't be opened either
+        defer { _ = chmod(mine.path, 0o644); clear(mine) }
+        let item = try fx.file("share/item.txt")
+        let opened = try target(item)
+        // Read, not full control: full control includes delete, which would block the renames below.
+        let deny = try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "everyone"), allow: false, level: .read), to: opened)
+        let moved = fx.url("share/moved.txt")
+        defer { clear(moved) }
+        try FileManager.default.linkItem(at: mine, to: fx.url("share/decoy"))
+        // The item moves away and the user's unreadable file takes its name.
+        var renamed: [Int32] = []
+        ACLEditor.beforeWrite = {
+            renamed.append(rename(item.path, moved.path))
+            renamed.append(rename(fx.url("share/decoy").path, item.path))
+        }
+        defer { ACLEditor.beforeWrite = nil }
+        try ACLEditor.undo(deny)
+        #expect(renamed == [0, 0], "the swap happened")
+        #expect(ACLEditor.text(mine) == nil, "the file now at the path is untouched")
+        #expect(ACLEntry.read(moved).isEmpty, "the opened item itself was changed")
+    }
+
+    @Test func editsWorkWhenTheOwnerIsDeniedRead() throws {
+        let fx = try Fixture()
+        let file = try fx.file("f.txt")
+        defer { clear(file) }
+        let item = try target(file)
+        let change = try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "everyone"), allow: false, level: .fullControl), to: item)
+        #expect(EffectiveAccess.test(file).read == false)
+        #expect(ACLEditor.target(file) == item, "still opened without read access")
+        try ACLEditor.undo(change)
+        #expect(ACLEntry.read(file).isEmpty)
+    }
+
+    @Test func newEntriesGoInCanonicalOrder() throws {
+        let fx = try Fixture()
+        let folder = try fx.folder("F")
+        defer { _ = ScratchVolume.run("/bin/chmod", ["-RN", folder.path]) }
+        try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "everyone"), allow: true, level: .read, inherit: true), to: try target(folder))
+        let child = try fx.file("F/c.txt")
+        let item = try target(child)
+        try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "staff"), allow: true, level: .read), to: item)
+        try ACLEditor.add(ACLRule(principal: ACLPrincipal(.group, "admin"), allow: false, level: .write), to: item)
+        let entries = ACLEntry.read(child)
+        #expect(entries.map(\.name) == ["admin", "staff", "everyone"])
+        #expect(entries.map(\.isInherited) == [false, false, true])
+        #expect(ACLEntry.read(folder).first?.permissions == ["read", "readattr", "readextattr", "readsecurity"], "folder names are stored as their file rights")
+    }
+
     @Test func groupChangeToOwnGroup() throws {
         let fx = try Fixture()
         let file = try fx.file("g.txt")
         let staff = try #require(ACLEditor.currentUserGroups().first { $0.name == "staff" })
-        try ACLEditor.changeGroup(file, to: staff.id)
+        try ACLEditor.changeGroup(try target(file), to: staff.id)
         #expect(try ItemSecurity.read(file).groupName == "staff")
     }
 }

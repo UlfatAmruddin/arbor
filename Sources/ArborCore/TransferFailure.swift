@@ -42,7 +42,7 @@ public struct TransferFailure: Sendable, Equatable {
         self.bytesNeeded = bytesNeeded
     }
 
-    /// Classifies a POSIX error. Permission errors look at both sides to name the right one.
+    /// Classifies a POSIX error; permission errors check both sides to name the right one.
     public static func classify(errno code: Int32, source: URL, destination: URL?, stage: FailureStage,
                                 bytesNeeded: Int64? = nil) -> TransferFailure {
         let kind: FailureKind

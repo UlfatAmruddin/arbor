@@ -1,20 +1,15 @@
 import Darwin
 import Foundation
 
-/// Memory and CPU figures for the current process (spec §15.3, FE-252).
-///
-/// The gate metric is **physical footprint** (`phys_footprint`): the number Activity Monitor shows as
-/// "Memory" and `footprint(1)` reports. It counts dirty and compressed pages the process owns and
-/// leaves out clean, shared and purgeable memory, so it does not double-count system frameworks.
-/// Resident size is reported for context only.
+/// Process memory and CPU (spec §15.3, FE-252). The gate metric is `phys_footprint` (Activity Monitor's
+/// "Memory"), which excludes shared framework pages; resident size is context only.
 public struct ProcessMetrics: Equatable, Sendable {
-    /// Physical footprint in bytes.
     public var footprint: UInt64
-    /// Lifetime peak of the physical footprint in bytes.
+    /// Lifetime peak footprint.
     public var peakFootprint: UInt64
-    /// Resident set size in bytes (includes shared framework pages; not a gate).
+    /// Includes shared framework pages; not a gate.
     public var resident: UInt64
-    /// User + system CPU time consumed so far, in seconds.
+    /// User + system CPU time.
     public var cpuSeconds: Double
 
     public static func current() -> ProcessMetrics {
@@ -36,7 +31,7 @@ public struct ProcessMetrics: Equatable, Sendable {
                               resident: info.resident_size, cpuSeconds: cpu)
     }
 
-    /// Seconds since this process started (from the kernel's process start time).
+    /// From the kernel's process start time.
     public static func secondsSinceLaunch() -> Double? {
         var info = kinfo_proc()
         var size = MemoryLayout<kinfo_proc>.stride

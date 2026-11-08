@@ -15,9 +15,7 @@ protocol ItemGridHost: AnyObject {
     var gridAllowsEditing: Bool { get }
 }
 
-/// Paints the visible part of the grid. It is only as large as the visible area and follows scrolling,
-/// so drawing memory stays bounded however many items the folder has (spec §15.3). Clicks pass
-/// through to the grid.
+/// Paints only the visible area and follows scrolling, so memory stays bounded (spec §15.3). Clicks pass through.
 final class ItemGridCanvas: NSView {
     weak var grid: ItemGridView?
     override var isFlipped: Bool { true }
@@ -35,9 +33,8 @@ final class ItemGridCanvas: NSView {
     }
 }
 
-/// The document view behind the icon, List, Tiles and Content layouts (FE-029–FE-031). It keeps no
-/// per-item views: geometry is arithmetic (`ItemFlowLayout`), drawing happens in one canvas sized to
-/// the visible area, and thumbnails load only for what's on screen.
+/// Document view for the icon, List, Tiles and Content layouts (FE-029–FE-031): no per-item views,
+/// arithmetic geometry (`ItemFlowLayout`), one visible-area canvas, thumbnails only for what's on screen.
 final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
     weak var host: ItemGridHost?
     let canvas = ItemGridCanvas()
@@ -102,8 +99,7 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
     var iconsOnly: Bool { Prefs.alwaysShowIcons }
     var scale: CGFloat { window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2 }
 
-    /// Switches layout (or re-reads Compact view / check boxes / extensions) keeping selection, and
-    /// keeping the first visible item at the start of the view.
+    /// Switches layout (or re-reads display options), keeping selection and the first visible item.
     func configure(mode: ViewMode, keepTop: Bool) {
         let top = keepTop ? firstVisibleIndex : nil
         self.mode = mode
@@ -121,7 +117,7 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
         scheduleVisibleWork()
     }
 
-    /// New listing. Selection is restored by the controller (by name) afterwards.
+    /// New listing; the controller restores selection by name afterwards.
     func setItems(_ newItems: [FileItem], locationChanged: Bool) {
         items = newItems
         if locationChanged {
@@ -158,7 +154,7 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
         visibleAreaChanged()
     }
 
-    /// Clip view resized (window resize, pane toggled): re-flow, keeping the first visible item.
+    /// Clip view resized: re-flow, keeping the first visible item.
     func viewportChanged() {
         let viewport = viewportSize
         guard viewport != layout.viewport else { visibleAreaChanged(); return }
@@ -370,11 +366,11 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
     /// Infotip: full name, type, size and date (Explorer's "pop-up description").
     func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData data: UnsafeMutableRawPointer?) -> String {
         guard let i = hovered, i < items.count else { return "" }
-        // Folder Options › "Show pop-up description for folder and desktop items"; off leaves the full name.
+        // Folder Options' pop-up description setting; off shows only the full name.
         return Prefs.bool("showPopupDescriptions", default: true) ? ItemGridView.infotip(items[i], location: location) : items[i].name
     }
 
-    /// The location shown (for `InteractionHooks.itemDetail`, e.g. search results' folder).
+    /// Location shown for `InteractionHooks.itemDetail` (e.g. search results' folder).
     var location: Location?
 
     static func infotip(_ item: FileItem, location: Location? = nil) -> String {
@@ -443,7 +439,7 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
         }
     }
 
-    /// Waits for a drag past the threshold (returns true once a drag session started) or mouse up.
+    /// Waits for a drag past the threshold (true once dragging) or mouse up.
     private func trackDrag(from down: NSEvent) -> Bool {
         let start = down.locationInWindow
         while let next = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {

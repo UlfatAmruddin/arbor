@@ -1,19 +1,8 @@
 import Foundation
 
-/// Parses the subset of Windows Advanced Query Syntax that Arbor supports (spec §10.2, FE-134).
-///
-/// Compatibility table (see docs/features/search.md for the full version):
-/// - Free text `report` = name contains "report"; `*.txt` / `re?ort` = DOS wildcards on the whole name.
-/// - `"exact phrase"` = name contains the phrase, spaces included.
-/// - Property restrictions `prop:value` with mnemonics (`name:`, `ext:`, `kind:`, `type:`, `size:`, `date:`,
-///   `datemodified:`, `modified:`, `datecreated:`, `tag:`, `author:`, `content:`, `folder:`) or canonical names
-///   (`System.Size:`…). Operators after the colon: `=` `<>` `>` `>=` `<` `<=` `~<` (begins with) `~=` (contains)
-///   `~!` (doesn't contain) `~` (wildcard). Ranges `a..b`. Groups `author:(lee OR kim)`. Empty value `:=[]`.
-/// - Booleans are uppercase `AND`, `OR`, `NOT`; juxtaposition is AND; `-term` negates. Mixed AND/OR fold
-///   strictly left to right: `a AND b OR c` = `(a AND b) OR c`, and `a OR b c` = `(a OR b) AND c` (FE-236).
-///   Lowercase `and`/`or` are ordinary words. Parentheses group.
-/// - Anything else (unknown properties, stray operators, unbalanced quotes or parentheses, unknown kinds,
-///   unreadable sizes or dates) is a `SearchSyntaxError` with a message for the user, never silently dropped.
+/// Arbor's subset of Windows AQS (spec §10.2, FE-134; table in docs/features/search.md). Only uppercase
+/// AND/OR/NOT are operators, folded strictly left to right (FE-236). Anything unreadable is a
+/// `SearchSyntaxError`, never silently dropped.
 public struct AQSParser {
     public var now: Date
     public var calendar: Calendar
@@ -46,8 +35,7 @@ public struct AQSParser {
         }
     }
 
-    /// Limits that keep parsing and matching (both recursive) far from the stack's end; a pasted
-    /// query of thousands of "(" or NOTs used to crash the app.
+    /// Recursion limits; thousands of pasted "(" or NOTs used to overflow the stack.
     public static let maxTerms = 256
     public static let maxNesting = 32
 
@@ -75,7 +63,7 @@ public struct AQSParser {
     enum Kind: Equatable {
         case word(String)
         case phrase(String)
-        /// `prop:` plus whatever followed the colon in the same word (operator and/or value).
+        /// `rest` is what followed the colon in the same word.
         case property(SearchProperty, rest: String, name: String)
         case lparen, rparen, and, or, not
     }
@@ -85,7 +73,7 @@ public struct AQSParser {
         var text: String
         var start: Int
         var end: Int
-        /// `-word`, `-name:x`, `-"phrase"`, `-(group)`.
+        /// Leading `-`.
         var negated = false
     }
 
@@ -150,8 +138,7 @@ public struct AQSParser {
         return tokens
     }
 
-    /// `name`, `System.Size`, `größe` — letters, digits, dots and underscores, starting with a letter.
-    /// "12:30" or "C:\\x" are not property names and stay plain text.
+    /// Starts with a letter, so "12:30" or "C:\\x" stay plain text.
     static func looksLikePropertyName(_ s: String) -> Bool {
         guard let first = s.first, first.isLetter else { return false }
         return s.allSatisfy { $0.isLetter || $0.isNumber || $0 == "." || $0 == "_" }
@@ -175,7 +162,7 @@ public struct AQSParser {
             return peek
         }
 
-        /// expression := unary ((AND | OR | NOT | ε) unary)* — folded left to right.
+        /// unary ((AND | OR | NOT | ε) unary)*, folded left to right.
         mutating func parseExpression(property: SearchProperty?) throws -> SearchExpression {
             var acc = try parseUnary(property: property)
             while let token = peek {
@@ -297,7 +284,6 @@ public struct AQSParser {
 
     // MARK: Values
 
-    /// Builds the expression for one `property:op value`.
     func restriction(_ property: SearchProperty, op: String, value raw: String, isPhrase: Bool) throws -> SearchExpression {
         let value = raw.trimmingCharacters(in: .whitespaces)
         if value == "[]" {
@@ -352,9 +338,7 @@ public struct AQSParser {
         }
     }
 
-    /// Applies an operator to an interval: `:`/`=` → inside, `>` → after it, `>=` → from its start,
-    /// `<` → before it, `<=` → up to its end, `<>` → outside, `a..b` → from a's start to b's end.
-    /// A numeric size is also a point (`size:>1MB` means more than 1,048,576 bytes, not ≥ 2 MB).
+    /// Numeric sizes also act as points: `size:>1MB` means over 1,048,576 bytes, not ≥ 2 MB.
     private func rangeRestriction(_ property: SearchProperty, op: String, value: String,
                                   interval: (String) throws -> (Double?, Double?, Double?)) throws -> SearchExpression {
         var lower: Double?
@@ -404,7 +388,7 @@ public struct AQSParser {
 
     // MARK: Sizes
 
-    /// Explorer's size names (Search options ▸ Size). KB = 1,024 bytes, as Explorer counts.
+    /// Explorer's size bands; KB = 1,024 bytes.
     public static let sizeNames: [(name: String, title: String, lower: Int64, upper: Int64?)] = [
         ("empty", "Empty (0 KB)", 0, 1),
         ("tiny", "Tiny (0 – 16 KB)", 1, 16 * 1024),
@@ -415,7 +399,7 @@ public struct AQSParser {
         ("gigantic", "Gigantic (> 4 GB)", 4 << 30, nil),
     ]
 
-    /// `500` = exactly 500 bytes; `5MB` = 5.0–5.99… MB (what Explorer would display as “5 MB”); `large` = a named band.
+    /// `500` = exactly 500 bytes; `5MB` = 5.0–5.99… MB (Explorer's “5 MB”).
     static func sizeInterval(_ text: String) throws -> (lower: Int64?, upper: Int64?, point: Int64?) {
         let t = text.lowercased().replacingOccurrences(of: " ", with: "")
         if let named = sizeNames.first(where: { $0.name == t }) { return (named.lower, named.upper, nil) }
@@ -433,7 +417,7 @@ public struct AQSParser {
             throw SearchSyntaxError("“\(text)” isn't a size Arbor understands. Use a number with KB, MB or GB (like 5MB) or empty, tiny, small, medium, large, huge, gigantic.")
         }
         let lower = n * multiplier
-        // Beyond 1 EB (and Int64) no file can match; converting would trap.
+        // Beyond 1 EB converting to Int64 would trap.
         guard lower + multiplier < Double(1 << 60) else {
             throw SearchSyntaxError("“\(text)” is larger than any file can be. Use a smaller size, like 5GB or gigantic.")
         }
@@ -446,14 +430,12 @@ public struct AQSParser {
 
     // MARK: Dates
 
-    /// Explorer's Date modified menu, in order.
     public static let dateKeywords: [(keyword: String, title: String)] = [
         ("today", "Today"), ("yesterday", "Yesterday"), ("this week", "This week"), ("last week", "Last week"),
         ("this month", "This month"), ("last month", "Last month"), ("this year", "This year"), ("last year", "Last year"),
     ]
 
-    /// Relative words use the injected calendar (week start, time zone); explicit dates are US order
-    /// (M/D/Y, like the documented `date:11/13/21`) or ISO (2026-11-07, 2026-11, 2026).
+    /// Relative words use the injected calendar; explicit dates are M/D/Y or ISO.
     func dateInterval(_ text: String) throws -> (lower: Date?, upper: Date?) {
         let t = text.lowercased().trimmingCharacters(in: .whitespaces)
         let cal = calendar
@@ -516,10 +498,9 @@ public struct AQSParser {
 
 // MARK: - Editing queries from the Search options menu (FE-136)
 
-/// Adds, replaces or removes one property restriction in the query text, like Explorer's Search options
-/// menu (choosing Date modified ▸ Today appends `datemodified:today`, replacing an earlier date filter).
+/// Sets or removes one property restriction in the query text, as Explorer's Search options menu does.
 public enum AQSQueryEditor {
-    /// Top-level restrictions for `property` in the query text, as (text, value) pairs.
+    /// Top-level restriction texts for `property`.
     public static func restrictions(_ property: SearchProperty, in query: String) -> [String] {
         guard let tokens = try? AQSParser.tokenize(query) else { return [] }
         return topLevelRestrictionRanges(property, tokens).map { range in
@@ -528,8 +509,7 @@ public enum AQSQueryEditor {
         }
     }
 
-    /// The query with every top-level `property:` restriction removed and `property:value` appended
-    /// (value nil = just remove). Values with spaces are quoted.
+    /// Replaces top-level `property:` restrictions with `property:value` (nil only removes).
     public static func setting(_ property: SearchProperty, to value: String?, in query: String) -> String {
         var chars = Array(query)
         if let tokens = try? AQSParser.tokenize(query) {
@@ -543,8 +523,7 @@ public enum AQSQueryEditor {
         return text
     }
 
-    /// Character ranges of top-level restrictions (outside parentheses), including a following
-    /// quoted value and the second word of `last week`.
+    /// Includes a following quoted value and the second word of `last week`.
     static func topLevelRestrictionRanges(_ property: SearchProperty, _ tokens: [AQSParser.Token]) -> [Range<Int>] {
         var depth = 0
         var ranges: [Range<Int>] = []

@@ -22,6 +22,7 @@
 "%@ (Group)" = "%@ (Group)";
 "%@ (Owner)" = "%@ (Owner)";
 "%@ (set in Properties)" = "%@ (set in Properties)";
+"%@ (stated by the signer, not verified)" = "%@ (stated by the signer, not verified)";
 "%@ File" = "%@ File";
 "%@ Library Locations" = "%@ Library Locations";
 "%@ Properties" = "%@ Properties";
@@ -40,13 +41,18 @@
 "%@ has no shared folders you can open." = "%@ has no shared folders you can open.";
 "%@ has no shared folders you can see." = "%@ has no shared folders you can see.";
 "%@ images can't be rotated here." = "%@ images can't be rotated here.";
+"%@ in this archive couldn't be read. It isn't shown and won't be extracted." = "%@ in this archive couldn't be read. It isn't shown and won't be extracted.";
+"%@ in this archive couldn't be read. They aren't shown and won't be extracted." = "%@ in this archive couldn't be read. They aren't shown and won't be extracted.";
+"%@ in this archive has a name that points outside it. It isn't shown and won't be extracted." = "%@ in this archive has a name that points outside it. It isn't shown and won't be extracted.";
+"%@ in this archive has a name too long to use. It isn't shown and won't be extracted." = "%@ in this archive has a name too long to use. It isn't shown and won't be extracted.";
+"%@ in this archive have names that point outside it. They aren't shown and won't be extracted." = "%@ in this archive have names that point outside it. They aren't shown and won't be extracted.";
+"%@ in this archive have names too long to use. They aren't shown and won't be extracted." = "%@ in this archive have names too long to use. They aren't shown and won't be extracted.";
 "%@ is a network device without shared folders." = "%@ is a network device without shared folders.";
 "%@ is disconnected" = "%@ is disconnected";
 "%@ isn't available yet" = "%@ isn't available yet";
 "%@ isn't responding" = "%@ isn't responding";
 "%@ items" = "%@ items";
 "%@ items selected" = "%@ items selected";
-"%@ left out for your safety:" = "%@ left out for your safety:";
 "%@ more not listed" = "%@ more not listed";
 "%@ moved to the Trash. Press ⌘Z to undo." = "%@ moved to the Trash. Press ⌘Z to undo.";
 "%@ names have problems." = "%@ names have problems.";
@@ -68,10 +74,13 @@
 "%@, pinned" = "%@, pinned";
 "%@:today or %@:1/1/2026..1/31/2026" = "%@:today or %@:1/1/2026..1/31/2026";
 "%@\n\nClose any files or apps using it, then try again." = "%@\n\nClose any files or apps using it, then try again.";
+"%d items weren't extracted." = "%d items weren't extracted.";
 "(None)" = "(None)";
+"(an item Arbor couldn't read)" = "(an item Arbor couldn't read)";
 "/Users/you/Documents/Report.pdf" = "/Users/you/Documents/Report.pdf";
 "1 item" = "1 item";
 "1 item selected" = "1 item selected";
+"1 item wasn't extracted." = "1 item wasn't extracted.";
 "1 name has a problem." = "1 name has a problem.";
 "4 GB (minus 1 byte)" = "4 GB (minus 1 byte)";
 "7Z File" = "7Z File";
@@ -138,6 +147,7 @@
 "Always show icons, never thumbnails" = "Always show icons, never thumbnails";
 "Always show menus" = "Always show menus";
 "An item named “%@” already exists in this folder." = "An item named “%@” already exists in this folder.";
+"Another item has the same name with different capitalization." = "Another item has the same name with different capitalization.";
 "Apple silicon" = "Apple silicon";
 "Application" = "Application";
 "Applications" = "Applications";
@@ -155,8 +165,10 @@
 "Arbor can't see computers on this network until you allow Local Network access in System Settings › Privacy & Security › Local Network. You can still type \\\\server\\share in the address bar." = "Arbor can't see computers on this network until you allow Local Network access in System Settings › Privacy & Security › Local Network. You can still type \\\\server\\share in the address bar.";
 "Arbor checks whether the file is on this Mac before previewing it." = "Arbor checks whether the file is on this Mac before previewing it.";
 "Arbor copies the backed-up version into “%@”. If an item with the same name is there, you choose whether to replace it (it goes to the Trash), skip, or keep both." = "Arbor copies the backed-up version into “%@”. If an item with the same name is there, you choose whether to replace it (it goes to the Trash), skip, or keep both.";
+"Arbor couldn't read its line in the archive's listing." = "Arbor couldn't read its line in the archive's listing.";
 "Arbor didn't move this item to the Trash, so its original location isn't known." = "Arbor didn't move this item to the Trash, so its original location isn't known.";
 "Arbor doesn't connect to Microsoft accounts or Office.com." = "Arbor doesn't connect to Microsoft accounts or Office.com.";
+"Arbor doesn't know what kind of item it is." = "Arbor doesn't know what kind of item it is.";
 "Arbor extras (File Explorer runs every transfer at once)" = "Arbor extras (File Explorer runs every transfer at once)";
 "Arbor isn't allowed to look for computers on your network." = "Arbor isn't allowed to look for computers on your network.";
 "Arbor needs Full Disk Access to look inside Time Machine backups. Turn it on for Arbor in System Settings › Privacy & Security › Full Disk Access, then reopen this tab." = "Arbor needs Full Disk Access to look inside Time Machine backups. Turn it on for Arbor in System Settings › Privacy & Security › Full Disk Access, then reopen this tab.";
@@ -258,7 +270,7 @@
 "Clear search" = "Clear search";
 "Clear search history" = "Clear search history";
 "Clear the operation history?" = "Clear the operation history?";
-"Clears Recent and frequently used folders. Pins, favorites and files are kept." = "Clears Recent and frequently used folders. Pins, favorites and files are kept.";
+"Clears Recent, frequently used folders, recent searches, recent locations, recent documents, operation history and Back/Forward. Pins, favorites and files are kept." = "Clears Recent, frequently used folders, recent searches, recent locations, recent documents, operation history and Back/Forward. Pins, favorites and files are kept.";
 "Click Finish to create the shortcut." = "Click Finish to create the shortcut.";
 "Click Next to continue." = "Click Next to continue.";
 "Click items as follows" = "Click items as follows";
@@ -596,6 +608,9 @@
 "Invert Selection" = "Invert Selection";
 "Invert selection" = "Invert selection";
 "It may have been moved or deleted." = "It may have been moved or deleted.";
+"It's a device, pipe or socket." = "It's a device, pipe or socket.";
+"It's a link to a location outside the extracted files." = "It's a link to a location outside the extracted files.";
+"It's stored inside another item that isn't a folder." = "It's stored inside another item that isn't a folder.";
 "Item Check Boxes" = "Item Check Boxes";
 "Item check boxes" = "Item check boxes";
 "Item type" = "Item type";
@@ -603,6 +618,7 @@
 "Items remaining:" = "Items remaining:";
 "Items you selected are always included." = "Items you selected are always included.";
 "Items, %@" = "Items, %@";
+"Its name points outside the destination folder." = "Its name points outside the destination folder.";
 "Keep" = "Keep";
 "Keep Both" = "Keep Both";
 "Keep Working" = "Keep Working";
@@ -728,6 +744,7 @@
 "No Time Machine backup has a copy of this item." = "No Time Machine backup has a copy of this item.";
 "No access-list entries. Only the owner, group and everyone else permissions apply." = "No access-list entries. Only the owner, group and everyone else permissions apply.";
 "No app is set to open this file" = "No app is set to open this file";
+"No certificates." = "No certificates.";
 "No commands" = "No commands";
 "No computers found" = "No computers found";
 "No computers were found on this network. Type \\\\server\\share in the address bar, or use Map network drive in the “…” menu." = "No computers were found on this network. Type \\\\server\\share in the address bar, or use Map network drive in the “…” menu.";
@@ -746,9 +763,11 @@
 "None" = "None";
 "None (TAR doesn't compress)" = "None (TAR doesn't compress)";
 "Normal" = "Normal";
+"Not available" = "Not available";
 "Not available for this kind of item" = "Not available for this kind of item";
 "Not changed: %@" = "Not changed: %@";
 "Not done" = "Not done";
+"Nothing could be extracted safely." = "Nothing could be extracted safely.";
 "Nothing is selected." = "Nothing is selected.";
 "Nothing was changed." = "Nothing was changed.";
 "Nothing was renamed." = "Nothing was renamed.";
@@ -792,6 +811,7 @@
 "Origin" = "Origin";
 "Original Location" = "Original Location";
 "Original Location: %@" = "Original Location: %@";
+"Other items are stored inside it, but it isn't a folder." = "Other items are stored inside it, but it isn't a folder.";
 "Other properties" = "Other properties";
 "Owner" = "Owner";
 "Owner:" = "Owner:";
@@ -1102,6 +1122,7 @@
 "The Trash on %@ couldn't be read." = "The Trash on %@ couldn't be read.";
 "The ZIP archive is damaged or incomplete." = "The ZIP archive is damaged or incomplete.";
 "The ZIP archive lists more entries than Arbor can show." = "The ZIP archive lists more entries than Arbor can show.";
+"The archive lists more items than Arbor can show." = "The archive lists more items than Arbor can show.";
 "The connection was cancelled." = "The connection was cancelled.";
 "The copy couldn't be created." = "The copy couldn't be created.";
 "The copy couldn't be written." = "The copy couldn't be written.";
@@ -1122,6 +1143,7 @@
 "The file isn't a valid ZIP archive." = "The file isn't a valid ZIP archive.";
 "The folder being %@ will be named “%@”." = "The folder being %@ will be named “%@”.";
 "The image couldn't be read." = "The image couldn't be read.";
+"The item was moved or replaced, or a folder above it became a link, so nothing was changed." = "The item was moved or replaced, or a folder above it became a link, so nothing was changed.";
 "The items couldn't be copied." = "The items couldn't be copied.";
 "The items couldn't be received." = "The items couldn't be received.";
 "The items must be in the same folder." = "The items must be in the same folder.";
@@ -1139,6 +1161,7 @@
 "The save location isn't available, so “%@” is used instead." = "The save location isn't available, so “%@” is used instead.";
 "The search was stopped. Press Refresh to search again." = "The search was stopped. Press Refresh to search again.";
 "The server shares this folder read-only, or your account can only read it." = "The server shares this folder read-only, or your account can only read it.";
+"The signature is intact, but its Apple certificate isn't one for distributing apps (for example, a development certificate)." = "The signature is intact, but its Apple certificate isn't one for distributing apps (for example, a development certificate).";
 "The version couldn't be opened." = "The version couldn't be opened.";
 "The version couldn't be restored." = "The version couldn't be restored.";
 "Their location is taken or they're no longer in the Trash:\n" = "Their location is taken or they're no longer in the Trash:\n";
@@ -1148,6 +1171,7 @@
 "There's no history to clear." = "There's no history to clear.";
 "There's no user or group named “%@” on this Mac." = "There's no user or group named “%@” on this Mac.";
 "There's nothing in the archive that can be extracted safely." = "There's nothing in the archive that can be extracted safely.";
+"These items were left out for your safety:" = "These items were left out for your safety:";
 "They were moved, changed or removed." = "They were moved, changed or removed.";
 "This Mac" = "This Mac";
 "This archive is password-protected. Like Windows, Arbor can't open password-protected archives." = "This archive is password-protected. Like Windows, Arbor can't open password-protected archives.";
@@ -1155,7 +1179,10 @@
 "This can't be undone." = "This can't be undone.";
 "This can't be undone. The items won't go to the Trash." = "This can't be undone. The items won't go to the Trash.";
 "This destination already contains a folder named “%@”." = "This destination already contains a folder named “%@”.";
-"This digital signature is OK." = "This digital signature is OK.";
+"This digital signature is OK. From the Mac App Store." = "This digital signature is OK. From the Mac App Store.";
+"This digital signature is OK. Signed by Apple." = "This digital signature is OK. Signed by Apple.";
+"This digital signature is OK. Signed with a Developer ID and notarized by Apple." = "This digital signature is OK. Signed with a Developer ID and notarized by Apple.";
+"This digital signature is OK. Signed with a Developer ID issued by Apple." = "This digital signature is OK. Signed with a Developer ID issued by Apple.";
 "This digital signature isn't valid: %@" = "This digital signature isn't valid: %@";
 "This drive is mounted read-only. Files can be opened and copied, but not changed." = "This drive is mounted read-only. Files can be opened and copied, but not changed.";
 "This drive is read-only." = "This drive is read-only.";
@@ -1169,6 +1196,7 @@
 "This folder is synced by %@. Files stored only online download when you open them." = "This folder is synced by %@. Files stored only online download when you open them.";
 "This folder: “%@” · %@ · %@" = "This folder: “%@” · %@ · %@";
 "This item isn't signed." = "This item isn't signed.";
+"This item was left out for your safety:" = "This item was left out for your safety:";
 "This library doesn't include any folders. Use Manage library to include one." = "This library doesn't include any folders. Use Manage library to include one.";
 "This library has no save location." = "This library has no save location.";
 "This library is empty." = "This library is empty.";
@@ -1226,6 +1254,8 @@
 "Undone: %@" = "Undone: %@";
 "Universal (%@)" = "Universal (%@)";
 "Unknown" = "Unknown";
+"Unknown developer (unverified name: %@)" = "Unknown developer (unverified name: %@)";
+"Unknown developer. The signature is intact, but its certificate wasn't issued by Apple, so the signer can't be verified." = "Unknown developer. The signature is intact, but its certificate wasn't issued by Apple, so the signer can't be verified.";
 "Unknown: this information couldn't be read" = "Unknown: this information couldn't be read";
 "Unpin from Quick access" = "Unpin from Quick access";
 "Unspecified" = "Unspecified";
@@ -1341,3 +1371,4 @@
 "“%@” would expand to %@." = "“%@” would expand to %@.";
 "“The index” is Spotlight on the Mac. Choose which folders Spotlight indexes in System Settings › Spotlight." = "“The index” is Spotlight on the Mac. Choose which folders Spotlight indexes in System Settings › Spotlight.";
 "…and %@ more" = "…and %@ more";
+"…and %d more." = "…and %d more.";

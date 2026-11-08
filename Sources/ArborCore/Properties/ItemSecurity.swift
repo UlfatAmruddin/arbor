@@ -3,13 +3,8 @@ import Darwin
 
 // MARK: - BSD flags (Read-only = Locked, Hidden)
 
-/// The macOS file flags behind Explorer's "Read-only" and "Hidden" attributes (FE-156, FE-245).
-///
-/// - "Read-only" maps to the user immutable flag (`uchg`), which Finder shows as **Locked**. It blocks
-///   changes, renames and deletion. It is *not* the same as lacking write permission, which the
-///   Security tab shows separately (tested with access(2)).
-/// - "Hidden" maps to `UF_HIDDEN` (`chflags hidden`). Names that start with "." are always hidden.
-/// NTFS compression, encryption, archive and indexing attributes have no per-file macOS equivalent.
+/// Explorer's "Read-only" = `uchg` (Finder's Locked; not the same as lacking write permission) and
+/// "Hidden" = `UF_HIDDEN` (FE-156, FE-245).
 public struct FileFlags: Equatable, Sendable {
     public var raw: UInt32
 
@@ -28,7 +23,7 @@ public struct FileFlags: Equatable, Sendable {
         set { raw = newValue ? raw | Self.hiddenBit : raw & ~Self.hiddenBit }
     }
 
-    /// Flags with only the two attributes changed; every other flag is preserved.
+    /// Other flags are preserved.
     public func with(locked: Bool? = nil, hidden: Bool? = nil) -> FileFlags {
         var copy = self
         if let locked { copy.isLocked = locked }
@@ -36,19 +31,19 @@ public struct FileFlags: Equatable, Sendable {
         return copy
     }
 
-    /// Reads the item's own flags (a symbolic link is not followed).
+    /// Does not follow symbolic links.
     public static func read(_ url: URL) throws -> FileFlags {
         var st = stat()
         guard lstat(url.path, &st) == 0 else { throw POSIXError.current }
         return FileFlags(raw: st.st_flags)
     }
 
-    /// Writes flags to the item itself (not a link's target).
+    /// Does not follow symbolic links.
     public static func write(_ flags: FileFlags, to url: URL) throws {
         guard lchflags(url.path, flags.raw) == 0 else { throw POSIXError.current }
     }
 
-    /// Sets Locked and/or Hidden, leaving other flags as they are. Returns whether anything changed.
+    /// Returns whether anything changed.
     @discardableResult
     public static func update(_ url: URL, locked: Bool? = nil, hidden: Bool? = nil) throws -> Bool {
         let current = try read(url)
@@ -65,7 +60,6 @@ extension POSIXError {
 
 // MARK: - POSIX permissions
 
-/// Read/write/execute bits for one class (owner, group, everyone else).
 public struct PermissionBits: Equatable, Sendable {
     public var read: Bool
     public var write: Bool
@@ -83,8 +77,7 @@ public struct PermissionBits: Equatable, Sendable {
 
     var value: UInt16 { (read ? 4 : 0) | (write ? 2 : 0) | (execute ? 1 : 0) }
 
-    /// Finder's wording: "Read & Write", "Read only", "Write only (Drop Box)", "No Access".
-    /// For files the execute bit is added ("Read & Write, Execute").
+    /// Finder's wording, plus ", Execute" for executable files.
     public func summary(isFolder: Bool) -> String {
         var text: String
         switch (read, write) {
@@ -102,7 +95,7 @@ public struct PermissionBits: Equatable, Sendable {
     }
 }
 
-/// A POSIX mode (`st_mode & 07777`) split into Explorer-like rows (FE-153).
+/// `st_mode & 07777` split into owner/group/everyone rows (FE-153).
 public struct PosixPermissions: Equatable, Sendable {
     public var mode: UInt16
 
@@ -128,10 +121,9 @@ public struct PosixPermissions: Equatable, Sendable {
     public var setGID: Bool { mode & 0o2000 != 0 }
     public var sticky: Bool { mode & 0o1000 != 0 }
 
-    /// "0644".
     public var octal: String { String(format: "%04o", Int(mode)) }
 
-    /// "rwxr-xr-x" (with s/S/t/T for the special bits, like ls).
+    /// "rwxr-xr-x", with s/S/t/T like ls.
     public var symbolic: String {
         func triplet(_ bits: PermissionBits, special: Bool, specialChar: Character) -> String {
             let x: Character
@@ -151,7 +143,7 @@ public struct PosixPermissions: Equatable, Sendable {
 
 // MARK: - ACL entries
 
-/// One entry of an extended (macOS) ACL, as shown in the Security tab. ACLs are read-only in Arbor.
+/// One extended ACL entry; editing lives in `ACLEditor`.
 public struct ACLEntry: Equatable, Sendable {
     public enum Kind: String, Sendable { case user, group }
     public var kind: Kind
@@ -170,7 +162,6 @@ public struct ACLEntry: Equatable, Sendable {
 
     public var isInherited: Bool { flags.contains("inherited") }
 
-    /// Human labels for acl(3) permission names.
     public static let permissionLabels: [String: String] = [
         "read": "Read data / List folder", "write": "Write data / Create files", "execute": "Execute / Traverse folder",
         "delete": "Delete", "append": "Append data / Create folders", "delete_child": "Delete subfolders and files",
@@ -184,11 +175,7 @@ public struct ACLEntry: Equatable, Sendable {
         permissions.map { Self.permissionLabels[$0] ?? $0 }.joined(separator: ", ")
     }
 
-    /// Parses `acl_to_text` output:
-    ///
-    ///     !#acl 1
-    ///     group:ABCDEFAB-CDEF-ABCD-EFAB-CDEF0000000C:everyone:12:deny:delete
-    ///     user:…:ana:501:allow,file_inherit,directory_inherit:read,write
+    /// Parses `acl_to_text` lines: `kind:uuid:name:id:allow|deny[,flags]:perms`.
     public static func parse(_ text: String) -> [ACLEntry] {
         text.split(whereSeparator: \.isNewline).compactMap { line -> ACLEntry? in
             let s = line.trimmingCharacters(in: .whitespaces)
@@ -204,7 +191,6 @@ public struct ACLEntry: Equatable, Sendable {
         }
     }
 
-    /// The item's extended ACL entries (empty when it has none).
     public static func read(_ url: URL) -> [ACLEntry] {
         guard let acl = acl_get_link_np(url.path, ACL_TYPE_EXTENDED) else { return [] }
         defer { acl_free(UnsafeMutableRawPointer(acl)) }
@@ -216,7 +202,7 @@ public struct ACLEntry: Equatable, Sendable {
 
 // MARK: - Ownership and effective access
 
-/// Owner, group, mode, ACL and the current user's *tested* access to an item (FE-153, FE-245).
+/// Owner, group, mode, ACL and tested access (FE-153, FE-245).
 public struct ItemSecurity: Equatable, Sendable {
     public var ownerName: String
     public var ownerID: UInt32
@@ -228,7 +214,6 @@ public struct ItemSecurity: Equatable, Sendable {
     public var flags: FileFlags
     public var access: EffectiveAccess
 
-    /// Whether the current user may change the mode (owner or root).
     public var currentUserCanChangePermissions: Bool { ownerID == getuid() || getuid() == 0 }
 
     public static func read(_ url: URL) throws -> ItemSecurity {
@@ -254,21 +239,20 @@ public struct ItemSecurity: Equatable, Sendable {
         return String(cString: gr.pointee.gr_name)
     }
 
-    /// The user's full name ("Ana Lopez"), for "Owner: Ana Lopez (ana)".
+    /// From the GECOS field.
     public static func fullName(_ uid: uid_t) -> String? {
         guard let pw = getpwuid(uid), let gecos = pw.pointee.pw_gecos else { return nil }
         let s = String(cString: gecos)
         return s.isEmpty ? nil : s
     }
 
-    /// Changes only the mode bits. Throws when the user doesn't own the item.
+    /// Throws unless the user owns the item.
     public static func setPermissions(_ permissions: PosixPermissions, on url: URL) throws {
         guard lchmod(url.path, mode_t(permissions.mode)) == 0 else { throw POSIXError.current }
     }
 }
 
-/// What the current user can actually do, tested with access(2) using effective IDs, so ACLs,
-/// group membership and the Locked flag are all accounted for. Never inferred from the mode alone.
+/// Tested with access(2) on effective IDs, so ACLs, groups and Locked count; never inferred from the mode.
 public struct EffectiveAccess: Equatable, Sendable {
     public var read: Bool
     public var write: Bool
@@ -288,7 +272,6 @@ public struct EffectiveAccess: Equatable, Sendable {
         return EffectiveAccess(read: ok(R_OK), write: ok(W_OK), execute: ok(X_OK), exists: ok(F_OK))
     }
 
-    /// Plain-language lines for the Security tab.
     public func lines(isFolder: Bool) -> [(label: String, allowed: Bool)] {
         if isFolder {
             return [("List contents", read), ("Add, rename and delete items inside", write && execute), ("Open the folder", execute)]

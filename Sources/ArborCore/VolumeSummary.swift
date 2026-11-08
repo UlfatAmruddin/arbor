@@ -1,6 +1,6 @@
 import Foundation
 
-// Logic behind This Mac (FE-074): drive kinds, sections, names and Explorer-style capacity text.
+// This Mac logic (FE-074): drive kinds, sections, names and Explorer-style capacity text.
 
 /// One mounted volume as This Mac shows it.
 public struct VolumeSummary: Equatable, Sendable {
@@ -20,8 +20,7 @@ public struct VolumeSummary: Equatable, Sendable {
             }
         }
 
-        /// Order on the page and in the navigation pane: startup disk, other internal disks,
-        /// attached drives (external, removable, optical, disk images together), then network.
+        /// Order: startup disk, other internal, attached (external, removable, optical, images), then network.
         public var sortRank: Int {
             switch self {
             case .startup: return 0
@@ -53,8 +52,7 @@ public struct VolumeSummary: Equatable, Sendable {
         self.fileSystem = fileSystem
     }
 
-    /// No media: the drive reports no capacity (an empty card reader or disc drive).
-    /// Network shares often report nothing either, so they never count as empty.
+    /// No media (empty card reader or disc drive). Network shares often report nothing, so never count as empty.
     public var isEmptyDrive: Bool { kind != .network && (total ?? 0) <= 0 }
 }
 
@@ -71,7 +69,7 @@ public enum VolumeSections {
         }
     }
 
-    /// The volumes that are listed at all ("Hide empty drives" removes drives without media).
+    /// Listed volumes ("Hide empty drives" drops those without media).
     public static func visible(_ volumes: [VolumeSummary], hideEmpty: Bool) -> [VolumeSummary] {
         sorted(hideEmpty ? volumes.filter { !$0.isEmptyDrive } : volumes)
     }
@@ -87,8 +85,7 @@ public enum VolumeSections {
         return result
     }
 
-    /// Display name: the volume name; a network share adds its server, like Explorer's
-    /// `share (\\server)` minus the drive letter (Macs have none, reference §16).
+    /// The volume name; network shares add the server, like Explorer's `share (\\server)` (no drive letter, reference §16).
     public static func displayName(volumeName: String, kind: VolumeSummary.Kind, server: String?) -> String {
         guard kind == .network, let server, !server.isEmpty,
               server.caseInsensitiveCompare(volumeName) != .orderedSame else { return volumeName }
@@ -98,9 +95,8 @@ public enum VolumeSections {
 
 /// Capacity text and bar state for drive tiles.
 public enum CapacityText {
-    /// Explorer-style size with three significant digits, truncated rather than rounded up so
-    /// free space is never overstated: "476 GB", "15.9 GB", "1.81 TB", "512 bytes".
-    /// Units are decimal (1 GB = 1,000,000,000 bytes) to agree with the rest of macOS.
+    /// Three significant digits, truncated so free space is never overstated ("15.9 GB", "512 bytes").
+    /// Decimal units (1 GB = 1,000,000,000 bytes), like the rest of macOS.
     public static func size(_ bytes: Int64) -> String {
         guard bytes >= 1000 else { return bytes == 1 ? "1 byte" : "\(max(0, bytes)) bytes" }
         let units = ["KB", "MB", "GB", "TB", "PB", "EB"]

@@ -1,9 +1,7 @@
 import Foundation
 
-/// Compress to ▸ Additional options (Windows 11 24H2 "Create archive", FE-168): format, compression
-/// method and level, whether hidden items go in, and the name. Everything is written by the system
-/// `bsdtar` (libarchive) through an argument array. Zstandard isn't offered: the system libarchive
-/// isn't built with it and would depend on a separately installed `zstd` program.
+/// Compress to ▸ Additional options (Windows 11 24H2, FE-168), written by system `bsdtar` via an argument array.
+/// No Zstandard: the system libarchive lacks it and would need a separately installed `zstd`.
 public enum ArchiveOutputFormat: String, Sendable, CaseIterable, Codable {
     case zip, sevenZip, tar, tarGzip, tarBzip2, tarXz
     /// One file compressed on its own (no archive around it), like Windows' gzip/BZip2/xz options.
@@ -97,8 +95,7 @@ public struct ArchiveCreateOptions: Sendable, Equatable {
     public var format: ArchiveOutputFormat
     public var method: CompressionMethod
     public var level: CompressionLevel
-    /// Items whose names start with "." inside selected folders. Selected items themselves are
-    /// always included: the user chose them.
+    /// Include dot-files inside selected folders; selected items are always included.
     public var includeHiddenItems: Bool
     /// The archive's file name, including its extension.
     public var name: String

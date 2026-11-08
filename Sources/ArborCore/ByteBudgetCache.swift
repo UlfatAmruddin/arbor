@@ -1,8 +1,6 @@
 import Foundation
 
-/// Least-recently-used cache bounded by a byte budget (spec §15.3, FE-243): each entry carries its
-/// decoded cost, and inserting past the budget evicts the oldest entries first. Not thread-safe; use it
-/// from one queue (the main thread for thumbnails).
+/// LRU cache bounded by a byte budget (spec §15.3, FE-243). Not thread-safe: use from one queue.
 public final class ByteBudgetCache<Key: Hashable, Value> {
     private final class Node {
         let key: Key
@@ -22,26 +20,24 @@ public final class ByteBudgetCache<Key: Hashable, Value> {
     public var count: Int { nodes.count }
 
     private var nodes: [Key: Node] = [:]
-    /// Least recently used end.
     private var oldest: Node?
-    /// Most recently used end.
     private weak var newest: Node?
 
     public init(byteLimit: Int) { self.byteLimit = byteLimit }
 
-    /// Looks up an entry and marks it recently used.
+    /// Marks the entry recently used.
     public func value(for key: Key) -> Value? {
         guard let node = nodes[key] else { return nil }
         touch(node)
         return node.value
     }
 
-    /// Looks up an entry without changing its age.
+    /// Does not change the entry's age.
     public func peek(_ key: Key) -> Value? { nodes[key]?.value }
 
     public func contains(_ key: Key) -> Bool { nodes[key] != nil }
 
-    /// Stores a value. An entry larger than the whole budget is not kept.
+    /// An entry larger than the whole budget is not kept.
     public func insert(_ value: Value, for key: Key, cost: Int) {
         let cost = max(0, cost)
         if let existing = nodes[key] {
@@ -66,7 +62,7 @@ public final class ByteBudgetCache<Key: Hashable, Value> {
     }
 
     public func removeAll() {
-        // Break the strong chain iteratively so a long list doesn't recurse on release.
+        // Break the chain iteratively so releasing a long list doesn't recurse.
         var node = oldest
         while let current = node {
             node = current.newer
@@ -78,12 +74,12 @@ public final class ByteBudgetCache<Key: Hashable, Value> {
         totalCost = 0
     }
 
-    /// Evicts oldest entries until at most `bytes` remain (memory pressure).
+    /// For memory pressure: evicts oldest until at most `bytes` remain.
     public func trim(toBytes bytes: Int) {
         while totalCost > bytes, let victim = oldest { remove(victim.key) }
     }
 
-    /// Keys from least to most recently used (for tests and diagnostics).
+    /// Oldest first (tests and diagnostics).
     public var keysByAge: [Key] {
         var result: [Key] = []
         var node = oldest

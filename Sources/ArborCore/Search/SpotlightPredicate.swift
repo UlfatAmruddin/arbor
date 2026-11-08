@@ -1,12 +1,8 @@
 import Foundation
 
-/// Translates a parsed query into a Spotlight (MDQuery) query string (FE-143).
-///
-/// The translation is always a *superset* of the query: parts Spotlight can't express are dropped
-/// from AND chains, and an OR with an untranslatable side gives up entirely (nil = don't ask the index).
-/// Every Spotlight hit is then re-checked by `SearchEvaluator` for the parts Arbor can check itself.
-/// `isExact` says whether the index enforced everything; only then may a locally "unknown" result
-/// (for example contents of a PDF) be accepted on Spotlight's word.
+/// Translates a parsed query into an MDQuery string (FE-143). The result is always a superset: untranslatable
+/// AND parts are dropped and an untranslatable OR gives nil. Hits are re-checked by `SearchEvaluator`; only
+/// with `isExact` may a locally unknown result (e.g. PDF contents) be accepted on Spotlight's word.
 public struct SpotlightPredicate: Equatable, Sendable {
     public let query: String
     public let isExact: Bool
@@ -35,8 +31,8 @@ public struct SpotlightPredicate: Equatable, Sendable {
         }
     }
 
-    /// NOT is pushed down (MDQuery has no general negation). Only attributes every file has are negated;
-    /// `!=` on an optional attribute (authors, tags, contents) would wrongly drop files without it.
+    /// Pushes NOT down (MDQuery has no general negation). Only attributes every file has are negated:
+    /// `!=` on an optional one (authors, tags, contents) would drop files lacking it.
     static func negate(_ e: SearchExpression, matchContents: Bool) -> (String, Bool)? {
         switch e {
         case .not(let inner): return translate(inner, matchContents: matchContents)

@@ -8,28 +8,28 @@ struct TrashFolder: Equatable {
     let volumeURL: URL?
 }
 
-/// One item in the Trash with what Arbor knows about it.
+/// A Trash item with what Arbor knows about it.
 struct TrashEntry {
     let item: FileItem
     let folder: TrashFolder
-    /// Present when Arbor trashed the item (original location and date are known).
+    /// Set when Arbor trashed it (origin and date known).
     let record: TrashRecord?
     /// Journal date, else the date the item entered the Trash folder (`addedToDirectoryDate`), else nil.
     let dateDeleted: Date?
 }
 
 enum TrashListing {
-    /// `total` counts every item, hidden ones included (for the empty/full icon).
+    /// `total` includes hidden items (for the empty/full icon).
     case items([TrashEntry], unreadable: [TrashFolder], total: Int)
-    /// macOS refused to list the user's Trash (Full Disk Access is required on recent macOS).
+    /// macOS refused to list the user's Trash (needs Full Disk Access on recent macOS).
     case denied(URL)
 }
 
-/// Reads the Trash folders (off the main thread) and keeps the latest listing for the views (main thread).
+/// Reads Trash folders off main and keeps the latest listing for the views (main thread).
 enum TrashStore {
     static let changed = Notification.Name("ArborTrashChanged")
 
-    /// The latest listing, keyed by item path. Main thread only.
+    /// Latest listing by item path. Main thread only.
     private(set) static var entries: [String: TrashEntry] = [:]
     /// Whether the Trash holds anything (nil = unknown, e.g. access denied). Main thread only.
     private(set) static var isFull: Bool?
@@ -50,7 +50,7 @@ enum TrashStore {
         let keys: [URLResourceKey] = [.volumeLocalizedNameKey, .volumeIsLocalKey, .volumeIsReadOnlyKey]
         for volume in fm.mountedVolumeURLs(includingResourceValuesForKeys: keys, options: [.skipHiddenVolumes]) ?? [] {
             let v = try? volume.resourceValues(forKeys: Set(keys))
-            // Network volumes are skipped: no usable per-user Trash, and asking can stall (spec §13.2).
+            // Skip network volumes: no usable per-user Trash, and asking can stall (spec §13.2).
             guard volume.standardizedFileURL.path != "/", v?.volumeIsLocal != false, v?.volumeIsReadOnly != true else { continue }
             guard let trash = try? fm.url(for: .trashDirectory, in: .userDomainMask, appropriateFor: volume, create: false)
                 .standardizedFileURL, trash != homeTrash, !result.contains(where: { $0.url == trash }) else { continue }
@@ -66,7 +66,7 @@ enum TrashStore {
     static func list(includeHidden: Bool) -> TrashListing {
         let fm = FileManager.default
         let folders = folders()
-        if ProcessInfo.processInfo.environment["ARBOR_TEST_TRASH_DENIED"] != nil, let first = folders.first {
+        if Automation.environment["ARBOR_TEST_TRASH_DENIED"] != nil, let first = folders.first {
             return .denied(first.url)
         }
         var raw: [(url: URL, folder: TrashFolder, record: TrashRecord?, added: Date?)] = []
@@ -74,8 +74,9 @@ enum TrashStore {
         let keys = FileItem.resourceKeys + [.addedToDirectoryDateKey]
         for (index, folder) in folders.enumerated() {
             guard fm.fileExists(atPath: folder.url.path) else { continue }
+            guard isReal(folder) else { unreadable.append(folder); continue }
             do {
-                // Hidden items are always read so the journal isn't pruned of them; the filter comes later.
+                // Always read hidden items so the journal keeps them; filtering comes later.
                 let urls = try fm.contentsOfDirectory(at: folder.url, includingPropertiesForKeys: keys, options: [])
                     .filter { !ignoredNames.contains($0.lastPathComponent) }
                 TrashJournal.shared.prune(folder: folder.url, existing: Set(urls.map { $0.standardizedFileURL.path }))
@@ -107,6 +108,11 @@ enum TrashStore {
         return .items(entries, unreadable: unreadable, total: raw.count)
     }
 
+    /// The headless test folder is trusted; real ones must pass the link and owner checks.
+    static func isReal(_ folder: TrashFolder) -> Bool {
+        folder.url == SystemTrash.testDirectory?.standardizedFileURL || SystemTrash.isRealTrashFolder(folder.url)
+    }
+
     static func isPermissionError(_ error: NSError) -> Bool {
         if error.domain == NSCocoaErrorDomain, error.code == NSFileReadNoPermissionError { return true }
         if error.domain == NSPOSIXErrorDomain, error.code == Int(EPERM) || error.code == Int(EACCES) { return true }
@@ -135,7 +141,7 @@ enum TrashStore {
         NavigationPaneExtras.refreshAll()
     }
 
-    /// Re-reads fullness in the background (launch, after changes made outside a Trash view).
+    /// Re-reads fullness in the background (launch, outside changes).
     static func refreshState() {
         DispatchQueue.global(qos: .utility).async {
             let listing = list(includeHidden: true)
@@ -159,8 +165,7 @@ enum TrashStore {
     private static var pendingChange: DispatchWorkItem?
 }
 
-/// The Trash location (FE-077): items from every Trash folder in the standard views, with
-/// Original Location and Date Deleted columns.
+/// The Trash location (FE-077): every Trash folder's items, with Original Location and Date Deleted.
 final class TrashProvider: LocationProvider {
     func handles(_ location: Location) -> Bool { location == .trash }
 
@@ -194,7 +199,7 @@ final class TrashProvider: LocationProvider {
     func allowsItemEditing(in location: Location) -> Bool { false }
 }
 
-/// Refreshes the Trash view when a Trash folder changes on disk or Arbor changes the Trash.
+/// Refreshes the Trash view on disk changes or Arbor's own Trash changes.
 final class TrashWatcher {
     private var watchers: [DirectoryWatcher] = []
     private var observer: NSObjectProtocol?
@@ -214,7 +219,7 @@ final class TrashWatcher {
     }
 }
 
-/// Shown when macOS won't let Arbor read the Trash (spec §16.1 "Denied": the actual reason and the way to grant access).
+/// Shown when macOS denies reading the Trash: the reason and how to grant access (spec §16.1).
 final class TrashAccessPage: NSViewController, LocationPageStatus {
     let trashURL: URL
     weak var host: LocationHost?

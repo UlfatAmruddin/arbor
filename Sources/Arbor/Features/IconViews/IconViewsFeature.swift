@@ -1,9 +1,7 @@
 import AppKit
 import ArborCore
 
-/// The seven non-Details layouts (Features.swift slot "icon views"): Extra large / Large / Medium /
-/// Small icons, List, Tiles and Content, plus ⌘-scroll to step icon sizes and scripted-test steps.
-/// See docs/features/icon-views.md.
+/// Non-Details layouts, ⌘-scroll icon sizing and script steps; see docs/features/icon-views.md.
 enum IconViewsFeature: ExplorerFeature {
     static let id = "icon-views"
     static func register() {
@@ -14,7 +12,7 @@ enum IconViewsFeature: ExplorerFeature {
 
     // MARK: ⌘ + scroll wheel (Explorer: Ctrl + mouse wheel changes icon size, FE-033)
 
-    /// From small to large, the order Ctrl+wheel steps through in Explorer.
+    /// Small to large, the order Ctrl+wheel steps in Explorer.
     static let sizeOrder: [ViewMode] = [.details, .list, .smallIcons, .mediumIcons, .largeIcons, .extraLargeIcons]
     private static var wheelAccumulator: CGFloat = 0
     private static var lastStep = Date.distantPast
@@ -93,8 +91,8 @@ enum IconViewsFeature: ExplorerFeature {
             click(view.grid, at: point, flags: flags, count: style == "double" ? 2 : 1, right: style == "right")
             return 0.4
         }
-        // iconmarquee:x1,y1,x2,y2[:mods][:holdSeconds] — drag a rubber band; points are relative to the
-        // visible area's top-left. A point outside the visible area plus a hold time exercises autoscroll.
+        // iconmarquee:x1,y1,x2,y2[:mods][:holdSeconds] — rubber band, points relative to the visible
+        // top-left; a point outside plus a hold exercises autoscroll.
         DebugScript.registerStep("iconmarquee") { arg, window in
             guard let view = iconView(window) else { return 0.3 }
             let parts = arg.components(separatedBy: ":")
@@ -202,7 +200,7 @@ enum IconViewsFeature: ExplorerFeature {
 
     private static func marquee(_ grid: ItemGridView, from a: CGPoint, to b: CGPoint, flags: NSEvent.ModifierFlags, hold: Double) {
         guard let down = mouseEvent(.leftMouseDown, grid, a, flags) else { return }
-        // Drag events are positioned in window coordinates now; the grid may scroll while they're handled.
+        // Drag events use window coordinates now; the grid may scroll meanwhile.
         let windowA = grid.convert(a, to: nil), windowB = grid.convert(b, to: nil)
         for step in 1...4 {
             let t = CGFloat(step) / 4
@@ -222,7 +220,7 @@ enum IconViewsFeature: ExplorerFeature {
             NSApp.postEvent(up, atStart: false)
         }
         if hold > 0 {
-            // A run-loop timer fires inside the tracking loop; a main-queue block would wait for this step to end.
+            // A run-loop timer fires in the tracking loop; a main-queue block would wait until this step ends.
             RunLoop.main.add(Timer(timeInterval: hold, repeats: false) { _ in postUp() }, forMode: .common)
         } else {
             postUp()

@@ -1,15 +1,11 @@
 import AppKit
 import ArborCore
 
-// Tear-off and merge (FE-020, reference §2.3: "Drag a tab out to make a window, or into another
-// window's tab row"). A tab dragged out of its strip follows the pointer as a floating image; released
-// over another window's tab row it joins that window at the marked slot, released anywhere else it
-// becomes a new window under the pointer. A window's only tab drags the whole window, and dropping it
-// on another window's tab row merges it too.
+// Tear-off and merge (FE-020, reference §2.3). A dragged-out tab follows the pointer; dropped on
+// another window's tab row it joins at the marked slot, elsewhere it becomes a new window.
 
 extension BrowserWindowController {
-    /// The other browser window whose tab row is frontmost at `screenPoint` (windows of other apps and
-    /// covered tab rows never count). `below` skips windows in front of it (the window being dragged).
+    /// Another window whose visible tab row is frontmost at `screenPoint`; `below` skips the dragged window.
     func tabMergeTarget(at screenPoint: NSPoint, below windowNumber: Int = 0) -> BrowserWindowController? {
         let number = NSWindow.windowNumber(at: screenPoint, belowWindowWithWindowNumber: windowNumber)
         guard number > 0, let window = NSApp.window(withWindowNumber: number),
@@ -18,16 +14,14 @@ extension BrowserWindowController {
         return target
     }
 
-    /// Moves tab `index` into `target` at `slot` (0-based), keeping its history, selection and view.
-    /// Moving the last tab closes this window.
+    /// Moves tab `index` into `target` at `slot`, keeping its state; the last tab closes this window.
     func mergeTab(at index: Int, into target: BrowserWindowController, slot: Int) {
         guard target !== self, tabs.indices.contains(index), let tab = takeTab(at: index) else { return }
         target.adoptTab(tab, at: slot)
         target.window?.makeKeyAndOrderFront(nil)
     }
 
-    /// Tears tab `index` off into a new window whose tab sits under `screenPoint`, held at `grabOffset`
-    /// (from the tab's top-left). Returns the new window.
+    /// Tears tab `index` into a new window, its tab under `screenPoint` at `grabOffset` (from top-left).
     @discardableResult
     func tearOffTab(at index: Int, at screenPoint: NSPoint, grabOffset: NSPoint) -> BrowserWindowController? {
         guard tabs.count > 1, let tab = takeTab(at: index),

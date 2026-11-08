@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// App-wide owner of running transfers and the shared undo stack.
-/// Jobs belong to the app, not to a tab: closing a tab doesn't cancel its transfer.
+/// Owns running transfers and the shared undo stack. Closing a tab doesn't cancel its transfer.
 final class OperationCenter {
     static let shared = OperationCenter()
     static let changed = Notification.Name("ArborOperationsChanged")
@@ -10,8 +9,7 @@ final class OperationCenter {
     /// Shared across tabs so ⌘Z undoes the last file action anywhere, like Explorer.
     let undoManager = UndoManager()
 
-    /// Mutable state is only read and written on the main queue (every access below
-    /// hops through `DispatchQueue.main`); the background task only holds the reference.
+    /// Mutable state is touched only on the main queue; the background task just holds the reference.
     final class Job: @unchecked Sendable {
         let transfer: FileTransfer
         var progress: TransferProgress
@@ -21,11 +19,11 @@ final class OperationCenter {
         /// Identity for the operation history and the queue.
         let id = UUID()
         let created = Date()
-        /// How dialogs describe the job when its real source is a hidden staging folder (extracting an archive).
+        /// What dialogs show when the real source is a hidden staging folder (archive extraction).
         var presentedAs: PresentedJob?
-        /// False for jobs that are themselves an undo or redo (they register their own inverse).
+        /// False for undo/redo jobs (they register their own inverse).
         var registersUndo = true
-        /// Set once the job was allowed to run (a queued job waits until then).
+        /// Set once the job may run (queued jobs wait).
         var hasLaunched = false
         init(transfer: FileTransfer, window: NSWindow?) {
             self.transfer = transfer
@@ -36,10 +34,10 @@ final class OperationCenter {
 
     private(set) var jobs: [Job] = []
     var hasActiveJobs: Bool { !jobs.isEmpty || !activities.isEmpty }
-    /// Set while the app quits: results are kept in the journal for review, not shown in alerts.
+    /// While quitting, results go to the journal instead of alerts.
     private(set) var isQuitting = false
 
-    /// The status bar's compact line: "Copying 3 items · 37% complete" (the progress window has the details).
+    /// Status bar line, e.g. "Copying 3 items · 37% complete".
     var statusLine: (text: String, fraction: Double)? {
         guard let job = jobs.first else { return activities.first.map { ($0.text, $0.fraction) } }
         let p = job.progress
@@ -56,20 +54,20 @@ final class OperationCenter {
 
     // MARK: - Hooks (Features/FileOperations: queue, verification, history)
 
-    /// Called once a job exists, before it runs (e.g. to set its "copy without properties?" resolver).
+    /// Called before a job runs (e.g. to set its "copy without properties?" resolver).
     static let prepareJob = Observers<Job>(
         "OperationCenter.prepareJob", "A job exists and hasn't run yet (set resolvers).", signature: "(job)")
-    /// Decides when a job starts: calls `launch` now or later (queue controls). No provider = at once.
+    /// Calls `launch` now or later (queue controls). No provider: start at once.
     static let admission = Provided<((Job, _ launch: @escaping () -> Void) -> Void)?>(
         "OperationCenter.admission", "Decides when a job starts (transfer queue).", signature: "(job, launch)", default: nil)
-    /// Runs on the job's task after the transfer and before it is reported (verification). Not on the main thread.
+    /// Runs after the transfer, before it is reported (verification). Off the main thread.
     static let afterRun = Provided<(@Sendable (Job, TransferReport) async -> Void)?>(
         "OperationCenter.afterRun", "Runs on the job's task after the transfer, before it is reported (verification).",
         signature: "async (job, report)", default: nil)
-    /// The job ended; called first in `finish` (history, queue bookkeeping).
+    /// Called first in `finish` (history, queue bookkeeping).
     static let jobFinished = Observers<(job: Job, report: TransferReport)>(
         "OperationCenter.jobFinished", "A job ended (history, queue bookkeeping).", signature: "(job, report)")
-    /// Cancel was pressed for one job (a job that is still waiting is started so it ends at once).
+    /// Cancel pressed for one job (a waiting job is started so it ends at once).
     static let jobCancelled = Observers<Job>(
         "OperationCenter.jobCancelled", "Cancel was pressed for a job.", signature: "(job)")
 
@@ -87,7 +85,7 @@ final class OperationCenter {
 
     // MARK: - Other long-running work (extracting, compressing, mounting…)
 
-    /// Work that isn't a FileTransfer but shows in the status bar like one and stops on Cancel or quit.
+    /// Non-transfer work shown in the status bar; stops on Cancel or quit.
     final class Activity {
         var text: String
         var fraction: Double = 0
@@ -116,12 +114,10 @@ final class OperationCenter {
         post()
     }
 
-    /// Quit: cancel every job, keep their journals for review at next launch, and call `done`
-    /// once they have stopped (the file being copied is removed first) or after 5 seconds.
+    /// Cancels every job, keeping journals for next launch; calls `done` once they stop or after 5 s.
     func cancelAllForQuit(then done: @escaping () -> Void) {
         isQuitting = true
-        // Jobs still waiting in the queue never started: keep their journals as they are, so the next
-        // launch offers to start them again (JobRecovery), and don't wait for them.
+        // Never-started queued jobs: keep their journals so next launch offers them (JobRecovery); don't wait.
         for job in jobs where !job.hasLaunched {
             job.transfer.journal?.abandon()
             jobs.removeAll { $0 === job }
@@ -138,8 +134,7 @@ final class OperationCenter {
         wait()
     }
 
-    /// Starts a copy/move job: journaled (FE-125), with Explorer's conflict and error dialogs and
-    /// the progress window (Features/FileOperations).
+    /// Starts a journaled copy/move job (FE-125) with Explorer's dialogs and the progress window.
     func start(_ kind: TransferKind, sources: [URL], destination: URL, window: NSWindow?, registersUndo: Bool = true,
                completion: @escaping (TransferReport) -> Void) {
         let transfer = FileTransfer(kind: kind, sources: sources, destination: destination,
@@ -151,7 +146,7 @@ final class OperationCenter {
         Self.prepareJob.send(job)
         post()
         OperationsWindow.shared.jobStarted(job)
-        // While quitting, a queued job is never started (its journal is kept for the next launch instead).
+        // Never start a queued job while quitting; its journal is kept for next launch.
         let launch = { if !OperationCenter.shared.isQuitting { Self.run(job, completion: completion) } }
         if let admission = Self.admission.value { admission(job, launch) } else { launch() }
     }
@@ -212,9 +207,7 @@ final class OperationCenter {
     func post() { NotificationCenter.default.post(name: Self.changed, object: nil) }
 
     // MARK: - Undo
-    //
-    // Undo never overwrites anything: if the original location is occupied again,
-    // or the item has gone, that item is left alone and reported (FE-129).
+    // Undo never overwrites: a taken original place or a gone item is skipped and reported (FE-129).
 
     func registerUndoRename(from current: URL, back oldName: String) {
         let newName = current.lastPathComponent
@@ -229,8 +222,7 @@ final class OperationCenter {
         undoManager.setActionName("Rename")
     }
 
-    /// `actionName` is what Edit ▸ Undo/Redo say for this step and every later round of it ("New Folder",
-    /// "Restore", "Create Shortcut"…), not just the first.
+    /// `actionName` labels Edit ▸ Undo/Redo for this step and every later round of it, not just the first.
     func registerUndoTrash(_ pairs: [(original: URL, trashed: URL)], actionName: String = "Move to Trash") {
         undoManager.registerUndo(withTarget: self) { center in
             var restored: [URL] = []
@@ -262,8 +254,7 @@ final class OperationCenter {
         registerUndoTrash(pairs, actionName: actionName)
     }
 
-    /// Undo puts moved items back (another volume: as a normal move job with progress and cancel, see
-    /// `UndoMoveBack.swift`); Redo moves them again. Each step registers its inverse at once.
+    /// Undo moves items back (cross-volume via a move job, see `UndoMoveBack.swift`); Redo moves them again.
     func registerUndoMove(_ pairs: [(source: URL, destination: URL)]) {
         registerMoveStep { pairs.map { MoveBack.Item(from: $0.destination, to: $0.source) } }
         undoManager.setActionName("Move")

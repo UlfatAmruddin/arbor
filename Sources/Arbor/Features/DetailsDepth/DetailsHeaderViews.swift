@@ -53,9 +53,8 @@ final class GroupHeaderCellView: NSTableCellView {
     }
 }
 
-/// Draws on top of the stock column header (subclassing the header breaks row drawing on macOS 26):
-/// Explorer's small sort chevron above the title, the filter ▾ on hover, and a ✓ on filtered columns.
-/// Clicks pass through except on the ▾.
+/// Overlay on the stock header (subclassing it breaks row drawing on macOS 26): sort chevron,
+/// hover filter ▾ and ✓ on filtered columns. Clicks pass through except on the ▾.
 final class HeaderOverlayView: NSView {
     weak var table: NSTableView?
     var isFilterable: (Int) -> Bool = { _ in false }
@@ -147,7 +146,7 @@ final class HeaderOverlayView: NSView {
     }
 }
 
-/// The filter dropdown of one column: a checklist of its buckets (Windows: hover a header, click ▾).
+/// A column's filter dropdown: a checklist of its buckets.
 final class ColumnFilterViewController: NSViewController {
     let column: ColumnID
     /// (choices, checked bucket ids).

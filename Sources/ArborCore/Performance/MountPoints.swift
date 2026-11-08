@@ -1,10 +1,8 @@
 import Darwin
 import Foundation
 
-/// Mount points from the kernel's table (`getmntinfo` with `MNT_NOWAIT`: no disk or network access),
-/// refreshed at most every two seconds or when the app is told volumes changed. Lets "is this folder a
-/// volume root?" run on the main thread for every tab title, icon and Up button without a `stat` per
-/// call, which can block on a slow network volume. Thread-safe.
+/// Cached kernel mount table (`getmntinfo` + `MNT_NOWAIT`, no disk access), refreshed every 2 s or on
+/// invalidate, so main-thread volume-root checks avoid a `stat` that can block on network volumes. Thread-safe.
 public final class MountPoints: @unchecked Sendable {
     public static let shared = MountPoints()
 
@@ -20,7 +18,7 @@ public final class MountPoints: @unchecked Sendable {
         return current().contains(path)
     }
 
-    /// Volumes were mounted or unmounted.
+    /// Call when volumes mount or unmount.
     public func invalidate() { lock.withLock { loadedAt = -.infinity } }
 
     private func current() -> Set<String> {
@@ -49,15 +47,14 @@ extension FileOps {
     private static let volumeLock = NSLock()
     nonisolated(unsafe) private static var volumeIDs: [String: (id: NSObject, at: TimeInterval)] = [:]
 
-    /// `sameVolume` with each item's volume remembered for a few seconds: drag-and-drop asks on every
-    /// mouse move while hovering, and each answer was a metadata read on the main thread. For decisions
-    /// shown to the user only (copy versus move cursor); transfers use `sameVolume`.
+    /// `sameVolume` cached for 5 s, since drag hover asks on every mouse move. UI hints only (copy/move
+    /// cursor); transfers must use `sameVolume`.
     public static func sameVolumeCached(_ a: URL, _ b: URL) -> Bool {
         guard let va = volumeID(a), let vb = volumeID(b) else { return false }
         return va.isEqual(vb)
     }
 
-    /// Forgets remembered volumes (mounts changed).
+    /// Call when mounts change.
     public static func forgetVolumes() { volumeLock.withLock { volumeIDs.removeAll() } }
 
     private static func volumeID(_ url: URL) -> NSObject? {

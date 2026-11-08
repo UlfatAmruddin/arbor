@@ -1,8 +1,7 @@
 import AppKit
 
 extension NSView {
-    /// Hides a decorative image (an icon next to a name VoiceOver already reads) from the accessibility tree.
-    /// AppKit can expose a control through its cell, so the cell is hidden too.
+    /// Hides a decorative image from accessibility, cell too (AppKit may expose a control through it).
     func hideFromAccessibility() {
         setAccessibilityElement(false)
         (self as? NSControl)?.cell?.setAccessibilityElement(false)

@@ -1,8 +1,6 @@
 import Foundation
 
-/// Collects main-thread stalls: run-loop passes that kept the main thread busy longer than a threshold
-/// (spec §15.4 "scroll stalls", FE-228). Labels say what was going on (a script step, a workload).
-/// Main thread only.
+/// Run-loop passes that kept the main thread busy past a threshold (spec §15.4, FE-228). Main thread only.
 public final class StallRecorder {
     public struct Stall: Equatable, Sendable {
         public let label: String
@@ -10,12 +8,12 @@ public final class StallRecorder {
     }
 
     public let thresholdMilliseconds: Double
-    /// Most recent stalls first dropped beyond this many.
+    /// Oldest stalls are dropped beyond this many.
     public let capacity: Int
     public private(set) var stalls: [Stall] = []
-    /// Stalls seen in total (including those dropped from `stalls`).
+    /// Includes stalls dropped from `stalls`.
     public private(set) var totalCount = 0
-    /// Labels whose stalls are expected and excluded from summaries (snapshots, scripted pauses).
+    /// Label prefixes of expected stalls, left out of summaries.
     public var ignoredLabels: Set<String> = []
 
     public init(thresholdMilliseconds: Double = 50, capacity: Int = 2000) {
@@ -23,7 +21,7 @@ public final class StallRecorder {
         self.capacity = capacity
     }
 
-    /// Records one busy period; returns true when it counted as a stall.
+    /// Returns true when the period counted as a stall.
     @discardableResult
     public func record(milliseconds: Double, label: String) -> Bool {
         guard milliseconds > thresholdMilliseconds else { return false }
@@ -38,7 +36,7 @@ public final class StallRecorder {
         totalCount = 0
     }
 
-    /// Stalls whose label starts with `prefix` (all when empty), ignored labels left out.
+    /// Empty `prefix` matches all; ignored labels are excluded.
     public func stalls(matching prefix: String = "") -> [Stall] {
         stalls.filter { stall in
             !ignoredLabels.contains(where: { stall.label.hasPrefix($0) }) && (prefix.isEmpty || stall.label.hasPrefix(prefix))

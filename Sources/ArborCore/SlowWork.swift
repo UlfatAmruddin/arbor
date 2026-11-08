@@ -1,9 +1,7 @@
 import Foundation
 
-/// Runs blocking work (a listing on a network share that may hang) off the caller's thread with a
-/// deadline (FE-179). The caller hears back exactly once, with the result or `.timedOut`; a result
-/// that arrives after the deadline goes to `late` so the UI can still use it. Requests for the same
-/// key share one in-flight job, so pressing Retry on a hung share never piles up blocked threads.
+/// Runs blocking work off-thread with a deadline (FE-179): one reply (result or `.timedOut`), late results to `late`.
+/// Same-key requests share one job, so Retry on a hung share doesn't pile up blocked threads.
 public final class SlowWorkQueue<Value>: @unchecked Sendable {
     public enum Outcome {
         case finished(Value)
@@ -32,13 +30,13 @@ public final class SlowWorkQueue<Value>: @unchecked Sendable {
         self.callbackQueue = callbackQueue
     }
 
-    /// Number of distinct jobs still running (for tests and diagnostics).
+    /// Distinct jobs still running (tests, diagnostics).
     public var inFlightCount: Int {
         lock.lock(); defer { lock.unlock() }
         return jobs.count
     }
 
-    /// Returns a token; pass it to `cancel` to stop hearing back (the work itself can't be interrupted).
+    /// Pass the token to `cancel` to stop callbacks; the work itself can't be interrupted.
     @discardableResult
     public func run(key: String, timeout: TimeInterval, work: @escaping () -> Value,
                     late: ((Value) -> Void)? = nil, completion: @escaping (Outcome) -> Void) -> UUID {

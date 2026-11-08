@@ -1,18 +1,11 @@
 import AppKit
 import ArborCore
 
-/// Test network for scripted runs (`ARBOR_FAKE_NETWORK`), so the UI can be verified without a real
-/// SMB server. Servers and shares are local folders:
-///
-///     <root>/<server>/<share>/…           every folder is a server, every subfolder a share
-///     <root>/<server>/.arbor-fake.json    optional behaviour, e.g.
-///         {"type": "_afpovertcp._tcp", "listDelay": 3, "mountDelay": 0.5, "offline": true,
-///          "requiresCredentials": true, "slowListing": 4}
-///     <root>/<server>/<share>/.arbor-busy  the share refuses to unmount unless forced
-///
-/// `ARBOR_FAKE_NETWORK=1` builds a sample root in a temporary folder (removed at exit); any other
-/// value is used as the root path. "Mounting" a share records it as mounted with its folder as the
-/// mount point and posts the same NSWorkspace notifications a real mount does.
+/// Test network for scripted runs (`ARBOR_FAKE_NETWORK`); servers and shares are local folders:
+///     <root>/<server>/<share>/…            folder = server, subfolder = share
+///     <root>/<server>/.arbor-fake.json     optional: type, listDelay, mountDelay, offline, requiresCredentials, slowListing
+///     <root>/<server>/<share>/.arbor-busy  refuses to unmount unless forced
+/// `=1` builds a temporary sample root; any other value is the root. Mounts post the real NSWorkspace notifications.
 final class FakeNetworkServices: NetworkServicing {
     struct Behaviour: Decodable {
         var type: String?
@@ -40,8 +33,7 @@ final class FakeNetworkServices: NetworkServicing {
         return FakeNetworkServices(root: URL(fileURLWithPath: (value as NSString).expandingTildeInPath))
     }
 
-    /// NAS-01 and OFFICE-PC both export "Public" (FE-187); SLOW-NAS lists slowly; OFFLINE-PC never
-    /// answers; LOCKED-NAS needs different credentials; OLD-MAC speaks AFP; Base Station is a router.
+    /// NAS-01 and OFFICE-PC both export "Public" (FE-187); the rest cover slow, offline, locked, AFP and router cases.
     static func makeSampleRoot(_ root: URL) {
         let fm = FileManager.default
         try? fm.removeItem(at: root)
@@ -124,7 +116,7 @@ final class FakeNetworkServices: NetworkServicing {
                 completion(.failure(.authenticationFailed(address.server.unc)))
                 return
             }
-            // A server address: the system would ask which share; the fake picks the first one.
+            // Server address: the fake picks the first share.
             let shareName = address.share ?? ((try? FileManager.default.contentsOfDirectory(atPath: serverFolder.path))?
                 .filter { !$0.hasPrefix(".") }.sorted().first)
             guard let shareName, let share = self.shareFolder(serverFolder, shareName) else {
@@ -193,7 +185,7 @@ final class FakeDiscovery: NetworkDiscovering {
 
     func start() {
         state = .searching
-        if ProcessInfo.processInfo.environment["ARBOR_FAKE_NETWORK_DENIED"] != nil {
+        if Automation.environment["ARBOR_FAKE_NETWORK_DENIED"] != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
                 self?.state = .needsPermission
                 self?.onChange?()

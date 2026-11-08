@@ -1,9 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Per-tab view options beyond sort and mode: Details columns, Group by, collapsed groups and
-/// column header filters. Kept in a side table keyed by tab so `TabState` stays small.
-/// Columns, grouping and filters belong to the folder shown: they reset when the tab navigates.
+/// Per-tab columns, grouping and filters, kept aside so `TabState` stays small; reset on navigation.
 final class TabViewOptions {
     /// The location these options describe.
     fileprivate(set) var locationKey: String?
@@ -15,7 +13,7 @@ final class TabViewOptions {
     var collapsed: Set<String> = []
     var filters = ColumnFilters()
 
-    /// Columns whose values must be loaded for every item (not just visible rows).
+    /// Columns loaded for every item, not just visible rows.
     func columnsNeedingAllValues(sort: FileSortOrder) -> Set<ColumnID> {
         var set = Set(filters.columns)
         if let groupBy { set.insert(groupBy) }
@@ -25,16 +23,8 @@ final class TabViewOptions {
     }
 }
 
-/// Column sets per folder kind, Group-by memory per folder, and the hooks other features use.
-///
-/// API for the Folder Options / persistence feature:
-///   - `ViewOptions.folderKindResolver = { location, items in … }` picks the template for a folder
-///     ("Optimize this folder for"). Default: known folders (Pictures, Music, Movies, Downloads,
-///     Documents) and their subfolders, else content discovery, else General items.
-///   - `ViewOptions.columnSet(for:)` / `setColumnSet(_:for:)` / `resetColumnSets()` read and write the
-///     saved column set of a kind ("Apply to Folders" = `setColumnSet(current, for: kind)`;
-///     "Reset Folders" = `resetColumnSets()`). Changes post `ViewOptions.changed`.
-///   - `ViewOptions.options(for: tab)` is the live state of one tab.
+/// Column sets per folder kind and Group by memory. Folder Options sets `folderKindResolver` and backs
+/// "Apply to Folders" / "Reset Folders" with `setColumnSet` / `resetColumnSets` (posts `changed`).
 enum ViewOptions {
     static let changed = Notification.Name("ArborViewOptionsChanged")
     private static let storeKey = "details.columnSets"
@@ -45,18 +35,17 @@ enum ViewOptions {
     private static var groupMemory: [String: (ColumnID?, Bool)] = [:]
     private static var groupMemoryOrder: [String] = []
 
-    /// The folder kind a location's column set and Group by come from (Folder Options: the folder's type).
+    /// Picks the folder kind (template) for a location.
     static let folderKindResolver = Provided<(Location, [FileItem]) -> FolderKind>(
         "ViewOptions.folderKindResolver", "The folder kind whose column set a location uses.",
         signature: "(location, items) -> FolderKind", default: defaultKind)
 
-    /// The user changed the shown columns (Choose Details, header menu, resize, reorder). Folder Options
-    /// saves them for the folder and answers true; otherwise they are saved for the folder kind.
+    /// User changed columns; Folder Options returns true if it saved them per folder, else they go to the kind.
     static let columnsEdited = Handlers<TabViewOptions, Bool>(
         "ViewOptions.columnsEdited", "The user changed a tab's columns; true = saved (for the folder).",
         signature: "(options) -> saved?")
 
-    /// Forgets a tab's options so the next `options(for:)` rebuilds them (the folder's template changed).
+    /// Forgets a tab's options so `options(for:)` rebuilds them.
     static func reset(_ tab: TabState) { slots[tab.id] = nil }
 
     /// Forgets this session's per-folder Group by memory ("Apply to Folders" / "Reset Folders").
@@ -69,7 +58,7 @@ enum ViewOptions {
         if columnsEdited.first(options) != true { setColumnSet(options.columns, for: options.kind) }
     }
 
-    /// The tab's options, re-initialized when the tab now shows another location.
+    /// The tab's options, reset when it shows another location.
     static func options(for tab: TabState) -> TabViewOptions {
         let options: TabViewOptions
         if let slot = slots[tab.id] {

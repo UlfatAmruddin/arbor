@@ -54,8 +54,7 @@ extension BrowserWindowController {
     }
 
     private func volumesChanged(_ note: Notification) {
-        // Coalesced: mounting one disk image posts several notifications, and each rebuild reads every
-        // volume's name on the main thread.
+        // Coalesced: one disk image mount posts several notifications; each rebuild reads volume names on main.
         navPaneRebuild?.cancel()
         let rebuild = DispatchWorkItem { [weak self] in self?.rebuildNavPane() }
         navPaneRebuild = rebuild
@@ -70,8 +69,7 @@ extension BrowserWindowController {
         }
     }
 
-    /// A tab showing a folder on a volume that was just unmounted; a handler returns true when it handled it
-    /// (the network feature keeps such tabs on a "disconnected" page instead of going to This Mac).
+    /// A tab's volume was unmounted; return true if handled (network tabs show "disconnected", not This Mac).
     static let volumeUnmountHandler = Handlers<(BrowserWindowController, TabState, URL), Void>(
         "BrowserWindowController.volumeUnmountHandler", "A tab's volume was unmounted; true = handled (tab stays).",
         signature: "(window, tab, volume) -> handled")

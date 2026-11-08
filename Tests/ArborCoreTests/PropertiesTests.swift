@@ -460,6 +460,8 @@ private func unlockAll(_ root: URL) {
         guard FileManager.default.fileExists(atPath: app.path) else { return }
         let info = CodeSignatureInfo.read(app)
         #expect(info.status == .valid)
+        #expect(info.trust == .apple)
+        #expect(info.isVerified)
         #expect(info.identifier == "com.apple.calculator")
         #expect(info.certificates.contains { $0.contains("Apple") })
         let bundle = try #require(BundleInfo.read(app))
@@ -471,5 +473,99 @@ private func unlockAll(_ root: URL) {
         let fx = try Fixture()
         let file = try fx.file("plain.txt")
         #expect(CodeSignatureInfo.read(file).status == .unsigned)
+    }
+
+    @Test func trustNeedsAnAppleAnchor() {
+        typealias R = CodeSignatureInfo.Requirement
+        func trust(adHoc: Bool = false, _ met: Set<R>) -> CodeSignatureInfo.Trust {
+            CodeSignatureInfo.trust(isAdHoc: adHoc) { met.contains($0) }
+        }
+        // A self-signed chain meets none of the Apple-anchored requirements.
+        #expect(trust([]) == .untrusted)
+        // Leaf OIDs alone mean nothing without the Apple anchor.
+        #expect(trust([.developerID, .appStore, .notarized]) == .untrusted)
+        #expect(trust(adHoc: true, [.appleIssued, .apple]) == .adHoc)
+        #expect(trust([.appleIssued, .apple]) == .apple)
+        #expect(trust([.appleIssued, .appStore]) == .appStore)
+        #expect(trust([.appleIssued, .developerID]) == .developerID(notarized: false))
+        #expect(trust([.appleIssued, .developerID, .notarized]) == .developerID(notarized: true))
+        #expect(trust([.appleIssued]) == .appleCertificate)
+    }
+
+    @Test func selfSignedIsNotPresentedAsOK() {
+        let forged = "Developer ID Application: Example Corp (ABCDE12345)"
+        let info = CodeSignatureInfo(status: .valid, identifier: "x", teamIdentifier: nil,
+                                     certificates: [forged, "Apple Root CA"], isAdHoc: false, trust: .untrusted)
+        #expect(!info.isVerified)
+        #expect(!info.statusText.contains("OK"))
+        #expect(info.statusText.contains("Unknown developer"))
+        #expect(info.signerName != forged)
+        #expect(info.signerName?.contains("unverified") == true)
+        let dev = CodeSignatureInfo(status: .valid, certificates: [forged], isAdHoc: false, trust: .developerID(notarized: true))
+        #expect(dev.isVerified && dev.signerName == forged && dev.statusText.contains("notarized"))
+        let broken = CodeSignatureInfo(status: .invalid("bad"), certificates: [], isAdHoc: false, trust: .apple)
+        #expect(!broken.isVerified)
+    }
+
+    @Test func selfStatedSigningTimeIsLabelled() {
+        let date = Date(timeIntervalSince1970: 0)
+        let plain = PropertyFormat.longDate(date)
+        let claimed = CodeSignatureInfo(status: .valid, certificates: ["x"], signingDate: date, isAdHoc: false, trust: .untrusted)
+        #expect(claimed.signingTimeText != plain)
+        #expect(claimed.signingTimeText?.contains("stated by the signer") == true)
+        var stamped = claimed
+        stamped.signingDateIsTimestamped = true
+        #expect(stamped.signingTimeText == plain)
+        let adHoc = CodeSignatureInfo(status: .valid, certificates: [], signingDate: date, isAdHoc: true, trust: .adHoc)
+        #expect(adHoc.signingTimeText?.contains("stated by the signer") == true)
+        let dev = CodeSignatureInfo(status: .valid, certificates: ["x"], signingDate: date, isAdHoc: false, trust: .developerID(notarized: false))
+        #expect(dev.signingTimeText == plain)
+        let invalid = CodeSignatureInfo(status: .invalid("bad"), certificates: ["x"], signingDate: date, isAdHoc: false, trust: .apple)
+        #expect(invalid.signingTimeText?.contains("stated by the signer") == true)
+        #expect(CodeSignatureInfo(status: .unsigned, certificates: [], isAdHoc: false).signingTimeText == nil)
+    }
+
+    @Test func adHocSignatureIsNotVerified() throws {
+        let fx = try Fixture()
+        let tool = fx.root.appendingPathComponent("tool")
+        try FileManager.default.copyItem(at: URL(fileURLWithPath: "/usr/bin/true"), to: tool)
+        let sign = Process()
+        sign.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+        sign.arguments = ["--force", "--sign", "-", tool.path]
+        sign.standardError = FileHandle.nullDevice
+        try sign.run()
+        sign.waitUntilExit()
+        try #require(sign.terminationStatus == 0)
+        let info = CodeSignatureInfo.read(tool)
+        #expect(info.status == .valid)
+        #expect(info.trust == .adHoc)
+        #expect(!info.isVerified)
+        #expect(info.teamIdentifier == nil)
+        #expect(!info.statusText.contains("OK"))
+    }
+
+    @Test func universalBinaryWithAdHocSliceIsNotVerified() throws {
+        let fx = try Fixture()
+        func run(_ tool: String, _ args: [String]) throws {
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: tool)
+            p.arguments = args
+            p.standardError = FileHandle.nullDevice
+            try p.run()
+            p.waitUntilExit()
+            try #require(p.terminationStatus == 0)
+        }
+        let apple = fx.root.appendingPathComponent("apple").path
+        let local = fx.root.appendingPathComponent("local").path
+        let mixed = fx.root.appendingPathComponent("mixed")
+        // Keep Apple's arm64e slice; re-sign the x86_64 slice ad hoc.
+        try run("/usr/bin/lipo", ["/usr/bin/true", "-thin", "arm64e", "-output", apple])
+        try run("/usr/bin/lipo", ["/usr/bin/true", "-thin", "x86_64", "-output", local])
+        try run("/usr/bin/codesign", ["--force", "--sign", "-", local])
+        try run("/usr/bin/lipo", ["-create", apple, local, "-output", mixed.path])
+        let info = CodeSignatureInfo.read(mixed)
+        #expect(!info.isVerified)
+        #expect(info.trust != .apple)
+        #expect(!info.statusText.contains("OK"))
     }
 }

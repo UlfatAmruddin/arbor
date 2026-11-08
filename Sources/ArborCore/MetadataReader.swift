@@ -5,9 +5,8 @@ import AudioToolbox
 import AVFoundation
 import UniformTypeIdentifiers
 
-/// Reads Details column values for one item (FE-036). Blocking: call it off the main thread
-/// (`ColumnValueStore` does). Spotlight metadata first (`MDItem`), then the file itself for images
-/// (ImageIO), audio (AudioToolbox) and video (AVFoundation), so unindexed folders still work.
+/// Reads Details column values for one item (FE-036). Blocking: call off the main thread.
+/// Spotlight first, then the file itself, so unindexed folders still work.
 public enum MetadataReader {
     static let imageColumns: Set<ColumnID> = [.dimensions, .width, .height, .dateTaken, .cameraModel]
     static let audioColumns: Set<ColumnID> = [.trackNumber, .artists, .album, .genre, .year]
@@ -26,7 +25,7 @@ public enum MetadataReader {
         return .other
     }
 
-    /// Whether a column applies to a kind of item (unsupported cells stay blank, like Explorer).
+    /// Unsupported cells stay blank, like Explorer.
     public static func applies(_ column: ColumnID, to kind: Kind) -> Bool {
         switch column {
         case .dimensions, .width, .height: return kind == .image || kind == .video
@@ -48,7 +47,6 @@ public enum MetadataReader {
         }
         if wanted.isEmpty { return result }
 
-        // File-system attributes.
         let fsKeys: Set<URLResourceKey> = [.creationDateKey, .contentAccessDateKey, .totalFileAllocatedSizeKey,
                                            .fileAllocatedSizeKey, .tagNamesKey, .contentModificationDateKey]
         let fs = try? url.resourceValues(forKeys: fsKeys)
@@ -83,8 +81,7 @@ public enum MetadataReader {
             } else if column == .itemDate {
                 result[column] = (fs?.creationDate ?? fs?.contentModificationDate).map(ColumnValue.date) ?? .unknown
             } else {
-                // Type-specific values we expected but couldn't read are unknown; optional text
-                // properties (title, authors, comments, track…) that the file simply lacks are empty.
+                // Expected but unreadable values are unknown; optional properties the file lacks are empty.
                 let expected: Set<ColumnID> = [.dimensions, .width, .height, .length]
                 result[column] = expected.contains(column) ? .unknown : .empty
             }
@@ -105,7 +102,7 @@ public enum MetadataReader {
         let w = number(kMDItemPixelWidth), h = number(kMDItemPixelHeight)
         for column in columns {
             switch column {
-            case .dimensions: if let w, let h { out[column] = .dimensions(width: Int(w), height: Int(h)) }
+            case .dimensions: if let w = w.flatMap(Int.init(checked:)), let h = h.flatMap(Int.init(checked:)) { out[column] = .dimensions(width: w, height: h) }
             case .width: if let w { out[column] = .number(w) }
             case .height: if let h { out[column] = .number(h) }
             case .dateTaken, .itemDate: if let d = attr(kMDItemContentCreationDate) as? Date { out[column] = .date(d) }
@@ -113,7 +110,7 @@ public enum MetadataReader {
             case .length: if let s = number(kMDItemDurationSeconds) { out[column] = .duration(s) }
             case .bitRate: if let b = number(kMDItemAudioBitRate) ?? number(kMDItemTotalBitRate) { out[column] = .bitRate(b) }
             case .title:
-                // Unindexed files report their file name as the title; that isn't a title.
+                // Unindexed files report their file name as the title.
                 if let s = string(kMDItemTitle), s != url.lastPathComponent, s != url.deletingPathExtension().lastPathComponent {
                     out[column] = .text(s)
                 }
@@ -162,7 +159,7 @@ public enum MetadataReader {
         var out: [ColumnID: ColumnValue] = [:]
         var duration: Float64 = 0
         var size = UInt32(MemoryLayout<Float64>.size)
-        if AudioFileGetProperty(file, kAudioFilePropertyEstimatedDuration, &size, &duration) == noErr, duration > 0 {
+        if AudioFileGetProperty(file, kAudioFilePropertyEstimatedDuration, &size, &duration) == noErr, duration.isFinite, duration > 0 {
             out[.length] = .duration(duration)
         }
         var bitRate: UInt32 = 0
@@ -179,7 +176,7 @@ public enum MetadataReader {
             if let a = text(kAFInfoDictionary_Artist) { out[.artists] = .list([a]); out[.authors] = .list([a]) }
             if let a = text(kAFInfoDictionary_Album) { out[.album] = .text(a) }
             if let g = text(kAFInfoDictionary_Genre) { out[.genre] = .text(g) }
-            if let y = text(kAFInfoDictionary_Year).flatMap({ Double($0.prefix(4)) }) { out[.year] = .number(y) }
+            if let y = text(kAFInfoDictionary_Year).flatMap(year) { out[.year] = .number(y) }
             if let n = text(kAFInfoDictionary_TrackNumber).flatMap({ Double($0.split(separator: "/").first ?? "") }) {
                 out[.trackNumber] = .number(n)
             }
@@ -187,24 +184,31 @@ public enum MetadataReader {
         return out
     }
 
+    /// ID3 year text; Int, not Double, so "inf" and "nan" are rejected.
+    static func year(_ text: String) -> Double? { Int(text.prefix(4)).map(Double.init) }
+
+    /// Locked: the loading task can still be writing after the caller's wait times out.
     private final class Box: @unchecked Sendable {
-        var values: [ColumnID: ColumnValue] = [:]
+        private let lock = NSLock()
+        private var stored: [ColumnID: ColumnValue] = [:]
+        var values: [ColumnID: ColumnValue] { lock.withLock { stored } }
+        func set(_ column: ColumnID, _ value: ColumnValue) { lock.withLock { stored[column] = value } }
     }
 
-    /// AVFoundation only offers async loading; wait (bounded) on this background thread.
+    /// AVFoundation is async-only; waits up to 5 s on this background thread.
     static func video(_ url: URL) -> [ColumnID: ColumnValue] {
         let box = Box()
         let done = DispatchSemaphore(value: 0)
         Task.detached {
             let asset = AVURLAsset(url: url)
-            if let d = try? await asset.load(.duration), d.seconds.isFinite, d.seconds > 0 { box.values[.length] = .duration(d.seconds) }
+            if let d = try? await asset.load(.duration), d.seconds.isFinite, d.seconds > 0 { box.set(.length, .duration(d.seconds)) }
             if let track = try? await asset.loadTracks(withMediaType: .video).first,
-               let size = try? await track.load(.naturalSize) {
-                let w = Int(abs(size.width)), h = Int(abs(size.height))
-                box.values[.dimensions] = .dimensions(width: w, height: h)
-                box.values[.width] = .number(Double(w))
-                box.values[.height] = .number(Double(h))
-                if let rate = try? await track.load(.estimatedDataRate), rate > 0 { box.values[.bitRate] = .bitRate(Double(rate)) }
+               let size = try? await track.load(.naturalSize),
+               let w = Int(checked: Double(abs(size.width))), let h = Int(checked: Double(abs(size.height))) {
+                box.set(.dimensions, .dimensions(width: w, height: h))
+                box.set(.width, .number(Double(w)))
+                box.set(.height, .number(Double(h)))
+                if let rate = try? await track.load(.estimatedDataRate), rate.isFinite, rate > 0 { box.set(.bitRate, .bitRate(Double(rate))) }
             }
             done.signal()
         }
@@ -213,9 +217,8 @@ public enum MetadataReader {
     }
 }
 
-/// A bounded, thread-safe cache of column values, filled off the main thread (spec §15.3).
-/// Keys combine path and modification date, so a replaced file is re-read. Requests are tagged with
-/// an owner and can be cancelled (stale folder, rows scrolled away).
+/// Bounded, thread-safe LRU of column values, filled off the main thread (spec §15.3).
+/// Keyed by path + modification date so a replaced file is re-read; requests are cancellable per owner.
 public final class ColumnValueStore: @unchecked Sendable {
     public static let shared = ColumnValueStore()
 
@@ -239,7 +242,7 @@ public final class ColumnValueStore: @unchecked Sendable {
     private var clock: UInt64 = 0
     public let limit: Int
     private let queue: OperationQueue
-    /// Reads metadata. Replaceable in tests.
+    /// Replaceable in tests.
     var reader: (URL, Bool, Set<ColumnID>) -> [ColumnID: ColumnValue] = MetadataReader.read
 
     public init(limit: Int = 4000, concurrency: Int = 2) {
@@ -250,7 +253,7 @@ public final class ColumnValueStore: @unchecked Sendable {
         queue.qualityOfService = .utility
     }
 
-    /// The cached value, or nil while it hasn't been read (loading).
+    /// nil while not yet read.
     public func value(_ item: FileItem, _ column: ColumnID) -> ColumnValue? {
         lock.lock(); defer { lock.unlock() }
         guard var entry = entries[Key(item)], let value = entry.values[column] else { return nil }
@@ -260,7 +263,7 @@ public final class ColumnValueStore: @unchecked Sendable {
         return value
     }
 
-    /// Columns of `columns` not cached and not being read for `item`.
+    /// Not cached and not in flight.
     public func missing(_ item: FileItem, _ columns: Set<ColumnID>) -> Set<ColumnID> {
         lock.lock(); defer { lock.unlock() }
         let key = Key(item)
@@ -270,8 +273,7 @@ public final class ColumnValueStore: @unchecked Sendable {
 
     public var count: Int { lock.lock(); defer { lock.unlock() }; return entries.count }
 
-    /// Reads missing values for `items` in the background. `completion` runs on the main queue
-    /// with the items whose values arrived, once per finished batch. Returns the number queued.
+    /// `completion` runs on the main queue once per finished batch. Returns the number queued.
     @discardableResult
     public func request(_ items: [FileItem], columns: Set<ColumnID>, owner: String, batchSize: Int = 16,
                         completion: @escaping ([FileItem]) -> Void) -> Int {
@@ -306,7 +308,7 @@ public final class ColumnValueStore: @unchecked Sendable {
                     self.store(item, filled)
                     done.append(item)
                 }
-                // Release reservations of items that weren't read (cancelled).
+                // Release reservations of items skipped by cancellation.
                 self.release(batch.filter { pair in !done.contains(pair.0) })
                 if !done.isEmpty { DispatchQueue.main.async { completion(done) } }
             }
@@ -315,11 +317,11 @@ public final class ColumnValueStore: @unchecked Sendable {
         return work.count
     }
 
-    /// Cancels queued reads for an owner (running batches stop between items).
+    /// Running batches stop between items.
     public func cancel(owner: String) {
         for case let op as ReadOperation in queue.operations where op.name == owner && !op.isCancelled {
             op.cancel()
-            // A cancelled operation that hasn't started never runs; give its items back.
+            // Never runs if not started, so give its items back.
             if !op.isExecuting { release(op.batch) }
         }
     }
@@ -331,12 +333,12 @@ public final class ColumnValueStore: @unchecked Sendable {
         override func main() { work?() }
     }
 
-    /// Drops cached values (tests, memory pressure).
+    /// Tests and memory pressure.
     public func removeAll() {
         lock.lock(); entries.removeAll(); lock.unlock()
     }
 
-    /// Waits for queued reads (tests).
+    /// Tests only.
     public func waitUntilIdle() { queue.waitUntilAllOperationsAreFinished() }
 
     private func store(_ item: FileItem, _ values: [ColumnID: ColumnValue]) {
@@ -366,7 +368,7 @@ public final class ColumnValueStore: @unchecked Sendable {
         }
     }
 
-    /// Removes the least recently used quarter (lock held).
+    /// Drops the least recently used quarter. Lock held.
     private func evict() {
         let drop = max(1, entries.count - limit * 3 / 4)
         let oldest = entries.sorted { $0.value.stamp < $1.value.stamp }.prefix(drop).map(\.key)

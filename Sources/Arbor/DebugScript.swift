@@ -1,29 +1,10 @@
 import AppKit
 import ArborCore
 
-/// Developer test harness, inactive unless `ARBOR_SCRIPT` is set in the environment.
-///
-/// Runs semicolon-separated steps against the live UI, through the same command registry and
-/// responder chain as the menus. See TESTING.md for the full list. Core steps:
-///
-///     select:a.txt|b.txt     select rows by name in the active tab
-///     click:edit.copy        perform a registry command (with the active tab's context)
-///     action:cut:            send an action selector through the responder chain
-///     newtab / closetab / duptab / tab:2 / movetab:1:3 / detachtab
-///     location:home|thismac|gallery|network|trash|~/path|/path
-///     view:details|largeIcons|…   back / forward / up / refresh
-///     type:New name / enter / escape / button:Keep Both / search:rep / address:~/Documents
-///     log:/tmp/state.txt     append tabs, location, rows, selection, status, chrome state
-///     crumbs:/tmp/c.txt      append breadcrumb segments and every chevron's menu entries
-///     menu:item|background|tree:<row>|tab:<n>|new|sort|view|seemore:/tmp/m.txt   append a menu's titles
-///     hittest:x,y:/tmp/h.txt append the view class under a window point (top-left origin)
-///     snapshot:/tmp/a.png    save an image of the window (title bar included)
-///     event / wait:1.5 / quit
-///
-/// Features add steps without editing this file: `DebugScript.registerStep("mystep") { arg, window in … }`
-/// and extra log lines with `DebugScript.registerLogger("myfeature.log") { window in "mything: …" }`.
-/// A step name is registered once; a second registration is an extension error (two features would
-/// otherwise silently fight over the name).
+/// Developer test harness, inactive unless `ARBOR_SCRIPT` is set. Runs semicolon-separated steps
+/// (see TESTING.md) through the same registry and responder chain as the menus.
+/// Features add steps with `registerStep(_:)` and log lines with `registerLogger(_:)`;
+/// a duplicate step name is an extension error.
 enum DebugScript {
     typealias Step = (_ argument: String, _ window: BrowserWindowController?) -> TimeInterval?
     private static var steps: [String: Step] = [:]
@@ -41,8 +22,7 @@ enum DebugScript {
         loggers.add(id) { text, window in text + logger(window) + "\n" }
     }
 
-    /// A step that holds the script until it reports completion: called first with `elapsed` 0 (start
-    /// the work), then every few milliseconds until it returns true (benchmarks: wait for a load).
+    /// Holds the script until it returns true: called with `elapsed` 0 to start, then every few ms.
     typealias WaitStep = (_ argument: String, _ window: BrowserWindowController?, _ elapsed: TimeInterval) -> Bool
     private static var waitSteps: [String: WaitStep] = [:]
     static func registerWaitStep(_ name: String, _ step: @escaping WaitStep) {
@@ -50,7 +30,7 @@ enum DebugScript {
         waitSteps[name] = step
     }
 
-    /// Records who registered a step name; false (and an extension error) when it is taken.
+    /// False (and an extension error) when the name is taken.
     private static func claim(_ name: String) -> Bool {
         let registry = ExtensionRegistry.shared
         let feature = registry.currentFeature ?? "an earlier registration"
@@ -63,7 +43,7 @@ enum DebugScript {
         return true
     }
 
-    /// Every registered step name with the feature that registered it (the `extensions` step lists them).
+    /// Step name → registering feature (listed by the `extensions` step).
     static var stepNames: [(name: String, feature: String)] {
         stepOwners.sorted { $0.key < $1.key }.map { ($0.key, $0.value) }
     }
@@ -71,7 +51,7 @@ enum DebugScript {
     private(set) static var currentStep = ""
 
     static func runIfRequested() {
-        guard let script = ProcessInfo.processInfo.environment["ARBOR_SCRIPT"] else { return }
+        guard let script = Automation.environment["ARBOR_SCRIPT"] else { return }
         let list = script.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         run(list[...], delay: 1.2)
     }
@@ -122,8 +102,7 @@ enum DebugScript {
         case "click":
             if c?.perform(argument, surface: .script) != true { NSLog("DebugScript: command \(argument) unavailable or disabled") }
         case "action":
-            // Walk the window's responder chain directly: a script launched from a terminal may not
-            // make the app active, so there may be no key window.
+            // Walk the responder chain directly: a script launched from a terminal may leave no key window.
             let selector = Selector(argument)
             let start: NSResponder? = window?.firstResponder ?? window
             if start?.tryToPerform(selector, with: nil) != true, !NSApp.sendAction(selector, to: nil, from: nil) {
@@ -204,7 +183,7 @@ enum DebugScript {
             append("undo: level=\(um.groupingLevel) canUndo=\(um.canUndo) name=\(um.undoActionName)\n", to: argument)
             return 0.8
         case "event":
-            // Emulates the boundary between two user inputs (undo grouping closes per event).
+            // Ends one user input (closes the undo group).
             if let e = NSEvent.otherEvent(with: .applicationDefined, location: .zero, modifierFlags: [], timestamp: 0,
                                           windowNumber: 0, context: nil, subtype: 0, data1: 0, data2: 0) {
                 NSApp.postEvent(e, atStart: false)

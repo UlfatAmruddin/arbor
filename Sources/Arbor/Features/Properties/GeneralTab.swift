@@ -461,8 +461,7 @@ enum AdvancedAttributesSheet {
 
 // MARK: - Opens with › Change…
 
-/// "How do you want to open this file?": choose the default app for the file's type
-/// (NSWorkspace.setDefaultApplication), or look for another app.
+/// "How do you want to open this file?": set the type's default app (NSWorkspace.setDefaultApplication) or find another.
 enum OpenWithChooser {
     static func show(for url: URL, contentType: UTType?, over window: NSWindow, done: @escaping () -> Void) {
         let apps = NSWorkspace.shared.urlsForApplications(toOpen: url)

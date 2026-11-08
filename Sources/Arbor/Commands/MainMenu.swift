@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// The menu bar, built from `CommandRegistry` (`.mainMenu("File")` etc.) after features register.
-/// Only the application menu and the standard window items are fixed here (AppKit adds Enter Full Screen).
+/// Built from `CommandRegistry` after features register; only the app menu and window items are fixed.
 enum MainMenu {
     static func build() -> NSMenu {
         let main = NSMenu()
@@ -11,7 +10,7 @@ enum MainMenu {
         let app = NSMenu(title: appName)
         app.addItem(plain(L10n.format("About %@", appName), #selector(AppDelegate.showAbout(_:))))
         app.addItem(.separator())
-        // Commands placed in `.mainMenu("Arbor")` (Settings… ⌘,) go into the application menu.
+        // `.mainMenu("Arbor")` commands (Settings…) go into the application menu.
         let appCommands = CommandRegistry.shared.entries(in: .mainMenu(appName))
         appCommands.forEach { app.addItem(CommandDispatcher.shared.menuItem($0.command, context: nil)) }
         if !appCommands.isEmpty { app.addItem(.separator()) }

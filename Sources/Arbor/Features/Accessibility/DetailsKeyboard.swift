@@ -1,9 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Keyboard additions for the Details view (FE-060, FE-068): type-to-select through the input method, and
-/// moving the keyboard focus without changing the selection (DEC-accessibility-3, the icon layouts' ⌥⌘ arrows
-/// and ⌥Space, Explorer's Ctrl+arrows and Ctrl+Space).
+/// Details keys (FE-060, FE-068): type-to-select via the input method, and moving focus without
+/// changing the selection (DEC-accessibility-3).
 extension DetailsViewController {
     /// Item rows in display order (group headers left out), for type-to-select.
     private var itemRowOrder: [Int] { (0..<table.numberOfRows).filter { item(atRow: $0) != nil } }
@@ -27,10 +26,8 @@ extension DetailsViewController {
     }
 }
 
-/// Details: Explorer's Ctrl+arrows (move the focus, keep the selection) and Ctrl+Space (select or deselect the
-/// focused item), as ⌥⌘↑/↓/Home/End and ⌥Space like the icon layouts (DEC-accessibility-3); the Control
-/// versions work too when macOS passes them through. After a focus move, plain arrows continue from the focused
-/// row, and ⇧arrows extend the selection to it.
+/// Explorer's Ctrl+arrows / Ctrl+Space as ⌥⌘arrows / ⌥Space (DEC-accessibility-3). Afterwards plain
+/// arrows continue from the focused row and ⇧arrows extend the selection to it.
 enum DetailsFocusKeys {
     static func handle(_ event: NSEvent, table: FileTableView, mods: NSEvent.ModifierFlags) -> Bool {
         let code = Int(event.keyCode)

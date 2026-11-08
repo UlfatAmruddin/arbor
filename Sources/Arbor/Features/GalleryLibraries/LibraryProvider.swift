@@ -29,7 +29,7 @@ enum LibraryStore {
         all = list
     }
 
-    /// "Restore defaults" for one library: its original single folder.
+    /// "Restore defaults": the library's original single folder.
     static func restoreDefaults(_ name: String) {
         guard let original = LibraryLogic.defaultDefinition(named: name, home: home) else { return }
         update(original)
@@ -37,8 +37,7 @@ enum LibraryStore {
 
     // MARK: Save location (FE-238)
 
-    /// Resolutions computed off the main thread when a library loads; `targetFolder` reads them
-    /// without touching the disk (folders may be on slow or disconnected volumes).
+    /// Resolved off-main on load so `targetFolder` never touches a possibly slow or offline disk.
     private(set) static var resolvedSaveLocations: [String: SaveLocationResolution] = [:]
 
     static func isUsableFolder(_ url: URL) -> Bool {
@@ -71,9 +70,8 @@ struct LibraryNotFound: LocalizedError {
     var errorDescription: String? { "The “\(name)” library doesn't exist. It may have been removed." }
 }
 
-/// Libraries page and each library's merged listing (FE-076). A library lists the top level of every
-/// included folder as ordinary items (sorting, views, rename, Trash, drag all work on the real files),
-/// with a "Folder" column in Details. New and Paste go to the default save location (FE-238).
+/// Libraries page and merged library listings (FE-076): each folder's top level as real items, plus a
+/// "Folder" column in Details. New/Paste go to the default save location (FE-238).
 final class LibraryProvider: LocationProvider {
     func handles(_ location: Location) -> Bool {
         if case .library = location { return true }
@@ -123,7 +121,7 @@ final class LibraryProvider: LocationProvider {
 
     func icon(for location: Location, size: CGFloat) -> NSImage { LibraryStore.icon(for: Self.name(location) ?? "", size: size) }
 
-    /// The resolved default save location, or nil (New/Paste then explain why, FE-238).
+    /// Default save location, or nil (New/Paste then explain why, FE-238).
     func targetFolder(for location: Location) -> URL? {
         guard let name = Self.name(location), name != LibraryLogic.rootName else { return nil }
         return LibraryStore.resolvedSaveLocations[name]?.url
@@ -164,7 +162,7 @@ final class LibrariesPageController: NSViewController, LocationPageStatus {
     weak var host: LocationHost?
     private let grid = NSStackView()
     private var observer: NSObjectProtocol?
-    /// The search box's text: only libraries whose names contain it are shown.
+    /// Search text: only libraries whose names contain it are shown.
     var filterText = "" { didSet { if filterText != oldValue, isViewLoaded { rebuild() } } }
 
     init(host: LocationHost?) {

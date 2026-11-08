@@ -15,9 +15,7 @@ final class NetworkPageProvider: LocationProvider {
     func targetFolder(for location: Location) -> URL? { nil }
 }
 
-/// `.server(address)`: a server shows its shared folders; a share (or folder in it) is connected
-/// first and the tab then shows the mounted folder. The `.server` share entry itself never enters
-/// history, so Back never re-runs a connection.
+/// `.server(address)`: a server lists its shares; a share is mounted, then shown. Its entry never enters history.
 final class ServerProvider: LocationProvider {
     func handles(_ location: Location) -> Bool { if case .server = location { return true }; return false }
 
@@ -53,12 +51,11 @@ final class ServerProvider: LocationProvider {
     func targetFolder(for location: Location) -> URL? { nil }
 }
 
-/// Folders on network shares (FE-179): listed off the main thread with a deadline. A share that
-/// doesn't answer gets a "not responding" page with Retry while other tabs keep working; a share that
-/// went away gets a "disconnected" page with Reconnect that keeps the server/share identity.
+/// Share folders (FE-179), listed off main with a deadline: hung shares get "not responding" + Retry,
+/// vanished ones "disconnected" + Reconnect (keeping server/share identity).
 final class NetworkFolderProvider: LocationProvider {
     private let queue = SlowWorkQueue<Result<[FileItem], Error>>(label: "arbor.network.listing")
-    /// Results that arrived after the deadline, served once on the next load of that folder.
+    /// Late results, served once on the next load of that folder.
     private var lateResults: [String: (Date, Result<[FileItem], Error>)] = [:]
     private let folders = FolderProvider()
 
@@ -88,7 +85,7 @@ final class NetworkFolderProvider: LocationProvider {
             if delay > 0 { Thread.sleep(forTimeInterval: delay) }
             return Result { try DirectoryLister.list(url, includeHidden: includeHidden) }
         }, late: { [weak self, weak host = context.host] result in
-            // The share answered after all: keep the result and refresh if its page is still up.
+            // Answered late: keep the result and refresh if the page is still up.
             self?.lateResults[url.path] = (Date(), result)
             if timeoutPage?.view.window != nil { host?.reloadLocation() }
         }) { [weak self] outcome in
@@ -109,7 +106,7 @@ final class NetworkFolderProvider: LocationProvider {
     func watch(_ location: Location, onChange: @escaping () -> Void) -> AnyObject? {
         guard let url = location.folderURL else { return nil }
         if NetworkCenter.shared.share(containing: url) == nil {
-            // Disconnected: come back by itself once the share is reconnected (here, in another tab, or automatically).
+            // Disconnected: reload by itself once the share is back (any tab or automatically).
             return NetworkChangeWatcher {
                 NetworkCenter.shared.invalidateMounts()
                 if NetworkCenter.shared.share(containing: url) != nil { onChange() }

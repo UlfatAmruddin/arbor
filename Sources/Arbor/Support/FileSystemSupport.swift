@@ -18,7 +18,7 @@ final class DirectoryWatcher {
             fileDescriptor: fd, eventMask: [.write, .delete, .rename, .link, .extend], queue: .main)
         throttle.reset()
         src.setEventHandler { [weak self] in
-            // Bursts become at most one reload a second, and the last change always reloads (EventThrottle).
+            // At most one reload a second; the last change always reloads (EventThrottle).
             guard let self, let delay = self.throttle.event(at: ProcessInfo.processInfo.systemUptime) else { return }
             let work = DispatchWorkItem { [weak self] in
                 self?.throttle.fired(at: ProcessInfo.processInfo.systemUptime)

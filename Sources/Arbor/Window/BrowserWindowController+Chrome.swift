@@ -4,7 +4,7 @@ import ArborCore
 extension BrowserWindowController {
     // MARK: - Chrome
 
-    /// Redraws tab titles and chrome after a setting that affects them changed (full path in title bar…).
+    /// Redraws tab titles and chrome after a setting that affects them changed.
     func refreshChrome() {
         reloadTabStrip()
         updateChrome()

@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// View modes, Compact view, Show ▸ toggles, panes, sorting, Quick Look, and the shared
-/// "New ▸ / Sort by ▸ / View ▸" submenus used in context menus and the menu bar.
+/// View modes, panes, sorting, Quick Look, and the shared New ▸ / Sort by ▸ / View ▸ submenus.
 enum ViewCommands {
     /// macOS virtual key codes for the digit keys 1…8 (⇧⌘1…8 = Explorer's Ctrl+Shift+1…8).
     static let digitKeyCodes: [UInt16] = [18, 19, 20, 21, 23, 22, 26, 28]
@@ -118,7 +117,7 @@ enum ViewCommands {
                     order.foldersFirst.toggle()
                     window.setSortOrder(order)
                 }),
-            // Context-menu and menu-bar submenus that mirror the command bar's drop-downs.
+            // Context-menu and menu-bar mirrors of the command bar's drop-downs.
             submenuCommand(id: "menu.view", title: "View", symbol: "list.bullet.rectangle", slot: .viewMenu,
                            placements: [.backgroundContextMenu(.view, 10)]),
             submenuCommand(id: "menu.sortBy", title: "Sort By", symbol: "arrow.up.arrow.down", slot: .sortMenu,

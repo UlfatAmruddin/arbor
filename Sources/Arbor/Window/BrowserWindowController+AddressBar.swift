@@ -33,7 +33,7 @@ extension BrowserWindowController {
         }
     }
 
-    /// `smb://` / `\\server\share` typed in the address bar; a handler returns true when it handled it (network feature).
+    /// Handles typed `smb://` / `\\server\share` addresses (network feature).
     static let networkAddressHandler = Handlers<(BrowserWindowController, URL), Void>(
         "BrowserWindowController.networkAddressHandler", "A network address typed in the address bar; true = handled.",
         signature: "(window, url) -> handled")

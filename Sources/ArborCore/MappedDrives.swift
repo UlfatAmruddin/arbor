@@ -1,16 +1,15 @@
 import Foundation
 
-/// A mounted network share as the mount table reports it (no network I/O to obtain).
+/// A mounted network share from the mount table (no network I/O).
 public struct MountedShare: Hashable, Sendable {
-    /// Where the share is mounted (`/Volumes/Media`).
     public var mountPoint: URL
-    /// Who it came from (server, share, account), when the file system reports it.
+    /// Server, share and account, when the file system reports it.
     public var address: NetworkAddress?
-    /// Volume name shown by the system ("Media", "Media-1"…). Never used as identity.
+    /// "Media", "Media-1"… Never used as identity.
     public var volumeName: String
     /// `smbfs`, `afpfs`, `nfs`, `webdav`…
     public var fileSystem: String
-    /// The volume's UUID, when the file system has one (FE-187 stable identity).
+    /// Stable identity when the file system has one (FE-187).
     public var volumeUUID: String?
 
     public init(mountPoint: URL, address: NetworkAddress?, volumeName: String, fileSystem: String, volumeUUID: String? = nil) {
@@ -21,14 +20,13 @@ public struct MountedShare: Hashable, Sendable {
         self.volumeUUID = volumeUUID
     }
 
-    /// True when `url` is the mount point or inside it.
     public func contains(_ url: URL) -> Bool {
         let root = Self.normalized(mountPoint.path)
         let path = Self.normalized(url.standardizedFileURL.path)
         return path == root || path.hasPrefix(root == "/" ? "/" : root + "/")
     }
 
-    /// The share address of a folder inside this mount (`\\host\share\a\b`).
+    /// `\\host\share\a\b` for a folder inside this mount.
     public func address(of url: URL) -> NetworkAddress? {
         guard var address, contains(url) else { return nil }
         let root = Self.normalized(mountPoint.path)
@@ -44,19 +42,18 @@ public struct MountedShare: Hashable, Sendable {
     }
 }
 
-/// A "Map network drive" record (FE-177). It holds the share's identity and reconnect intent only:
-/// passwords live in the Keychain, never here (FE-178).
+/// A "Map network drive" record (FE-177). Passwords live in the Keychain, never here (FE-178).
 public struct MappedDrive: Codable, Hashable, Identifiable, Sendable {
     public var id: UUID
-    /// Server + share (+ account). Folders below the share are allowed, like `\\server\share\folder`.
+    /// May include folders below the share, like `\\server\share\folder`.
     public var address: NetworkAddress
-    /// "Reconnect at sign-in": reconnect when Arbor starts. Off means the mapping lasts for this session.
+    /// Off means the mapping lasts for this session only.
     public var reconnectAtSignIn: Bool
-    /// The user chose "Connect using different credentials" (always show the sign-in prompt).
+    /// Always show the sign-in prompt.
     public var usesDifferentCredentials: Bool
-    /// Volume UUID captured at the last successful mount, when the file system reports one.
+    /// From the last successful mount.
     public var volumeUUID: String?
-    /// Where it was last mounted; used to keep tabs on it while disconnected. Not an identity.
+    /// Keeps tabs on it while disconnected. Not an identity.
     public var lastMountPoint: String?
     public var created: Date
 
@@ -73,8 +70,7 @@ public struct MappedDrive: Codable, Hashable, Identifiable, Sendable {
 
     public var label: String { address.driveLabel }
 
-    /// Whether `share` is this drive (FE-187). A volume UUID decides when both sides have one;
-    /// otherwise server + share (+ account when both name one). The volume name is never consulted.
+    /// FE-187: volume UUID when both have one, else server + share (+ account). Never the volume name.
     public func matches(_ share: MountedShare) -> Bool {
         if let mine = volumeUUID, let theirs = share.volumeUUID { return mine == theirs }
         guard let mounted = share.address, let root = address.shareRoot else { return false }
@@ -82,13 +78,13 @@ public struct MappedDrive: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
-/// The saved list of mapped drives, independent of storage (unit-tested).
+/// The saved list of mapped drives, independent of storage.
 public struct MappedDriveList: Codable, Equatable, Sendable {
     public private(set) var drives: [MappedDrive]
 
     public init(drives: [MappedDrive] = []) { self.drives = drives }
 
-    /// Adds a mapping, or updates the existing one for the same share and account (no duplicates).
+    /// Updates the existing mapping for the same share and account instead of duplicating it.
     @discardableResult
     public mutating func add(_ drive: MappedDrive) -> MappedDrive {
         if let index = drives.firstIndex(where: { $0.address.identityKey == drive.address.identityKey && $0.address.path == drive.address.path }) {
@@ -113,11 +109,10 @@ public struct MappedDriveList: Codable, Equatable, Sendable {
 
     public func drive(id: UUID) -> MappedDrive? { drives.first { $0.id == id } }
 
-    /// Session-only mappings (Reconnect at sign-in off) are dropped when the app starts again.
+    /// Called at launch: session-only mappings don't survive a restart.
     public mutating func dropSessionOnly() { drives.removeAll { !$0.reconnectAtSignIn } }
 
-    /// Pairs each drive with the mounted share that is it, if any. A mounted share is assigned to at
-    /// most one drive, so two servers exporting "Public" never cross (FE-187).
+    /// Each share goes to at most one drive, so two servers exporting "Public" never cross (FE-187).
     public func match(_ mounted: [MountedShare]) -> [UUID: MountedShare] {
         var result: [UUID: MountedShare] = [:]
         var taken = Set<String>()
@@ -144,21 +139,19 @@ public struct MappedDriveList: Codable, Equatable, Sendable {
     }
 }
 
-/// Decides when to reconnect a mapped drive by itself (FE-177): at launch for "Reconnect at sign-in"
-/// drives, and once after a drive disappears without the user disconnecting it. Never in a loop.
+/// Automatic reconnects (FE-177): at launch, and once after a drive vanishes on its own. Never in a loop.
 public struct ReconnectPolicy: Sendable {
     public var minimumInterval: TimeInterval
     private var lastAttempt: [UUID: Date] = [:]
 
     public init(minimumInterval: TimeInterval = 60) { self.minimumInterval = minimumInterval }
 
-    /// Drives to reconnect when the app starts.
     public func atLaunch(_ list: MappedDriveList, mounted: [MountedShare]) -> [MappedDrive] {
         let connected = list.match(mounted)
         return list.drives.filter { $0.reconnectAtSignIn && connected[$0.id] == nil }
     }
 
-    /// Whether to try again after `drive` vanished. `userDisconnected` drives are left alone.
+    /// At most once per `minimumInterval`; drives the user disconnected are left alone.
     public mutating func shouldReconnect(_ drive: MappedDrive, userDisconnected: Bool, now: Date = Date()) -> Bool {
         guard drive.reconnectAtSignIn, !userDisconnected else { return false }
         if let last = lastAttempt[drive.id], now.timeIntervalSince(last) < minimumInterval { return false }

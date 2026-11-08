@@ -1,16 +1,13 @@
 import Foundation
 
-/// What Arbor remembers about an item it moved to the Trash (FE-077): where it came from and when.
-/// macOS gives third-party apps no public API for Finder's "Put Back" data, so only items trashed
-/// through `SystemTrash.trash` have a record; everything else shows "Unknown" (spec §12.4).
+/// Where an item Arbor trashed came from, and when (FE-077). macOS has no public API for Finder's
+/// "Put Back" data, so only items trashed via `SystemTrash.trash` have one; others show "Unknown" (spec §12.4).
 public struct TrashRecord: Codable, Equatable, Sendable {
-    /// Where the item is now (inside a Trash folder).
+    /// Current path, inside a Trash folder.
     public var trashedPath: String
-    /// Full path the item had before it was trashed.
     public var originalPath: String
     public var dateDeleted: Date
-    /// File identity (inode and device) at trashing time, so a different item that later lands at
-    /// the same Trash path is never given this record.
+    /// Inode and device at trashing time, so a different item later at the same path never gets this record.
     public var fileID: UInt64?
     public var device: Int64?
 
@@ -28,8 +25,8 @@ public struct TrashRecord: Codable, Equatable, Sendable {
     public var originalName: String { (originalPath as NSString).lastPathComponent }
 }
 
-/// Persistent map from trashed path to `TrashRecord`. Thread-safe; writes are coalesced and flushed
-/// at exit. Bounded to `maxRecords` (oldest dropped) and pruned whenever a Trash folder is listed.
+/// Trashed path → `TrashRecord`. Thread-safe; writes coalesced and flushed at exit. Capped at `maxRecords`
+/// (oldest dropped) and pruned when a Trash folder is listed.
 public final class TrashJournal: @unchecked Sendable {
     public static let shared = TrashJournal(fileURL: defaultURL)
 
@@ -79,8 +76,7 @@ public final class TrashJournal: @unchecked Sendable {
         mutate { records in trashed.forEach { records[Self.key($0)] = nil } }
     }
 
-    /// Drops records for items that are no longer in `folder` (emptied, put back, or deleted elsewhere).
-    /// `existing` holds the paths currently inside the folder. Records for other folders are kept.
+    /// Drops records for `folder` items not in `existing` (emptied, put back, deleted); other folders are kept.
     public func prune(folder: URL, existing: Set<String>) {
         let prefix = Self.key(folder) + "/"
         let present = Set(existing.map { Self.key(URL(fileURLWithPath: $0)) })
@@ -94,8 +90,7 @@ public final class TrashJournal: @unchecked Sendable {
 
     // MARK: Reading
 
-    /// The record for an item currently in the Trash, if Arbor trashed it. The item's identity must
-    /// still match, so a different file at the same path never inherits a record.
+    /// The record for an item Arbor trashed; identity must match, so another file at that path never inherits it.
     public func lookup(_ trashed: URL) -> TrashRecord? {
         let key = Self.key(trashed)
         lock.lock()

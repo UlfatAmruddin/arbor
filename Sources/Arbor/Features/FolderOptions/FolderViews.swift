@@ -1,11 +1,10 @@
 import AppKit
 import ArborCore
 
-/// Where Folder Options keeps its small state files (Application Support/Arbor). Headless test runs keep
-/// everything in memory unless `ARBOR_STATE_DIR` points at a disposable folder.
+/// Folder Options state files (Application Support/Arbor); headless runs stay in memory unless `ARBOR_STATE_DIR` is set.
 enum FolderOptionsStorage {
     static let directory: URL? = {
-        if let dir = ProcessInfo.processInfo.environment["ARBOR_STATE_DIR"], !dir.isEmpty { return URL(fileURLWithPath: dir) }
+        if let dir = Automation.environment["ARBOR_STATE_DIR"], !dir.isEmpty { return URL(fileURLWithPath: dir) }
         if AppDelegate.isHeadless { return nil }
         return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("Arbor")
     }()
@@ -16,15 +15,11 @@ enum FolderOptionsStorage {
     static let writeQueue = DispatchQueue(label: "arbor.folder-options.state", qos: .utility)
 }
 
-/// Per-folder view persistence (FE-041, FE-052, FE-248), with one precedence chain for everything a folder shows:
-///
-/// - **Folder type**: Properties › Customize ("Optimize this folder for", `FolderTemplateStore`) → Downloads →
-///   known folders → content discovery. The same answer feeds the Details column sets (`ViewOptions.folderKindResolver`).
-/// - **View mode and sort**: app default → template (built in, or "Apply to Folders") → this folder.
-/// - **Columns and Group by**: the folder kind's column set (`ViewOptions`, grouping feature) → this folder.
-///
-/// A folder is identified by volume UUID + file number (path fallback); saved views live in
-/// Application Support/Arbor/FolderViews.json. Nothing is written into the folders.
+/// Per-folder views (FE-041, FE-052, FE-248). Precedence:
+/// - Folder type: Properties › Customize (`FolderTemplateStore`) → Downloads → known folders → discovery (also `ViewOptions.folderKindResolver`).
+/// - View mode and sort: app default → template → this folder.
+/// - Columns and Group by: the kind's column set (`ViewOptions`) → this folder.
+/// Keyed by volume UUID + file number (path fallback), saved in FolderViews.json; nothing is written into folders.
 final class FolderViews {
     static let shared = FolderViews()
 
@@ -134,7 +129,7 @@ final class FolderViews {
         return settings
     }
 
-    /// The user changed the view mode, sort, Group by or columns in a folder: save it for this folder.
+    /// The user changed view mode, sort, Group by or columns: save it for this folder.
     private func record(_ window: BrowserWindowController, _ tab: TabState) {
         guard !isApplying, let entry = tracked.object(forKey: tab), tab.displayedLocation?.key == entry.key else { return }
         let settings = snapshot(tab)
@@ -167,8 +162,7 @@ final class FolderViews {
     var savedCount: Int { store.count }
     var hasSavedViews: Bool { store.count > 0 || !store.appliedTemplates.isEmpty }
 
-    /// "Apply to Folders": the current folder's view becomes its type's default: mode and sort in the view
-    /// database, columns and Group by in the kind's column set. Saved views of that type are dropped.
+    /// "Apply to Folders": this view becomes its type's default; saved views of that type are dropped.
     func applyToFolders(from window: BrowserWindowController) {
         let tab = window.activeTab
         guard let entry = tracked.object(forKey: tab) else { return }

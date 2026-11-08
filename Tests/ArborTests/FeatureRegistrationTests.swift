@@ -4,14 +4,12 @@ import Testing
 @testable import Arbor
 @testable import ArborCore
 
-/// Registering every feature, as the app does at launch, must not produce extension errors (duplicate
-/// contribution ids, second providers, overrides of commands nobody registers), and the order must
-/// satisfy every feature's `requires` (DEC-024).
+/// Registering every feature as at launch gives no extension errors and satisfies each `requires` (DEC-024).
 @Suite("Feature registration (DEC-024)", .serialized)
 @MainActor
 struct FeatureRegistrationTests {
     /// Registers once per test process (registration isn't repeatable: ids would be duplicates).
-    private static let problem: String? = {
+    static let problem: String? = {
         setenv("ARBOR_HEADLESS", "1", 1)   // a throwaway preferences domain; nothing opens
         _ = NSApplication.shared   // features observe the app; no window is created
         ExtensionRegistry.shared.assertsOnError = false   // collect every error, report them below
@@ -63,8 +61,7 @@ struct FeatureRegistrationTests {
     }
 }
 
-/// Every extension point declared in the sources is in `ExtensionCatalog` (so the `extensions` step and
-/// docs/EXTENSION-POINTS.md list it), and its name is the Swift expression that reaches it.
+/// Every declared extension point is in `ExtensionCatalog` (feeds docs/EXTENSION-POINTS.md), named by its Swift path.
 @Suite("Extension catalog (DEC-024)")
 struct ExtensionCatalogTests {
     @Test func everyDeclaredPointIsCatalogued() throws {

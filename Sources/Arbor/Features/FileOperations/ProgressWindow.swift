@@ -37,9 +37,8 @@ final class JobMonitor {
     }
 }
 
-/// The Windows-style progress window (FE-114, FE-115, FE-116): one panel per running job,
-/// stacked like Explorer's "2 operations running", shown only for jobs that take more than
-/// ~0.8 s. Closing it hides it; jobs keep running and the status bar keeps its compact line.
+/// Progress window (FE-114, FE-115, FE-116): one panel per job taking over ~0.8 s.
+/// Closing only hides it; jobs keep running and the status bar keeps its line.
 final class OperationsWindow: NSObject, NSWindowDelegate {
     static let shared = OperationsWindow()
     static let showDelay: TimeInterval = 0.8
@@ -152,8 +151,7 @@ final class OperationsWindow: NSObject, NSWindowDelegate {
         return window
     }
 
-    /// Adds and removes panels to match the running jobs, refreshes them, and hides the
-    /// window when the last job ends.
+    /// Syncs panels with the running jobs; hides the window when the last one ends.
     func sync(force: Bool = false) {
         let jobs = OperationCenter.shared.jobs
         guard let window else { return }
@@ -197,7 +195,7 @@ final class OperationsWindow: NSObject, NSWindowDelegate {
         if changedLayout || force { fit() }
     }
 
-    /// Puts the panels in queue order (running first, then waiting jobs in the order they start).
+    /// Queue order: running first, then waiting jobs in start order.
     func reorder(by ids: [UUID]) {
         let ordered = ids.compactMap { id in OperationCenter.shared.jobs.first { $0.id == id } }.compactMap { panels[ObjectIdentifier($0)] }
         guard ordered.count == stack.arrangedSubviews.count else { return }
@@ -415,8 +413,7 @@ final class TransferBarView: NSView {
     }
 }
 
-/// "More details": throughput over the course of the job. X is progress (0–100 %), Y is speed;
-/// a horizontal line marks the current speed with "Speed: 45.2 MB/s" above it, like Explorer.
+/// "More details" speed graph: X is progress, Y speed, with a labelled current-speed line, like Explorer.
 final class SpeedGraphView: NSView {
     var samples: [JobMonitor.Sample] = [] { didSet { needsDisplay = true } }
     var fraction: Double = 0 { didSet { needsDisplay = true } }

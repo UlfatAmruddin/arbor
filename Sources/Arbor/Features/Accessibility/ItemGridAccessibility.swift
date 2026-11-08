@@ -2,12 +2,8 @@ import AppKit
 import ObjectiveC
 import ArborCore
 
-/// VoiceOver for the icon, List, Tiles and Content layouts (FE-200). `ItemGridView` draws its items
-/// itself, so each item is a virtual accessibility element: a cell with the item's name, its type as
-/// the role description ("Folder", "Text document"), selected and focused state, and actions
-/// (press = open, show menu = context menu, select by setting AXSelected). Elements are cached per
-/// item and created only when an assistive app asks; folders with more than `allLimit` items expose
-/// the visible items plus the focused one (spec §15.3: no per-item objects for huge folders).
+/// VoiceOver for the grid layouts (FE-200): each drawn item is a lazily created, cached virtual cell.
+/// Over `allLimit` items, only visible ones plus the focused one are exposed (spec §15.3).
 enum ItemGridAccessibility {
     static let allLimit = 2000
     private static var cacheKey = 0

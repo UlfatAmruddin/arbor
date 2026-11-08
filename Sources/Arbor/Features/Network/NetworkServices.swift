@@ -74,28 +74,27 @@ protocol NetworkDiscovering: AnyObject {
 }
 
 struct MountOptions {
-    /// "Connect using different credentials": always show the sign-in prompt and start a new session.
+    /// "Different credentials": always prompt and start a new session.
     var differentCredentials = false
-    /// Allow the system sign-in prompt. Off for silent reconnects (Keychain only).
+    /// Off for silent reconnects (Keychain only).
     var allowUI = true
 }
 
 protocol NetworkServicing: AnyObject {
-    /// Creates a discovery session (one per Network page).
+    /// One per Network page.
     func makeDiscovery() -> NetworkDiscovering
-    /// Finds the host name to connect to for a discovered device.
+    /// Host name to connect to for a discovered device.
     func resolve(_ device: NetworkDevice, completion: @escaping (NetworkAddress?) -> Void)
-    /// Lists a server's shared folders.
     @discardableResult
     func listShares(on server: NetworkAddress, completion: @escaping (Result<[NetworkShareInfo], NetworkError>) -> Void) -> NetworkCancellable
-    /// Mounts a share (or, for a server, lets the system ask which share). Completes with the mount points.
+    /// Mounts a share (for a server, the system asks which); completes with the mount points.
     @discardableResult
     func mount(_ address: NetworkAddress, options: MountOptions, completion: @escaping (Result<[URL], NetworkError>) -> Void) -> NetworkCancellable
-    /// Unmounts; `force` closes files that are still open.
+    /// `force` closes files still open.
     func unmount(_ mountPoint: URL, force: Bool, completion: @escaping (Result<Void, NetworkError>) -> Void)
-    /// Mounted network shares, from the mount table only (safe on the main thread: no network I/O).
+    /// Mount table only: no network I/O, safe on main.
     func mountedShares() -> [MountedShare]
-    /// Extra delay for listing a folder (fakes only; simulates a slow share).
+    /// Fakes only: simulates a slow share.
     func simulatedListingDelay(for url: URL) -> TimeInterval
 }
 
@@ -121,8 +120,7 @@ final class LiveNetworkServices: NetworkServicing {
             completion(.failure(.listingUnsupported(server.unc)))
             return NetworkCancellable()
         }
-        // macOS's own SMB client lists shares; -N never prompts (it uses the Keychain), so this never blocks on input.
-        // Arguments are passed as an array: the host name is never interpreted by a shell.
+        // -N never prompts (Keychain only), and array arguments mean the host is never shell-parsed.
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/smbutil")
         var target = "//"
@@ -174,7 +172,11 @@ final class LiveNetworkServices: NetworkServicing {
         let mountOptions = NSMutableDictionary()
         var requestID: AsyncRequestID?
         let what = target.unc
-        let status = NetFSMountURLAsync(target.url as CFURL, nil, nil, nil, open as CFMutableDictionary, mountOptions as CFMutableDictionary,
+        guard let url = target.url else {
+            DispatchQueue.main.async { completion(.failure(.unreachable(what))) }
+            return NetworkCancellable()
+        }
+        let status = NetFSMountURLAsync(url as CFURL, nil, nil, nil, open as CFMutableDictionary, mountOptions as CFMutableDictionary,
                                         &requestID, DispatchQueue.main) { status, _, mountpoints in
             if status == 0 {
                 let paths = (mountpoints as? [String]) ?? []
@@ -235,8 +237,7 @@ final class LiveNetworkServices: NetworkServicing {
     func simulatedListingDelay(for url: URL) -> TimeInterval { 0 }
 }
 
-/// The kernel's mount table via getmntinfo(MNT_NOWAIT): no file system is contacted, so a hung
-/// server can't block the caller.
+/// getmntinfo(MNT_NOWAIT): contacts no file system, so a hung server can't block the caller.
 enum MountTable {
     static let networkTypes: Set<String> = ["smbfs", "afpfs", "nfs", "webdav", "cifs"]
 

@@ -1,13 +1,12 @@
 import Foundation
 
-/// A file type offered in New ▸ (FE-088). Every template is a complete, valid file of its format:
-/// an empty `.docx` is not a document, so formats we can't produce correctly are simply not offered.
+/// A file type in New ▸ (FE-088). Each is a valid file of its format; formats we can't produce correctly aren't offered.
 public struct NewItemTemplate: Sendable, Equatable, Identifiable {
-    /// Stable id, also the command id suffix ("file.new.txt").
+    /// Also the command id suffix ("file.new.txt").
     public let id: String
-    /// Title in New ▸, Windows wording ("Text Document").
+    /// Windows wording ("Text Document").
     public let menuTitle: String
-    /// Base name of the created file, Windows wording ("New Text Document").
+    /// Windows wording ("New Text Document").
     public let baseName: String
     public let fileExtension: String
     public let contents: Data
@@ -22,26 +21,23 @@ public struct NewItemTemplate: Sendable, Equatable, Identifiable {
 }
 
 public enum NewItemTemplates {
-    /// "New Bitmap image.bmp": a valid 1×1 white 24-bit BMP (Windows writes a zero-byte file, which
-    /// most Mac image apps refuse to open).
+    /// A valid 1×1 white BMP; Windows' zero-byte file won't open in most Mac image apps.
     public static let bitmap = NewItemTemplate(
         id: "bmp", menuTitle: L10n.tr("Bitmap image"), baseName: L10n.tr("New Bitmap image"), fileExtension: "bmp",
         contents: bitmapData(width: 1, height: 1))
 
-    /// "New Rich Text Document.rtf": a minimal, valid RTF document with one empty paragraph.
+    /// Minimal valid RTF with one empty paragraph.
     public static let richText = NewItemTemplate(
         id: "rtf", menuTitle: L10n.tr("Rich Text Document"), baseName: L10n.tr("New Rich Text Document"), fileExtension: "rtf",
         contents: Data(#"{\rtf1\ansi\ansicpg1252\deff0{\fonttbl{\f0\fswiss Helvetica;}}\f0\fs24\par}"#.utf8))
 
-    /// "New Text Document.txt": an empty plain-text file, like Explorer.
     public static let text = NewItemTemplate(
         id: "txt", menuTitle: L10n.tr("Text Document"), baseName: L10n.tr("New Text Document"), fileExtension: "txt", contents: Data())
 
-    /// In Windows order (alphabetical by display name). "Compressed (zipped) Folder" belongs between
-    /// Bitmap image and Rich Text Document and is registered by the archives feature.
+    /// Windows order. The archives feature inserts "Compressed (zipped) Folder" after Bitmap image.
     public static let all: [NewItemTemplate] = [bitmap, richText, text]
 
-    /// "New Text Document.txt", then "New Text Document (2).txt", "New Text Document (3).txt"…
+    /// "New Text Document.txt", then "New Text Document (2).txt"…
     public static func uniqueName(base: String, ext: String?, isTaken: (String) -> Bool) -> String {
         func join(_ b: String) -> String { ext.map { "\(b).\($0)" } ?? b }
         if !isTaken(join(base)) { return join(base) }
@@ -50,8 +46,7 @@ public enum NewItemTemplates {
         return join("\(base) (\(n))")
     }
 
-    /// Creates the template in `folder` under the next free Windows-style name. Never overwrites:
-    /// if a file appears under the chosen name in the meantime, the next number is tried.
+    /// Never overwrites: if the name is taken in the meantime, the next number is tried.
     @discardableResult
     public static func create(_ template: NewItemTemplate, in folder: URL) throws -> URL {
         for _ in 0..<50 {
@@ -69,7 +64,7 @@ public enum NewItemTemplates {
         throw CocoaError(.fileWriteFileExists)
     }
 
-    /// An uncompressed 24-bit BMP (BITMAPINFOHEADER) filled with white.
+    /// Uncompressed 24-bit BMP (BITMAPINFOHEADER), all white.
     public static func bitmapData(width: Int, height: Int) -> Data {
         let rowBytes = (width * 3 + 3) & ~3
         let pixelBytes = rowBytes * height
@@ -98,20 +93,19 @@ public enum NewItemTemplates {
     }
 }
 
-/// Names for shortcuts (macOS aliases) and symbolic links, Windows style (FE-092).
+/// Windows-style names for shortcuts (aliases) and symbolic links (FE-092).
 public enum ShortcutNaming {
-    /// "Report.pdf - Shortcut", then "Report.pdf - Shortcut (2)". Explorer keeps the target's
-    /// full name (with its extension) and appends " - Shortcut"; the alias itself has no extension.
+    /// "Report.pdf - Shortcut", then "… (2)". Keeps the target's extension; the alias has none.
     public static func shortcutName(for targetName: String, isTaken: (String) -> Bool) -> String {
         numbered("\(targetName) - Shortcut", isTaken: isTaken)
     }
 
-    /// "Report.pdf - Symbolic link", then "… (2)". Clearly different from a shortcut.
+    /// "Report.pdf - Symbolic link", then "… (2)".
     public static func symbolicLinkName(for targetName: String, isTaken: (String) -> Bool) -> String {
         numbered("\(targetName) - Symbolic link", isTaken: isTaken)
     }
 
-    /// A name typed in the Create Shortcut wizard, made unique the same way.
+    /// Also used for names typed in the Create Shortcut wizard.
     public static func numbered(_ name: String, isTaken: (String) -> Bool) -> String {
         if !isTaken(name) { return name }
         var n = 2
@@ -119,8 +113,7 @@ public enum ShortcutNaming {
         return "\(name) (\(n))"
     }
 
-    /// The name the Create Shortcut wizard proposes for a target: its name without the extension
-    /// for files ("notes.txt" → "notes"), the name for folders, the host for web addresses.
+    /// File name without extension, folder name, or the host for web addresses.
     public static func wizardDefaultName(for target: URL, isFolder: Bool) -> String {
         if !target.isFileURL { return target.host ?? "New Internet Shortcut" }
         let name = target.lastPathComponent
@@ -130,7 +123,7 @@ public enum ShortcutNaming {
     }
 }
 
-/// A `.webloc` file: the Mac's Internet shortcut (Windows `.url`), a property list holding one URL.
+/// `.webloc`: the Mac's Internet shortcut, a property list holding one URL.
 public enum WebLocation {
     public static func data(for url: URL) throws -> Data {
         try PropertyListSerialization.data(fromPropertyList: ["URL": url.absoluteString], format: .xml, options: 0)
@@ -142,7 +135,7 @@ public enum WebLocation {
         return URL(string: text)
     }
 
-    /// Accepts "https://…", "http://…" and "www.example.com" as web addresses.
+    /// Accepts "http(s)://…" and "www.…".
     public static func parseWebAddress(_ text: String) -> URL? {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let lower = t.lowercased()

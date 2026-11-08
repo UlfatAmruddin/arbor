@@ -1,9 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Geometry and fonts for one non-Details layout (windows11-reference §7). Values are our own
-/// approximations of Windows 11 at 100 % scale (1 epx = 1 pt), not measured reference values
-/// (spec §4.3). "Compact view" (FE-032) tightens padding and gaps but keeps icon and text sizes.
+/// Geometry and fonts for one non-Details layout: our approximations of Windows 11 at 100 %
+/// (1 epx = 1 pt; windows11-reference §7, spec §4.3). Compact view (FE-032) tightens spacing only.
 struct IconLayoutMetrics {
     enum Style { case iconAbove, iconLeft, tile, content }
 
@@ -105,8 +104,7 @@ struct IconLayoutMetrics {
                        insets: insets, stretchesWidth: style == .content, minimumStretchWidth: 420)
     }
 
-    /// List columns are as wide as the longest name (Explorer sizes List columns to the names), within
-    /// limits. Measures at most a few hundred of the longest names so 100k-item folders stay fast.
+    /// List columns fit the longest name, within limits; measures only a few hundred names for speed.
     static func listColumnWidth(names: [String], font: NSFont, checkBoxes: Bool) -> CGFloat {
         let sample: [String]
         if names.count > 400 {

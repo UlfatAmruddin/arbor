@@ -7,7 +7,7 @@ enum TrashFeature: ExplorerFeature {
     /// In the Trash, Delete changes the file-operation delete commands.
     static let requires = ["file-operations"]
     static func register() {
-        // Every move to Trash through SystemTrash is journaled, so Original Location and Date Deleted are known.
+        // SystemTrash journals every move, so Original Location and Date Deleted are known.
         SystemTrash.addObserver("trash.journal") { original, trashed in
             TrashJournal.shared.record(original: original, trashed: trashed)
             TrashStore.noteChanged()
@@ -116,8 +116,7 @@ enum TrashFeature: ExplorerFeature {
         ])
     }
 
-    /// In the Trash, Delete means delete permanently (with Explorer's confirmation), and Cut is allowed
-    /// (paste then moves the item out, like dragging it out). Elsewhere the core commands are unchanged.
+    /// In the Trash, Delete is permanent (with confirmation) and Cut is allowed (paste moves the item out).
     private static func adaptCoreCommands() {
         let registry = CommandRegistry.shared
         for id in ["file.trash", "file.deletePermanently"] {
@@ -132,7 +131,7 @@ enum TrashFeature: ExplorerFeature {
     // MARK: Scripted checks
 
     private static func registerDebugHooks() {
-        // sheetshot:/path.png draws the window's attached sheet (alerts aren't part of `snapshot:`).
+        // sheetshot:/path.png — draws the attached sheet (alerts aren't in `snapshot:`).
         DebugScript.registerStep("sheetshot") { path, window in
             guard let frame = (window?.window?.attachedSheet ?? NSApp.modalWindow)?.contentView?.superview,
                   let rep = frame.bitmapImageRepForCachingDisplay(in: frame.bounds) else { return 0.3 }

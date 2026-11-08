@@ -151,6 +151,27 @@ struct SearchReaderTests {
         #expect(TextContent(url: source, typeIdentifier: "public.swift-source", size: nil).contains("invoice") == true)
     }
 
+    @Test func textContentOpensRegularFilesOnly() throws {
+        let fx = try Fixture()
+        let real = try fx.file("real.txt", "invoice")
+        let fifo = fx.url("notes.txt")
+        #expect(mkfifo(fifo.path, 0o600) == 0)
+        try FileManager.default.createSymbolicLink(at: fx.url("link.txt"), withDestinationURL: real)
+        try FileManager.default.createSymbolicLink(at: fx.url("pipe.txt"), withDestinationURL: fifo)
+        // A blocking open of the FIFO would hang here.
+        #expect(TextContent(url: fifo, typeIdentifier: nil, size: nil).outcome == .notText)
+        #expect(TextContent(url: fx.url("pipe.txt"), typeIdentifier: nil, size: nil).outcome == .notText)
+        #expect(TextContent(url: fx.url("link.txt"), typeIdentifier: nil, size: nil).outcome == .notText)
+        #expect(TextContent(url: real, typeIdentifier: nil, size: nil).contains("invoice") == true)
+        #expect(FileHandle.openRegularFile(atPath: fifo.path) == nil)
+        #expect(FileHandle.openRegularFile(atPath: fx.url("link.txt").path) == nil)
+        #expect(FileHandle.openRegularFile(atPath: fx.root.path) == nil)
+        #expect(FileHandle.openRegularFile(atPath: "/dev/null") == nil)
+        let handle = try #require(FileHandle.openRegularFile(atPath: real.path))
+        #expect(try handle.readToEnd() == Data("invoice".utf8))
+        try handle.close()
+    }
+
     @Test func zipDirectoryListsEntries() throws {
         let fx = try Fixture()
         try fx.file("src/top.txt", "a")
@@ -179,7 +200,6 @@ func runDitto(source: URL, zip: URL) throws {
 
 // MARK: - Direct scan on fixtures (FE-131, FE-141)
 
-/// Runs a direct search to completion and returns hits and the report.
 private func scan(_ query: String, in root: URL, options: SearchOptions = [], recursive: Bool = true,
                   configure: (inout DirectSearch.Configuration) -> Void = { _ in }) throws -> (names: [String], hits: [SearchHit], report: DirectSearchReport) {
     let expression = try AQSParser.parse(query).get()
@@ -264,6 +284,17 @@ struct DirectSearchTests {
         #expect(r.report.contentUnchecked >= 1)
         #expect(try scan("invoice", in: fx.root).names == [])
         #expect(try scan("invoice", in: fx.root, options: [.contents]).names == ["Report 2026.txt"])
+    }
+
+    @Test func fifosNamedLikeTextOrZipDoNotBlockTheScan() throws {
+        let fx = try Fixture()
+        try fx.file("box/invoice.txt", "invoice")
+        #expect(mkfifo(fx.url("box/notes.txt").path, 0o600) == 0)
+        #expect(mkfifo(fx.url("box/a.zip").path, 0o600) == 0)
+        try FileManager.default.createSymbolicLink(at: fx.url("box/pipe.txt"), withDestinationURL: fx.url("box/notes.txt"))
+        let r = try scan("content:invoice", in: fx.root, options: [.contents, .zipped])
+        #expect(r.names == ["invoice.txt"])
+        #expect(r.report.archivesUnreadable == 1)
     }
 
     @Test func manyFilesArriveInBatches() throws {

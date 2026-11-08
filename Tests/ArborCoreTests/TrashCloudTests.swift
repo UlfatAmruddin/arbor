@@ -273,3 +273,66 @@ struct CloudStatusTests {
         #expect(CloudRoots.testRoots(environment: ["ARBOR_TEST_CLOUD_ROOT": "/tmp/x"]).first?.displayName == "Test Cloud")
     }
 }
+
+@Suite("Real Trash folders only")
+struct TrashFolderCheckTests {
+    @Test func acceptsRealFoldersAndRefusesLinks() throws {
+        let fx = try Fixture()
+        let uid = getuid()
+        let fm = FileManager.default
+        #expect(SystemTrash.isRealTrashFolder(try fx.folder("home/.Trash")))
+        #expect(SystemTrash.isRealTrashFolder(try fx.folder("vol/.Trashes/\(uid)")))
+
+        try fx.folder("elsewhere/\(uid)")
+        try fx.folder("home2")
+        try fm.createSymbolicLink(at: fx.url("home2/.Trash"), withDestinationURL: fx.url("elsewhere"))
+        #expect(!SystemTrash.isRealTrashFolder(fx.url("home2/.Trash")), "a linked ~/.Trash")
+        try fx.folder("vol2")
+        try fm.createSymbolicLink(at: fx.url("vol2/.Trashes"), withDestinationURL: fx.url("elsewhere"))
+        #expect(!SystemTrash.isRealTrashFolder(fx.url("vol2/.Trashes/\(uid)")), "a linked .Trashes")
+        try fx.folder("vol3/.Trashes")
+        try fm.createSymbolicLink(at: fx.url("vol3/.Trashes/\(uid)"), withDestinationURL: fx.url("elsewhere/\(uid)"))
+        #expect(!SystemTrash.isRealTrashFolder(fx.url("vol3/.Trashes/\(uid)")), "a linked .Trashes/<uid>")
+
+        try fx.file("vol4/.Trashes/\(uid)")
+        #expect(!SystemTrash.isRealTrashFolder(fx.url("vol4/.Trashes/\(uid)")), "a file, not a folder")
+        #expect(!SystemTrash.isRealTrashFolder(try fx.folder("vol5/.Trashes/\(uid + 1)")), "another user's folder name")
+        #expect(!SystemTrash.isRealTrashFolder(try fx.folder("vol6/.Trashes/\(uid + 1)"), uid: uid + 1), "not owned by that user")
+        #expect(!SystemTrash.isRealTrashFolder(try fx.folder("Documents")))
+        #expect(!SystemTrash.isRealTrashFolder(fx.url("missing/.Trash")))
+    }
+
+    @Test func permanentDeleteStaysInTheTrashFolder() throws {
+        let fx = try Fixture()
+        let uid = getuid()
+        let fm = FileManager.default
+        let trash = try fx.folder("vol/.Trashes/\(uid)")
+        try fx.file("vol/.Trashes/\(uid)/item/inner/a.txt")
+        try fx.file("outside/keep.txt")
+        try fm.createSymbolicLink(at: fx.url("vol/.Trashes/\(uid)/item/inner/link"), withDestinationURL: fx.url("outside"))
+        #expect(SystemTrash.removePermanently(fx.url("vol/.Trashes/\(uid)/item"), inTrash: trash) == 0)
+        #expect(!FileOps.exists(fx.url("vol/.Trashes/\(uid)/item")))
+        #expect(FileOps.exists(fx.url("outside/keep.txt")), "a link inside the item is deleted, not followed")
+
+        try fx.file("vol/.Trashes/\(uid)/sub/deeper.txt")
+        #expect(SystemTrash.removePermanently(fx.url("vol/.Trashes/\(uid)/sub/deeper.txt"), inTrash: trash) == nil, "not directly in it")
+        #expect(SystemTrash.removePermanently(try fx.file("Documents/a.txt"), inTrash: fx.url("Documents")) == nil, "not a Trash folder")
+        #expect(SystemTrash.removePermanently(fx.url("vol/.Trashes/\(uid)/missing"), inTrash: trash) == ENOENT)
+
+        // .Trashes swapped for a link after the listing: the delete is refused.
+        try fx.file("elsewhere/\(uid)/victim.txt")
+        try fm.moveItem(at: fx.url("vol/.Trashes"), to: fx.url("vol/old"))
+        try fm.createSymbolicLink(at: fx.url("vol/.Trashes"), withDestinationURL: fx.url("elsewhere"))
+        #expect(SystemTrash.removePermanently(fx.url("vol/.Trashes/\(uid)/victim.txt"), inTrash: trash) == nil)
+        #expect(FileOps.exists(fx.url("elsewhere/\(uid)/victim.txt")))
+
+        // A linked ~/.Trash likewise.
+        try fx.folder("home")
+        try fm.createSymbolicLink(at: fx.url("home/.Trash"), withDestinationURL: fx.url("elsewhere/\(uid)"))
+        #expect(SystemTrash.removePermanently(fx.url("home/.Trash/victim.txt"), inTrash: fx.url("home/.Trash")) == nil)
+        #expect(FileOps.exists(fx.url("elsewhere/\(uid)/victim.txt")))
+        let test = try fx.folder("test-trash")
+        try fx.file("test-trash/t.txt")
+        #expect(SystemTrash.removePermanently(fx.url("test-trash/t.txt"), inTrash: test, trusted: true) == 0)
+    }
+}

@@ -1,10 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Undo Move / Redo Move (QA-CORE-5). Nothing touches the disk on the main thread: the plan and the
-/// same-volume renames run on a background queue, and items on another volume go back through a normal
-/// move job in `OperationCenter` (progress window, pause, cancel, journal, conflict prompts, each original
-/// removed only after its own copy). Undo never overwrites: gone items and taken places are reported.
+/// Undo/Redo Move (QA-CORE-5). No disk work on the main thread; cross-volume items go back via a normal move job.
+/// Never overwrites: gone items and taken places are reported.
 extension OperationCenter {
     /// Where the items of one step ended up, filled in when the step finishes.
     final class MoveStepResult {
@@ -12,8 +10,7 @@ extension OperationCenter {
         var done = false
     }
 
-    /// Registers one undo (or redo) step that moves `items()` back. While it runs it registers its own
-    /// inverse right away (AppKit requires that), which acts on what the step actually moved.
+    /// Registers an undo/redo step moving `items()` back; it registers its inverse at once (AppKit requires it).
     func registerMoveStep(_ items: @escaping () -> [MoveBack.Item]?) {
         undoManager.registerUndo(withTarget: self) { center in
             let result = MoveStepResult()
@@ -31,8 +28,7 @@ extension OperationCenter {
         }
     }
 
-    /// Moves each item from `from` to `to`, then calls `completion` (main queue) with the items that
-    /// arrived (`to` = where each one is now).
+    /// Moves items `from` → `to`; `completion` (main queue) gets those that arrived.
     func moveBack(_ items: [MoveBack.Item], completion: @escaping ([MoveBack.Item]) -> Void) {
         let window = BrowserWindowController.active?.window
         DispatchQueue.global(qos: .userInitiated).async {
@@ -46,7 +42,7 @@ extension OperationCenter {
                     group.enter()
                     self.start(.move, sources: transfer.items.map(\.from), destination: transfer.folder, window: window,
                                registersUndo: false) { report in
-                        // The job keeps the names the items have now; give back the old ones where they were changed.
+                        // The job keeps current names; restore the old ones where they changed.
                         let fixes = MoveBack.renamesAfterTransfer(transfer.items, committed: report.committed)
                         DispatchQueue.global(qos: .userInitiated).async {
                             let (fixed, unfixed) = Self.rename(fixes)

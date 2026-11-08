@@ -1,8 +1,8 @@
 import AppKit
 import ArborCore
 
-/// Empty, Restore, permanent Delete and Properties for the Trash (FE-077, FE-090).
-/// Wording follows Explorer's Recycle Bin dialogs (windows11-reference.md §3.4, §9.5) with the Mac name "Trash".
+/// Empty, Restore, permanent Delete and Properties for the Trash (FE-077, FE-090), worded like Explorer's
+/// Recycle Bin dialogs (windows11-reference.md §3.4, §9.5).
 enum TrashActions {
     static let dates: DateFormatter = {
         let f = DateFormatter()
@@ -21,7 +21,7 @@ enum TrashActions {
         return L10n.format("Are you sure you want to permanently delete these %@ items?", "\(count.formatted())")
     }
 
-    /// Yes / No like Explorer; No is the default button so Return never destroys anything.
+    /// Yes / No like Explorer; No is default so Return never destroys anything.
     static func confirmPermanent(_ items: [FileItem], total: Int? = nil, window: NSWindow?, then: @escaping () -> Void) {
         let count = total ?? items.count
         let alert = NSAlert()
@@ -67,7 +67,7 @@ enum TrashActions {
         }
     }
 
-    /// Empty Trash: everything in every Trash folder Arbor can read, after confirming the count.
+    /// Empty Trash: every Trash folder Arbor can read, after confirming the count.
     static func emptyTrash(window: BrowserWindowController?) {
         window?.statusBar.setMessage(L10n.tr("Checking the Trash…"))
         DispatchQueue.global(qos: .userInitiated).async {
@@ -97,18 +97,25 @@ enum TrashActions {
         }
     }
 
-    /// Removes items off the main thread, forgets their journal records, and reports failures per item.
+    /// Removes items off main, forgets their journal records, reports failures per item.
     private static func remove(_ urls: [URL], window: BrowserWindowController?, completion: @escaping (Int) -> Void) {
         let names = Dictionary(urls.map { ($0, TrashStore.displayName($0)) }, uniquingKeysWith: { a, _ in a })
         DispatchQueue.global(qos: .userInitiated).async {
             var removed: [URL] = []
             var failures: [String] = []
+            let folders = TrashStore.folders()
             for url in urls {
-                do {
-                    try FileManager.default.removeItem(at: url)
+                // Re-checked per item through descriptors, so a folder swapped for a link since listing is refused.
+                let parent = url.standardizedFileURL.deletingLastPathComponent()
+                let folder = folders.first(where: { $0.url.path == parent.path })
+                let trusted = folder?.url == SystemTrash.testDirectory?.standardizedFileURL
+                switch folder.flatMap({ SystemTrash.removePermanently(url, inTrash: $0.url, trusted: trusted) }) {
+                case nil:
+                    failures.append("• \(names[url] ?? url.lastPathComponent): it isn't in a Trash folder.")
+                case 0?:
                     removed.append(url)
-                } catch {
-                    failures.append("• \(names[url] ?? url.lastPathComponent): \(error.localizedDescription)")
+                case let error?:
+                    failures.append("• \(names[url] ?? url.lastPathComponent): \(String(cString: strerror(error)))")
                 }
             }
             TrashJournal.shared.remove(removed)
@@ -130,8 +137,8 @@ enum TrashActions {
         items.contains { TrashStore.entry(for: $0.url)?.record != nil }
     }
 
-    /// Restores items Arbor knows the origin of. Conflicts ask Keep both / Skip; missing parent
-    /// folders are recreated (like Windows). Items of unknown origin are reported, never guessed.
+    /// Restores items of known origin: conflicts ask Keep both / Skip, missing parents are recreated.
+    /// Unknown origins are reported, never guessed.
     static func restore(_ items: [FileItem], window: BrowserWindowController?) {
         let candidates = items.map {
             RestoreCandidate(trashedURL: $0.url, isFolder: $0.isFolder, record: TrashStore.entry(for: $0.url)?.record)
@@ -217,7 +224,7 @@ enum TrashActions {
         }
     }
 
-    /// Undo of a restore moves the items back to the Trash (and redo restores them again).
+    /// Undoing a restore moves items back to the Trash.
     private static func registerUndoRestore(_ urls: [URL]) {
         let center = OperationCenter.shared
         center.undoManager.registerUndo(withTarget: center) { center in
@@ -225,7 +232,7 @@ enum TrashActions {
             for url in urls where FileOps.exists(url) {
                 if let trashed = try? SystemTrash.trash(url) { pairs.append((url, trashed)) }
             }
-            // Redo restores again; every later Undo/Redo round keeps the name "Restore".
+            // Every later Undo/Redo round keeps the name "Restore".
             center.registerUndoTrash(pairs, actionName: "Restore")
         }
         center.undoManager.setActionName(L10n.tr("Restore"))
@@ -233,8 +240,7 @@ enum TrashActions {
 
     // MARK: Properties
 
-    /// Properties of selected Trash items: original location, date deleted and size (folders are
-    /// measured only now, on request, off the main thread).
+    /// Selected Trash items: original location, date deleted, size (folders measured on request, off main).
     static func showItemProperties(_ items: [FileItem], window: BrowserWindowController?) {
         guard !items.isEmpty else { return }
         window?.statusBar.setMessage(L10n.tr("Calculating size…"))
@@ -242,7 +248,7 @@ enum TrashActions {
             let sizes = items.map { measure($0.url) }
             DispatchQueue.main.async {
                 window?.statusBar.setMessage(nil)
-                let total = sizes.reduce(0) { $0 + $1.bytes }
+                let total = sizes.map(\.bytes).saturatingSum()
                 let alert = NSAlert()
                 alert.alertStyle = .informational
                 alert.icon = IconProvider.shared.icon(for: items[0], size: 48)
@@ -269,9 +275,8 @@ enum TrashActions {
         }
     }
 
-    /// Trash properties: every Trash folder with its item count, size and the volume's free space.
-    /// macOS has no per-volume maximum size or "remove files immediately" setting to change, so
-    /// none is offered (DEC-019).
+    /// Trash properties: each Trash folder's item count, size and free space. macOS has no max size or
+    /// "remove immediately" setting, so none is offered (DEC-019).
     static func showTrashProperties(window: BrowserWindowController?) {
         window?.statusBar.setMessage(L10n.tr("Calculating size…"))
         DispatchQueue.global(qos: .userInitiated).async {
@@ -310,7 +315,7 @@ enum TrashActions {
         "\(StatusText.bytes(bytes)) (\(bytes.formatted()) bytes)"
     }
 
-    /// Logical size of a file, or of everything inside a folder. Called only on request.
+    /// Logical size of a file or folder contents. On request only.
     static func measure(_ url: URL) -> (bytes: Int64, files: Int) {
         let keys: [URLResourceKey] = [.isDirectoryKey, .fileSizeKey, .isSymbolicLinkKey]
         guard let values = try? url.resourceValues(forKeys: Set(keys)) else { return (0, 0) }
@@ -320,7 +325,7 @@ enum TrashActions {
         let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: keys, options: [], errorHandler: { _, _ in true })
         while let child = enumerator?.nextObject() as? URL {
             guard let v = try? child.resourceValues(forKeys: Set(keys)), v.isDirectory != true else { continue }
-            bytes += Int64(v.fileSize ?? 0)
+            bytes = bytes.saturatingAdd(Int64(v.fileSize ?? 0))
             files += 1
         }
         return (bytes, files)

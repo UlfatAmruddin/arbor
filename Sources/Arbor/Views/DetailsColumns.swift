@@ -9,27 +9,24 @@ struct DetailsColumnSpec {
     var width: CGFloat = 150
     var minWidth: CGFloat = 60
     var alignment: NSTextAlignment = .left
-    /// Builds (or reuses through `makeView(withIdentifier:owner:)`) the cell for one row.
+    /// Builds or reuses (`makeView(withIdentifier:owner:)`) one row's cell.
     let cell: (NSTableView, FileItem) -> NSView
 }
 
-/// The Details columns for a kind of location, like Explorer's per-folder-type column sets
-/// (windows11-reference.md §5.1). Core column ids: `name`, `dateModified`, `type`, `size`.
+/// Details columns for a kind of location (windows11-reference.md §5.1). Core ids: `name`, `dateModified`, `type`, `size`.
 struct DetailsLayout {
-    /// Identifies the layout; the table is only rearranged when it changes.
+    /// The table is only rearranged when this changes.
     let id: String
-    /// Column ids in display order. Columns not listed keep their relative order after these.
+    /// Display order; unlisted columns follow in their relative order.
     var order: [String]
     /// Header text overrides ("type" → "Item type").
     var titles: [String: String] = [:]
-    /// Width overrides for core columns while the layout is shown.
+    /// Core column widths while the layout is shown.
     var widths: [String: CGFloat] = [:]
     var extras: [DetailsColumnSpec] = []
 }
 
-/// Registry of per-location Details layouts. The Details view calls `apply(to:location:)` when it
-/// displays items and asks `cell(for:columnID:item:)` for columns it doesn't know. Leaving a location
-/// restores the standard columns (order, titles, widths) exactly as they were.
+/// Per-location Details layouts. Leaving a location restores the standard columns exactly as they were.
 ///
 ///     DetailsColumns.register("trash.columns") { $0 == .trash ? trashLayout : nil }
 enum DetailsColumns {
@@ -61,7 +58,7 @@ enum DetailsColumns {
         return spec.cell(table, item)
     }
 
-    /// Id of the layout currently applied to a table (scripted checks).
+    /// Active layout id (scripted checks).
     static func activeLayoutID(of table: NSTableView) -> String? { TableState.of(table).active?.id }
 
     /// Header styling identical to the core columns.
@@ -96,8 +93,7 @@ enum DetailsColumns {
         }
 
         func apply(_ layout: DetailsLayout, to table: NSTableView) {
-            // Active before columns move, so column-move/resize observers can tell the layout's changes
-            // from the user's (otherwise the layout's extras leak into the folder's saved column set).
+            // Set before moving columns so observers don't save the layout's extras as the user's columns.
             active = layout
             savedOrder = table.tableColumns.map(\.identifier.rawValue)
             // Don't let the layout overwrite the user's saved standard columns.
@@ -161,7 +157,7 @@ enum DetailsColumns {
 final class DetailsTextCell: NSTableCellView {
     let label = NSTextField(labelWithString: "")
 
-    /// Paths truncate in the middle (keeping the last folder visible); other text at the tail.
+    /// Paths truncate in the middle (last folder stays visible); other text at the tail.
     static func make(_ table: NSTableView, id: String, alignment: NSTextAlignment = .left,
                      truncation: NSLineBreakMode = .byTruncatingTail) -> DetailsTextCell {
         let identifier = NSUserInterfaceItemIdentifier("ExtraText-\(id)")

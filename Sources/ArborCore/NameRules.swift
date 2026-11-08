@@ -16,10 +16,9 @@ public enum NameValidationError: Error, Equatable, LocalizedError {
     }
 }
 
-/// Naming conventions. Validation uses the Mac destination's rules, not Windows'
-/// (FE-086, spec §8.1): a name that Windows forbids but macOS allows stays valid.
+/// Validation uses macOS rules, not Windows' (FE-086, spec §8.1).
 public enum NameRules {
-    /// Splits off the last extension. Dotfiles (".zshrc") and folders have none.
+    /// Dotfiles (".zshrc") and folders have no extension.
     public static func splitExtension(_ name: String, treatAsFolder: Bool) -> (base: String, ext: String?) {
         guard !treatAsFolder,
               let dot = name.lastIndex(of: "."),
@@ -30,7 +29,7 @@ public enum NameRules {
         return (String(name[..<dot]), String(name[name.index(after: dot)...]))
     }
 
-    /// The UTF-16 range a rename field should select initially: the base name, not the extension.
+    /// Initial rename selection (UTF-16): the base name, not the extension.
     public static func basenameSelection(_ name: String, treatAsFolder: Bool) -> NSRange {
         let base = splitExtension(name, treatAsFolder: treatAsFolder).base
         return NSRange(location: 0, length: (base as NSString).length)
@@ -40,7 +39,7 @@ public enum NameRules {
         ext.map { "\(base).\($0)" } ?? base
     }
 
-    /// Duplicate in the same folder: "Report - Copy.pdf", then "Report - Copy (2).pdf".
+    /// "Report - Copy.pdf", then "Report - Copy (2).pdf".
     public static func duplicateName(for name: String, treatAsFolder: Bool, isTaken: (String) -> Bool) -> String {
         let (base, ext) = splitExtension(name, treatAsFolder: treatAsFolder)
         let first = join("\(base) - Copy", ext)
@@ -50,7 +49,7 @@ public enum NameRules {
         return join("\(base) - Copy (\(n))", ext)
     }
 
-    /// "Keep both" during a conflict: "Report (2).pdf", "Report (3).pdf".
+    /// "Report (2).pdf", "Report (3).pdf".
     public static func keepBothName(for name: String, treatAsFolder: Bool, isTaken: (String) -> Bool) -> String {
         let (base, ext) = splitExtension(name, treatAsFolder: treatAsFolder)
         var n = 2

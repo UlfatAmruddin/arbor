@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Puts the app-wide caches in `CacheRegistry` (sizes for benchmarks, trimming under memory pressure)
-/// and keeps volume lookups fresh when disks come and go (spec §15.3, FE-251).
+/// Registers app-wide caches in `CacheRegistry` and keeps volume lookups fresh as disks come and go (spec §15.3, FE-251).
 enum PerformanceCaches {
     private static var observers: [NSObjectProtocol] = []
 
@@ -21,7 +20,7 @@ enum PerformanceCaches {
                           bytes: { TabState.listingBudget.totalCost }, count: { TabState.listingBudget.count }) { level in
             TabState.trimListings(toBytes: level == .critical ? 0 : CacheBudgets.tabListingBytes / 4)
         }
-        // Bounded by count, reported with an estimate (a Details metadata row ~0.5 KB, an archive entry ~0.3 KB).
+        // Count-bounded; estimate ~0.5 KB per Details row, ~0.3 KB per archive entry.
         registry.register("metadata", budget: ColumnValueStore.shared.limit * 512,
                           bytes: { ColumnValueStore.shared.count * 512 }, count: { ColumnValueStore.shared.count }) { _ in
             ColumnValueStore.shared.removeAll()

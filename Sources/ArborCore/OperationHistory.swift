@@ -1,10 +1,7 @@
 import Foundation
 
-/// One finished copy or move job as the Operation history window shows it (FE-126).
-///
-/// Built from the same per-item results the job journal records (`TransferReport`, or an
-/// `InterruptedJob` left after a crash), so the history and the crash review never disagree.
-/// Bounded: at most `OperationHistoryStore.itemLimit` items per job are kept; the rest are counted.
+/// One finished copy/move job in Operation history (FE-126). Built from the same per-item results as
+/// the job journal, so history and crash review agree. Keeps at most `itemLimit` items; the rest are counted.
 public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
     public enum Outcome: String, Codable, Sendable {
         case succeeded, merged, skipped, failed
@@ -13,12 +10,12 @@ public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
         /// A folder that arrived incomplete.
         case partial
         case cancelled
-        /// From a crash journal: never started or stopped before writing.
+        /// Crash journal: never started or stopped before writing.
         case notDone
-        /// From a crash journal: was being written when the app stopped.
+        /// Crash journal: being written when the app stopped.
         case uncertain
 
-        /// Whether "Retry failed items" offers it again.
+        /// Offered by "Retry failed items".
         public var isRetryable: Bool {
             switch self {
             case .failed, .partial, .cancelled, .notDone, .uncertain: return true
@@ -44,14 +41,13 @@ public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
     public struct Item: Codable, Sendable, Equatable {
         public var source: String
         public var outcome: Outcome
-        /// Where it went (or was going), when known. The committed name can differ (keep both).
+        /// The committed name can differ (Keep Both).
         public var destination: String?
-        /// A readable reason for failures and skips.
+        /// Reason for failures and skips.
         public var message: String?
-        /// The folder a retry copies this item into. For an item inside a copied folder this is the
-        /// matching folder at the destination, not the job's destination.
+        /// For a nested item, the matching folder at the destination, not the job's destination.
         public var retryFolder: String
-        /// Found inside a top-level folder (a merge or folder copy), not requested directly.
+        /// Inside a top-level folder, not requested directly.
         public var nested: Bool
 
         public init(source: String, outcome: Outcome, destination: String? = nil, message: String? = nil,
@@ -65,7 +61,7 @@ public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
         }
     }
 
-    /// "Verify after copying" (FE-130): a separate state, never implied by a completed copy.
+    /// FE-130: never implied by a completed copy.
     public struct Verification: Codable, Sendable, Equatable {
         public enum State: String, Codable, Sendable { case verified, failed, cancelled }
         public var state: State
@@ -88,10 +84,10 @@ public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
     public var started: Date
     public var finished: Date
     public var wasCancelled: Bool
-    /// Recovered from a crash journal rather than reported by a running job.
+    /// Recovered from a crash journal.
     public var wasInterrupted: Bool
     public var items: [Item]
-    /// Items beyond the per-job limit that were not stored.
+    /// Items beyond the per-job limit.
     public var omittedItems: Int
     public var verification: Verification?
 
@@ -117,8 +113,7 @@ public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
         public var done = 0, skipped = 0, failed = 0, cancelled = 0
     }
 
-    /// Top-level outcomes. Problems inside a folder already make that folder "partly done", so
-    /// only skips inside folders are added (a merged folder can hide them otherwise).
+    /// Top-level outcomes, plus nested skips (a merged folder would hide them; other nested problems already mark it partial).
     public var counts: Counts {
         var c = Counts()
         for item in items {
@@ -149,11 +144,8 @@ public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
 
     public var hasProblems: Bool { counts.failed > 0 || verification?.state == .failed }
 
-    /// Items "Retry failed items" would offer, grouped by the folder each goes into. Only sources
-    /// that still exist are offered; the retry is a normal job, so every destination is checked
-    /// again and conflicts are asked (FE-128). A partly copied folder whose failed items are known
-    /// retries just those items into the matching folder; a folder that didn't arrive at all is
-    /// retried whole (and the items inside it aren't offered separately).
+    /// Existing retryable sources grouped by target folder; retry is a normal job, so conflicts are asked (FE-128).
+    /// A partial folder with known failures retries just those; a missing folder is retried whole.
     public func retryPlan(exists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }) -> [(folder: String, sources: [String])] {
         let candidates = items.filter { $0.outcome.isRetryable && exists($0.source) }
         let nested = candidates.filter(\.nested)
@@ -176,7 +168,6 @@ public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
 
     // MARK: Building
 
-    /// From a finished job's report.
     public init(report: TransferReport, id: UUID = UUID(), started: Date, finished: Date = Date(),
                 itemLimit: Int = OperationHistoryStore.itemLimit) {
         let destination = report.destination.path
@@ -188,8 +179,7 @@ public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
             tops.append((result.source.path, item.destination ?? (destination as NSString).appendingPathComponent(result.source.lastPathComponent)))
         }
         for detail in report.details {
-            // The matching folder at the destination: the top-level item's committed location
-            // plus the path inside it.
+            // Top-level item's committed location plus the path inside it.
             let parent = detail.source.deletingLastPathComponent().path
             var folder = destination
             if let top = tops.first(where: { parent == $0.source || parent.hasPrefix($0.source + "/") }) {
@@ -218,7 +208,6 @@ public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
         }
     }
 
-    /// From a journal left by a crash or a quit mid-job.
     public init(interrupted job: InterruptedJob, finished: Date = Date()) {
         let destination = job.header.destination
         let items = job.items.map { item -> Item in
@@ -243,9 +232,8 @@ public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
-/// The persistent, bounded list behind the Operation history window: newest first, at most
-/// `limit` jobs, at most `itemLimit` items each. One small JSON file, rewritten atomically.
-/// Not thread-safe: the app uses it from one serial queue.
+/// Persistent Operation history, newest first, bounded by `limit` and `itemLimit`; one JSON file written atomically.
+/// Not thread-safe: use from one serial queue.
 public final class OperationHistoryStore {
     public static let defaultLimit = 50
     public static let itemLimit = 200
@@ -261,7 +249,7 @@ public final class OperationHistoryStore {
         if records.count > self.limit { records = Array(records.prefix(self.limit)) }
     }
 
-    /// Adds a job (or replaces the one with the same id, e.g. after verification), newest first.
+    /// Replaces a record with the same id (e.g. after verification).
     public func add(_ record: OperationRecord) {
         records.removeAll { $0.id == record.id }
         records.insert(record, at: 0)

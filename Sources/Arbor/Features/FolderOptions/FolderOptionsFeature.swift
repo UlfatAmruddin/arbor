@@ -92,6 +92,15 @@ enum FolderOptionsFeature: ExplorerFeature {
             HomeStore.clearHistory()
             return 1
         }
+        // Recent documents and Back/Forward of open tabs (and so of Session.json) are history too.
+        NotificationCenter.default.addObserver(forName: HomeStore.historyCleared, object: nil, queue: .main) { _ in
+            NSDocumentController.shared.clearRecentDocuments(nil)
+            for window in FolderViews.windows {
+                window.tabs.forEach { $0.history.clearBackForward() }
+                window.updateChrome()
+            }
+            SessionRestore.saveNow(sync: false)
+        }
     }
 
     /// "Show sync provider notifications": a status-bar notice when entering a folder a sync provider owns.
@@ -194,8 +203,7 @@ enum FolderOptionsFeature: ExplorerFeature {
             return 0.8
         }
         DebugScript.registerStep("setcolumn") { arg, window in
-            // setcolumn:<id>:<width> resizes a column; setcolumn:<id>:hide / :show like the header menu.
-            // Both go through the Details column editing path (saved for the folder).
+            // setcolumn:<id>:<width>|hide|show, via the Details column editing path (saved per folder).
             let parts = arg.split(separator: ":").map(String.init)
             guard parts.count == 2, let details = window?.itemView as? DetailsViewController,
                   var set = details.hostOptions?.columns else { return 0.3 }
@@ -271,11 +279,10 @@ extension StatusBarView {
     }
 }
 
-/// Headless runs use a throwaway preferences domain. With `ARBOR_STATE_DIR` set, Folder Options values
-/// are kept in that folder too, so a scripted run can test restore-at-launch across two launches.
+/// Headless runs use a throwaway prefs domain; `ARBOR_STATE_DIR` persists it to test restore across launches.
 enum HeadlessPrefsSeed {
     private static var url: URL? {
-        guard AppDelegate.isHeadless, ProcessInfo.processInfo.environment["ARBOR_STATE_DIR"] != nil else { return nil }
+        guard AppDelegate.isHeadless, Automation.environment["ARBOR_STATE_DIR"] != nil else { return nil }
         return FolderOptionsStorage.url("HeadlessFolderOptions.plist")
     }
 

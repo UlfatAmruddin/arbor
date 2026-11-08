@@ -9,7 +9,7 @@ enum SearchFeature: ExplorerFeature {
         SearchRegistry.factory.provide("search.explorer") { window in ExplorerSearchController(window: window) }
         SearchColumns.register()
         SearchCommands.register()
-        // Layouts without columns (Content view, icon infotips) show where a result lives.
+        // Layouts without columns show where a result lives.
         InteractionHooks.itemDetail.register("search.result-folder") { item, location in
             guard case .search? = location else { return nil }
             return ("Folder:", SearchColumns.folderText(item, location))
@@ -21,9 +21,13 @@ enum SearchFeature: ExplorerFeature {
             return try? SearchCommands.location(forSavedSearch: item.url)
         }
 
-        // Refresh (F5, View ▸ Refresh) reruns a search instead of re-showing cached results.
+        // Refresh reruns a search instead of re-showing cached results.
         CommandRegistry.shared.beforePerform("nav.refresh", "search.rerun-on-refresh") { ctx in
             if case .search(let request)? = ctx.location { SearchSessions.restart(request, showHidden: Prefs.showHidden) }
+        }
+
+        NotificationCenter.default.addObserver(forName: HomeStore.historyCleared, object: nil, queue: .main) { _ in
+            SearchHistoryStore.update { $0.clear() }
         }
 
         registerDebugSteps()
@@ -64,7 +68,7 @@ enum SearchFeature: ExplorerFeature {
             return 1.0
         }
 
-        // searchmenu:/out.txt — Search options ▾ with checks, disabled states and tooltips.
+        // searchmenu:/out.txt — Search options ▾ with checks, disabled states, tooltips.
         DebugScript.registerStep("searchmenu") { path, window in
             guard let window else { return nil }
             let items = SearchCommands.optionsMenu(window.context(surface: .commandBar, sender: nil))
@@ -105,7 +109,7 @@ enum SearchFeature: ExplorerFeature {
             return 0.3
         }
 
-        // searchopenfile:/path/x.arborsearch — opens a saved search like double-clicking it in the list.
+        // searchopenfile:/path/x.arborsearch — opens a saved search as if double-clicked.
         DebugScript.registerStep("searchopenfile") { path, window in
             guard let window, let item = FileItem(url: URL(fileURLWithPath: path)) else { return nil }
             window.open([item], inNewTab: false)
@@ -122,7 +126,7 @@ enum SearchFeature: ExplorerFeature {
             return 0.6
         }
 
-        // dropdownsnap:/out.png — renders the recent-searches dropdown (a separate panel).
+        // dropdownsnap:/out.png — renders the recent-searches dropdown.
         DebugScript.registerStep("dropdownsnap") { path, window in
             guard let view = ExplorerSearchController.controller(for: window)?.dropdownView else { return nil }
             view.layoutSubtreeIfNeeded()

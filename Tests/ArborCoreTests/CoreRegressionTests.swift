@@ -14,8 +14,7 @@ private func answer(_ choice: ConflictChoice, counter: Counter? = nil) -> FileTr
     { _ in counter?.increment(); return ConflictDecision(choice) }
 }
 
-/// The same folder with its last component in other letter case (APFS is case-insensitive by
-/// default). Nil when the volume is case-sensitive, so those tests return early.
+/// The folder with its last component in another case; nil on case-sensitive volumes (tests return early).
 private func caseVariant(_ url: URL) -> URL? {
     let name = url.lastPathComponent
     let flipped = url.deletingLastPathComponent().appendingPathComponent(name.uppercased() == name ? name.lowercased() : name.uppercased())
@@ -121,8 +120,7 @@ struct AddressSpellingTests {
 
 // MARK: - Other file systems (disk images)
 
-/// A small disk image with a chosen file system, mounted privately. Nil when hdiutil can't
-/// create or mount it here; those tests then return early.
+/// A small privately mounted disk image with a chosen file system; nil if hdiutil can't (tests return early).
 final class FormattedVolume {
     let image: URL
     let mount: URL
@@ -141,8 +139,7 @@ final class FormattedVolume {
         }
     }
 
-    /// Creates and mounts the image on a GCD thread: waiting for hdiutil must not tie up the
-    /// threads other tests' async work runs on.
+    /// Runs hdiutil on a GCD thread so it doesn't tie up the threads other tests' async work uses.
     static func make(_ fileSystem: String, megabytes: Int = 20) async -> FormattedVolume? {
         final class Box: @unchecked Sendable { var volume: FormattedVolume? }
         let box = Box()

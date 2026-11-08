@@ -41,8 +41,7 @@ extension BrowserWindowController: ItemViewDelegate {
                     break
                 }
                 alert.addButton(withTitle: L10n.tr("Cancel"))
-                // A sheet on this window. The view reopens the name field with the typed text underneath
-                // (returning false); Cancel leaves it there to edit, Use closes it and renames.
+                // Returning false makes the view reopen the name field; Cancel keeps editing, Use renames.
                 AlertSheets.present(alert, in: window) { [weak self] response in
                     guard response == .alertFirstButtonReturn, let self else { return }
                     self.endRenameField()
@@ -54,8 +53,7 @@ extension BrowserWindowController: ItemViewDelegate {
         return performRename(item, to: newName, reopenOnFailure: false)
     }
 
-    /// Renames without asking. A failure is reported in a sheet and the name field comes back with the typed
-    /// text (the view reopens it when this returns false; `reopenOnFailure` when no view is waiting for the answer).
+    /// Renames without asking; on failure shows a sheet and reopens the name field (here if `reopenOnFailure`).
     private func performRename(_ item: FileItem, to newName: String, reopenOnFailure: Bool) -> Bool {
         do {
             let newURL = try Renamer.rename(item.url, to: newName)
@@ -69,7 +67,7 @@ extension BrowserWindowController: ItemViewDelegate {
         }
     }
 
-    /// Ends an open name field without renaming (the field editor's Escape).
+    /// Ends the name field without renaming (Escape).
     private func endRenameField() {
         guard itemView?.isEditingName == true, let editor = window?.firstResponder as? NSTextView else { return }
         editor.doCommand(by: #selector(NSResponder.cancelOperation(_:)))

@@ -38,7 +38,7 @@ enum HomeSection: String, CaseIterable {
     }
 }
 
-/// A Quick access tile: big folder icon, name, location and a pin for pinned folders.
+/// Quick access tile: folder icon, name, location, and a pin if pinned.
 final class FolderTileView: TileView {
     let tile: HomeTile
 
@@ -107,7 +107,7 @@ final class ExplorerHomePage: NSViewController, LocationPageStatus, LocationPage
     private var pendingReload: DispatchWorkItem?
     private var loading: LoadHandle?
     private var syncingSelection = false
-    /// The page's scroll view (selection and scroll are restored on Back, see `LocationPageViewState`).
+    /// Selection and scroll are restored on Back (`LocationPageViewState`).
     private(set) weak var scrollView: NSScrollView?
 
     init(host: LocationHost?, snapshot: HomeSnapshot) {
@@ -301,7 +301,7 @@ final class ExplorerHomePage: NSViewController, LocationPageStatus, LocationPage
         browser?.itemViewSelectionDidChange()
     }
 
-    /// Scripted checks and keyboard: select items by name in a section.
+    /// Selects items by name in a section (scripts and keyboard).
     func select(_ section: HomeSection, names: [String]) {
         let wanted = Set(names)
         switch section {
@@ -357,8 +357,7 @@ final class ExplorerHomePage: NSViewController, LocationPageStatus, LocationPage
         return true
     }
 
-    /// The menu for the current selection (or the page background), built from the registry so
-    /// Open, Copy as path, Pin, Add to Favorites, Remove from Recent, Properties… all appear.
+    /// Menu for the selection (or background), built from the registry so all item commands appear.
     func contextMenu(sender: NSView?) -> NSMenu? {
         guard let browser else { return nil }
         let ctx = browser.context(surface: selectedItems.isEmpty ? .backgroundContextMenu : .itemContextMenu, sender: sender)

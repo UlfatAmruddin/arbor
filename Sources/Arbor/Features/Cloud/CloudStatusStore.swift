@@ -5,15 +5,15 @@ import ArborCore
 enum CloudEnvironment {
     private(set) static var roots: [CloudRoot] = detect()
     static let testStatuses: [String: CloudStatus] =
-        CloudRoots.parseTestStatuses(ProcessInfo.processInfo.environment["ARBOR_TEST_CLOUD_STATUS"] ?? "")
+        CloudRoots.parseTestStatuses(Automation.environment["ARBOR_TEST_CLOUD_STATUS"] ?? "")
 
     private static func detect() -> [CloudRoot] {
-        let env = ProcessInfo.processInfo.environment
+        let env = Automation.environment
         if AppDelegate.isHeadless { return CloudRoots.testRoots(environment: env) }
         return CloudRoots.detect(home: FileManager.default.homeDirectoryForCurrentUser) + CloudRoots.testRoots(environment: env)
     }
 
-    /// Re-detects (cheap: two directory entries). Returns whether the set changed.
+    /// Re-detects (cheap); returns whether the set changed.
     @discardableResult
     static func refresh() -> Bool {
         let fresh = detect()
@@ -28,9 +28,8 @@ enum CloudEnvironment {
     static var iCloudRoot: CloudRoot? { roots.first { $0.kind == .iCloud } }
 }
 
-/// Bounded, main-thread cache of item statuses. Reads happen in batches on a background queue for
-/// the rows actually displayed; results that change post `changed` (coalesced) so views redraw.
-/// Nothing here downloads content: it only reads metadata keys.
+/// Bounded main-thread cache of item statuses, read in background batches for displayed rows.
+/// Only reads metadata keys; never downloads.
 final class CloudStatusStore {
     static let shared = CloudStatusStore()
     static let changed = Notification.Name("ArborCloudStatusChanged")
@@ -134,7 +133,7 @@ final class CloudStatusStore {
     }
 }
 
-/// Status glyphs (SF Symbols, our own colors): cloud, check, sync arrows, warning, cross, question mark.
+/// Status glyphs (SF Symbols, our own colors).
 enum CloudGlyph {
     static func image(_ status: CloudStatus, size: CGFloat) -> NSImage {
         let (symbol, color): (String, UInt32) = {
@@ -157,7 +156,7 @@ enum CloudGlyph {
     }
 }
 
-/// Status column cell: the glyph only, like Explorer, with the wording as tooltip and accessibility label.
+/// Status cell: glyph only, with the wording as tooltip and accessibility label.
 final class CloudStatusCell: NSTableCellView {
     let glyph = NSImageView()
 

@@ -1,14 +1,13 @@
 import AppKit
 import ArborCore
 
-/// A right-hand pane (B6): Preview, Details, or a feature's own. At most one is shown (Explorer's
-/// Preview and Details panes are mutually exclusive). The pane is created when shown and
-/// released when hidden, so a hidden pane holds no previews in memory.
+/// A right-hand pane (B6): Preview, Details or a feature's. At most one shows, like Explorer.
+/// Created when shown and released when hidden, so hidden panes hold no previews.
 protocol SidePaneProvider: AnyObject {
     var view: NSView { get }
     /// Called when the selection or location changes while the pane is visible.
     func update(selection: [FileItem], location: Location?)
-    /// Free decoded previews etc. Called before the pane is removed.
+    /// Frees decoded previews etc. before removal.
     func releaseResources()
 }
 
@@ -23,12 +22,12 @@ struct SidePaneDescriptor {
 ///     SidePaneRegistry.register(SidePaneDescriptor(id: "details", title: "Details pane") { PropertiesPane() })
 enum SidePaneRegistry {
     private static var descriptors: [String: SidePaneDescriptor] = [:]
-    /// Registering an id that exists replaces that pane (a feature upgrades the core Details pane).
+    /// Re-registering an id replaces it (features upgrade the core Details pane).
     static func register(_ descriptor: SidePaneDescriptor) { descriptors[descriptor.id] = descriptor }
     static func descriptor(_ id: String) -> SidePaneDescriptor? { descriptors[id] }
     static var ids: [String] { descriptors.keys.sorted() }
 
-    /// Wraps a pane when it is created (the cloud download gate and archive member previews wrap "preview").
+    /// Wraps a pane on creation (the cloud download gate and archive member previews wrap "preview").
     static let wrappers = Pipeline<SidePaneProvider, String>(
         "SidePaneRegistry.wrappers", "Wraps a side pane when it is created (by pane id).", signature: "(pane, id) -> pane")
 
@@ -92,8 +91,7 @@ final class SidePaneContainer: NSView {
     func releaseAll() { show("", selection: [], location: nil) }
 }
 
-/// Basic Details pane: icon, name, type, size and dates of the selection.
-/// The Properties feature replaces it by registering its own "details" pane.
+/// Basic Details pane (icon, name, type, size, dates); the Properties feature replaces it.
 final class DetailsPane: NSView, SidePaneProvider {
     var view: NSView { self }
     private let icon = NSImageView()
@@ -158,7 +156,7 @@ final class DetailsPane: NSView, SidePaneProvider {
             icon.image = IconProvider.shared.folderIcon(size: 64)
             name.stringValue = L10n.format("%@ items selected", "\(selection.count)")
             let sizes = selection.compactMap(\.size)
-            info.stringValue = sizes.count == selection.count ? L10n.format("Total size: %@", "\(StatusText.bytes(sizes.reduce(0, +)))") : ""
+            info.stringValue = sizes.count == selection.count ? L10n.format("Total size: %@", "\(StatusText.bytes(sizes.saturatingSum()))") : ""
         } else if let location {
             icon.image = IconProvider.shared.icon(for: location, size: 64)
             name.stringValue = LocationRegistry.provider(for: location).title(for: location)

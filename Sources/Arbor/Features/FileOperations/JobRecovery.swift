@@ -1,11 +1,9 @@
 import AppKit
 import ArborCore
 
-/// After a crash or a quit in the middle of a copy or move, lists what finished, what didn't and
-/// what is uncertain (FE-125, FE-128). "Retry remaining" starts a normal job for the unfinished
-/// items, so every destination is checked again and conflicts are asked: a same-named item at the
-/// destination is never assumed to be the finished copy. Nothing is replayed automatically.
-/// A job that was still waiting in the queue when Arbor quit is offered again as it was ("Start").
+/// After a crash or quit mid-job, lists finished, unfinished and uncertain items (FE-125, FE-128).
+/// "Retry remaining" runs a normal job, so a same-named destination item is never assumed finished.
+/// Jobs still queued are offered again ("Start"). Nothing is replayed automatically.
 enum JobRecovery {
     private static var queue: [InterruptedJob] = []
     private static var showing = false

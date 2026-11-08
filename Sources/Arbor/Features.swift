@@ -5,10 +5,9 @@ import ArborCore
 protocol ExplorerFeature {
     /// Short, unique, lowercase with dashes ("file-operations"). Contribution ids start with it.
     static var id: String { get }
-    /// Features whose registrations this one builds on (it overrides their commands, adds to or wraps
-    /// what they register). They register first. Every feature implicitly requires "core".
+    /// Features this one builds on; they register first. "core" is always implied.
     static var requires: [String] { get }
-    /// Adds the feature's contributions: providers, commands, extension point contributions, script steps.
+    /// Registers providers, commands, extension contributions and script steps.
     static func register()
 }
 
@@ -16,12 +15,9 @@ extension ExplorerFeature {
     static var requires: [String] { [] }
 }
 
-/// Every feature registers here, once, at launch (before the menu bar and first window are built).
-///
-/// To add a feature: put its code in its own files, make it `enum MyFeature: ExplorerFeature` with an
-/// `id`, its `requires` and `register()`, and add ONE line for it in `all` below (in a free slot, keeping
-/// the blank lines so parallel branches merge without conflicts). The order features register in comes
-/// from `requires` (a stable sort: otherwise the listed order), never from line order alone.
+/// Every feature registers here once, at launch. To add one: an `enum MyFeature: ExplorerFeature` in
+/// its own files plus ONE line in `all`, in a free slot (keep the blank lines so branches merge cleanly).
+/// Registration order comes from `requires`, not line order.
 enum Features {
     static let all: [ExplorerFeature.Type] = [
         CoreFeature.self,
@@ -86,8 +82,7 @@ enum Features {
     /// The ids in registration order (empty when the list has a problem).
     private(set) static var registeredOrder: [String] = []
 
-    /// Registers every feature; stops launch with a message naming the problem when the feature list or
-    /// a registration is wrong (debug builds already stop at the first extension error).
+    /// Stops launch with a message if the feature list or a registration is wrong.
     static func registerAll() {
         if let problem = registerFeatures() { fatalError("Arbor can't start: \(problem)") }
     }
@@ -112,8 +107,7 @@ enum Features {
     }
 }
 
-/// Everything the foundation ships: commands, the Details view, Preview/Details panes, folder
-/// browsing, and placeholder pages for locations that later features implement.
+/// The foundation: commands, Details view, panes, folder browsing, and location placeholders.
 enum CoreFeature: ExplorerFeature {
     static let id = "core"
 

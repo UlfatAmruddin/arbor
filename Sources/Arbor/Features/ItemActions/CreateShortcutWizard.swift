@@ -1,10 +1,8 @@
 import AppKit
 import ArborCore
 
-/// New ▸ Shortcut: Explorer's two-page "Create Shortcut" wizard, as a sheet (FE-092).
-/// Page 1 asks for the item's location (path, ~/path, file:// URL, web or server address) with
-/// Browse…; page 2 asks for the shortcut's name. Files and folders get a macOS alias; web and server
-/// addresses get a .webloc, the Mac's Internet shortcut.
+/// New ▸ Shortcut: Explorer's two-page Create Shortcut wizard as a sheet (FE-092). Files and folders
+/// become macOS aliases; web and server addresses become .webloc files.
 final class CreateShortcutWizard: NSObject, NSTextFieldDelegate {
     private enum Target {
         case item(URL, isFolder: Bool)

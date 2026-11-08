@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Supplies `.search` locations: results stream into the standard item views, so sorting, selection,
-/// rename, clipboard, drag and drop and every file command work on them (FE-131, FE-137).
+/// Supplies `.search` locations in the standard item views, so every file command works (FE-131, FE-137).
 final class SearchProvider: LocationProvider {
     func handles(_ location: Location) -> Bool {
         if case .search = location { return true }
@@ -29,7 +28,7 @@ final class SearchProvider: LocationProvider {
             session.snapshotRequested = false
             deliver()
         } else {
-            // A finished search shown again (after a delete or rename, or a tab switch): drop vanished files first.
+            // A finished search shown again: drop vanished files first.
             session.revalidate { deliver() }
         }
         return handle
@@ -38,7 +37,7 @@ final class SearchProvider: LocationProvider {
     func watch(_ location: Location, onChange: @escaping () -> Void) -> AnyObject? {
         guard let session = Self.session(for: location) else { return nil }
         return session.observe {
-            // Look the session up again: Refresh may have replaced it (observers move to the new run).
+            // Look up again: Refresh may have replaced the session.
             Self.session(for: location)?.snapshotRequested = true
             onChange()
         }
@@ -68,10 +67,9 @@ final class SearchProvider: LocationProvider {
     }
 }
 
-/// Extra Details-view columns for search results: Folder (the containing path, like Explorer) and
-/// Match (why the item matched, FE-137).
+/// Search result columns: Folder (containing path) and Match (why it matched, FE-137).
 enum SearchColumns {
-    /// Uses main's `DetailsColumns` layouts: Name · Date modified · Type · Size · Folder · Match.
+    /// `DetailsColumns` layout: Name · Date modified · Type · Size · Folder · Match.
     /// The layout id carries the location key so each search binds its own session.
     static func register() {
         DetailsColumns.register("search.columns") { location in
@@ -101,7 +99,7 @@ enum SearchColumns {
 
     private static var realScopes: [String: String] = [:]
 
-    /// The containing folder, spelled like the search scope (`/tmp/…`, not the resolved `/private/tmp/…`).
+    /// Containing folder, spelled like the scope (`/tmp/…`, not `/private/tmp/…`).
     static func folderText(_ item: FileItem, _ location: Location?) -> String {
         let folder = item.url.deletingLastPathComponent().path
         guard case .search(let r)? = location, let scope = r.scope?.path else { return folder }

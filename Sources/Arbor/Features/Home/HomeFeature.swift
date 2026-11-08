@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Home: Quick access, Favorites, Recent, frequent-folder tracking and privacy controls
-/// (FE-069–FE-073, FE-080, FE-082, FE-206, FE-239). See docs/features/home-and-this-mac.md.
+/// Home (FE-069–FE-073, FE-080, FE-082, FE-206, FE-239); see docs/features/home-and-this-mac.md.
 enum HomeFeature: ExplorerFeature {
     static let id = "home"
     private static var observers: [NSObjectProtocol] = []
@@ -15,7 +14,7 @@ enum HomeFeature: ExplorerFeature {
         registerDebugSteps()
     }
 
-    /// The section a context menu was opened from (Quick access, Favorites, Recent).
+    /// Section the context menu was opened from.
     static func section(_ ctx: CommandContext) -> HomeSection? {
         guard ctx.location == .home, let id = (ctx.sender as? SectionTagged)?.sectionID else { return nil }
         return HomeSection(rawValue: id)
@@ -74,7 +73,7 @@ enum HomeFeature: ExplorerFeature {
                 },
                 perform: { ctx in if let url = ctx.single?.url { HomeStore.forgetFrequentFolder(url) } }),
 
-            // Home's "…" menu: the privacy switches Explorer keeps in Folder Options › General.
+            // Home's "…" menu: Explorer's Folder Options › General privacy switches.
             ExplorerCommand(
                 id: "home.showRecentFiles", title: "Show recently used files",
                 placements: [.seeMore(privacySection, 10)],
@@ -89,7 +88,7 @@ enum HomeFeature: ExplorerFeature {
                 perform: { _ in Prefs.showFrequentFolders.toggle() }),
             ExplorerCommand(
                 id: "home.clearHistory", title: "Clear Arbor history", symbol: "clock.arrow.circlepath",
-                tooltip: "Clears Recent and frequently used folders. Pins, favorites and files are kept.",
+                tooltip: "Clears Recent, frequently used folders, recent searches, recent locations, recent documents, operation history and Back/Forward. Pins, favorites and files are kept.",
                 placements: [.seeMore(privacySection, 30)],
                 isAvailable: { $0.location == .home },
                 perform: { ctx in

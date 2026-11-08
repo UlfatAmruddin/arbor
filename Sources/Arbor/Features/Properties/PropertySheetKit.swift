@@ -1,9 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Colors and controls for Windows-style property sheets (tabs, OK/Cancel/Apply, check boxes).
-/// Everything draws itself so it looks the same in light and dark mode and in snapshots (DEC-018:
-/// our own drawing, system font).
+/// Windows-style property sheet colors and controls, self-drawn so light, dark and snapshots match (DEC-018).
 enum SheetColors {
     static let windowBackground = Theme.dynamic(light: 0xF0F0F0, dark: 0x202020)
     static let panelBackground = Theme.dynamic(light: 0xFFFFFF, dark: 0x2B2B2B)
@@ -371,7 +369,6 @@ extension NSLayoutConstraint {
     }
 }
 
-/// A horizontal row of views.
 func hstack(_ views: [NSView], spacing: CGFloat = 8) -> NSStackView {
     let s = NSStackView(views: views)
     s.orientation = .horizontal
@@ -524,7 +521,6 @@ final class PieChartView: NSView {
     }
 }
 
-/// A small color square used as a legend swatch.
 final class SwatchView: NSView {
     let color: NSColor
     init(_ color: NSColor) {
@@ -542,7 +538,6 @@ final class SwatchView: NSView {
     }
 }
 
-/// An image view with a fixed size.
 func fixedImage(_ image: NSImage?, _ side: CGFloat) -> NSImageView {
     let v = NSImageView()
     v.image = image

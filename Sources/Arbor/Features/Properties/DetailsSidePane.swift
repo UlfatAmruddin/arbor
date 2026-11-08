@@ -3,9 +3,8 @@ import QuickLookThumbnailing
 import UniformTypeIdentifiers
 import ArborCore
 
-/// Windows 11's Details pane (FE-148): large thumbnail, name and type, then a property list that
-/// follows the selection. Metadata and thumbnails load off the main thread; a newer selection cancels
-/// older work, and late results are dropped. Finder tags and comments can be edited and saved here.
+/// Windows 11 Details pane (FE-148). Loads off main; newer selections cancel older work, late results are dropped.
+/// Finder tags and comments are editable here.
 final class DetailsSidePane: NSView, SidePaneProvider {
     var view: NSView { self }
 
@@ -87,7 +86,7 @@ final class DetailsSidePane: NSView, SidePaneProvider {
         editBox.alignment = .leading
         editBox.spacing = 6
         for (label, field) in [(L10n.tr("Tags"), tagsField), (L10n.tr("Comments"), commentField)] {
-            // Property names wrap onto a second line rather than being cut off (longer translations).
+            // Names wrap rather than truncate (longer translations).
             let l = NSTextField(wrappingLabelWithString: label)
             l.maximumNumberOfLines = 2
             l.preferredMaxLayoutWidth = 100
@@ -135,7 +134,7 @@ final class DetailsSidePane: NSView, SidePaneProvider {
 
     func update(selection: [FileItem], location: Location?) {
         pending?.cancel()
-        // Coalesce fast arrowing; the header updates at once so the pane never shows the wrong name.
+        // Coalesce fast arrowing; the header updates at once so it never shows the wrong name.
         let work = DispatchWorkItem { [weak self] in self?.show(selection, location: location) }
         pending = work
         showHeaderImmediately(selection, location: location)
@@ -231,7 +230,7 @@ final class DetailsSidePane: NSView, SidePaneProvider {
         if items.count != 1 { thumbnail.contentTintColor = items.count > 1 ? Theme.iconTint : nil }
     }
 
-    /// What the preview area shows now (scripted checks): "icon", "thumbnail" or "page", with the image size.
+    /// For scripted checks: "icon", "thumbnail" or "page", with the image size.
     private(set) var previewKind = "icon"
 
     private func requestThumbnail(_ item: FileItem, token: Int) {
@@ -246,7 +245,7 @@ final class DetailsSidePane: NSView, SidePaneProvider {
             guard let cgImage = rep?.cgImage else { return }
             DispatchQueue.main.async {
                 guard let self, token == self.generation else { return }
-                // Size the image from its pixels: the representation's own NSImage can report a zero size.
+                // Size from pixels: the representation's NSImage can report zero size.
                 let size = NSSize(width: CGFloat(cgImage.width) / scale, height: CGFloat(cgImage.height) / scale)
                 self.thumbnail.image = kind == .page ? Self.framedPage(cgImage, size: size) : NSImage(cgImage: cgImage, size: size)
                 self.previewKind = kind == .page ? "page" : "thumbnail"
@@ -254,7 +253,7 @@ final class DetailsSidePane: NSView, SidePaneProvider {
         }
     }
 
-    /// A document page with a hairline border, so a white page stays visible on the pane's white background.
+    /// Hairline border so a white page shows on the white pane.
     private static func framedPage(_ page: CGImage, size: NSSize) -> NSImage {
         NSImage(size: NSSize(width: size.width + 2, height: size.height + 2), flipped: false) { rect in
             NSGraphicsContext.current?.cgContext.draw(page, in: rect.insetBy(dx: 1, dy: 1))
@@ -266,7 +265,7 @@ final class DetailsSidePane: NSView, SidePaneProvider {
         }
     }
 
-    /// Everything the pane shows for one item, read off the main thread.
+    /// All rows for one item; read off the main thread.
     static func singleRows(_ item: FileItem) -> [(String, String)] {
         let url = item.url
         let v = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .contentTypeKey,
@@ -307,7 +306,7 @@ final class DetailsSidePane: NSView, SidePaneProvider {
         grid.arrangedSubviews.forEach { $0.removeFromSuperview() }
         propertiesHeader.isHidden = rows.isEmpty
         for (label, value) in rows {
-            // Property names wrap onto a second line rather than being cut off (longer translations).
+            // Names wrap rather than truncate (longer translations).
             let l = NSTextField(wrappingLabelWithString: label)
             l.maximumNumberOfLines = 2
             l.preferredMaxLayoutWidth = 100

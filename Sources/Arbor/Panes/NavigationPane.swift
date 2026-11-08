@@ -73,7 +73,7 @@ final class NavOutlineView: NSOutlineView {
         return frame
     }
 
-    // The separator lines between groups are decoration: VoiceOver skips them instead of reading empty rows.
+    // Group separators are decoration: VoiceOver skips them.
     override func accessibilityChildren() -> [Any]? { super.accessibilityChildren()?.filter { !isSeparatorElement($0) } }
 
     private func isSeparatorElement(_ element: Any) -> Bool {
@@ -90,14 +90,13 @@ final class NavOutlineView: NSOutlineView {
     }
 }
 
-/// Navigation pane (FE-007) styled like Explorer: Home, Gallery, pinned folders, This Mac, Network.
-/// The chevron expands; clicking a label navigates. Folders are only read when expanded.
+/// Explorer-style navigation pane (FE-007). Chevron expands, label navigates; folders read only on expand.
 final class NavigationPaneController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate {
     weak var delegate: NavigationPaneDelegate?
     let outline = NavOutlineView()
     private var roots: [NavNode] = []
     private var suppressNavigation = false
-    /// Drives listed under "This Mac" (the This Mac feature supplies them; nil = mounted volumes as-is).
+    /// Drives under "This Mac" (from the This Mac feature; nil = mounted volumes as-is).
     static let volumeNodes = Provided<(() -> [NavNode])?>(
         "NavigationPaneController.volumeNodes", "The drives listed under This Mac in the tree.",
         signature: "() -> [NavNode]", default: nil)
@@ -190,8 +189,7 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
         return children
     }
 
-    /// Marks the node for the current location if it is visible in the tree. The marker is the
-    /// selection; keyboard focus is separate (spec §5.1).
+    /// Marks the current location's node if visible. The marker is the selection; focus is separate (spec §5.1).
     func reveal(_ location: Location) {
         NavigationPaneHooks.willReveal.send((self, location))
         var row = -1
@@ -235,7 +233,7 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
         case .place, .separator: return false
         case .thisMac: return true
         case .favorite, .volume, .folder:
-            // Unknown until expanded; an empty folder loses its chevron after the first expansion.
+            // Unknown until expanded; empty folders lose the chevron after expanding.
             return node.children.map { !$0.isEmpty } ?? true
         }
     }

@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// The app's copy of the operation history (FE-126). Reads and writes happen on a private serial
-/// queue; `records` is the main-thread copy the window shows.
+/// Operation history store (FE-126): I/O on a private serial queue; `records` is the main-thread copy.
 final class OperationHistory {
     static let shared = OperationHistory()
     static let changed = Notification.Name("ArborOperationHistoryChanged")
@@ -12,10 +11,9 @@ final class OperationHistory {
     private(set) var records: [OperationRecord] = []
     private(set) var loaded = false
 
-    /// `ARBOR_HISTORY_FILE`, else a private file for headless runs, else
-    /// ~/Library/Application Support/Arbor/History/operations.json.
+    /// `ARBOR_HISTORY_FILE`, else a private file in headless runs, else ~/Library/Application Support/Arbor/History/operations.json.
     static let fileURL: URL = {
-        let env = ProcessInfo.processInfo.environment
+        let env = Automation.environment
         if let path = env["ARBOR_HISTORY_FILE"] { return URL(fileURLWithPath: path) }
         if AppDelegate.isHeadless {
             return TemporaryFiles.headlessFolder("history").appendingPathComponent("operations.json")
@@ -64,9 +62,8 @@ final class OperationHistory {
     func flush() { queue.sync {} }
 }
 
-/// "Operation history": recent copy and move jobs with what happened to each item (FE-126).
-/// Beyond File Explorer, which has no such list. Open destination, Retry failed items (a normal job:
-/// sources and destinations are checked again and conflicts asked, FE-128) and Clear history.
+/// "Operation history" window (FE-126), beyond Explorer. Retry failed items runs a normal job,
+/// so sources, destinations and conflicts are checked again (FE-128).
 final class OperationHistoryWindow: NSObject, NSWindowDelegate, NSOutlineViewDataSource, NSOutlineViewDelegate {
     static let shared = OperationHistoryWindow()
 

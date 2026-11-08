@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Benchmark steps for `ARBOR_SCRIPT` (driven by scripts/bench.sh; docs/PERFORMANCE.md). Every step
-/// that writes appends one `key=value` line to the file it is given, so the script can parse results:
+/// Benchmark steps for `ARBOR_SCRIPT` (scripts/bench.sh, docs/PERFORMANCE.md); writers append one `key=value` line:
 ///
 ///     phase:browse                       label stalls and results with a workload name
 ///     memlog:label:/out                  footprint, peak, resident, caches, tabs, windows
@@ -28,9 +27,9 @@ enum PerformanceDebug {
     private static var volumeEvents = 0
 
     static func register() {
-        guard ProcessInfo.processInfo.environment["ARBOR_SCRIPT"] != nil else { return }
+        guard Automation.environment["ARBOR_SCRIPT"] != nil else { return }
         WindowHooks.willDisplay.observe("performance.displayed-token") { _, tab, _, _ in displayedToken[tab.id] = tab.loadToken }
-        // Disks mounted by other software wake the app; the idle figure says how many arrived.
+        // Mounts by other software wake the app; the idle figure counts them.
         for name in [NSWorkspace.didMountNotification, NSWorkspace.didUnmountNotification] {
             _ = NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) { _ in volumeEvents += 1 }
         }
@@ -64,8 +63,7 @@ enum PerformanceDebug {
             recorder.reset()
             return 0
         }
-        // timecmd:label:/path:command — time until the command's result is on screen; a sort that runs in the
-        // background (FE-228) is waited for, and the main thread's own share is logged as `main_ms`.
+        // timecmd:label:/path:command — until on screen; waits for background sorts (FE-228), logs main's share as `main_ms`.
         DebugScript.registerWaitStep("timecmd") { arg, window, elapsed in
             let (label, rest) = split(arg)
             let (path, command) = split(rest)
@@ -112,8 +110,7 @@ enum PerformanceDebug {
             navigateAndTime(arg, window: window, elapsed: elapsed) { window, location in window.openTab(location) }
         }
         DebugScript.registerWaitStep("scroll") { arg, window, elapsed in scroll(arg, window: window, first: elapsed == 0) }
-        // A plain step that pauses the script itself: a polling wait step would wake the app 200 times a
-        // second and measure its own polling.
+        // Plain step that pauses the script: a polling wait step would wake the app 200×/s and measure itself.
         DebugScript.registerStep("idle") { arg, _ in
             let (label, rest) = split(arg)
             let (path, secondsText) = split(rest)
@@ -127,7 +124,7 @@ enum PerformanceDebug {
             DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
                 let elapsed = CFAbsoluteTimeGetCurrent() - start
                 let report = profiler?.stop()
-                // The profiler's own thread is not part of what the app does while idle.
+                // Exclude the profiler's own thread.
                 let used = ProcessMetrics.current().cpuSeconds - cpu - (report?.profilerCPU ?? 0)
                 append(String(format: "idle %@ cpu_ms_per_s=%.2f seconds=%.1f volume_events=%d main_wakeups_per_s=%.1f", label,
                               used * 1000 / elapsed, elapsed, volumeEvents - volumes,
@@ -173,7 +170,7 @@ enum PerformanceDebug {
         return extraMemoryFields.apply(line)
     }
 
-    /// More `key=value` fields for `memlog` (cache sizes): each contribution appends " key=value".
+    /// Extra `memlog` fields (cache sizes); each appends " key=value".
     static let extraMemoryFields = Pipeline<String, Void>(
         "PerformanceDebug.extraMemoryFields", "More key=value fields for the memlog script step.", signature: "(line) -> line")
 
@@ -314,9 +311,8 @@ enum PerformanceDebug {
 
     // MARK: Search churn
 
-    /// Types `count` queries (mostly faster than the typing delay, every fifth slow enough to start a
-    /// search that the next one cancels), then `final`; waits for the final search to finish and checks
-    /// that every row matches it (no stale results from cancelled searches).
+    /// Types `count` queries (every fifth slow enough to start a search the next cancels), then `final`;
+    /// checks every row matches it (no stale results from cancelled searches).
     private static func searchChurn(_ arg: String, window: BrowserWindowController?, elapsed: TimeInterval) -> Bool {
         let (label, rest) = split(arg)
         let (path, params) = split(rest)

@@ -1,16 +1,15 @@
 import AppKit
 import ArborCore
 
-/// Memory and responsiveness plumbing (spec §15.3–§15.4, FE-228, FE-243, FE-251, FE-252): one
-/// memory-pressure listener that trims every registered cache, the main-thread stall monitor, and the
-/// benchmark script steps (PerformanceDebug.swift). See docs/PERFORMANCE.md.
+/// Cache trimming under memory pressure, the stall monitor and benchmark steps
+/// (spec §15.3–§15.4, FE-228, FE-243, FE-251, FE-252; docs/PERFORMANCE.md).
 enum PerformanceFeature: ExplorerFeature {
     static let id = "performance"
     static func register() {
         PerformanceCaches.register()
         CustomIcons.install()
         DebugScript.registerLogger("performance.log") { _ in "custom icons: " + CustomIcons.shared.debugText }
-        let environment = ProcessInfo.processInfo.environment
+        let environment = Automation.environment
         #if DEBUG
         let monitor = true
         #else
@@ -22,8 +21,7 @@ enum PerformanceFeature: ExplorerFeature {
     }
 }
 
-/// Watches the main run loop and records every pass that kept the main thread busy for more than
-/// 50 ms, labelled with the running script step (or "app"). Costs two timestamps and a comparison per run-loop pass.
+/// Records main run-loop passes over 50 ms, labelled with the script step (or "app"). Two timestamps per pass.
 final class StallMonitor {
     static let shared = StallMonitor()
     let recorder = StallRecorder(thresholdMilliseconds: 50)
@@ -32,7 +30,7 @@ final class StallMonitor {
     private var observer: CFRunLoopObserver?
     private var busySince: CFAbsoluteTime?
     private var log: FileHandle?
-    /// Times the main thread woke up (run-loop passes after waiting); the idle benchmark reports it.
+    /// Run-loop passes after waiting; reported by the idle benchmark.
     private(set) var wakeups = 0
 
     var isRunning: Bool { observer != nil }
@@ -62,7 +60,7 @@ final class StallMonitor {
             guard let start = busySince else { return }
             busySince = nil
             let ms = (now - start) * 1000
-            // Nearly every pass is short: decide before building any text (this runs on every pass).
+            // Runs on every pass: bail out before building any text.
             guard ms > recorder.thresholdMilliseconds else { return }
             let label = (phase.isEmpty ? "" : phase + "/") + (DebugScript.currentStep.isEmpty ? "app" : DebugScript.currentStep)
             if recorder.record(milliseconds: ms, label: label) {

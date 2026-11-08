@@ -1,14 +1,10 @@
 import Foundation
 import Darwin
 
-/// What a destination volume can store besides file contents (for Windows' "Are you sure you want
-/// to copy this file without its properties?", spec §9.5).
-///
-/// - Extended attributes (Finder tags, comments, resource forks, Finder info): read from the
-///   volume's `VOL_CAP_INT_EXTENDED_ATTR` capability. FAT32, exFAT and SMB shares without named
-///   streams lack it; macOS then keeps the attributes only in hidden "._" companion files that other
-///   systems ignore or delete.
-/// - Access-list entries (ACLs): `_PC_EXTENDED_SECURITY_NP` / `volumeSupportsExtendedSecurity`.
+/// What a destination volume can store besides contents, for Windows' "copy without its properties?" (spec §9.5).
+/// - Extended attributes (tags, comments, resource forks, Finder info): `VOL_CAP_INT_EXTENDED_ATTR`. FAT32, exFAT
+///   and SMB without named streams lack it; macOS then uses "._" files that other systems ignore or delete.
+/// - ACLs: `_PC_EXTENDED_SECURITY_NP` / `volumeSupportsExtendedSecurity`.
 public struct VolumeCapabilities: Equatable, Sendable {
     public var nativeExtendedAttributes: Bool
     public var accessControlLists: Bool
@@ -27,8 +23,7 @@ public struct VolumeCapabilities: Equatable, Sendable {
 
     public var keepsEverything: Bool { nativeExtendedAttributes && accessControlLists }
 
-    /// Capabilities of the volume holding `url` (its nearest existing ancestor). Unknown → assumes full
-    /// support, so a failed query never causes a needless prompt.
+    /// Capabilities of `url`'s volume (nearest existing ancestor). Unknown means full support: no needless prompt.
     public static func of(_ url: URL) -> VolumeCapabilities {
         var path = url.standardizedFileURL.path
         while !FileManager.default.fileExists(atPath: path), path != "/" {
@@ -91,7 +86,7 @@ public struct MetadataInventory: OptionSet, Sendable, Hashable {
     public static let otherAttributes = MetadataInventory(rawValue: 16)
     public static let accessList = MetadataInventory(rawValue: 32)
 
-    /// Attributes managed by macOS itself that the user never sees as properties (not asked about).
+    /// macOS-managed attributes users never see as properties (not asked about).
     public static let systemAttributes: Set<String> = [
         "com.apple.provenance", "com.apple.quarantine", "com.apple.macl", "com.apple.lastuseddate#PS",
         "com.apple.rootless", "com.apple.decmpfs", "com.apple.TextEncoding", "com.apple.metadata:kMDItemDownloadedDate",

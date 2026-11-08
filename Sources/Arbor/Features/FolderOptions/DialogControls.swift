@@ -1,7 +1,6 @@
 import AppKit
 
-/// Colors and metrics for classic Windows property-sheet dialogs (Folder Options), drawn with original
-/// shapes in Theme style. Light values approximate Windows 11's dialog surfaces; dark is our own variant.
+/// Colors and metrics for Windows-style property sheets, with original shapes. Dark is our own variant.
 enum DialogStyle {
     static let background = Theme.dynamic(light: 0xF0F0F0, dark: 0x202020)
     static let page = Theme.dynamic(light: 0xFFFFFF, dark: 0x2B2B2B)
@@ -179,8 +178,7 @@ final class DialogPageView: NSView {
     }
 }
 
-/// A Windows group box: a thin rounded frame with its caption on the top edge, and an optional
-/// illustration on the left (SF Symbols, original artwork).
+/// Windows group box: rounded frame, caption on the top edge, optional SF Symbol illustration.
 final class GroupBoxView: NSView {
     let content = NSStackView()
     private let caption: NSTextField

@@ -1,10 +1,9 @@
 import AppKit
 import ArborCore
 
-/// Explorer-style search box behavior (FE-131, FE-135): typing pauses or Return open a "Search Results
-/// in <folder>" location in the current tab, covering the folder and its subfolders. Refining the query
-/// replaces that entry, so Back returns to the folder with its selection. Clearing the box or "Close
-/// search" goes back. Places without files to search (Trash, Network…) keep the in-folder filter.
+/// Explorer search box (FE-131, FE-135): a pause or Return opens recursive "Search Results in <folder>".
+/// Refining replaces that entry, so Back returns to the folder; clearing or "Close search" goes back.
+/// Places without files (Trash, Network…) keep the in-folder filter.
 final class ExplorerSearchController: SearchController {
     static let typingDelay: TimeInterval = 0.6
 
@@ -30,7 +29,7 @@ final class ExplorerSearchController: SearchController {
         self.window = window
         Self.controllers.setObject(self, forKey: window)
         progress.install(in: window.addressBar)
-        // The address bar's Refresh button reruns a search (F5 is handled by the nav.refresh command).
+        // Refresh reruns a search (F5 goes through nav.refresh).
         let originalRefresh = window.addressBar.onRefresh
         window.addressBar.onRefresh = { [weak window] in
             if let window, !window.tabs.isEmpty, case .search(let r) = window.activeTab.displayedLocation ?? window.location {
@@ -54,7 +53,7 @@ final class ExplorerSearchController: SearchController {
         return L10n.format("Search %@", "\(Self.title(of: location))")
     }
 
-    /// The name the tab and breadcrumb use ("iCloud Drive", a volume's name), not the folder's name on disk.
+    /// Display name for tab and breadcrumb ("iCloud Drive"), not the on-disk name.
     private static func title(of location: Location) -> String {
         LocationRegistry.provider(for: location).title(for: location)
     }
@@ -76,7 +75,7 @@ final class ExplorerSearchController: SearchController {
             return
         }
         guard Self.isSearchable(shown) else { window.applyFilter(text); return }
-        // The results on screen are for an older query: stop that search now (spec §10.4).
+        // Results shown are for an older query: stop it now (spec §10.4).
         if case .search(let r) = shown, r.query != trimmed { SearchSessions.cancel(r, superseded: true) }
         let work = DispatchWorkItem { [weak self] in self?.run(trimmed, refining: true) }
         pending = work
@@ -90,7 +89,7 @@ final class ExplorerSearchController: SearchController {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let shown = self.shown
         guard Self.isSearchable(shown) else {
-            // In-place filter places: Return moves focus to the first match (DEC-014 behavior).
+            // In-place filter places: Return focuses the first match (DEC-014).
             guard let view = window.itemView else { return }
             view.focus()
             if view.selectedItems.isEmpty, let first = view.items.first { view.select(urls: [first.url]) }
@@ -144,8 +143,7 @@ final class ExplorerSearchController: SearchController {
         }
     }
 
-    /// Builds the search for a place that isn't a plain folder (Home with its pinned folders and
-    /// recent files, a library's folders, every drive from This Mac). nil = the default for `location`.
+    /// Search for a place that isn't a plain folder (Home, a library, This Mac). nil = default.
     static let scopedRequest = Handlers<(Location, BrowserWindowController?), SearchRequest>(
         "ExplorerSearchController.scopedRequest", "The search a place that isn't a plain folder runs (Home, libraries, This Mac).",
         signature: "(location, window?) -> SearchRequest?")
@@ -172,7 +170,7 @@ final class ExplorerSearchController: SearchController {
             request = Self.scopedRequest.first((shown, window)) ?? SearchRequest(query: query, scope: Self.scope(for: shown), recursive: true)
             request.query = query
         }
-        if case .success = AQSParser.parse(query) {   // only searches that could run go into the history
+        if case .success = AQSParser.parse(query) {   // only runnable queries go into history
             SearchHistoryStore.update { $0.record(query, refining: refining) }
         }
         open(request)
@@ -206,7 +204,7 @@ final class ExplorerSearchController: SearchController {
         return false
     }
 
-    /// Inserts text into the box (Other properties ▸ Type → "type:") and puts the cursor after it.
+    /// Inserts text into the box (e.g. "type:") with the cursor after it.
     func insertIntoBox(_ text: String) {
         guard let window else { return }
         let current = window.searchBox.text.trimmingCharacters(in: .whitespaces)
@@ -347,7 +345,7 @@ final class SearchProgressFill: NSView {
 
     private func tick() {
         guard case .searching(let since) = state else { return }
-        // No known total: grow quickly at first, then slowly, never reaching the end until done.
+        // No known total: fast at first, then slower, never full until done.
         let t = Date().timeIntervalSince(since)
         fraction = CGFloat(0.92 * (1 - exp(-t / 3)))
         needsDisplay = true
@@ -371,8 +369,7 @@ final class SearchProgressFill: NSView {
 
 // MARK: - Recent searches dropdown (FE-135)
 
-/// A borderless panel under the search box listing recent searches (filtered by what's typed), with
-/// "Clear search history". It never takes keyboard focus, so typing continues in the box.
+/// Recent-searches panel under the box, with "Clear search history". Never takes keyboard focus.
 final class SearchHistoryDropdown {
     private final class Panel: NSPanel {
         override var canBecomeKey: Bool { false }

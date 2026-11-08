@@ -15,12 +15,11 @@ public struct RestoreCandidate: Sendable {
 
 /// What restoring one item will do (spec §12.4, §9.4).
 public enum RestorePlan: Equatable, Sendable {
-    /// Move back to `to`. `missingParents` are created first, outermost first (Windows recreates them).
+    /// Move back to `to`, first creating `missingParents` outermost first (as Windows does).
     case restore(from: URL, to: URL, missingParents: [URL])
-    /// The original location is taken (on disk or by an earlier item in this batch). `keepBoth` is a
-    /// free name next to it ("Report (2).pdf"); the user chooses Keep both or Skip.
+    /// The original location is taken; `keepBoth` is a free name beside it ("Report (2).pdf") for Keep both or Skip.
     case conflict(from: URL, to: URL, keepBoth: URL, missingParents: [URL])
-    /// Arbor doesn't know where the item came from; it can't be restored here.
+    /// Original location unknown; can't be restored here.
     case unknownOrigin(URL)
 
     public var source: URL {
@@ -32,8 +31,7 @@ public enum RestorePlan: Equatable, Sendable {
 }
 
 public enum TrashRestorePlanner {
-    /// Plans a batch. `exists` is checked for destinations and parents; names already claimed by
-    /// earlier items in the batch count as taken (compared case-insensitively, like APFS by default).
+    /// Plans a batch. Names claimed by earlier items count as taken (case-insensitive, like default APFS).
     public static func plan(_ candidates: [RestoreCandidate], exists: (URL) -> Bool) -> [RestorePlan] {
         var claimed = Set<String>()
         func taken(_ url: URL) -> Bool { exists(url) || claimed.contains(claimKey(url)) }
@@ -88,7 +86,7 @@ public enum TrashRestorer {
     public static func restore(from trashed: URL, to destination: URL, missingParents: [URL],
                                journal: TrashJournal?, fileManager: FileManager = .default) throws -> URL {
         guard FileOps.exists(trashed) else { throw TrashRestoreError.notInTrash(trashed.lastPathComponent) }
-        // Recreate the original folder chain if it's gone, like Windows does (`missingParents`, outermost first).
+        // Recreate the missing folder chain, like Windows (`missingParents`, outermost first).
         let parent = destination.deletingLastPathComponent()
         if !missingParents.isEmpty || !FileOps.exists(parent) {
             try fileManager.createDirectory(at: parent, withIntermediateDirectories: true)
@@ -100,9 +98,8 @@ public enum TrashRestorer {
     }
 }
 
-/// Names shown in the Trash list. Windows shows each item's original name; Arbor does the same when
-/// it knows it and it's unambiguous, otherwise the item's name inside the Trash. Every name is
-/// unique in the listing, because names identify rows.
+/// Names in the Trash list: the original name when known and unambiguous (like Windows), else the
+/// in-Trash name. Names are unique because they identify rows.
 public enum TrashNaming {
     public struct Entry: Sendable {
         public let onDisk: String

@@ -34,14 +34,13 @@ extension BrowserWindowController {
         navigate(to: location, select: names)
     }
 
-    /// Reloads and selects exactly these items. Use it wherever the items are known: in search results
-    /// and libraries several items share a name, and selecting by name would select them all.
+    /// Reloads and selects exactly these items (names repeat in search results and libraries).
     func refreshSelecting(urls: [URL], rename: String? = nil) {
         activeTab.renameAfterLoad = rename
         request(.visit(location, select: urls.map(\.lastPathComponent), selectURLs: urls), tab: activeTab)
     }
 
-    /// The item to select after removing `items`: the next remaining row, else the previous one (by identity).
+    /// Next remaining row after removing `items`, else the previous one (by identity).
     func neighborURL(after items: [FileItem]) -> URL? {
         let removed = Set(items.map(\.url))
         let rows = visibleItems
@@ -50,7 +49,7 @@ extension BrowserWindowController {
         return rows[..<last].last(where: { !removed.contains($0.url) })?.url
     }
 
-    /// The item to select after removing `items`: the next remaining row, else the previous one.
+    /// `neighborURL(after:)` by name.
     func neighbor(after items: [FileItem]) -> String? {
         let removed = Set(items.map(\.name))
         let rows = visibleItems

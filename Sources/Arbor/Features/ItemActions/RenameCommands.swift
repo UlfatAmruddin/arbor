@@ -1,8 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Rename (F2) for one or several items, Tab/Shift-Tab sequencing (in the Details view), and the
-/// advanced Batch rename dialog (FE-064, FE-089, FE-103).
+/// Rename (F2) for one or more items, Tab sequencing in Details, and Batch rename (FE-064, FE-089, FE-103).
 enum RenameCommands {
     /// A multi-item rename waiting for the user to commit the inline editor.
     struct Session {
@@ -14,7 +13,7 @@ enum RenameCommands {
 
     static func register() {
         let r = CommandRegistry.shared
-        // Replaces the core command: enabled for several items too (Explorer's numbered multi-rename).
+        // Replaces the core command so it also works on several items (Explorer's numbered rename).
         r.replace(ExplorerCommand(
             id: "file.rename", title: "Rename", symbol: "character.cursor.ibeam", tooltip: "Rename",
             shortcut: .function(NSF2FunctionKey),
@@ -92,8 +91,7 @@ enum RenameCommands {
         }
     }
 
-    /// One undo step for the whole batch; redo re-applies it. Undo refuses (and reports) rather
-    /// than overwrite anything that took one of the old names in the meantime.
+    /// One undo step for the batch. Undo refuses rather than overwrite a file that took an old name since.
     static func registerUndo(_ applied: [(from: URL, to: URL)]) {
         guard !applied.isEmpty else { return }
         let center = OperationCenter.shared
@@ -111,9 +109,8 @@ enum RenameCommands {
 
 // MARK: - Batch rename dialog (FE-103)
 
-/// "Batch rename": find and replace (plain or regular expression), insert text, change case, add
-/// numbers, handle extensions, with a live preview that flags conflicts. Rename is disabled while
-/// any row has a problem. The whole batch is one undo step.
+/// Batch rename: find/replace (plain or regex), insert, case, numbering, extensions, with a live
+/// preview that flags conflicts. Rename is disabled while any row has a problem; one undo step.
 final class BatchRenameDialog: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate {
     static private(set) var current: BatchRenameDialog?
 
@@ -165,7 +162,7 @@ final class BatchRenameDialog: NSObject, NSTableViewDataSource, NSTableViewDeleg
         recompute()
     }
 
-    /// Lists the affected folders off the main thread (a folder can be large or remote).
+    /// Lists affected folders off-main (they can be large or remote).
     private func loadExistingNames() {
         let folders = Set(items.map(\.folder))
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in

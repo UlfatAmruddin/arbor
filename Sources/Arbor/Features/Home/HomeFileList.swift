@@ -9,8 +9,7 @@ protocol HomeFileListDelegate: AnyObject {
     func fileList(_ list: HomeFileList, leaveToward direction: Int) -> Bool
 }
 
-/// A scroll view that never scrolls itself: it hands wheel events to the page around it, so a
-/// table with a real header can sit inside the scrolling Home page.
+/// Forwards wheel events to the page, so a table with a header can sit in the scrolling Home page.
 final class PassThroughScrollView: NSScrollView {
     override func scrollWheel(with event: NSEvent) { nextResponder?.scrollWheel(with: event) }
 }
@@ -42,8 +41,7 @@ final class HomeTableView: NSTableView, SectionTagged {
     }
 }
 
-/// Favorites and Recent: a list with Name, a date column and File location (Explorer's Home lists).
-/// It sizes itself to its rows; the page scrolls.
+/// Favorites and Recent list (Name, date, File location); sizes to its rows, the page scrolls.
 final class HomeFileList: NSView, NSTableViewDataSource, NSTableViewDelegate {
     weak var delegate: HomeFileListDelegate?
     let table = HomeTableView()
@@ -111,8 +109,7 @@ final class HomeFileList: NSView, NSTableViewDataSource, NSTableViewDelegate {
     private func addColumn(_ id: String, _ title: String, width: CGFloat, min: CGFloat) {
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id))
         column.title = title
-        // Stock header cells, styled through the attributed title (custom header classes stop
-        // rows drawing on macOS 26).
+        // Stock header cells styled via attributed title: custom header classes break row drawing on macOS 26.
         column.headerCell.attributedStringValue = NSAttributedString(string: L10n.tr(title), attributes: [
             .font: Theme.headerFont, .foregroundColor: Theme.secondaryText,
         ])
@@ -252,7 +249,7 @@ final class HomeFileList: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
     func tableViewSelectionDidChange(_ notification: Notification) { delegate?.fileListSelectionChanged(self) }
 
-    /// Drag out: the real file (FE-239: Home rows are the items themselves, not copies).
+    /// Drags the real file (FE-239).
     func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? {
         row < rows.count ? rows[row].item.url as NSURL : nil
     }

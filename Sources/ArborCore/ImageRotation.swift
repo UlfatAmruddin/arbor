@@ -3,8 +3,7 @@ import ImageIO
 import CoreGraphics
 import UniformTypeIdentifiers
 
-/// EXIF/TIFF orientation values (1–8) as elements of the square's symmetry group: an optional
-/// horizontal mirror followed by a clockwise rotation.
+/// EXIF orientations (1–8) as an optional horizontal mirror then a clockwise rotation.
 public enum ExifOrientation {
     private static let table: [Int: (mirrored: Bool, quarterTurns: Int)] = [
         1: (false, 0), 6: (false, 1), 3: (false, 2), 8: (false, 3),
@@ -33,13 +32,8 @@ public enum ImageRotationError: Error, LocalizedError, Equatable {
     }
 }
 
-/// Rotate left / Rotate right for image files (FE-097).
-///
-/// JPEG, HEIC and TIFF are rotated **losslessly** by changing only the orientation tag (pixels and
-/// all other metadata are copied untouched). PNG, BMP and single-frame GIF are lossless formats
-/// whose orientation tag most apps ignore, so their pixels are rotated and re-encoded without loss,
-/// keeping color profile, resolution and other properties. Anything else is refused.
-/// The file is replaced atomically, so a failure leaves the original as it was.
+/// Rotate left / right (FE-097), replacing the file atomically. JPEG, HEIC, TIFF: only the orientation tag changes.
+/// PNG, BMP, single-frame GIF: pixels are rotated losslessly, since most apps ignore their tag. Others are refused.
 public enum ImageRotator {
     public enum Method: Equatable, Sendable { case orientationTag, pixels }
 
@@ -150,8 +144,7 @@ public enum ImageRotator {
     }
 }
 
-/// Explorer: dragging a folder and something inside it (possible in search results) must not copy
-/// the inner item twice (FE-111). Keeps the first occurrence, in order.
+/// Dragging a folder plus something inside it (search results) must not copy the inner item twice (FE-111).
 public enum DragSources {
     public static func deduplicated(_ urls: [URL]) -> [URL] {
         var seen = Set<String>()
@@ -162,8 +155,7 @@ public enum DragSources {
     }
 }
 
-/// Spring-loading timing (FE-108): a drag that stays over the same target for `delay` seconds
-/// activates it once. Leaving the target, or the drag going quiet (left the view), cancels.
+/// Spring-loading (FE-108): hovering one target for `delay` activates it once; leaving or going quiet cancels.
 public struct SpringLoadTracker: Sendable {
     public let delay: TimeInterval
     /// Updates older than this mean the pointer left without an exit notice.
@@ -178,8 +170,7 @@ public struct SpringLoadTracker: Sendable {
         self.staleAfter = staleAfter
     }
 
-    /// The drag is over `target` (nil = over nothing that springs). Returns true if this is a new
-    /// target, so the caller schedules a check after `delay`.
+    /// Nil = over nothing that springs. True for a new target: the caller schedules a check after `delay`.
     @discardableResult
     public mutating func hover(_ target: String?, now: TimeInterval) -> Bool {
         lastSeen = now

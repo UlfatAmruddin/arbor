@@ -1,26 +1,21 @@
 import Foundation
 
-/// Arbor's files in the temporary folder, and their cleanup.
-///
-/// - Headless runs (`ARBOR_HEADLESS`, used by the scripted checks) keep the journal, history and Trash
-///   that a normal launch keeps in ~/Library in one folder per process, `arbor-headless-<pid>`. It is
-///   removed when the process exits; folders left by runs that crashed or were killed are removed at
-///   the next launch (`sweepLeftovers`).
-/// - Copies of Time Machine versions opened from Properties are locked, read-only files in
-///   "Arbor Versions". They stay while an app may still have them open and are removed a day later.
-/// - "Arbor Archives" (items opened from inside an archive) cleans itself per launch (`ArchiveJobs`).
+/// Arbor's temporary files and their cleanup.
+/// - Headless runs (`ARBOR_HEADLESS`) keep journal, history and Trash in `arbor-headless-<pid>`, removed at exit;
+///   leftovers from crashed or killed runs are removed next launch (`sweepLeftovers`).
+/// - Opened version copies are read-only files in "Arbor Versions", removed when the app showing them quits;
+///   any left are removed a day later, or by the system's temp cleanup if Arbor isn't opened again.
+/// - "Arbor Archives" is cleaned per launch by `ArchiveJobs`.
 public enum TemporaryFiles {
-    /// Per-process folder for headless runs.
     public static let headlessPrefix = "arbor-headless-"
-    /// Per-process names used by earlier versions (and by the fake network shares); swept the same way.
+    /// Older per-process prefixes (and fake network shares); swept the same way.
     static let perProcessPrefixes = [headlessPrefix, "arbor-test-journal-", "arbor-test-history-",
                                      "arbor-test-trash-", "arbor-fake-network-"]
-    /// How long an opened version copy is kept.
     public static let versionCopyLifetime: TimeInterval = 24 * 60 * 60
 
     public static var directory: URL { FileManager.default.temporaryDirectory }
 
-    /// This process's headless folder, created on first use and removed at exit.
+    /// Created on first use, removed at exit.
     public static let headlessRoot: URL = {
         let url = directory.appendingPathComponent("\(headlessPrefix)\(getpid())", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
@@ -31,22 +26,20 @@ public enum TemporaryFiles {
         return url
     }()
 
-    /// A subfolder of the headless folder ("journal", "history", "trash").
+    /// A subfolder ("journal", "history", "trash").
     public static func headlessFolder(_ name: String) -> URL {
         headlessRoot.appendingPathComponent(name, isDirectory: true)
     }
 
-    /// Where opened Time Machine version copies go.
     public static var versionsFolder: URL { directory.appendingPathComponent("Arbor Versions", isDirectory: true) }
 
-    /// True when a process with this id exists (including one owned by another user).
+    /// True if the process exists, even when another user owns it.
     public static func isRunning(_ pid: pid_t) -> Bool {
         kill(pid, 0) == 0 || errno == EPERM
     }
 
-    /// Removes what earlier runs left behind: per-process folders (and files named after them, such as
-    /// `arbor-test-trash-<pid>.arbor-journal.json`) of processes that no longer run, and version copies
-    /// older than `versionCopyLifetime`. Returns the names removed. Cheap; call off the main thread.
+    /// Removes per-process folders (and files named after them) of dead processes, and version copies older
+    /// than `versionCopyLifetime`. Returns the names removed. Call off the main thread.
     @discardableResult
     public static func sweepLeftovers(in directory: URL = TemporaryFiles.directory,
                                       now: Date = Date(),
@@ -71,7 +64,19 @@ public enum TemporaryFiles {
         return removed
     }
 
-    /// The process id in a per-process name ("arbor-headless-123", "arbor-test-trash-123.arbor-journal.json").
+    /// Makes an opened version copy read-only; not locked, since the system's temp cleanup can't remove locked files.
+    public static func makeVersionCopyReadOnly(_ copy: URL) throws {
+        let fm = FileManager.default
+        var items = [copy]
+        if let walker = fm.enumerator(at: copy, includingPropertiesForKeys: nil) {
+            for case let item as URL in walker { items.append(item) }
+        }
+        for item in items where (try? fm.attributesOfItem(atPath: item.path)[.type] as? FileAttributeType) == .typeRegular {
+            try fm.setAttributes([.posixPermissions: 0o444], ofItemAtPath: item.path)
+        }
+    }
+
+    /// The pid in a per-process name ("arbor-headless-123").
     static func ownerPID(of name: String) -> pid_t? {
         guard let prefix = perProcessPrefixes.first(where: { name.hasPrefix($0) }) else { return nil }
         let digits = name.dropFirst(prefix.count).prefix(while: \.isNumber)
@@ -79,7 +84,7 @@ public enum TemporaryFiles {
         return pid
     }
 
-    /// Deletes a file or folder, unlocking locked items first when that is what stopped it.
+    /// Deletes a file or folder, unlocking locked items if that's what blocked it.
     public static func removeTree(_ url: URL) {
         let fm = FileManager.default
         if (try? fm.removeItem(at: url)) != nil { return }

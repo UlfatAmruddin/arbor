@@ -72,6 +72,8 @@ struct ExplorerFormatTests {
         #expect(recent.entries == [.thisMac, a, b])
         recent.prune { $0 != b }
         #expect(recent.entries == [.thisMac, a])
+        recent.clear()
+        #expect(recent.entries.isEmpty)
     }
 
     @Test func listingTypesAliasesAsShortcutsAndLinksByTarget() throws {

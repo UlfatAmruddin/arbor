@@ -1,20 +1,14 @@
 import Foundation
 
-/// Sorting for large listings (FE-228): exactly the order of `FileSorter.precedes`, computed faster.
-///
-/// Measured on a 100,000-entry folder (docs/PERFORMANCE.md): `String.localizedStandardCompare` bridges
-/// both strings on every comparison, so sorting by name took ~400 ms on the main thread. Here names and
-/// kinds are converted to `CFString` once and compared with the same Core Foundation call and options
-/// `localizedStandardCompare` uses; listings above `parallelThreshold` are sorted in chunks on all cores
-/// and merged. Orders that read extra Details columns (metadata lookups, main-thread state) stay
-/// single-threaded.
+/// Same order as `FileSorter.precedes`, faster (FE-228). `localizedStandardCompare` bridges on every call
+/// (~400 ms for 100,000 names), so names are converted to `CFString` once and compared with the same CF call.
+/// Big listings sort in parallel chunks, except orders on extra Details columns (main-thread state).
 enum LargeSort {
     static let threshold = 2_000
     static let parallelThreshold = 16_000
 
     static func sorted(_ items: [FileItem], by order: FileSortOrder, parallel: Bool = true) -> [FileItem] {
-        // Folders are listed pre-sorted in the background (FolderProvider); one linear check then saves
-        // the main thread the whole sort. An unsorted list fails the check at its first pair or so.
+        // FolderProvider pre-sorts in the background, so a linear check often saves the whole sort.
         if isSorted(items, by: order) { return items }
         let keys = Keys(items, order)
         var index = Array(0..<items.count)
@@ -99,8 +93,7 @@ enum LargeSort {
         }
     }
 
-    /// Sorts chunks concurrently, then merges neighbouring runs level by level (also concurrently).
-    /// `less` must be safe to call from several threads.
+    /// Concurrent chunk sort, then concurrent pairwise merges. `less` must be thread-safe.
     static func parallelSort(_ index: inout [Int], _ less: @escaping (Int, Int) -> Bool) {
         let n = index.count
         let chunks = max(1, min(8, ProcessInfo.processInfo.activeProcessorCount))
@@ -142,7 +135,7 @@ enum LargeSort {
         if resultInScratch { index = scratch }
     }
 
-    /// Stable merge of two adjacent sorted runs of `src` into the same positions of `dst`.
+    /// Stable merge of two adjacent runs into the same positions of `dst`.
     private static func merge(_ src: UnsafeMutablePointer<Int>, _ left: Range<Int>, _ right: Range<Int>,
                               into dst: UnsafeMutablePointer<Int>, _ less: (Int, Int) -> Bool) {
         var i = left.lowerBound, j = right.lowerBound, k = left.lowerBound

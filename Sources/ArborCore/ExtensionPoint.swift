@@ -1,24 +1,11 @@
 import Foundation
 
-// Typed extension points: how features plug behavior into shared code without overwriting each
-// other (DEC-024, docs/ARCHITECTURE.md "Writing a feature", docs/EXTENSION-POINTS.md).
-//
-// Four generic kinds (commands add a fifth, per-command overrides, in the app's `CommandRegistry`):
-// - `Handlers<Input, Output>`: chain of responsibility. The first contribution that answers (non-nil) wins.
-// - `Observers<Input>`: did/will events. Every contribution is called.
-// - `Pipeline<Value, Context>`: each contribution transforms the previous one's output (filters, adjustments).
-// - `Provided<Value>`: exactly one provider, with a default. A second provider is an error.
-//
-// Every contribution has an id ("archives.open-file") and an `ExtensionOrder`. Contributions run sorted by
-// order, then by registration sequence, so the result never depends on which feature happened to
-// register first unless they share an order. A duplicate id on one point, or a second provider, is
-// recorded in `ExtensionRegistry` (and stops a debug build at once).
-//
-// Threading: points are configured once at launch on the main thread (`Features.registerAll()`), then
-// only read. Calling a point (`first`, `send`, `apply`, `value`) doesn't allocate or lock, so it is fine
-// on hot paths (row decoration, sorting) and from background work that only reads.
+// Typed extension points so features plug into shared code without clobbering each other
+// (DEC-024, docs/EXTENSION-POINTS.md). Contributions run by order, then registration sequence;
+// duplicate ids and second providers go to `ExtensionRegistry`. Configured once at launch on the
+// main thread, then read-only: calling a point doesn't allocate or lock, so hot paths are fine.
 
-/// Where a contribution runs relative to the others on the same point: lower runs first.
+/// Lower runs first.
 public struct ExtensionOrder: Comparable, Hashable, Sendable, CustomStringConvertible {
     public let rank: Int
 
@@ -29,7 +16,7 @@ public struct ExtensionOrder: Comparable, Hashable, Sendable, CustomStringConver
     public static let normal = ExtensionOrder(0)
     public static let late = ExtensionOrder(1000)
     public static let last = ExtensionOrder(2000)
-    /// An order between the named ones, e.g. `.custom(-500)` runs after `.early` and before `.normal`.
+    /// E.g. `.custom(-500)` runs between `.early` and `.normal`.
     public static func custom(_ rank: Int) -> ExtensionOrder { ExtensionOrder(rank) }
 
     public static func < (a: ExtensionOrder, b: ExtensionOrder) -> Bool { a.rank < b.rank }
@@ -46,28 +33,22 @@ public struct ExtensionOrder: Comparable, Hashable, Sendable, CustomStringConver
     }
 }
 
-/// The kind of an extension point, for listings.
 public enum ExtensionKind: String, Sendable {
     case handlers = "Handlers", observers = "Observers", pipeline = "Pipeline", provided = "Provided"
 }
 
-/// A registration mistake: a duplicate contribution id on one point, a second provider, or another
-/// problem a check found (a contribution to a command that doesn't exist).
+/// A registration mistake: duplicate id, second provider, or another failed check.
 public struct ExtensionError: Error, Equatable, Sendable, CustomStringConvertible {
     public enum Problem: Equatable, Sendable {
-        /// `rejected` used an id that `existing` already registered on the point.
         case duplicateID
-        /// The point already has a provider (`existing`); `rejected` can't provide it too.
         case secondProvider
-        /// Any other problem, explained in the text.
         case other(String)
     }
 
     public let point: String
     public let problem: Problem
-    /// The contribution already there (with its feature, when known).
+    /// With its feature, when known.
     public let existing: String
-    /// The contribution that was refused.
     public let rejected: String
 
     public init(point: String, problem: Problem, existing: String, rejected: String) {
@@ -92,15 +73,14 @@ public struct ExtensionError: Error, Equatable, Sendable, CustomStringConvertibl
     }
 }
 
-/// Collects registration errors so a test and the launch check can fail loudly, naming the point and
-/// both contributions. The app uses `shared`; tests make their own.
+/// Collects registration errors for tests and the launch check. The app uses `shared`; tests make their own.
 public final class ExtensionRegistry: @unchecked Sendable {
     public static let shared = ExtensionRegistry(assertsOnError: true)
 
     public private(set) var errors: [ExtensionError] = []
-    /// Debug builds stop at the first error (assertionFailure) when true. Errors are always recorded.
+    /// Debug builds assert on the first error; errors are always recorded.
     public var assertsOnError: Bool
-    /// The feature whose `register()` is running; recorded with each contribution (listings, messages).
+    /// The feature whose `register()` is running, recorded with each contribution.
     public var currentFeature: String?
 
     public init(assertsOnError: Bool = false) {
@@ -112,12 +92,11 @@ public final class ExtensionRegistry: @unchecked Sendable {
         if assertsOnError { assertionFailure(error.description) }
     }
 
-    /// Records a problem found by a check that isn't a duplicate id or a second provider.
+    /// For problems other than duplicate ids or second providers.
     public func report(point: String, _ text: String, contribution: String = "", existing: String = "") {
         report(ExtensionError(point: point, problem: .other(text), existing: existing, rejected: contribution))
     }
 
-    /// One message listing every error, or nil when there are none.
     public var failureMessage: String? {
         errors.isEmpty ? nil : (["\(errors.count) extension registration error(s):"] + errors.map { "- \($0.description)" })
             .joined(separator: "\n")
@@ -126,11 +105,10 @@ public final class ExtensionRegistry: @unchecked Sendable {
     public func removeAllErrors() { errors.removeAll() }
 }
 
-/// One contribution, as listed by `contributions` (in run order).
 public struct ExtensionContribution: Equatable, Sendable, CustomStringConvertible {
     public let id: String
     public let order: ExtensionOrder
-    /// The feature that registered it, when registration went through `Features.registerAll()`.
+    /// Set when registered through `Features.registerAll()`.
     public let feature: String?
     let sequence: Int
 
@@ -139,15 +117,14 @@ public struct ExtensionContribution: Equatable, Sendable, CustomStringConvertibl
     }
 }
 
-/// What every extension point can tell about itself (listings, docs, checks).
 public protocol ExtensionPointInfo: AnyObject {
     var name: String { get }
     var kind: ExtensionKind { get }
-    /// What the point is for (one sentence).
+    /// One sentence.
     var purpose: String { get }
-    /// Input and output, e.g. "(FileItem, Location?) -> (label, value)".
+    /// E.g. "(FileItem, Location?) -> (label, value)".
     var signature: String { get }
-    /// Contributions in run order.
+    /// In run order.
     var contributions: [ExtensionContribution] { get }
 }
 
@@ -161,8 +138,7 @@ extension ExtensionPointInfo {
     }
 }
 
-/// Contributions kept sorted by order, then registration sequence. Bodies sit in a parallel array so
-/// calling a point is a plain loop over closures.
+/// Sorted by order, then sequence; bodies in a parallel array so a call is a plain loop.
 @usableFromInline
 struct ContributionList<Body> {
     @usableFromInline var bodies: [Body] = []
@@ -171,7 +147,7 @@ struct ContributionList<Body> {
 
     @usableFromInline init() {}
 
-    /// Adds a contribution; returns the error instead when the id is already used.
+    /// Returns an error instead when the id is already used.
     mutating func insert(_ id: String, order: ExtensionOrder, feature: String?, body: Body, point: String) -> ExtensionError? {
         if let existing = entries.first(where: { $0.id == id }) {
             let who = existing.feature.map { "feature \"\($0)\"" } ?? "an earlier registration"
@@ -180,7 +156,7 @@ struct ContributionList<Body> {
         }
         let entry = ExtensionContribution(id: id, order: order, feature: feature, sequence: nextSequence)
         nextSequence += 1
-        let index = entries.firstIndex { $0.order > order } ?? entries.count   // after every equal order: stable
+        let index = entries.firstIndex { $0.order > order } ?? entries.count   // stable
         entries.insert(entry, at: index)
         bodies.insert(body, at: index)
         return nil
@@ -197,11 +173,7 @@ struct ContributionList<Body> {
 
 // MARK: - Handlers
 
-/// Chain of responsibility: `first(_:)` asks each contribution in run order and returns the first
-/// non-nil answer. Replaces single optional hooks and the "wrap the previous hook" pattern.
-///
-///     static let openFile = Handlers<(BrowserWindowController, FileItem), Void>("InteractionHooks.openFile", "…")
-///     InteractionHooks.openFile.register("archives.open-file", order: .early) { window, file in … }
+/// Chain of responsibility: `first(_:)` returns the first non-nil answer in run order.
 public final class Handlers<Input, Output>: ExtensionPointInfo {
     public let name: String
     public let purpose: String
@@ -219,14 +191,13 @@ public final class Handlers<Input, Output>: ExtensionPointInfo {
 
     public var contributions: [ExtensionContribution] { list.entries }
 
-    /// Adds a handler. Return nil from it to let later handlers (and the default) answer.
+    /// Return nil to let later handlers (and the default) answer.
     public func register(_ id: String, order: ExtensionOrder = .normal, _ handler: @escaping (Input) -> Output?) {
         if let error = list.insert(id, order: order, feature: registry.currentFeature, body: handler, point: name) {
             registry.report(error)
         }
     }
 
-    /// The first non-nil answer, in run order.
     @inlinable
     public func first(_ input: Input) -> Output? {
         for handler in list.bodies {
@@ -235,8 +206,7 @@ public final class Handlers<Input, Output>: ExtensionPointInfo {
         return nil
     }
 
-    /// The first answer from the contributions that run after `id`: what a contribution replaced, for
-    /// one that wants to call it ("do this, then what would have happened").
+    /// The answer `id` replaced, so it can "do this, then what would have happened".
     public func first(_ input: Input, after id: String) -> Output? {
         guard let index = list.index(of: id) else { return first(input) }
         for handler in list.bodies[(index + 1)...] {
@@ -248,24 +218,23 @@ public final class Handlers<Input, Output>: ExtensionPointInfo {
     @inlinable
     public var isEmpty: Bool { list.bodies.isEmpty }
 
-    /// Removes a contribution (tests, and contributions that are only temporary).
+    /// For tests and temporary contributions.
     public func remove(_ id: String) { list.remove(id) }
 }
 
 extension Handlers where Output == Void {
-    /// Adds a handler that returns true when it handled the input (later handlers then don't run).
+    /// Return true to stop later handlers.
     public func register(_ id: String, order: ExtensionOrder = .normal, handles: @escaping (Input) -> Bool) {
         register(id, order: order) { input -> Void? in handles(input) ? () : nil }
     }
 
-    /// True when a contribution handled the input.
     @inlinable
     public func handle(_ input: Input) -> Bool { first(input) != nil }
 }
 
 // MARK: - Observers
 
-/// Did/will events: `send(_:)` calls every contribution in run order.
+/// Did/will events: `send(_:)` calls every contribution.
 public final class Observers<Input>: ExtensionPointInfo {
     public let name: String
     public let purpose: String
@@ -302,8 +271,7 @@ public final class Observers<Input>: ExtensionPointInfo {
 
 // MARK: - Pipeline
 
-/// Filters and adjustments: `apply(_:_:)` passes the value through every contribution in run order,
-/// each receiving the previous one's output.
+/// `apply(_:_:)` passes the value through every contribution in run order.
 public final class Pipeline<Value, Context>: ExtensionPointInfo {
     public let name: String
     public let purpose: String
@@ -351,8 +319,7 @@ extension Pipeline where Context == Void {
 
 // MARK: - Provided
 
-/// Exactly one provider, with a default (where new windows open, whether tiles show descriptions…).
-/// A second `provide` is an error; the first provider stays.
+/// One provider with a default; a second `provide` is an error and the first stays.
 public final class Provided<Value>: ExtensionPointInfo {
     public let name: String
     public let purpose: String
@@ -373,7 +340,7 @@ public final class Provided<Value>: ExtensionPointInfo {
 
     public var contributions: [ExtensionContribution] { provider.map { [$0] } ?? [] }
 
-    /// The id of the provider, or nil while the default is in use.
+    /// nil while the default is in use.
     public var providerID: String? { provider?.id }
 
     public func provide(_ id: String, _ value: Value) {
@@ -391,7 +358,7 @@ public final class Provided<Value>: ExtensionPointInfo {
     @inlinable
     public var value: Value { current }
 
-    /// Back to the default (tests).
+    /// For tests.
     public func reset(to value: Value) {
         provider = nil
         current = value

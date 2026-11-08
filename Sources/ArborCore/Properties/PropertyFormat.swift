@@ -1,6 +1,6 @@
 import Foundation
 
-/// Explorer-style value formatting for the Properties window and the Details pane (FE-150).
+/// Explorer-style formatting for Properties and the Details pane (FE-150).
 public enum PropertyFormat {
     private static let grouped: NumberFormatter = {
         let f = NumberFormatter()
@@ -12,9 +12,7 @@ public enum PropertyFormat {
     public static func grouped(_ n: Int64) -> String { grouped.string(from: NSNumber(value: n)) ?? "\(n)" }
     public static func grouped(_ n: Int) -> String { grouped(Int64(n)) }
 
-    /// Explorer's adaptive size: 1024-based units, three significant digits, truncated (not rounded),
-    /// switching unit at 1000 so a value never shows four integer digits ("0.99 MB", not "1015 KB").
-    /// `0 bytes`, `512 bytes`, `1.23 KB`, `14.2 MB`, `431 GB`.
+    /// Explorer's size: 1024-based, three significant digits, truncated, unit switch at 1000 ("0.99 MB").
     public static func adaptiveSize(_ bytes: Int64) -> String {
         if bytes < 1000 { return L10n.format("%@ bytes", "\(grouped(max(bytes, 0)))") }
         let units = ["KB", "MB", "GB", "TB", "PB", "EB"]
@@ -35,13 +33,13 @@ public enum PropertyFormat {
         return "\(f.string(from: NSNumber(value: truncated)) ?? "\(truncated)") \(units[unit])"
     }
 
-    /// Properties' size line: `1.23 KB (1,264 bytes)`; below 1000 bytes just `512 bytes`.
+    /// `1.23 KB (1,264 bytes)`.
     public static func propertiesSize(_ bytes: Int64) -> String {
         if bytes < 1000 { return L10n.format("%@ bytes", "\(grouped(max(bytes, 0)))") }
         return L10n.format("%@ (%@ bytes)", "\(adaptiveSize(bytes))", "\(grouped(bytes))")
     }
 
-    /// "Saturday, November 7, 2026, 10:21:33 AM": long date plus time with seconds.
+    /// "Saturday, November 7, 2026, 10:21:33 AM".
     public static func longDate(_ date: Date, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
         let d = DateFormatter()
         d.locale = locale
@@ -56,7 +54,7 @@ public enum PropertyFormat {
         return "\(d.string(from: date)), \(t.string(from: date))"
     }
 
-    /// "11/7/2026 3:45 PM": the Details pane and list format.
+    /// "11/7/2026 3:45 PM".
     public static func shortDate(_ date: Date, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
         let f = DateFormatter()
         f.locale = locale
@@ -66,7 +64,7 @@ public enum PropertyFormat {
         return f.string(from: date)
     }
 
-    /// A date range for multi-selections: one date when equal, else "first - last".
+    /// One date when equal, else "first - last".
     public static func dateRange(_ dates: [Date], locale: Locale = .current, timeZone: TimeZone = .current) -> String? {
         guard let first = dates.min(), let last = dates.max() else { return nil }
         let a = shortDate(first, locale: locale, timeZone: timeZone)
@@ -74,18 +72,18 @@ public enum PropertyFormat {
         return a == b ? a : "\(a) - \(b)"
     }
 
-    /// "00:03:25" (Explorer's Length format).
+    /// "00:03:25".
     public static func duration(_ seconds: Double) -> String {
+        guard seconds.isFinite, seconds >= 0, seconds < 1e12 else { return "" }
         let total = Int(seconds.rounded())
         return String(format: "%02d:%02d:%02d", total / 3600, (total / 60) % 60, total % 60)
     }
 
-    /// "1 File", "2 Files", "0 Folders", "1 Folder".
     public static func count(_ n: Int, _ singular: String, _ plural: String) -> String {
         "\(grouped(n)) \(n == 1 ? singular : plural)"
     }
 
-    /// Explorer's "Contains:" and multi-selection header: "12 Files, 3 Folders".
+    /// "12 Files, 3 Folders".
     public static func filesAndFolders(files: Int, folders: Int) -> String {
         "\(count(files, "File", "Files")), \(count(folders, "Folder", "Folders"))"
     }
@@ -93,7 +91,7 @@ public enum PropertyFormat {
 
 // MARK: - Mixed values
 
-/// A checkbox value across a selection: all on, all off, or mixed (FE-148).
+/// A checkbox across a selection (FE-148).
 public enum TriState: Equatable, Sendable {
     case on, off, mixed
 
@@ -112,7 +110,6 @@ public enum TriState: Equatable, Sendable {
     }
 }
 
-/// One value shared by a selection, or a marker that values differ.
 public enum MixedValue<T: Equatable>: Equatable {
     case none, same(T), mixed
 
@@ -126,8 +123,7 @@ public enum MixedValue<T: Equatable>: Equatable {
 
 // MARK: - Selection summaries
 
-/// What the Properties window (General, multi-selection) and the Details pane say about several items:
-/// "3 Files, 2 Folders", "All of type Text Document" / "Multiple types", "All in /Users/ana" (FE-148, FE-150).
+/// Multi-selection summary for Properties and the Details pane (FE-148, FE-150).
 public struct SelectionSummary: Equatable {
     public struct Entry: Equatable {
         public var isFolder: Bool
@@ -148,7 +144,7 @@ public struct SelectionSummary: Equatable {
     public let folders: Int
     public let type: MixedValue<String>
     public let parent: MixedValue<String>
-    /// Sum of known file sizes (folders excluded); `sizeIsComplete` is false when folders or unknown sizes exist.
+    /// Folders excluded; `sizeIsComplete` is false when folders or unknown sizes exist.
     public let knownFileSize: Int64
     public let sizeIsComplete: Bool
     public let modifiedDates: [Date]
@@ -158,7 +154,7 @@ public struct SelectionSummary: Equatable {
         folders = entries.filter(\.isFolder).count
         type = MixedValue(entries.map(\.typeDescription))
         parent = MixedValue(entries.map(\.parentPath))
-        knownFileSize = entries.compactMap { $0.isFolder ? nil : $0.size }.reduce(0, +)
+        knownFileSize = entries.compactMap { $0.isFolder ? nil : $0.size }.saturatingSum()
         sizeIsComplete = entries.allSatisfy { !$0.isFolder && $0.size != nil }
         modifiedDates = entries.compactMap(\.modified)
     }
@@ -172,7 +168,6 @@ public struct SelectionSummary: Equatable {
 
     public var count: Int { files + folders }
     public var countText: String { PropertyFormat.filesAndFolders(files: files, folders: folders) }
-    /// Details pane header: "3 items selected".
     public var selectedText: String { count == 1 ? "1 item selected" : "\(PropertyFormat.grouped(count)) items selected" }
 
     public var typeText: String {
@@ -183,7 +178,7 @@ public struct SelectionSummary: Equatable {
         }
     }
 
-    /// The common folder alone ("/Users/ana"), or "Multiple locations" (the Details pane's Location row).
+    /// Bare common folder, for the Details pane's Location row.
     public var locationValue: String {
         switch parent {
         case .same(let p): return p

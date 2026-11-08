@@ -1,22 +1,19 @@
 import Foundation
 
-/// Sync state of one item in a cloud folder (FE-190), read from the system's ubiquitous-item URL
-/// resource keys. Never guessed: anything the keys don't establish is `.unknown`.
+/// Cloud sync state of one item (FE-190), from ubiquitous-item keys; never guessed, else `.unknown`.
 public enum CloudStatus: Equatable, Hashable, Sendable {
-    /// Content is on this Mac (Windows: green check outline).
     case availableOnDevice
-    /// Only a placeholder is on this Mac; opening downloads it (Windows: blue cloud).
+    /// Placeholder only; opening downloads it.
     case onlineOnly
     case downloading
     case uploading
-    /// Local changes not uploaded yet, and no upload running.
+    /// Local changes not uploaded, no upload running.
     case syncPending
-    /// The provider reports unresolved conflicting versions.
     case conflict
     case error(String)
     case unknown
 
-    /// Windows wording where one exists ("Available on this device", "Available when online").
+    /// Windows wording where one exists.
     public var title: String {
         switch self {
         case .availableOnDevice: return L10n.tr("Available on this device")
@@ -30,7 +27,6 @@ public enum CloudStatus: Equatable, Hashable, Sendable {
         }
     }
 
-    /// Short label for narrow places.
     public var shortTitle: String {
         switch self {
         case .availableOnDevice: return L10n.tr("Available")
@@ -43,7 +39,7 @@ public enum CloudStatus: Equatable, Hashable, Sendable {
         }
     }
 
-    /// Whether the item's content is known to be on this Mac (nil = not known).
+    /// nil when not known.
     public var isLocal: Bool? {
         switch self {
         case .availableOnDevice, .uploading, .syncPending: return true
@@ -53,7 +49,7 @@ public enum CloudStatus: Equatable, Hashable, Sendable {
     }
 }
 
-/// The raw values the mapping uses, decoupled from `URLResourceValues` so it can be tested.
+/// Testable copy of the `URLResourceValues` the mapping uses.
 public struct UbiquityInfo: Equatable, Sendable {
     public enum Download: Equatable, Sendable { case current, downloaded, notDownloaded, other(String) }
 
@@ -101,14 +97,14 @@ public struct UbiquityInfo: Equatable, Sendable {
         hasConflicts = v.ubiquitousItemHasUnresolvedConflicts
     }
 
-    /// Reads the keys for one item. Can block on slow volumes: call off the main thread.
+    /// Can block on slow volumes: call off the main thread.
     public static func read(_ url: URL) -> UbiquityInfo? {
         (try? url.resourceValues(forKeys: resourceKeys)).map(UbiquityInfo.init)
     }
 }
 
 public enum CloudStatusMapper {
-    /// Errors first, then conflicts, transfers in progress, then the download state.
+    /// Priority: errors, conflicts, transfers, then download state.
     public static func status(_ info: UbiquityInfo) -> CloudStatus {
         guard info.isUbiquitous == true else { return .unknown }
         if let error = info.downloadError ?? info.uploadError { return .error(error) }
@@ -128,13 +124,12 @@ public enum CloudStatusMapper {
 
 // MARK: - Cloud roots (FE-189, FE-197, FE-198)
 
-/// A folder the system syncs with a cloud provider: iCloud Drive or a File Provider domain under
-/// ~/Library/CloudStorage (OneDrive, Dropbox, Google Drive, Box…), one per account.
+/// iCloud Drive or a File Provider folder under ~/Library/CloudStorage (one per account).
 public struct CloudRoot: Equatable, Hashable, Sendable {
     public enum Kind: String, Sendable { case iCloud, fileProvider, test }
     public let url: URL
     public let provider: String
-    /// Account or domain label ("Personal", "jane@example.com"); nil when the folder has none.
+    /// Account or domain label, if the folder has one.
     public let account: String?
     public let kind: Kind
 
@@ -156,15 +151,14 @@ public struct CloudRoot: Equatable, Hashable, Sendable {
 }
 
 public enum CloudRoots {
-    /// Provider names for the folder prefixes File Provider apps use under ~/Library/CloudStorage.
+    /// Display names for CloudStorage folder prefixes.
     static let knownProviders: [String: String] = [
         "onedrive": "OneDrive", "googledrive": "Google Drive", "dropbox": "Dropbox", "box": "Box",
         "protondrive": "Proton Drive", "synologydrive": "Synology Drive", "pclouddrive": "pCloud Drive",
         "nextcloud": "Nextcloud", "megasync": "MEGA", "icedrive": "Icedrive", "sharepoint": "SharePoint",
     ]
 
-    /// "OneDrive-Personal" → ("OneDrive", "Personal"); "GoogleDrive-jane@example.com" → ("Google Drive", "jane@example.com");
-    /// "Box-Box" → ("Box", nil); unknown prefixes are kept as written.
+    /// "OneDrive-Personal" → ("OneDrive", "Personal"); "Box-Box" → ("Box", nil); unknown prefixes kept.
     public static func providerAndAccount(forCloudStorageFolder name: String) -> (provider: String, account: String?) {
         let parts = name.split(separator: "-", maxSplits: 1).map(String.init)
         let rawProvider = parts.first ?? name
@@ -176,7 +170,7 @@ public enum CloudRoots {
         return (provider, account)
     }
 
-    /// Detects roots for a home folder. Reads two directory entries; never lists cloud content.
+    /// Never lists cloud content.
     public static func detect(home: URL, fileManager: FileManager = .default) -> [CloudRoot] {
         var roots: [CloudRoot] = []
         let iCloud = home.appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs")
@@ -207,16 +201,13 @@ public enum CloudRoots {
 
     // MARK: Test overrides (headless scripted runs only)
 
-    /// `ARBOR_TEST_CLOUD_ROOT=/fixture/cloud` makes a fixture folder act as a cloud root named
-    /// "Test Cloud", so headless runs never read the user's real cloud folders.
+    /// `ARBOR_TEST_CLOUD_ROOT` makes a fixture folder a cloud root, so tests never touch real ones.
     public static func testRoots(environment: [String: String]) -> [CloudRoot] {
         guard let path = environment["ARBOR_TEST_CLOUD_ROOT"], !path.isEmpty else { return [] }
         return [CloudRoot(url: URL(fileURLWithPath: path), provider: "Test Cloud", account: environment["ARBOR_TEST_CLOUD_ACCOUNT"], kind: .test)]
     }
 
-    /// `ARBOR_TEST_CLOUD_STATUS="a.txt=online,b.txt=available,c.txt=syncing"`: statuses by item name for the
-    /// test root, since fixture files have no provider. Words: available, online, downloading, uploading,
-    /// syncing, pending, conflict, error, unknown.
+    /// `ARBOR_TEST_CLOUD_STATUS="a.txt=online,b.txt=available"`: fake statuses for the test root.
     public static func parseTestStatuses(_ text: String) -> [String: CloudStatus] {
         var result: [String: CloudStatus] = [:]
         for pair in text.split(separator: ",") {
