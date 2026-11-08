@@ -8,7 +8,7 @@ Read this before adding a feature. Goal: each feature lives in **its own files**
 | Folder | Holds |
 |---|---|
 | `Sources/ArborCore` | UI-free, unit-tested logic: `Location`, `NavigationHistory`, `ViewMode`, listing, sorting, paths, names, transfers, journals, history, queue, verification. Subfolders per area: `Search/` (AQS parser, evaluator, Spotlight translation, direct scan), `Archives/` (ZIP reader, bsdtar listing, safety planner), `Properties/`, `FolderOptions/`, `Consistency/`, `Accessibility/` (string table, key names), `Performance/` (budgets, background sort, stall recorder) |
-| `Window/` | `BrowserWindowController` (one per window), `TabState` (one per tab), tab strip and tear-off, address bar and breadcrumbs, navigation row, search box, command bar, status bar, `WindowHooks` |
+| `Window/` | `BrowserWindowController` (one per window, split by area into `BrowserWindowController+*.swift`), `TabState` (one per tab), tab strip and tear-off, address bar and breadcrumbs, navigation row, search box, command bar, status bar, `WindowHooks` |
 | `Views/` | `ItemViewController` protocol + `ViewModeRegistry`, `DetailsViewController`, `DetailsColumns` (per-location column layouts), `IconProvider`, `ItemBadges`, row and tile styling |
 | `Commands/` | `ExplorerCommand`, `CommandRegistry`, menu building, core commands, menu bar |
 | `Locations/` | `LocationProvider` + `LocationRegistry`, `FolderProvider`, page protocols (`LocationPageSelection`, `LocationPageFiltering`, `LocationPageViewState`), placeholder pages |
@@ -105,6 +105,26 @@ text, selection names, scroll anchor and a cached listing (global LRU of 8). `Br
 `navigate(to:select:)`, `goBack/goForward/goUp/reload()`, `openTab(_:)`, `activeTab`, `location`, `itemView`,
 `selectedItems`, `visibleItems`, `applyFilter(_:)`, `setViewMode(_:)`, `setSortOrder(_:)`, `toggleSidePane(_:)`,
 `startTransfer(_:_:to:)`, `refreshSelecting(_:rename:)`, `statusBar.setMessage(_:isError:)`, `context(surface:sender:)`.
+
+The controller is one class split into extensions by area (all in `Window/`). Members shared between these files are
+internal only because Swift has no cross-file `private`; features use the API above, not them.
+
+| File | Holds |
+|---|---|
+| `BrowserWindowController.swift` | stored state, `active`, initializers, the tab list (open, select, close, move, take/adopt, `TabStripDelegate`) and `ensureItemView(for:)`, so only it writes `tabs`, `activeIndex` and `itemView` |
+| `+Layout.swift` | building the window's views and split view, side pane show/toggle, `ExplorerSplitView` |
+| `+Observation.swift` | preference, Quick access, clipboard, job and volume notifications; `volumeUnmountHandler` |
+| `+Navigation.swift` | `NavRequest`, navigate/Back/Forward/Up/Refresh, loading, committing history, load failures, folder watching |
+| `+Display.swift` | putting a tab's items or page on screen, view mode, sort, filter, `selectedItems`, `visibleItems` |
+| `+Chrome.swift` | `updateChrome()` and `refreshChrome()`: address bar, buttons, command bar, status bar, side pane |
+| `+Commands.swift` | `context(surface:sender:)`, `perform`, Edit menu responder actions, menu validation, context menus |
+| `+AddressBar.swift` | typed addresses, `networkAddressHandler`, focusing the address bar and search box |
+| `+FileOperations.swift` | `startTransfer`, `refreshSelecting`, `neighborURL(after:)`, `open(_:inNewTab:)` |
+| `+Delegates.swift` | `ItemViewDelegate` (open, selection, inline rename, drop, keys), `NavigationPaneDelegate`, `LocationHost` |
+| `+QuickLook.swift` | the Quick Look panel (Space) |
+| `+WindowDelegate.swift` | `NSWindowDelegate`: undo manager, traffic lights, full screen, close teardown |
+
+Tab tear-off and merge live in `TabTearOff.swift`.
 
 `Location` (`ArborCore/Location.swift`): `.folder(URL)`, `.home`, `.thisMac`, `.gallery`, `.network`, `.trash`,
 `.search(SearchRequest)`, `.archive(URL, innerPath:)`, `.library(String)`. It has `displayName`, `key` / `init?(key:)`

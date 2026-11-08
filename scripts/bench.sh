@@ -182,9 +182,10 @@ for w in $WORKLOADS; do
     ( for _ in $(seq 900); do sleep 1; kill -0 "$pid" 2>/dev/null || exit 0; done; kill "$pid" 2>/dev/null ) >/dev/null 2>&1 &
     watchdog=$!
     # BENCH_SAMPLE_IDLE=1: record what the app does while it should be idle (call stacks every 1 ms
-    # for 4 s, taken inside the 5 s idle window), saved next to the run's log as <run>.sample.txt.
+    # for 2.5 s, finishing well inside the 5 s idle window so the app is still running when the stacks
+    # are symbolicated), saved next to the run's log as <run>.sample.txt.
     if [ "${BENCH_SAMPLE_IDLE:-0}" = 1 ] && [ "$w" = idle ]; then
-      ( sleep 3; /usr/bin/sample "$pid" 4 1 -mayDie -file "$OUT/$w-$r.sample.txt" >/dev/null 2>&1 || true ) &
+      ( sleep 2.5; /usr/bin/sample "$pid" 2.5 1 -mayDie -file "$OUT/$w-$r.sample.txt" >/dev/null 2>&1 || true ) &
     fi
     wait "$pid" || echo "(exit $?)"
     wait "$watchdog" 2>/dev/null || true
