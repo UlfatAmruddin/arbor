@@ -153,7 +153,7 @@ metrics_of() {
     $1 == "mem" { for (i = 3; i <= NF; i++) { split($i, kv, "="); if (kv[1] ~ /_mb$|^tabs$|^listed_rows$/) emit($2 "." kv[1], kv[2]) } }
     $1 == "time" { split($3, kv, "="); if (kv[1] == "ms") { n[$2]++; t[$2, n[$2]] = kv[2] } }
     $1 == "launch" { split($2, kv, "="); emit("launch." kv[1], kv[2]) }
-    $1 == "idle" { split($3, kv, "="); emit($2 "." kv[1], kv[2]) }
+    $1 == "idle" { for (i = 3; i <= NF; i++) if ($i ~ /^(cpu_ms_per_s|main_wakeups_per_s)=/) { split($i, kv, "="); emit($2 "." kv[1], kv[2]) } }
     $1 == "scroll" || $1 == "copy" || $1 == "search" || $1 == "stalls" || $1 == "cycle" {
       for (i = 3; i <= NF; i++) { split($i, kv, "="); v = kv[2]; sub(/ms$/, "", v); if (v ~ /^-?[0-9.]+$/) emit($2 "." kv[1], v) } }
     END {

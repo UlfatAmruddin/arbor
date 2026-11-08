@@ -23,7 +23,7 @@ enum PerformanceFeature: ExplorerFeature {
 }
 
 /// Watches the main run loop and records every pass that kept the main thread busy for more than
-/// 50 ms, labelled with the running script step (or "app"). Costs two timestamps per run-loop pass.
+/// 50 ms, labelled with the running script step (or "app"). Costs two timestamps and a comparison per run-loop pass.
 final class StallMonitor {
     static let shared = StallMonitor()
     let recorder = StallRecorder(thresholdMilliseconds: 50)
@@ -32,6 +32,8 @@ final class StallMonitor {
     private var observer: CFRunLoopObserver?
     private var busySince: CFAbsoluteTime?
     private var log: FileHandle?
+    /// Times the main thread woke up (run-loop passes after waiting); the idle benchmark reports it.
+    private(set) var wakeups = 0
 
     var isRunning: Bool { observer != nil }
 
@@ -55,10 +57,13 @@ final class StallMonitor {
         switch activity {
         case .entry, .afterWaiting:
             busySince = now
+            if activity == .afterWaiting { wakeups += 1 }
         case .beforeWaiting, .exit:
             guard let start = busySince else { return }
             busySince = nil
             let ms = (now - start) * 1000
+            // Nearly every pass is short: decide before building any text (this runs on every pass).
+            guard ms > recorder.thresholdMilliseconds else { return }
             let label = (phase.isEmpty ? "" : phase + "/") + (DebugScript.currentStep.isEmpty ? "app" : DebugScript.currentStep)
             if recorder.record(milliseconds: ms, label: label) {
                 let line = String(format: "stall %.0fms during %@", ms, label)
