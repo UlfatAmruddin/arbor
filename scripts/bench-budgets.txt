@@ -8,6 +8,8 @@
 idle.idle.footprint_mb                 45
 idle.launch.first_content_ms          600
 idle.idle.cpu_ms_per_s                  2
+# Main-thread wake-ups while idle: a timer or animation left running shows up here first.
+idle.idle.main_wakeups_per_s           10
 # Ordinary browsing: ten 1,000-entry folders, five rounds
 browse.nav.p95_ms                      60
 browse.retained_growth_mb               6

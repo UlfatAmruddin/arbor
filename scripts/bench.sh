@@ -14,6 +14,7 @@
 #
 #   BENCH_TOLERANCE=F         multiply the time budgets (ms, stalls, CPU) by F (default 1)
 #   BENCH_MEMORY_TOLERANCE=F  multiply the memory budgets (MB) by F (default 1); counts are never scaled
+#   BENCH_TOLERANCE_FOR="m=F …" use factor F for metric m instead (for one-off environment effects, with a reason)
 #   BENCH_SAMPLE_IDLE=1       the idle run logs CPU per thread and stacks of busy threads (<out>/idle-N.log)
 #
 # Every run is headless (ARBOR_HEADLESS=1), uses fixtures generated into a fresh mktemp -d folder,
@@ -236,6 +237,10 @@ while read -r metric limit _; do
     *ms*|*.max) factor="$TOLERANCE" ;;
     *) factor=1 ;;
   esac
+  # BENCH_TOLERANCE_FOR="<metric>=<factor> …" replaces the factor of single metrics (CI: see ci.yml).
+  for override in ${BENCH_TOLERANCE_FOR:-}; do
+    [ "${override%%=*}" = "$metric" ] && factor="${override#*=}"
+  done
   budget=$(awk -v l="$limit" -v f="$factor" 'BEGIN { printf "%g", l * f }')
   shown="$limit"; [ "$budget" = "$limit" ] || shown="$limit ×$factor = $budget"
   allowed=$(awk -v l="$budget" -v m="$MARGIN" 'BEGIN { a = l * (1 + m); printf "%.2f", a }')

@@ -130,9 +130,10 @@ Nothing a run creates should outlive it:
 |---|---|---|
 | `build-and-test` | debug build (fails on any warning), `scripts/test.sh`, `scripts/make-dmg.sh --universal` | the unsigned disk image |
 | `app-checks` | `scripts/build-app.sh debug`, then `scripts/list-extension-points.sh` (fails on a registration error), behavior-checks, core-checks and acceptance; each runs even after an earlier one failed | on failure: `build/logs/` (each suite's output) and `build/failed/` (folders of the failing checks) |
-| `performance` | `scripts/bench.sh --check --quick` with `BENCH_TOLERANCE=3`, `BENCH_MEMORY_TOLERANCE=1.5` | always: the results, environment and per-run logs |
+| `performance` | `scripts/bench.sh --check --quick` with `BENCH_TOLERANCE=3`, `BENCH_MEMORY_TOLERANCE=1.5`, per-metric factors for the two idle checks (`BENCH_TOLERANCE_FOR`) and the idle profile (`BENCH_SAMPLE_IDLE=1`) | always: the results, environment and per-run logs |
 
-The tolerances exist because hosted runners are virtual machines with a few shared cores and no GPU of their own; retune
+The idle checks get their own factors because, idle on the runner, the system wakes the main thread 80-120 times a second
+(1.5-2 on a Mac) while the app's own code stays quiet; ci.yml records the evidence. The tolerances exist because hosted runners are virtual machines with a few shared cores and no GPU of their own; retune
 them from the uploaded results when the runner image changes, and keep `scripts/bench-budgets.txt` for the reference Mac.
 
 ### Reproducing a CI job locally
@@ -148,7 +149,9 @@ scripts/core-checks.sh     2>&1 | tee build/logs/core-checks.txt
 scripts/acceptance.sh      2>&1 | tee build/logs/acceptance.txt
 
 # performance (builds build/Arbor.app as release: rebuild debug before the checks again)
-BENCH_TOLERANCE=3 BENCH_MEMORY_TOLERANCE=1.5 scripts/bench.sh --check --quick --out build/bench/ci
+BENCH_TOLERANCE=3 BENCH_MEMORY_TOLERANCE=1.5 BENCH_SAMPLE_IDLE=1 \
+  BENCH_TOLERANCE_FOR="idle.idle.cpu_ms_per_s=12 idle.idle.main_wakeups_per_s=25" \
+  scripts/bench.sh --check --quick --out build/bench/ci
 
 # build-and-test
 scripts/build-app.sh debug 2>&1 | grep "warning:"; scripts/test.sh && scripts/make-dmg.sh --universal

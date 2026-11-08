@@ -15,6 +15,7 @@ by more than 25 %. They are proposals for the owner to confirm (spec §15.4: "ag
 | Idle, one folder open | ≤ 45 MB footprint | 36 MB | `idle.idle.footprint_mb` |
 | Time to first drawn folder | ≤ 600 ms | 312 ms | `idle.launch.first_content_ms` |
 | Idle CPU | ≤ 2 ms per second | 0.2 ms/s | `idle.idle.cpu_ms_per_s` |
+| Idle main-thread wake-ups | ≤ 10 per second | 1.5/s | `idle.idle.main_wakeups_per_s` |
 | Opening a 1,000-entry folder | p95 ≤ 60 ms | p50 16 ms, p95 26 ms | `browse.nav.p95_ms` |
 | Browsing 50 folders, retained growth | ≤ 6 MB | 1.9 MB | `browse.retained_growth_mb` |
 | 20 tabs | ≤ 70 MB total, ≤ 1.2 MB per tab | 52 MB, 0.8 MB/tab | `tabs.open1.footprint_mb`, `tabs.per_tab_mb` |
@@ -129,7 +130,7 @@ log and stdout per launch.
 
 | Workload | What it does | Main metrics |
 |---|---|---|
-| `idle` | launch at `idle`, wait, 5 s idle | time to first drawn folder, idle CPU (and how many volume notifications arrived meanwhile), footprint |
+| `idle` | launch at `idle`, wait, 5 s idle | time to first drawn folder, idle CPU and main-thread wake-ups (and how many volume notifications arrived meanwhile), footprint; with `BENCH_SAMPLE_IDLE=1` also CPU per thread and the stacks of threads that ran (`idlethread`, `idlestack` lines) |
 | `browse` | 5 rounds through ten 1,000-entry folders, then scroll | navigation latency p50/p95/max, footprint after rounds 1 and 5, stalls |
 | `tabs` | 3 cycles: open 19 tabs (repeated and different folders), close them; 3 cycles: open and close 4 windows | footprint per tab, plateau after closing, per window |
 | `large` | open `big`, sort by size/date/type/reverse/name, scroll Details 150 pages and Large icons 60 pages, leave, revisit, leave | rows on screen (first visit and revisit), sort times, frame times, stalls, footprint and peak, memory after leaving |

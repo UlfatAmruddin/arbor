@@ -120,6 +120,12 @@ jobs:
       # Retune them from the uploaded results when the runner image changes.
       BENCH_TOLERANCE: "3"
       BENCH_MEMORY_TOLERANCE: "1.5"
+      # Idle on the hosted runner, the main thread wakes 80-120 times a second (1.5-2 on a Mac) even though the
+      # app's code is quiet: the per-thread profile shows the main thread waiting in its event loop between
+      # wake-ups, rescheduled about every 10 ms by the system's launch measurement on the virtual display. Those
+      # wake-ups cost 11-18 ms of CPU per second there. These factors keep both idle checks as alarms for a real
+      # regression (a stuck timer or animation costs far more) without failing on the runner's own behavior.
+      BENCH_TOLERANCE_FOR: "idle.idle.cpu_ms_per_s=12 idle.idle.main_wakeups_per_s=25"
       BENCH_SAMPLE_IDLE: "1"   # the idle run logs CPU per thread and stacks of busy threads (uploaded)
     steps:
       - uses: actions/checkout@v4.2.2
