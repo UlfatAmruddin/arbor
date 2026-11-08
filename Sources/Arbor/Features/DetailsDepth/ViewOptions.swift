@@ -45,11 +45,16 @@ enum ViewOptions {
     private static var groupMemory: [String: (ColumnID?, Bool)] = [:]
     private static var groupMemoryOrder: [String] = []
 
-    static var folderKindResolver: (Location, [FileItem]) -> FolderKind = defaultKind
+    /// The folder kind a location's column set and Group by come from (Folder Options: the folder's type).
+    static let folderKindResolver = Provided<(Location, [FileItem]) -> FolderKind>(
+        "ViewOptions.folderKindResolver", "The folder kind whose column set a location uses.",
+        signature: "(location, items) -> FolderKind", default: defaultKind)
 
     /// The user changed the shown columns (Choose Details, header menu, resize, reorder). Folder Options
-    /// saves them for the folder and returns true; otherwise they are saved for the folder kind.
-    static var columnsEdited: ((TabViewOptions) -> Bool)?
+    /// saves them for the folder and answers true; otherwise they are saved for the folder kind.
+    static let columnsEdited = Handlers<TabViewOptions, Bool>(
+        "ViewOptions.columnsEdited", "The user changed a tab's columns; true = saved (for the folder).",
+        signature: "(options) -> saved?")
 
     /// Forgets a tab's options so the next `options(for:)` rebuilds them (the folder's template changed).
     static func reset(_ tab: TabState) { slots[tab.id] = nil }
@@ -61,7 +66,7 @@ enum ViewOptions {
     }
 
     static func saveEditedColumns(_ options: TabViewOptions) {
-        if columnsEdited?(options) != true { setColumnSet(options.columns, for: options.kind) }
+        if columnsEdited.first(options) != true { setColumnSet(options.columns, for: options.kind) }
     }
 
     /// The tab's options, re-initialized when the tab now shows another location.
@@ -79,7 +84,7 @@ enum ViewOptions {
             if let old = options.locationKey { remember(old, options) }
             ColumnValueStore.shared.cancel(owner: DetailsDepth.allValuesOwner(tab))
             options.locationKey = location.key
-            options.kind = folderKindResolver(location, tab.items ?? [])
+            options.kind = folderKindResolver.value(location, tab.items ?? [])
             options.columns = columnSet(for: options.kind)
             if let saved = groupMemory[location.key] {
                 (options.groupBy, options.groupAscending) = saved

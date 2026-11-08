@@ -76,7 +76,9 @@ protocol LocationPageStatus {
 
 enum LocationRegistry {
     private static var providers: [LocationProvider] = []
-    private static var openHandlers: [(FileItem) -> Location?] = []
+    static let openHandlers = Handlers<FileItem, Location>(
+        "LocationRegistry.openHandlers", "Turns an opened item into a location (archives, saved searches, aliases).",
+        signature: "(item) -> Location?")
     private static let fallback = PlaceholderProvider(locations: { _ in true })
 
     static func register(_ provider: LocationProvider) { providers.append(provider) }
@@ -86,12 +88,14 @@ enum LocationRegistry {
     }
 
     /// Lets a feature turn an item into a location when it is opened (e.g. a .zip → `.archive`).
-    /// The most recent handler that returns a location wins; otherwise folders open as folders
+    /// The first handler (in run order) that returns a location wins; otherwise folders open as folders
     /// and everything else is opened with its app.
-    static func registerOpenHandler(_ handler: @escaping (FileItem) -> Location?) { openHandlers.append(handler) }
+    static func registerOpenHandler(_ id: String, order: ExtensionOrder = .normal, _ handler: @escaping (FileItem) -> Location?) {
+        openHandlers.register(id, order: order, handler)
+    }
 
     static func locationForOpening(_ item: FileItem) -> Location? {
-        for handler in openHandlers.reversed() { if let location = handler(item) { return location } }
+        if let location = openHandlers.first(item) { return location }
         return item.isFolder ? .folder(item.url) : nil
     }
 }

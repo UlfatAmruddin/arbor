@@ -143,13 +143,13 @@ final class TabStripView: NSView {
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
         let point = document.convert(sender.draggingLocation, from: nil)
         let index = tabViews.firstIndex { $0.frame.insetBy(dx: Self.feet, dy: 0).contains(point) }
-        InteractionHooks.dragHover?(index.map { "tab:\(ObjectIdentifier(self).hashValue):\($0)" }, index.map { i in
+        InteractionHooks.dragHover.send((index.map { "tab:\(ObjectIdentifier(self).hashValue):\($0)" }, index.map { i in
             { [weak self] in self?.delegate?.tabStripSelect(i) }
-        })
+        }))
         return []
     }
 
-    override func draggingExited(_ sender: NSDraggingInfo?) { InteractionHooks.dragHover?(nil, nil) }
+    override func draggingExited(_ sender: NSDraggingInfo?) { InteractionHooks.dragHover.send((nil, nil)) }
 
     required init?(coder: NSCoder) { fatalError() }
 

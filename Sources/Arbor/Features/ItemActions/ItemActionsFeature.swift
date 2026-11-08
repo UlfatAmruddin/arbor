@@ -14,7 +14,10 @@ extension MenuSection {
 
 /// Item actions (FE-057, FE-064, FE-088, FE-089, FE-092, FE-096, FE-097, FE-100, FE-103, FE-106,
 /// FE-108, FE-109, FE-111): New ▸, shortcuts, Send to ▸, rename, selection, image actions and drag polish.
-enum ItemActionsFeature {
+enum ItemActionsFeature: ExplorerFeature {
+    static let id = "item-actions"
+    /// Send to ▸ Compressed (zipped) folder runs the archives command.
+    static let requires = ["archives"]
     static func register() {
         NewItemCommands.register()
         ShortcutCommands.register()
@@ -24,9 +27,10 @@ enum ItemActionsFeature {
         ImageCommands.register()
         DragPolish.install()
 
-        LocationRegistry.registerOpenHandler(Shortcuts.locationForOpening)
-        InteractionHooks.openFile = Shortcuts.openFile
-        InteractionHooks.decorateIcon = { item, icon, size in Shortcuts.decorate(item, icon, size: size) }
+        // Aliases resolve before anything looks at the file's type (an alias named "x.zip" is still an alias).
+        LocationRegistry.registerOpenHandler("item-actions.shortcuts", order: .early, Shortcuts.locationForOpening)
+        InteractionHooks.openFile.register("item-actions.shortcuts", handles: { window, file in Shortcuts.openFile(window, file) })
+        InteractionHooks.decorateIcon.register("item-actions.shortcut-arrow") { item, icon, size in Shortcuts.decorate(item, icon, size: size) }
         IconProvider.shared.purgeFileIcons()
         ItemActionsDebug.register()
     }
@@ -157,7 +161,8 @@ enum ShortcutCommands {
 enum SelectionCommands {
     static func register() {
         let r = CommandRegistry.shared
-        r.register([
+        // These replace the core selection commands.
+        let upgraded = [
             ExplorerCommand(
                 id: "edit.selectAll", title: "Select All", symbol: "checklist", shortcut: Shortcut("a"),
                 placements: [.mainMenu("Edit", .selection, 10), .seeMore(.selection, 10)],
@@ -185,6 +190,7 @@ enum SelectionCommands {
                     let selected = Set(ctx.selection.map(\.url))
                     view.select(urls: window.visibleItems.map(\.url).filter { !selected.contains($0) })
                 }),
-        ])
+        ]
+        upgraded.forEach { r.replace($0, "item-actions.selection") }
     }
 }

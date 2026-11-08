@@ -11,7 +11,7 @@ enum Announcer {
     private static var lastSelectionCount: [ObjectIdentifier: Int] = [:]
 
     static func install() {
-        WindowHooks.willDisplay.append { c, tab, location, changed in
+        WindowHooks.willDisplay.observe("accessibility.announce-location") { c, tab, location, changed in
             guard changed, tab === c.activeTab else { return }
             let title = LocationRegistry.provider(for: location).title(for: location)
             DispatchQueue.main.async { [weak c] in
@@ -21,8 +21,8 @@ enum Announcer {
                 lastSelectionCount[ObjectIdentifier(c)] = c.selectedItems.count
             }
         }
-        WindowHooks.selectionChanged.append { c in selectionChanged(c) }
-        StatusBarView.messageHooks.append { bar, text, isError in
+        WindowHooks.selectionChanged.observe("accessibility.announce-selection") { c in selectionChanged(c) }
+        StatusBarView.messageHooks.observe("accessibility.announce-status") { bar, text, isError in
             guard AnnouncementText.shouldSpeakStatus(text), let text else { return }
             announce(text, in: bar.window, priority: isError ? .high : .medium)
         }

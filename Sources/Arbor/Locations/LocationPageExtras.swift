@@ -21,9 +21,11 @@ protocol LocationPageViewState: AnyObject {
 enum PreviewHooks {
     /// A local file to preview for `item`, or nil to preview `item.url`. May start preparing one and
     /// post `ready` when it exists.
-    static var localURL: ((FileItem) -> URL?)?
+    static let localURL = Handlers<FileItem, URL>(
+        "PreviewHooks.localURL", "A local file to preview for an item that isn't on disk (archive members).",
+        signature: "(item) -> url?")
     /// Posted (main thread) when a prepared preview file became available.
     static let ready = Notification.Name("ArborPreviewReady")
 
-    static func url(for item: FileItem) -> URL { localURL?(item) ?? item.url }
+    static func url(for item: FileItem) -> URL { localURL.first(item) ?? item.url }
 }

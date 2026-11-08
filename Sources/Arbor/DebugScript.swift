@@ -21,20 +21,52 @@ import ArborCore
 ///     event / wait:1.5 / quit
 ///
 /// Features add steps without editing this file: `DebugScript.registerStep("mystep") { arg, window in … }`
-/// and extra log lines with `DebugScript.registerLogger { window in "mything: …" }`.
+/// and extra log lines with `DebugScript.registerLogger("myfeature.log") { window in "mything: …" }`.
+/// A step name is registered once; a second registration is an extension error (two features would
+/// otherwise silently fight over the name).
 enum DebugScript {
     typealias Step = (_ argument: String, _ window: BrowserWindowController?) -> TimeInterval?
     private static var steps: [String: Step] = [:]
-    private static var loggers: [(BrowserWindowController) -> String] = []
+    private static var stepOwners: [String: String] = [:]
+    /// Lines `log:` appends, one per contribution, in run order.
+    static let loggers = Pipeline<String, BrowserWindowController>(
+        "DebugScript.loggers", "Lines the log: script step appends.", signature: "(text, window) -> text")
 
-    static func registerStep(_ name: String, _ step: @escaping Step) { steps[name] = step }
-    static func registerLogger(_ logger: @escaping (BrowserWindowController) -> String) { loggers.append(logger) }
+    static func registerStep(_ name: String, _ step: @escaping Step) {
+        guard claim(name) else { return }
+        steps[name] = step
+    }
+
+    static func registerLogger(_ id: String, _ logger: @escaping (BrowserWindowController) -> String) {
+        loggers.add(id) { text, window in text + logger(window) + "\n" }
+    }
 
     /// A step that holds the script until it reports completion: called first with `elapsed` 0 (start
     /// the work), then every few milliseconds until it returns true (benchmarks: wait for a load).
     typealias WaitStep = (_ argument: String, _ window: BrowserWindowController?, _ elapsed: TimeInterval) -> Bool
     private static var waitSteps: [String: WaitStep] = [:]
-    static func registerWaitStep(_ name: String, _ step: @escaping WaitStep) { waitSteps[name] = step }
+    static func registerWaitStep(_ name: String, _ step: @escaping WaitStep) {
+        guard claim(name) else { return }
+        waitSteps[name] = step
+    }
+
+    /// Records who registered a step name; false (and an extension error) when it is taken.
+    private static func claim(_ name: String) -> Bool {
+        let registry = ExtensionRegistry.shared
+        let feature = registry.currentFeature ?? "an earlier registration"
+        if let owner = stepOwners[name] {
+            registry.report(ExtensionError(point: "DebugScript.steps", problem: .duplicateID,
+                                           existing: "feature \"\(owner)\"", rejected: "\(name) (feature \"\(feature)\")"))
+            return false
+        }
+        stepOwners[name] = feature
+        return true
+    }
+
+    /// Every registered step name with the feature that registered it (the `extensions` step lists them).
+    static var stepNames: [(name: String, feature: String)] {
+        stepOwners.sorted { $0.key < $1.key }.map { ($0.key, $0.value) }
+    }
     /// The step running now (labels main-thread stall reports).
     private(set) static var currentStep = ""
 
@@ -273,7 +305,7 @@ enum DebugScript {
                                          ("navpane", c.navPane.view), ("sidepane", c.sidePane), ("statusbar", c.statusBar)]
         text += "frames: " + parts.map { "\($0.0)=\(NSStringFromRect($0.1.frame))\($0.1.isHidden ? "(hidden)" : "")" }.joined(separator: " ") + "\n"
         if let window = c.window { text += "window: \(NSStringFromRect(window.frame)) title: \(window.title)\n" }
-        for logger in loggers { text += logger(c) + "\n" }
+        text = loggers.apply(text, c)
         text += "---\n"
         append(text, to: path)
     }

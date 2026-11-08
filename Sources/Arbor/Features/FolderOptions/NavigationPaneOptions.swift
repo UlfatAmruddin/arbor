@@ -9,14 +9,14 @@ import ArborCore
 ///   Windows' Desktop root).
 enum NavigationPaneOptions {
     static func install() {
-        NavigationPaneHooks.adjustRoots.append(adjustRoots)
-        NavigationPaneHooks.filterChildren.append { items in
+        NavigationPaneHooks.adjustRoots.add("folder-options.navigation-roots") { roots in adjustRoots(roots) }
+        NavigationPaneHooks.filterChildren.add("folder-options.hide-protected") { items in
             Prefs.hideProtectedSystemFiles ? ProtectedSystemItems.filter(items) : items
         }
-        NavigationPaneHooks.willReveal = { pane, location in
+        NavigationPaneHooks.willReveal.observe("folder-options.expand-to-open-folder") { pane, location in
             if Prefs.navExpandToOpenFolder { expand(pane.outline, to: location) }
         }
-        NavigationPaneHooks.decorateCell = decorate
+        NavigationPaneHooks.decorateCell.observe("folder-options.tree-cells") { cell, node in decorate(cell, node) }
     }
 
     // MARK: Roots

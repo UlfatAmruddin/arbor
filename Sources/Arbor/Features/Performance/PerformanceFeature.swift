@@ -4,11 +4,12 @@ import ArborCore
 /// Memory and responsiveness plumbing (spec §15.3–§15.4, FE-228, FE-243, FE-251, FE-252): one
 /// memory-pressure listener that trims every registered cache, the main-thread stall monitor, and the
 /// benchmark script steps (PerformanceDebug.swift). See docs/PERFORMANCE.md.
-enum PerformanceFeature {
+enum PerformanceFeature: ExplorerFeature {
+    static let id = "performance"
     static func register() {
         PerformanceCaches.register()
         CustomIcons.install()
-        DebugScript.registerLogger { _ in "custom icons: " + CustomIcons.shared.debugText }
+        DebugScript.registerLogger("performance.log") { _ in "custom icons: " + CustomIcons.shared.debugText }
         let environment = ProcessInfo.processInfo.environment
         #if DEBUG
         let monitor = true
@@ -77,7 +78,7 @@ enum LaunchTimer {
     private(set) static var firstContentSeconds: Double?
 
     static func install() {
-        WindowHooks.willDisplay.append { controller, _, _, _ in
+        WindowHooks.willDisplay.observe("performance.first-content") { controller, _, _, _ in
             guard firstContentSeconds == nil else { return }
             firstContentSeconds = 0
             // After this pass's layout and drawing.

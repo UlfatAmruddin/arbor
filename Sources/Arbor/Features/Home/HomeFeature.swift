@@ -3,7 +3,8 @@ import ArborCore
 
 /// Home: Quick access, Favorites, Recent, frequent-folder tracking and privacy controls
 /// (FE-069–FE-073, FE-080, FE-082, FE-206, FE-239). See docs/features/home-and-this-mac.md.
-enum HomeFeature {
+enum HomeFeature: ExplorerFeature {
+    static let id = "home"
     private static var observers: [NSObjectProtocol] = []
     static let privacySection = MenuSection(rank: 880, name: "homePrivacy")
 
@@ -163,7 +164,7 @@ enum HomeFeature {
             PageDebug.sendKey(arg, to: window?.window)
             return 0.4
         }
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("home.log") { window in
             homePage(window)?.debugSummary ?? "home: (not shown)"
         }
     }

@@ -4,14 +4,17 @@ import ArborCore
 /// The file-operation features beyond the copy engine: operation history (FE-126), queue controls
 /// (FE-127), "Verify after copying" (FE-130), the "copy without its properties?" prompt, Compress to ▸
 /// Additional options (FE-168), access-list editing on the Security tab and Time Machine versions on
-/// the Previous Versions tab (FE-153, FE-155). Registered after Archives and Properties so it can
-/// extend their commands. See docs/features/file-operations.md.
-enum FileOperationsExtras {
+/// the Previous Versions tab (FE-153, FE-155). Requires Archives and Properties, whose command and tabs
+/// it extends. See docs/features/file-operations.md.
+enum FileOperationsExtras: ExplorerFeature {
+    static let id = "file-operations-extras"
+    /// Compress to ▸ Additional options extends the archives command; access lists and versions extend Properties.
+    static let requires = ["file-operations", "archives", "properties"]
     static func register() {
         TransferQueueController.shared.install()
         JobVerification.install()
         MetadataLossDialog.install()
-        OperationCenter.jobFinished = { job, report in
+        OperationCenter.jobFinished.observe("file-operations-extras.history-and-queue") { job, report in
             TransferQueueController.shared.jobFinished(job)
             if !OperationCenter.shared.isQuitting {
                 var record = OperationRecord(report: report, id: job.id, started: job.created)
@@ -20,7 +23,7 @@ enum FileOperationsExtras {
             }
             JobVerification.report(job)
         }
-        OperationCenter.jobCancelled = { TransferQueueController.shared.jobCancelled($0) }
+        OperationCenter.jobCancelled.observe("file-operations-extras.queue") { TransferQueueController.shared.jobCancelled($0) }
         registerCommands()
         CompressOptionsDialog.register()
         registerScriptSteps()
@@ -119,7 +122,7 @@ enum FileOperationsExtras {
             TimeMachineVersionsView.latest?.scriptPress(argument)
             return 0.6
         }
-        DebugScript.registerLogger { _ in
+        DebugScript.registerLogger("file-operations-extras.log") { _ in
             let compress: String
             switch CompressOptionsDialog.lastResult {
             case .success(let path)?: compress = "created \(path)"
@@ -129,7 +132,7 @@ enum FileOperationsExtras {
             return L10n.format("%@ | last archive: %@\n", "\(CompressOptionsDialog.current?.debugText ?? "compress options: none")", "\(compress)") +
                 PermissionsEditorSheet.debugText
         }
-        DebugScript.registerLogger { _ in
+        DebugScript.registerLogger("file-operations-extras.log-2") { _ in
             let latest = OperationHistory.shared.records.first.map { "\(OperationHistoryWindow.title($0)) → \($0.destination) | \(OperationHistoryWindow.result($0))" } ?? "-"
             return "\(TransferQueueController.shared.scriptDescription)\n" +
                 "history: \(OperationHistory.shared.records.count) records; latest: \(latest)\n" +

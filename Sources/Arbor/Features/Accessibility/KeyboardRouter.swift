@@ -154,13 +154,17 @@ enum KeyboardRouter {
 
 enum ContextMenuKey {
     /// Shows menus; scripted runs record them instead (a menu blocks the run loop while it is open).
-    static var present: (NSMenu, NSView, NSPoint) -> Void = { menu, view, point in
-        if ProcessInfo.processInfo.environment["ARBOR_SCRIPT"] != nil {
-            lastShown = (menu.items.filter { !$0.isSeparatorItem }.map(\.title), String(describing: type(of: view)), point)
-            return
-        }
-        menu.popUp(positioning: nil, at: point, in: view)
-    }
+    static let presenter = Provided<(NSMenu, NSView, NSPoint) -> Void>(
+        "ContextMenuKey.presenter", "Shows the menu the context-menu key opens.", signature: "(menu, view, point)",
+        default: { menu, view, point in
+            if ProcessInfo.processInfo.environment["ARBOR_SCRIPT"] != nil {
+                lastShown = (menu.items.filter { !$0.isSeparatorItem }.map(\.title), String(describing: type(of: view)), point)
+                return
+            }
+            menu.popUp(positioning: nil, at: point, in: view)
+        })
+
+    static func present(_ menu: NSMenu, _ view: NSView, _ point: NSPoint) { presenter.value(menu, view, point) }
     /// The last menu a scripted run asked for: titles, anchor view class, point.
     static var lastShown: (titles: [String], view: String, point: NSPoint)?
 

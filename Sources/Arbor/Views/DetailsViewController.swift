@@ -58,12 +58,12 @@ final class FileTableView: NSTableView {
 
     /// A feature may start a right-button drag here (FE-106); otherwise the context menu opens.
     override func rightMouseDown(with event: NSEvent) {
-        if InteractionHooks.rightMouseDown?(self, event) == true { return }
+        if InteractionHooks.rightMouseDown.handle((self, event)) { return }
         super.rightMouseDown(with: event)
     }
 
     override func draggingExited(_ sender: NSDraggingInfo?) {
-        InteractionHooks.dragHover?(nil, nil)
+        InteractionHooks.dragHover.send((nil, nil))
         super.draggingExited(sender)
     }
 }
@@ -489,7 +489,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
                 cell.checkbox.action = #selector(checkboxClicked(_:))
             }
             cell.alphaValue = dimmed ? 0.5 : 1
-            ItemViewHooks.decorateName?(cell.nameField, item, row, tableView)
+            ItemViewHooks.decorateName.send((cell.nameField, item, row, tableView))
             return cell
         }
         let alignment: NSTextAlignment = id == "size" || ColumnCatalog.descriptor(ColumnID(id))?.alignRight == true ? .right : .left
@@ -682,16 +682,16 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
             DropPolicy.kind(sources: DropPolicy.fileURLs(from: info), destination: $0, mask: info.draggingSourceOperationMask)
         }
         let springItem = onFolder && kind != nil ? target : nil   // spring-loaded folders (FE-108)
-        InteractionHooks.dragHover?(springItem?.url.path, springItem.map { item in
+        InteractionHooks.dragHover.send((springItem?.url.path, springItem.map { item in
             { [weak self] in self?.itemDelegate?.itemViewOpen([item], inNewTab: false) }
-        })
+        }))
         guard let kind else { return [] }
         return kind == .move ? .move : .copy
     }
 
     func tableView(_ tableView: NSTableView, acceptDrop info: NSDraggingInfo, row: Int,
                    dropOperation: NSTableView.DropOperation) -> Bool {
-        InteractionHooks.dragHover?(nil, nil)
+        InteractionHooks.dragHover.send((nil, nil))
         if ItemHooks.acceptDrop(info, destination: dropDestination(row: row, operation: dropOperation), window: view.window) { return true }
         let urls = DropPolicy.fileURLs(from: info)
         guard let dest = dropDestination(row: row, operation: dropOperation),

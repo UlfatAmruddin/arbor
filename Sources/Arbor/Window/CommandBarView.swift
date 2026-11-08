@@ -59,7 +59,7 @@ final class CommandBarView: ThemeBackgroundView {
         let b = ChromeButton(symbol: command.symbol ?? "questionmark", title: command.showsTitle ? command.title : "",
                              tooltip: command.tooltipText)
         if !command.showsTitle { b.fixedWidth = 36 }
-        if command.submenu != nil, command.showsTitle { b.showsMenuIndicator = true }   // titled drop-downs get "▾" ("Collection ▾", "Search options ▾")
+        if command.hasSubmenu, command.showsTitle { b.showsMenuIndicator = true }   // titled drop-downs get "▾" ("Collection ▾", "Search options ▾")
         b.setAccessibilityLabel(command.title)
         b.onClick = { [weak self] sender in self?.run(command, sender: sender) }
         b.identifier = NSUserInterfaceItemIdentifier(command.id)
@@ -68,9 +68,9 @@ final class CommandBarView: ThemeBackgroundView {
 
     private func run(_ command: ExplorerCommand, sender: ChromeButton) {
         guard let context = contextProvider?(.commandBar, sender) else { return }
-        if let submenu = command.submenu {
+        if command.hasSubmenu {
             let menu = NSMenu()
-            submenu(context).forEach(menu.addItem)
+            command.submenuItems(context).forEach(menu.addItem)
             sender.popUp(menu)
             return
         }
@@ -121,7 +121,7 @@ final class CommandBarView: ThemeBackgroundView {
         for (command, button) in primary + trailing + contextual {
             button.isEnabled = command.isAvailable(context) && command.isEnabled(context)
             button.isToggled = command.state(context) == .on
-            if command.dynamicTitle != nil, command.showsTitle { button.title = command.title(in: context) }
+            if command.hasDynamicTitle, command.showsTitle { button.title = command.title(in: context) }
         }
         let available = CommandRegistry.shared.entries(in: .commandBarContextual).map(\.command).filter { $0.isAvailable(context) }
         guard available.map(\.id) != contextualIDs else { return }
@@ -231,10 +231,11 @@ final class StatusBarView: ThemeBackgroundView {
     }
 
     /// Observers of status messages (VoiceOver announces outcomes and errors).
-    static var messageHooks: [(StatusBarView, String?, _ isError: Bool) -> Void] = []
+    static let messageHooks = Observers<(bar: StatusBarView, text: String?, isError: Bool)>(
+        "StatusBarView.messageHooks", "A status bar message was set.", signature: "(bar, text?, isError)")
 
     func setMessage(_ text: String?, isError: Bool = false) {
-        Self.messageHooks.forEach { $0(self, text, isError) }
+        Self.messageHooks.send((self, text, isError))
         clearMessage?.cancel()
         message.stringValue = text ?? ""
         message.textColor = isError ? .systemRed : Theme.secondaryText

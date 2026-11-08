@@ -59,10 +59,13 @@ A step that must hold the script until something finishes (a folder load, a copy
 ## 3. Performance benchmarks
 `scripts/bench.sh` runs the memory and responsiveness workloads headless on generated fixtures; `scripts/bench.sh --check`
 fails when a result exceeds its budget. Steps (`memlog:`, `nav:`, `scroll:`, `stalls:`…), budgets and results: docs/PERFORMANCE.md.
+On slower hardware, scale the budgets instead of editing `scripts/bench-budgets.txt`: `BENCH_TOLERANCE=3` multiplies the
+time budgets (ms, stalls, CPU) and `BENCH_MEMORY_TOLERANCE=1.5` the memory budgets (both default 1; counts such as
+`search.churn1.stale` never scale). The factors are recorded in `environment.txt` and shown next to each budget.
 
 Rules of thumb:
 - Start with `wait:1` so the first location has loaded.
-- Use a unique `mktemp -d` fixture and output paths per run; several test runs may happen at once.
+- Use a unique `mktemp -d` fixture and output paths per run; several test runs may happen at once (the suites in §6 take turns).
 - Read the PNGs to check visuals, in light and dark.
 - End scripts with `quit`. Never leave a test app running, headless or not.
 - Rendering note (macOS 26): a custom `NSTableHeaderView` or header-cell subclass stops table rows from drawing (on screen and in snapshots). Style headers through the stock cell's attributed title instead.
@@ -78,3 +81,60 @@ Environment: `ARBOR_PSEUDO_LOC=1` (accented, longer strings), `ARBOR_RTL=1` (rig
 and prints pass / FAIL / partial per scenario (`ACCEPT_KEEP=1` keeps the logs and snapshots). Results, and what each
 scenario can't show headless: docs/ACCEPTANCE.md. Steps it adds: `menukey:cmd+x` (a menu shortcut, delivered the way its
 menu item delivers it) and a `clipboard:` line in `log:` (pasteboard names, copy or move, items drawn as cut).
+
+## 6. The scripted suites and continuous integration
+`scripts/behavior-checks.sh`, `scripts/core-checks.sh`, `scripts/acceptance.sh` and `scripts/bench.sh` share
+`scripts/lib/app-bundle.sh`, which adds three guards before the first check:
+
+- **Stale bundle.** The suites test `build/Arbor.app`, not the sources. When any file under `Sources/` or `Resources/`, or
+  `Package.swift` / `Package.resolved`, is newer than `build/Arbor.app/Contents/MacOS/Arbor`, a suite stops with exit 2
+  and names the newer files. `ARBOR_REBUILD=1` rebuilds instead (debug; release for `bench.sh --skip-build`);
+  `ARBOR_ALLOW_STALE=1` runs the old bundle anyway, with a warning. `bench.sh` without `--skip-build` builds release itself.
+- **One suite at a time.** Two suites at once compete for the CPU, so their timed waits and the benchmarks go wrong, and
+  `bench.sh` or `ARBOR_REBUILD` would replace `build/Arbor.app` under the other suite. Each suite holds the lock directory
+  `$TMPDIR/arbor-app-suites.lock` (it names the suite, process and start time) for its whole run; a second suite says
+  what it is waiting for and starts when the first one ends. `ARBOR_LOCK_WAIT=<seconds>` limits the wait (default 3600;
+  `0` exits at once with code 2), `ARBOR_LOCK_DIR` moves the lock. A lock whose process no longer runs is taken over. The
+  app itself keeps each headless run apart (preferences domain, pasteboards, Trash, journal and history are per process).
+- **Smoke launch.** The app is started headless once; if it can't start here at all (no window server session, broken
+  bundle), the suite stops with exit 2 and the app's output instead of reporting every check as failed.
+
+`ARBOR_KEEP_FAILED=<dir>` makes all three check suites move the folder of each failing group or scenario (its `log:`
+files, snapshots and fixture) into `<dir>`, and remove the rest as usual.
+
+Checks that can't run in an environment say so in a `skip` line with the reason, and acceptance marks the scenario
+`partial`: no disk image (`hdiutil` failed: behavior `undomove`, T13, the disk part of T26), a case-sensitive temporary
+volume (QA-CORE-2), running as root, where permissions aren't enforced (T18, T21, T23).
+
+### What CI runs
+`.github/workflows/ci.yml` runs three jobs in parallel on every push and pull request, on GitHub's `macos-26` runner
+(the runner is logged in to a GUI session, which the headless app still needs for its window server connection):
+
+| Job | Steps | Artifacts |
+|---|---|---|
+| `build-and-test` | debug build (fails on any warning), `scripts/test.sh`, `scripts/make-dmg.sh --universal` | the unsigned disk image |
+| `app-checks` | `scripts/build-app.sh debug`, then `scripts/list-extension-points.sh` (fails on a registration error), behavior-checks, core-checks and acceptance; each runs even after an earlier one failed | on failure: `build/logs/` (each suite's output) and `build/failed/` (folders of the failing checks) |
+| `performance` | `scripts/bench.sh --check --quick` with `BENCH_TOLERANCE=3`, `BENCH_MEMORY_TOLERANCE=1.5` | always: the results, environment and per-run logs |
+
+The tolerances exist because hosted runners are virtual machines with a few shared cores and no GPU of their own; retune
+them from the uploaded results when the runner image changes, and keep `scripts/bench-budgets.txt` for the reference Mac.
+
+### Reproducing a CI job locally
+Run the same commands from a clean checkout of the commit (no other suite running):
+
+```bash
+# app-checks
+scripts/build-app.sh debug && mkdir -p build/logs
+export ARBOR_KEEP_FAILED="$PWD/build/failed" ARBOR_LOCK_WAIT=0
+scripts/list-extension-points.sh > build/logs/extension-points.txt
+scripts/behavior-checks.sh 2>&1 | tee build/logs/behavior-checks.txt
+scripts/core-checks.sh     2>&1 | tee build/logs/core-checks.txt
+scripts/acceptance.sh      2>&1 | tee build/logs/acceptance.txt
+
+# performance (builds build/Arbor.app as release: rebuild debug before the checks again)
+BENCH_TOLERANCE=3 BENCH_MEMORY_TOLERANCE=1.5 scripts/bench.sh --check --quick --out build/bench/ci
+
+# build-and-test
+scripts/build-app.sh debug 2>&1 | grep "warning:"; scripts/test.sh && scripts/make-dmg.sh --universal
+```
+On a developer Mac the budgets apply as they are: run `scripts/bench.sh --check` without the tolerances.

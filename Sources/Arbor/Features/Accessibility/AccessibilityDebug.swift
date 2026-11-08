@@ -92,7 +92,7 @@ enum AccessibilityDebug {
             if let level = Int(arg).flatMap(TextSizeLevel.init) { TextSize.level = level }
             return 0.8
         }
-        DebugScript.registerLogger { c in
+        DebugScript.registerLogger("accessibility.log") { c in
             "accessibility: focus=\(FocusRegions.current(in: c)?.rawValue ?? "none") textSize=\(TextSize.level.rawValue)"
                 + " typeSelect=\(listTextInput(c)?.debugText ?? "-")"
                 + ((c.window?.firstResponder as? FileTableView).map { " detailsFocus=\($0.focusRow.map(String.init) ?? "-")" } ?? "")

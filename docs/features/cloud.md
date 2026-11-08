@@ -45,7 +45,7 @@ Code: `Sources/Arbor/Features/Cloud/`, `Sources/ArborCore/CloudStatus.swift`.
 - **DEC-cloud-3** iCloud Drive's node points at `com~apple~CloudDocs` (the user's iCloud Drive files); app containers elsewhere in `Mobile Documents` are not merged in.
 - **DEC-cloud-4** The Status column shows the glyph only (Explorer style); wording is in the tooltip and accessibility label. Glyphs are SF Symbols in our colors (DEC-018).
 - **DEC-cloud-5** Copying cloud **folders** always asks before starting, because whether they contain online-only files can't be known without a recursive scan (spec §15.3). Files ask only when known online-only.
-- **DEC-cloud-6** The preview gate wraps whichever "preview" pane is registered when the cloud feature registers (`CloudAwarePreviewPane.wrapRegisteredPreviewPane()`).
+- **DEC-cloud-6** The preview gate wraps the "preview" pane whenever one is created (`SidePaneRegistry.wrappers`, contribution `cloud.preview-gate`; archive member previews wrap it from outside, DEC-024).
 - **DEC-cloud-7** Status reads are batched on a background queue for displayed rows only, cached (4,000 entries, 15 s freshness) and only redraw when a value changes.
 - **DEC-cloud-8** Headless runs never read real cloud folders: only `ARBOR_TEST_CLOUD_ROOT` is used, with statuses from `ARBOR_TEST_CLOUD_STATUS`.
 

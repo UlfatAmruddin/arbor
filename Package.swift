@@ -16,5 +16,7 @@ let package = Package(
             linkerSettings: [.linkedFramework("AppKit"), .linkedFramework("Quartz"), .linkedFramework("NetFS")]
         ),
         .testTarget(name: "ArborCoreTests", dependencies: ["ArborCore"], swiftSettings: [.swiftLanguageMode(.v5)]),
+        // Checks of the app module that need no window: every feature registers without extension errors.
+        .testTarget(name: "ArborTests", dependencies: ["Arbor"], swiftSettings: [.swiftLanguageMode(.v5)]),
     ]
 )

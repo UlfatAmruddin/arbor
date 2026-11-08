@@ -4,9 +4,10 @@ import ArborCore
 /// Script support for the behavior and safety checks in `scripts/behavior-checks.sh`
 /// (docs/features/qa-core.md): undo/redo names, requests that headless runs only log, the alert queue,
 /// and quitting with queued jobs.
-enum ReliabilityFeature {
+enum ReliabilityFeature: ExplorerFeature {
+    static let id = "reliability"
     static func register() {
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("reliability.log") { window in
             let undo = OperationCenter.shared.undoManager
             let requests = SystemOpen.requests
             return "redo action: \(undo.canRedo ? undo.redoActionName : "-")\n"

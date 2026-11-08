@@ -3,7 +3,8 @@ import ArborCore
 
 /// Properties window (⌥↩ = Explorer's Alt+Enter, also ⌘I), the Windows 11 Details pane, and Finder
 /// tags/comments editing. FE-099, FE-148, FE-150–FE-157, FE-160, FE-161, FE-245.
-enum PropertiesFeature {
+enum PropertiesFeature: ExplorerFeature {
+    static let id = "properties"
     /// Posted with the folder URL as object after a folder's "Optimize this folder for" changes.
     /// See `FolderTemplateStore` (ArborCore) for the stored format.
     static let folderTemplateChanged = Notification.Name("ArborFolderTemplateChanged")
@@ -180,7 +181,7 @@ enum PropertiesFeature {
             pane.scriptEdit(tags: tags, comment: comment, save: save)
             return 0.8
         }
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("properties.log") { window in
             var lines: [String] = []
             if let pane = window.sidePane.provider as? DetailsSidePane { lines.append(pane.debugText) }
             lines.append("properties windows: \(PropertiesWindowController.all.count)")

@@ -122,14 +122,14 @@ enum ItemActionsDebug {
             window.open([item], inNewTab: false)
             return 1.0
         }
-        DebugScript.registerLogger { _ in
+        DebugScript.registerLogger("item-actions.log") { _ in
             var lines: [String] = []
             if let menu = DragPolish.pendingMenu { lines.append("drop menu: " + describe(menu)) }
             lines.append("last spring: \(DragPolish.lastSpring ?? "none")")
             if let dialog = BatchRenameDialog.current { lines.append(dialog.debugSummary) }
             return lines.joined(separator: "\n")
         }
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("item-actions.log-2") { window in
             let shortcuts = window.visibleItems.filter { !$0.isFolder && Shortcuts.isAlias($0.url) }.map { item -> String in
                 switch Shortcuts.resolve(item.url) {
                 case .target(let url, let isFolder)?: return "\(item.name) -> \(url.lastPathComponent)\(isFolder ? "/" : "")"

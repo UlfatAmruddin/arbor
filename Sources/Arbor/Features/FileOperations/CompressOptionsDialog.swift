@@ -30,16 +30,14 @@ final class CompressOptionsDialog: FileOpsDialog {
                                    isAvailable: ArchiveFeature.canCompress, isEnabled: ArchiveFeature.canCompress,
                                    perform: { ctx in show(ctx.selection.map(\.url), browser: ctx.window) }))
         // Compress to ▸ ZIP File · 7z File · TAR File · Additional options (Windows order).
-        if let compressTo = r.command("archive.compressTo"), let original = compressTo.submenu {
-            compressTo.submenu = { ctx in
-                var items = original(ctx)
-                guard !items.isEmpty else { return items }
-                items.append(.separator())
-                let urls = ctx.selection.map(\.url)
-                weak let browser = ctx.window
-                items.append(ClosureMenuItem(L10n.tr("Additional options")) { show(urls, browser: browser) })
-                return items
-            }
+        r.adjustSubmenu("archive.compressTo", "file-operations-extras.compress-options") { items, ctx in
+            guard !items.isEmpty else { return items }
+            var items = items
+            items.append(.separator())
+            let urls = ctx.selection.map(\.url)
+            weak let browser = ctx.window
+            items.append(ClosureMenuItem(L10n.tr("Additional options")) { show(urls, browser: browser) })
+            return items
         }
         /// compressset:format=tarGzip,method=store,level=maximum,hidden=off,name=x.tar.gz,dest=/path
         DebugScript.registerStep("compressset") { argument, _ in

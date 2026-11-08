@@ -57,7 +57,7 @@ final class PreviewPane: NSView, SidePaneProvider {
                             : "\(items.count) items selected")
             return
         }
-        guard PreviewPolicy.showsPreviewHandlers() else {
+        guard PreviewPolicy.showsPreviewHandlers.value() else {
             showPlaceholder(L10n.tr("No preview available.\nPreviews are turned off in Folder Options (Show preview handlers in preview pane)."))
             return
         }

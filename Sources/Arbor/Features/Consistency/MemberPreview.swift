@@ -25,14 +25,13 @@ enum MemberPreview {
     private static var queued: (key: String, ref: ArchiveItemRef)?
 
     static func register() {
-        PreviewHooks.localURL = { item in
+        PreviewHooks.localURL.register("consistency.archive-member-preview") { item in
             if case .ready(let url) = state(for: item) { return url }
             return nil
         }
-        if let previous = SidePaneRegistry.descriptor("preview") {
-            SidePaneRegistry.register(SidePaneDescriptor(id: previous.id, title: previous.title) {
-                MemberAwarePreviewPane(wrapping: previous.make())
-            })
+        // Outside the cloud gate (cloud.preview-gate): a member is prepared before anything else looks at it.
+        SidePaneRegistry.wrappers.add("consistency.archive-member-preview", order: .late) { pane, id in
+            id == "preview" ? MemberAwarePreviewPane(wrapping: pane) : pane
         }
         NotificationCenter.default.addObserver(forName: PreviewHooks.ready, object: nil, queue: .main) { _ in
             if QLPreviewPanel.sharedPreviewPanelExists(), let panel = QLPreviewPanel.shared(), panel.isVisible { panel.reloadData() }

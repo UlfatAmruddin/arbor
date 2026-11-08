@@ -261,11 +261,13 @@ final class GalleryGridView: NSView, NSDraggingSource {
             needsDisplay = true
             // Pop-up description (Folder Options): name, type, size and date, like the other layouts.
             toolTip = hoverIndex.flatMap { i in
-                i < tiles.count && GalleryGridView.showsDescriptions() ? ItemGridView.infotip(GalleryPageController.fileItem(tiles[i].item)) : nil
+                i < tiles.count && GalleryGridView.showsDescriptions.value() ? ItemGridView.infotip(GalleryPageController.fileItem(tiles[i].item)) : nil
             }
         }
     }
-    static var showsDescriptions: () -> Bool = { true }
+    static let showsDescriptions = Provided<() -> Bool>(
+        "GalleryGridView.showsDescriptions", "Whether Gallery thumbnails show pop-up descriptions.",
+        signature: "() -> Bool", default: { true })
 
     /// The item under a window point, for Folder Options' click behaviors.
     func item(atWindowPoint point: NSPoint) -> (index: Int, item: GalleryItem)? {

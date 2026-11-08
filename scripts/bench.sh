@@ -10,13 +10,19 @@
 #   --quick       smaller fixtures (10,000-entry large folder, fewer photos); budgets still apply but
 #                 are looser than necessary
 #   --app PATH    benchmark an existing Arbor.app instead of building build/Arbor.app (release)
+#   --skip-build  benchmark build/Arbor.app as it is (refused when older than the sources)
+#
+#   BENCH_TOLERANCE=F         multiply the time budgets (ms, stalls, CPU) by F (default 1)
+#   BENCH_MEMORY_TOLERANCE=F  multiply the memory budgets (MB) by F (default 1); counts are never scaled
 #
 # Every run is headless (ARBOR_HEADLESS=1), uses fixtures generated into a fresh mktemp -d folder,
 # and never touches user files. Results: <out>/results.txt (metric median first min max) and
-# <out>/environment.txt; raw per-run logs next to them.
+# <out>/environment.txt; raw per-run logs next to them. Lock and stale guard: scripts/lib/app-bundle.sh.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 REPO="$PWD"
+. scripts/lib/app-bundle.sh
+TOLERANCE="${BENCH_TOLERANCE:-1}"; MEMORY_TOLERANCE="${BENCH_MEMORY_TOLERANCE:-1}"
 
 CHECK=0; REPEATS=3; QUICK=""; APP=""; SKIP_BUILD=0; OUT=""; MARGIN="${BENCH_MARGIN:-0.25}"
 WORKLOADS="idle browse tabs large media search copy"
@@ -30,17 +36,30 @@ while [ $# -gt 0 ]; do
     --workloads) WORKLOADS="$2"; shift ;;
     --out) OUT="$2"; shift ;;
     --margin) MARGIN="$2"; shift ;;
-    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
   shift
 done
 
+for f in "$TOLERANCE" "$MEMORY_TOLERANCE"; do
+  [[ "$f" =~ ^[0-9]+(\.[0-9]+)?$ ]] && awk -v f="$f" 'BEGIN { exit !(f >= 1) }' || { echo "bench.sh: tolerances must be numbers ≥ 1 (got $f)" >&2; exit 2; }
+done
+
+# The lock is held for the whole run, the build included: building replaces build/Arbor.app, which
+# another suite may be testing.
 CONFIGURATION="given app bundle"
 if [ -z "$APP" ]; then
   APP="$REPO/build/Arbor.app"
   CONFIGURATION="build/Arbor.app as found"
-  if [ "$SKIP_BUILD" = 0 ]; then scripts/build-app.sh release >/dev/null; CONFIGURATION="release (scripts/build-app.sh release)"; fi
+  if [ "$SKIP_BUILD" = 0 ]; then
+    arbor_take_suite_lock
+    scripts/build-app.sh release >/dev/null; CONFIGURATION="release (scripts/build-app.sh release)"
+  else
+    arbor_prepare_app bench.sh release
+  fi
+else
+  arbor_take_suite_lock
 fi
 BIN="$APP/Contents/MacOS/Arbor"
 [ -x "$BIN" ] || { echo "no app at $APP" >&2; exit 2; }
@@ -49,7 +68,7 @@ ROOT="$(mktemp -d "${TMPDIR:-/tmp}/arbor-bench.XXXXXX")"
 FX="$ROOT/fx"
 [ -n "$OUT" ] || OUT="$REPO/build/bench/$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$OUT"
-trap 'rm -rf "$ROOT"' EXIT
+trap 'rm -rf "$ROOT"; arbor_release_suite_lock' EXIT
 
 echo "Fixtures in $ROOT"
 swift scripts/bench-fixtures.swift "$FX" $QUICK
@@ -66,6 +85,7 @@ swift scripts/bench-fixtures.swift "$FX" $QUICK
   echo "memory metric: phys_footprint (task_info TASK_VM_INFO), sampled in-process"
   echo "stall threshold: 50 ms main run-loop pass"
   echo "memory pressure at start: $(memory_pressure 2>/dev/null | tail -1 || echo n/a)"
+  echo "budget tolerance: time ×$TOLERANCE, memory ×$MEMORY_TOLERANCE, margin $MARGIN"
 } > "$OUT/environment.txt"
 cat "$OUT/environment.txt"
 
@@ -205,11 +225,19 @@ while read -r metric limit _; do
     esac
   fi
   if [ -z "$value" ]; then echo "SKIP  $metric (not measured in this run)"; continue; fi
-  allowed=$(awk -v l="$limit" -v m="$MARGIN" 'BEGIN { a = l * (1 + m); printf "%.2f", a }')
+  # Time budgets scale with BENCH_TOLERANCE, memory budgets with BENCH_MEMORY_TOLERANCE; counts never.
+  case "$metric" in
+    *_mb) factor="$MEMORY_TOLERANCE" ;;
+    *ms*|*.max) factor="$TOLERANCE" ;;
+    *) factor=1 ;;
+  esac
+  budget=$(awk -v l="$limit" -v f="$factor" 'BEGIN { printf "%g", l * f }')
+  shown="$limit"; [ "$budget" = "$limit" ] || shown="$limit ×$factor = $budget"
+  allowed=$(awk -v l="$budget" -v m="$MARGIN" 'BEGIN { a = l * (1 + m); printf "%.2f", a }')
   if awk -v v="$value" -v a="$allowed" 'BEGIN { exit !(v > a) }'; then
-    echo "FAIL  $metric = $value (budget $limit, allowed $allowed)"; fail=1
+    echo "FAIL  $metric = $value (budget $shown, allowed $allowed)"; fail=1
   else
-    echo "ok    $metric = $value (budget $limit)"
+    echo "ok    $metric = $value (budget $shown)"
   fi
 done < "$BUDGETS"
 exit $fail

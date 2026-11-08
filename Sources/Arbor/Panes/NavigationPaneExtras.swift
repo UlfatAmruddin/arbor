@@ -4,19 +4,21 @@ import ArborCore
 /// Extra top-level nodes features add to the navigation pane, e.g. cloud roots after Gallery (where
 /// Explorer shows OneDrive) and the Trash after Network. Builders run on every rebuild, so keep them cheap.
 ///
-///     NavigationPaneExtras.register(.afterNetwork) { [NavNode(kind: .place, title: "Trash", location: .trash)] }
+///     NavigationPaneExtras.register(.afterNetwork, "trash.navigation-node") { [NavNode(kind: .place, title: "Trash", location: .trash)] }
 enum NavigationPaneExtras {
     enum Position { case afterGallery, afterNetwork }
 
-    private static var builders: [(Position, () -> [NavNode])] = []
+    /// Each contribution appends its nodes for its position, in run order.
+    static let builders = Pipeline<[NavNode], Position>(
+        "NavigationPaneExtras.builders", "Extra top-level tree nodes after Gallery or after Network.",
+        signature: "(nodes, position) -> nodes")
 
-    static func register(_ position: Position, _ builder: @escaping () -> [NavNode]) {
-        builders.append((position, builder))
+    static func register(_ position: Position, _ id: String, order: ExtensionOrder = .normal,
+                         _ builder: @escaping () -> [NavNode]) {
+        builders.add(id, order: order) { nodes, asked in asked == position ? nodes + builder() : nodes }
     }
 
-    static func nodes(_ position: Position) -> [NavNode] {
-        builders.filter { $0.0 == position }.flatMap { $0.1() }
-    }
+    static func nodes(_ position: Position) -> [NavNode] { builders.apply([], position) }
 
     /// Rebuilds the pane in every window (after a node's icon or the set of nodes changed).
     /// Coalesced: a disk image mount posts several changes, and each rebuild reads names on the main thread.

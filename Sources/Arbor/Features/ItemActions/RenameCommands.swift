@@ -14,16 +14,16 @@ enum RenameCommands {
 
     static func register() {
         let r = CommandRegistry.shared
+        // Replaces the core command: enabled for several items too (Explorer's numbered multi-rename).
+        r.replace(ExplorerCommand(
+            id: "file.rename", title: "Rename", symbol: "character.cursor.ibeam", tooltip: "Rename",
+            shortcut: .function(NSF2FunctionKey),
+            keyBindings: [KeyBinding(120)],   // F2
+            placements: [.commandBar(40), .itemContextMenu(.organize, 10), .mainMenu("Edit", .organize, 10)],
+            isAvailable: { $0.surface != .itemContextMenu || $0.hasSelection },
+            isEnabled: { $0.hasSelection && $0.allowsEditing },
+            perform: begin), "item-actions.multi-rename")
         r.register([
-            // Replaces the core command: enabled for several items too (Explorer's numbered multi-rename).
-            ExplorerCommand(
-                id: "file.rename", title: "Rename", symbol: "character.cursor.ibeam", tooltip: "Rename",
-                shortcut: .function(NSF2FunctionKey),
-                keyBindings: [KeyBinding(120)],   // F2
-                placements: [.commandBar(40), .itemContextMenu(.organize, 10), .mainMenu("Edit", .organize, 10)],
-                isAvailable: { $0.surface != .itemContextMenu || $0.hasSelection },
-                isEnabled: { $0.hasSelection && $0.allowsEditing },
-                perform: begin),
             ExplorerCommand(
                 id: "file.batchRename", title: "Batch rename…", symbol: "pencil.and.list.clipboard",
                 placements: [.itemContextMenu(.organize, 15), .seeMore(.selection, 40), .mainMenu("Edit", .organize, 15)],
@@ -35,7 +35,7 @@ enum RenameCommands {
                     BatchRenameDialog.run(items: ordered(ctx.selection, in: window), window: window)
                 }),
         ])
-        InteractionHooks.commitRename = commit
+        InteractionHooks.commitRename.register("item-actions.multi-rename") { window, item, typed in commit(window, item, typed) }
     }
 
     /// The selection in view order (Explorer numbers items in the order they're shown).
@@ -87,7 +87,7 @@ enum RenameCommands {
             window.statusBar.setMessage(L10n.format("Renamed %@. Press ⌘Z to undo.", "\(StatusText.items(session.items.count))"))
             return true
         } catch {
-            NSAlert.show(L10n.tr("Couldn't rename these items.L10n.tr("), error.localizedDescription + ")\n\nNothing was renamed.", in: nil)
+            NSAlert.show(L10n.tr("Couldn't rename these items."), error.localizedDescription + "\n\n" + L10n.tr("Nothing was renamed."), in: nil)
             return false
         }
     }
@@ -102,7 +102,7 @@ enum RenameCommands {
                 let reverted = try BatchRenamer.apply(BatchRenamer.reversePlan(applied))
                 registerUndo(reverted)
             } catch {
-                NSAlert.show(L10n.tr("Couldn't undo the rename.L10n.tr("), error.localizedDescription + ")\n\nNothing was changed.", in: NSApp.keyWindow)
+                NSAlert.show(L10n.tr("Couldn't undo the rename."), error.localizedDescription + "\n\n" + L10n.tr("Nothing was changed."), in: NSApp.keyWindow)
             }
         }
         center.undoManager.setActionName(L10n.tr("Rename"))
@@ -437,7 +437,7 @@ final class BatchRenameDialog: NSObject, NSTableViewDataSource, NSTableViewDeleg
                 browser.statusBar.setMessage(L10n.format("Renamed %@. Press ⌘Z to undo.", "\(StatusText.items(applied.count))"))
             }
         } catch {
-            NSAlert.show(L10n.tr("Couldn't rename the items.L10n.tr("), error.localizedDescription + ")\n\nNothing was renamed.", in: sheet)
+            NSAlert.show(L10n.tr("Couldn't rename the items."), error.localizedDescription + "\n\n" + L10n.tr("Nothing was renamed."), in: sheet)
         }
     }
 

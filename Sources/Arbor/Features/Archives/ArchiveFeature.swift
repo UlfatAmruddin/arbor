@@ -4,7 +4,8 @@ import UniformTypeIdentifiers
 
 /// Archives and disk images (FE-163–FE-173): browse archives like folders, Extract All, Compress to,
 /// Send to ▸ Compressed (zipped) folder, New ▸ Compressed (zipped) Folder, Mount. See docs/features/archives.md.
-enum ArchiveFeature {
+enum ArchiveFeature: ExplorerFeature {
+    static let id = "archives"
     /// For scripted checks: the last alert text, extraction folder and mounted volume.
     static var lastAlert: String?
     static var lastExtraction: URL?
@@ -24,7 +25,7 @@ enum ArchiveFeature {
         adaptCoreCommands()
         registerColumns()
         registerBreadcrumbs()
-        ItemHooks.registerDragWriter { item in
+        ItemHooks.registerDragWriter("archives.member-promise") { item in
             guard let ref = ArchiveCatalog.ref(for: item.url) else { return nil }
             return ArchiveMemberPromise(ref: ref, isFolder: item.isFolder)
         }
@@ -58,23 +59,17 @@ enum ArchiveFeature {
     // MARK: - Opening (folders inside archives, archives, members, ISO images)
 
     private static func registerOpening() {
-        LocationRegistry.registerOpenHandler { item in
+        LocationRegistry.registerOpenHandler("archives.browse") { item in
             if let ref = ArchiveCatalog.ref(for: item.url) {
                 return item.isFolder ? .archive(ref.archive, innerPath: ref.innerPath) : nil
             }
             guard !item.isFolder, let format = ArchiveFormat.detect(item.url), format != .iso else { return nil }
             return .archive(item.url, innerPath: "")
         }
-        // InteractionHooks.openFile is a single slot that a later feature (shortcuts) also sets, so the
-        // archive handler chains in front of whatever is installed once registration has finished.
-        DispatchQueue.main.async {
-            let next = InteractionHooks.openFile
-            InteractionHooks.openFile = { window, file in openFile(file, in: window) || next?(window, file) == true }
-            if let sendTo = CommandRegistry.shared.command("file.sendTo") {
-                let available = sendTo.isAvailable
-                sendTo.isAvailable = { !inArchive($0) && available($0) }   // members aren't files on disk
-            }
-        }
+        // Members and ISO images open before shortcuts are resolved (item-actions.shortcuts runs at .normal).
+        InteractionHooks.openFile.register("archives.open-file", order: .early, handles: { window, file in openFile(file, in: window) })
+        // Members aren't files on disk.
+        CommandRegistry.shared.hide("file.sendTo", "archives.no-send-to", when: inArchive)
     }
 
     /// Members open from a temporary copy; an ISO mounts on double-click like Explorer (browsed if it can't be).
@@ -211,41 +206,33 @@ enum ArchiveFeature {
     /// Core commands that must behave differently on archive members (whose URLs aren't on disk).
     private static func adaptCoreCommands() {
         let r = CommandRegistry.shared
-        if let copy = r.command("edit.copy") {
-            let enabled = copy.isEnabled, perform = copy.perform
-            copy.isEnabled = { inArchive($0) ? $0.hasSelection : enabled($0) }
-            copy.perform = { inArchive($0) ? copyOut($0) : perform($0) }
-        }
+        r.override("edit.copy", "archives.copy-out", when: inArchive, isEnabled: { $0.hasSelection }, perform: copyOut)
         // No meaningful target inside an archive: hidden or disabled rather than acting on a path that doesn't exist.
         for id in ["file.share", "file.openInTerminal"] {
-            guard let command = r.command(id) else { continue }
-            let enabled = command.isEnabled
-            command.isEnabled = { !inArchive($0) && enabled($0) }
+            r.override(id, "archives.no-target", when: inArchive, isEnabled: { _ in false })
         }
         for id in ["file.pin", "home.favorite"] {
-            guard let command = r.command(id) else { continue }
-            let available = command.isAvailable
-            command.isAvailable = { !inArchive($0) && available($0) }
+            r.hide(id, "archives.no-target", when: inArchive)
         }
-        if let reveal = r.command("file.showInFinder") {
-            let perform = reveal.perform
-            reveal.perform = { ctx in
-                if let file = ctx.location?.archiveFile { SystemOpen.reveal([file]) } else { perform(ctx) }
-            }
+        r.override("file.showInFinder", "archives.reveal-archive", when: { $0.location?.archiveFile != nil }, perform: { ctx in
+            if let file = ctx.location?.archiveFile { SystemOpen.reveal([file]) }
+        })
+        // Open with ▸ on a member lists apps for its type; choosing one opens a read-only copy.
+        func member(_ ctx: CommandContext) -> (item: FileItem, ref: ArchiveItemRef)? {
+            guard inArchive(ctx), let item = ctx.single, let ref = ArchiveCatalog.ref(for: item.url) else { return nil }
+            return (item, ref)
         }
-        if let openWith = r.command("file.openWith"), let submenu = openWith.submenu {
-            openWith.submenu = { ctx in
-                guard inArchive(ctx), let item = ctx.single, let ref = ArchiveCatalog.ref(for: item.url) else { return submenu(ctx) }
-                let type = UTType(filenameExtension: (item.name as NSString).pathExtension) ?? .data
-                return NSWorkspace.shared.urlsForApplications(toOpen: type).prefix(12).map { app in
-                    let icon = NSWorkspace.shared.icon(forFile: app.path)
-                    icon.size = NSSize(width: 16, height: 16)
-                    return ClosureMenuItem(displayName(of: app).replacingOccurrences(of: ".app", with: ""), image: icon) {
-                        openMember(ref, in: ctx.window, with: app)
-                    }
+        r.override("file.openWith", "archives.open-member-with", when: { member($0) != nil }, submenu: { ctx in
+            guard let (item, ref) = member(ctx) else { return [] }
+            let type = UTType(filenameExtension: (item.name as NSString).pathExtension) ?? .data
+            return NSWorkspace.shared.urlsForApplications(toOpen: type).prefix(12).map { app in
+                let icon = NSWorkspace.shared.icon(forFile: app.path)
+                icon.size = NSSize(width: 16, height: 16)
+                return ClosureMenuItem(displayName(of: app).replacingOccurrences(of: ".app", with: ""), image: icon) {
+                    openMember(ref, in: ctx.window, with: app)
                 }
             }
-        }
+        })
     }
 
     // MARK: - Details columns (Explorer's ZIP folder view)
@@ -279,7 +266,7 @@ enum ArchiveFeature {
                                       return "\(max(0, Int((100 - Double(packed) * 100 / Double(size)).rounded())))%"
                                   }),
             ])
-        DetailsColumns.register { location in
+        DetailsColumns.register("archives.zip-columns") { location in
             guard let file = location.archiveFile, ArchiveFormat.detect(file) == .zip else { return nil }
             return layout
         }
@@ -288,7 +275,7 @@ enum ArchiveFeature {
     // MARK: - Breadcrumbs: "Downloads > Archive.zip > folder", chevrons list folders inside the archive
 
     private static func registerBreadcrumbs() {
-        Breadcrumbs.register { location in
+        Breadcrumbs.register("archives.crumbs") { location in
             guard case .archive(let file, let inner) = location else { return nil }
             // An archive opened from inside another one continues the outer archive's breadcrumb.
             var crumbs = NestedArchives.parent(of: file).map(Breadcrumbs.crumbs(for:))
@@ -354,7 +341,7 @@ enum ArchiveFeature {
             if !urls.isEmpty { window?.startTransfer(.copy, urls, to: URL(fileURLWithPath: path)) }
             return 1.0
         }
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("archives.log") { window in
             var parts: [String] = []
             if let details = window.itemView as? DetailsViewController {
                 let table = details.table

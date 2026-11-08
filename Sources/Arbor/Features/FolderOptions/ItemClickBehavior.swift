@@ -18,9 +18,11 @@ final class ItemClickBehavior: NSObject {
     func install() {
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [unowned self] event in self.mouseDown(event) } as Any)
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [unowned self] event in self.keyDown(event) } as Any)
-        ItemViewHooks.decorateName = { [unowned self] field, item, row, table in self.decorate(field, item, row, table) }
-        ItemViewHooks.underlinesName = { [unowned self] view, slot in self.underlines(view, slot) }
-        WindowHooks.didDisplay.append { [unowned self] window, _ in self.hover.attach(to: ItemSurface(window)) }
+        ItemViewHooks.decorateName.observe("folder-options.click-behavior") { [unowned self] field, item, row, table in
+            self.decorate(field, item, row, table)
+        }
+        ItemViewHooks.underlinesName.register("folder-options.click-behavior") { [unowned self] view, slot in self.underlines(view, slot) }
+        WindowHooks.didDisplay.observe("folder-options.hover-underline") { [unowned self] window, _ in self.hover.attach(to: ItemSurface(window)) }
     }
 
     // MARK: Single-click activation

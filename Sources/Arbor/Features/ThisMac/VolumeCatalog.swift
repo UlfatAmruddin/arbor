@@ -15,15 +15,19 @@ enum VolumeCatalog {
 
     /// Features adjust the drive list, e.g. the network feature adds mapped drives that are
     /// disconnected and names shares `share (\\server)`. May run off the main thread; no I/O.
-    static var adjustments: [([VolumeSummary]) -> [VolumeSummary]] = []
+    static let adjustments = Pipeline<[VolumeSummary], Void>(
+        "VolumeCatalog.adjustments", "Adjusts the drive list (mapped and disconnected network drives). May run off the main thread.",
+        signature: "(volumes) -> volumes")
     /// Per-drive icon and status text overrides (network drives, disconnected mapped drives). No I/O.
-    static var iconOverride: ((VolumeSummary, CGFloat) -> NSImage?)?
-    static var statusOverride: ((VolumeSummary) -> String?)?
+    static let iconOverride = Handlers<(VolumeSummary, CGFloat), NSImage>(
+        "VolumeCatalog.iconOverride", "A drive's icon on This Mac; nil = the kind's icon.", signature: "(volume, size) -> icon?")
+    static let statusOverride = Handlers<VolumeSummary, String>(
+        "VolumeCatalog.statusOverride", "A drive's status line on This Mac; nil = free space.", signature: "(volume) -> text?")
 
     /// Every visible mounted volume. `detailed` adds free space, file system and the disk-image /
     /// optical classification from Disk Arbitration; call it off the main thread.
     static func summaries(detailed: Bool) -> [VolumeSummary] {
-        adjustments.reduce(mountedSummaries(detailed: detailed)) { $1($0) }
+        adjustments.apply(mountedSummaries(detailed: detailed))
     }
 
     private static func mountedSummaries(detailed: Bool) -> [VolumeSummary] {

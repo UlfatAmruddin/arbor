@@ -7,9 +7,7 @@ import ArborCore
 /// archive members are never recorded (they are deleted later and aren't the user's files).
 enum OpenedFilesRecorder {
     static func register() {
-        guard let openWith = CommandRegistry.shared.command("file.openWith"), let submenu = openWith.submenu else { return }
-        openWith.submenu = { ctx in
-            let items = submenu(ctx)
+        CommandRegistry.shared.adjustSubmenu("file.openWith", "consistency.record-opened-files") { items, ctx in
             guard !ArchiveFeature.inArchive(ctx) else { return items }
             let urls = ctx.selection.filter { !$0.isFolder }.map(\.url)
             guard !urls.isEmpty else { return items }

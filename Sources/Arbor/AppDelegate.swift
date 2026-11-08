@@ -17,10 +17,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             application(NSApp, open: pendingOpen)
             pendingOpen = []
         }
-        if controllers.isEmpty, launchLocation() == nil { WindowHooks.restoreSession?(self) }
+        if controllers.isEmpty, launchLocation() == nil { WindowHooks.restoreSession.value?(self) }
         if controllers.isEmpty {
             let start = launchLocation()
-            openWindow(at: start?.location ?? WindowHooks.startLocation(), select: start?.select ?? [])
+            openWindow(at: start?.location ?? WindowHooks.startLocation.value(), select: start?.select ?? [])
         }
         if !Self.isHeadless { NSApp.activate(ignoringOtherApps: true) }
         NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
@@ -44,7 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// New window. Explorer opens new windows and tabs to Home (DEC-020).
     @discardableResult
-    func openWindow(at location: Location = WindowHooks.startLocation(), select: [String] = []) -> BrowserWindowController {
+    func openWindow(at location: Location = WindowHooks.startLocation.value(), select: [String] = []) -> BrowserWindowController {
         register(BrowserWindowController(location: location, initialSelection: select))
     }
 

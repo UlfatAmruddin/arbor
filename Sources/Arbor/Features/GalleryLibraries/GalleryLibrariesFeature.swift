@@ -2,15 +2,17 @@ import AppKit
 import ArborCore
 
 /// Gallery and Libraries (FE-075, FE-076, FE-238, FE-239). See docs/features/gallery-libraries.md.
-enum GalleryLibrariesFeature {
+enum GalleryLibrariesFeature: ExplorerFeature {
+    static let id = "gallery-libraries"
     static func register() {
         LocationRegistry.register(GalleryProvider())
         LocationRegistry.register(LibraryProvider())
 
         // A library's Details view adds a "Folder" column (which included folder each item lives in).
-        DetailsColumns.register { location in libraryName(location) == nil ? nil : libraryLayout }
-        NavigationPaneExtras.register(.afterNetwork, librariesNodes)
-        Breadcrumbs.register(libraryCrumbs)
+        DetailsColumns.register("gallery-libraries.folder-column") { location in libraryName(location) == nil ? nil : libraryLayout }
+        // After the Trash node (trash.navigation-node), which also follows Network.
+        NavigationPaneExtras.register(.afterNetwork, "gallery-libraries.libraries-node", order: .late, librariesNodes)
+        Breadcrumbs.register("gallery-libraries.crumbs", libraryCrumbs)
         registerCommands()
         registerDebugSteps()
 
@@ -20,12 +22,10 @@ enum GalleryLibrariesFeature {
         }
         nc.addObserver(forName: LibraryStore.changed, object: nil, queue: .main) { _ in NavigationPaneExtras.refreshAll() }
 
-        // Runs after every feature has registered, so the location-specific behavior below wraps the
-        // final versions of the core commands (see `CommandOverride`).
-        DispatchQueue.main.async { installOverrides() }
+        registerOverrides()
     }
 
-    static var isGallery: (CommandContext) -> Bool { { $0.location == .gallery } }
+    static func isGallery(_ ctx: CommandContext) -> Bool { ctx.location == .gallery }
 
     static func libraryName(_ location: Location?) -> String? {
         if case .library(let name)? = location, name != LibraryLogic.rootName { return name }
@@ -144,56 +144,63 @@ enum GalleryLibrariesFeature {
 
     // MARK: Location-specific behavior of core commands
 
-    static func installOverrides() {
+    /// Gallery and library pages decide first (order `.early`): where they apply, their rules replace
+    /// the commands' own and other features' overrides (these used to be installed after every feature).
+    static func registerOverrides() {
+        let r = CommandRegistry.shared
         let gallery: (CommandContext) -> Bool = { $0.location == .gallery }
 
         // View ▾ in Gallery: the four thumbnail sizes; list-style layouts don't apply.
         for mode in ViewMode.allCases {
             if GalleryPrefs.sizes.contains(mode) {
-                CommandOverride.apply("view.mode.\(mode.rawValue)", when: gallery,
-                                      isEnabled: { _ in true },
-                                      state: { _ in GalleryPrefs.size == mode ? .on : .off },
-                                      perform: { _ in GalleryPrefs.size = mode })
+                r.override("view.mode.\(mode.rawValue)", "gallery-libraries.thumbnail-size", order: .early, when: gallery,
+                           isEnabled: { _ in true },
+                           state: { _ in GalleryPrefs.size == mode ? .on : .off },
+                           perform: { _ in GalleryPrefs.size = mode })
             } else {
-                CommandOverride.apply("view.mode.\(mode.rawValue)", when: gallery, isAvailable: { _ in false },
-                                      state: { _ in .off })
+                r.override("view.mode.\(mode.rawValue)", "gallery-libraries.no-list-layout", order: .early, when: gallery,
+                           isAvailable: { _ in false }, state: { _ in .off })
             }
         }
-        CommandOverride.apply("view.compact", when: gallery, isAvailable: { _ in false })
+        r.hide("view.compact", "gallery-libraries.no-compact", order: .early, when: gallery)
 
-        // Sort ▾ in Gallery: by date taken, newest or oldest first.
-        for id in CommandRegistry.shared.all.map(\.id) where id.hasPrefix("sort.") && id != "sort.ascending" && id != "sort.descending" {
-            CommandOverride.apply(id, when: gallery, isAvailable: { _ in false })
-        }
+        // Sort ▾ in Gallery: by date taken, newest or oldest first. Every other sort.* command is hidden
+        // there, also those registered by later features.
+        r.hide(prefix: "sort.", except: ["sort.ascending", "sort.descending"], "gallery-libraries.sort-by-date-taken",
+               order: .early, when: gallery)
         for (id, newest) in [("sort.ascending", false), ("sort.descending", true)] {
-            CommandOverride.apply(id, when: gallery, isEnabled: { _ in true },
-                                  state: { _ in GalleryPrefs.newestFirst == newest ? .on : .off },
-                                  perform: { _ in GalleryPrefs.newestFirst = newest })
+            r.override(id, "gallery-libraries.sort-by-date-taken", order: .early, when: gallery, isEnabled: { _ in true },
+                       state: { _ in GalleryPrefs.newestFirst == newest ? .on : .off },
+                       perform: { _ in GalleryPrefs.newestFirst = newest })
         }
 
         // Selection commands act on the grid.
-        CommandOverride.apply("edit.selectAll", when: gallery, isEnabled: { galleryPage($0)?.grid.itemCount ?? 0 > 0 },
-                              perform: { galleryPage($0)?.grid.selectAll() })
-        CommandOverride.apply("edit.selectNone", when: gallery, perform: { galleryPage($0)?.grid.select(keys: []) })
-        CommandOverride.apply("edit.invertSelection", when: gallery, isEnabled: { galleryPage($0)?.grid.itemCount ?? 0 > 0 },
-                              perform: { ctx in
-                                  guard let grid = galleryPage(ctx)?.grid else { return }
-                                  grid.select(keys: Set(grid.allItems.map(\.key)).subtracting(grid.selection))
-                              })
+        r.override("edit.selectAll", "gallery-libraries.grid-selection", order: .early, when: gallery,
+                   isEnabled: { galleryPage($0)?.grid.itemCount ?? 0 > 0 },
+                   perform: { galleryPage($0)?.grid.selectAll() })
+        r.override("edit.selectNone", "gallery-libraries.grid-selection", order: .early, when: gallery,
+                   perform: { galleryPage($0)?.grid.select(keys: []) })
+        r.override("edit.invertSelection", "gallery-libraries.grid-selection", order: .early, when: gallery,
+                   isEnabled: { galleryPage($0)?.grid.itemCount ?? 0 > 0 },
+                   perform: { ctx in
+                       guard let grid = galleryPage(ctx)?.grid else { return }
+                       grid.select(keys: Set(grid.allItems.map(\.key)).subtracting(grid.selection))
+                   })
 
         // Rename in Gallery: names aren't shown on tiles, so it asks in a sheet.
-        CommandOverride.apply("file.rename", when: gallery, perform: renameInGallery)
+        r.override("file.rename", "gallery-libraries.rename-in-sheet", order: .early, when: gallery, perform: renameInGallery)
 
-        // Delete in Gallery: the real file goes to the Trash; the tile disappears at once.
-        CommandOverride.apply("file.trash", when: gallery, perform: { ctx in
+        // Delete in Gallery: the real file goes to the Trash as anywhere else; the tile disappears at once.
+        r.override("file.trash", "gallery-libraries.forget-trashed-tiles", order: .early, when: gallery, perform: { ctx in
             let urls = ctx.selection.map(\.url)
-            CommandOverride.original("file.trash")?.perform(ctx)
+            CommandRegistry.shared.command("file.trash")?.perform(ctx, after: "gallery-libraries.forget-trashed-tiles")
             GalleryStore.shared.forget(urls.filter { !FileManager.default.fileExists(atPath: $0.path) })
         })
 
         // New and Paste in a library go to its save location, or explain why they can't (FE-238).
         let library: (CommandContext) -> Bool = { libraryName($0.location) != nil && $0.surface != .itemContextMenu }
-        CommandOverride.apply("file.newFolder", when: library, isEnabled: { _ in true }, perform: { ctx in
+        r.override("file.newFolder", "gallery-libraries.library-save-location", order: .early, when: library,
+                   isEnabled: { _ in true }, perform: { ctx in
             guard let folder = saveLocation(ctx), let window = ctx.window else { return }
             let name = NameRules.newFolderName { FileOps.exists(folder.appendingPathComponent($0)) }
             let url = folder.appendingPathComponent(name)
@@ -207,11 +214,12 @@ enum GalleryLibrariesFeature {
             window.refreshSelecting([name], rename: name)
         })
         for id in ["edit.paste", "edit.pasteMove"] {
-            CommandOverride.apply(id, when: library, isEnabled: { _ in FileClipboard.shared.canPaste }, perform: { ctx in
+            r.override(id, "gallery-libraries.library-save-location", order: .early, when: library,
+                       isEnabled: { _ in FileClipboard.shared.canPaste }, perform: { ctx in
                 guard let folder = saveLocation(ctx) else { return }
                 var copy = ctx
                 copy.targetFolder = folder
-                CommandOverride.original(id)?.perform(copy)
+                CommandRegistry.shared.command(id)?.perform(copy, after: "gallery-libraries.library-save-location")
             })
         }
     }
@@ -268,44 +276,6 @@ enum GalleryLibrariesFeature {
             if let editor = field.currentEditor() {
                 editor.selectedRange = NameRules.basenameSelection(item.name, treatAsFolder: false)
             }
-        }
-    }
-}
-
-/// Wraps an existing command so that, where `when` is true, it behaves differently (a location
-/// such as Gallery replacing what View ▾ sizes, Sort ▾ or Rename do). Elsewhere the original
-/// closures run unchanged. Installed once, after all features registered.
-enum CommandOverride {
-    private static var originals: [String: ExplorerCommand] = [:]
-
-    /// The command's behavior before any override (to call from an override).
-    static func original(_ id: String) -> ExplorerCommand? { originals[id] ?? CommandRegistry.shared.command(id) }
-
-    static func apply(_ id: String, when: @escaping (CommandContext) -> Bool,
-                      isAvailable: ((CommandContext) -> Bool)? = nil,
-                      isEnabled: ((CommandContext) -> Bool)? = nil,
-                      state: ((CommandContext) -> NSControl.StateValue)? = nil,
-                      perform: ((CommandContext) -> Void)? = nil) {
-        guard let command = CommandRegistry.shared.command(id) else { return }
-        if originals[id] == nil {
-            originals[id] = ExplorerCommand(id: id, title: command.title, isAvailable: command.isAvailable,
-                                            isEnabled: command.isEnabled, state: command.state, perform: command.perform)
-        }
-        if let isAvailable {
-            let base = command.isAvailable
-            command.isAvailable = { when($0) ? isAvailable($0) : base($0) }
-        }
-        if let isEnabled {
-            let base = command.isEnabled
-            command.isEnabled = { when($0) ? isEnabled($0) : base($0) }
-        }
-        if let state {
-            let base = command.state
-            command.state = { when($0) ? state($0) : base($0) }
-        }
-        if let perform {
-            let base = command.perform
-            command.perform = { when($0) ? perform($0) : base($0) }
         }
     }
 }

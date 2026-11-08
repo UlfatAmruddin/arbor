@@ -29,7 +29,7 @@ enum PerformanceDebug {
 
     static func register() {
         guard ProcessInfo.processInfo.environment["ARBOR_SCRIPT"] != nil else { return }
-        WindowHooks.willDisplay.append { _, tab, _, _ in displayedToken[tab.id] = tab.loadToken }
+        WindowHooks.willDisplay.observe("performance.displayed-token") { _, tab, _, _ in displayedToken[tab.id] = tab.loadToken }
         // Disks mounted by other software wake the app; the idle figure says how many arrived.
         for name in [NSWorkspace.didMountNotification, NSWorkspace.didUnmountNotification] {
             _ = NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil, queue: .main) { _ in volumeEvents += 1 }
@@ -88,7 +88,7 @@ enum PerformanceDebug {
         }
         DebugScript.registerStep("newwindow") { arg, _ in
             if let delegate = NSApp.delegate as? AppDelegate {
-                delegate.openWindow(at: DebugScript.parseLocation(arg) ?? WindowHooks.startLocation())
+                delegate.openWindow(at: DebugScript.parseLocation(arg) ?? WindowHooks.startLocation.value())
             }
             return 0
         }
@@ -163,12 +163,12 @@ enum PerformanceDebug {
             line += " cache_\(entry.name)_mb=\(ProcessMetrics.megabytes(UInt64(max(0, entry.bytes()))))"
         }
         line += " searches=\(SearchSessions.debugSummary.isEmpty ? "-" : SearchSessions.debugSummary.replacingOccurrences(of: " ", with: "_"))"
-        for extra in extraMemoryFields { line += " " + extra() }
-        return line
+        return extraMemoryFields.apply(line)
     }
 
-    /// More `key=value` fields for `memlog` (cache sizes).
-    static var extraMemoryFields: [() -> String] = []
+    /// More `key=value` fields for `memlog` (cache sizes): each contribution appends " key=value".
+    static let extraMemoryFields = Pipeline<String, Void>(
+        "PerformanceDebug.extraMemoryFields", "More key=value fields for the memlog script step.", signature: "(line) -> line")
 
     static func append(_ line: String, to path: String) {
         let text = line + "\n"

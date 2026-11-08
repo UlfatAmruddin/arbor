@@ -57,20 +57,26 @@ final class OperationCenter {
     // MARK: - Hooks (Features/FileOperations: queue, verification, history)
 
     /// Called once a job exists, before it runs (e.g. to set its "copy without properties?" resolver).
-    static var prepareJob: ((Job) -> Void)?
-    /// Decides when a job starts: calls `launch` now or later (queue controls). Nil = at once.
-    static var admission: ((Job, _ launch: @escaping () -> Void) -> Void)?
-    /// Runs on the job's task after the transfer and before it is reported (verification).
-    static var afterRun: (@Sendable (Job, TransferReport) async -> Void)?
+    static let prepareJob = Observers<Job>(
+        "OperationCenter.prepareJob", "A job exists and hasn't run yet (set resolvers).", signature: "(job)")
+    /// Decides when a job starts: calls `launch` now or later (queue controls). No provider = at once.
+    static let admission = Provided<((Job, _ launch: @escaping () -> Void) -> Void)?>(
+        "OperationCenter.admission", "Decides when a job starts (transfer queue).", signature: "(job, launch)", default: nil)
+    /// Runs on the job's task after the transfer and before it is reported (verification). Not on the main thread.
+    static let afterRun = Provided<(@Sendable (Job, TransferReport) async -> Void)?>(
+        "OperationCenter.afterRun", "Runs on the job's task after the transfer, before it is reported (verification).",
+        signature: "async (job, report)", default: nil)
     /// The job ended; called first in `finish` (history, queue bookkeeping).
-    static var jobFinished: ((Job, TransferReport) -> Void)?
+    static let jobFinished = Observers<(job: Job, report: TransferReport)>(
+        "OperationCenter.jobFinished", "A job ended (history, queue bookkeeping).", signature: "(job, report)")
     /// Cancel was pressed for one job (a job that is still waiting is started so it ends at once).
-    static var jobCancelled: ((Job) -> Void)?
+    static let jobCancelled = Observers<Job>(
+        "OperationCenter.jobCancelled", "Cancel was pressed for a job.", signature: "(job)")
 
     func cancel(_ job: Job) {
         job.monitor.isCancelling = true
         job.transfer.cancel()
-        Self.jobCancelled?(job)
+        Self.jobCancelled.send(job)
         post()
     }
 
@@ -142,12 +148,12 @@ final class OperationCenter {
         let job = Job(transfer: transfer, window: window)
         job.registersUndo = registersUndo
         jobs.append(job)
-        Self.prepareJob?(job)
+        Self.prepareJob.send(job)
         post()
         OperationsWindow.shared.jobStarted(job)
         // While quitting, a queued job is never started (its journal is kept for the next launch instead).
         let launch = { if !OperationCenter.shared.isQuitting { Self.run(job, completion: completion) } }
-        if let admission = Self.admission { admission(job, launch) } else { launch() }
+        if let admission = Self.admission.value { admission(job, launch) } else { launch() }
     }
 
     private static func run(_ job: Job, completion: @escaping (TransferReport) -> Void) {
@@ -164,7 +170,7 @@ final class OperationCenter {
                 },
                 resolveConflicts: { conflicts in await ConflictFlow.resolve(conflicts, job: job) },
                 resolveFailure: { failure in await FailureDialog.resolve(failure, job: job) })
-            await OperationCenter.afterRun?(job, report)
+            await OperationCenter.afterRun.value?(job, report)
             DispatchQueue.main.async {
                 OperationCenter.shared.finish(job, report, completion)
             }
@@ -172,7 +178,7 @@ final class OperationCenter {
     }
 
     private func finish(_ job: Job, _ report: TransferReport, _ completion: (TransferReport) -> Void) {
-        Self.jobFinished?(job, report)
+        Self.jobFinished.send((job, report))
         jobs.removeAll { $0 === job }
         post()
         if !job.registersUndo {

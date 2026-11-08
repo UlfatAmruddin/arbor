@@ -119,7 +119,7 @@ extension GalleryLibrariesFeature {
             return 0.3
         }
 
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("gallery-libraries.log") { window in
             var lines: [String] = []
             if let page = window.activeTab.page as? GalleryPageController {
                 let store = GalleryStore.shared

@@ -51,7 +51,7 @@ final class NavOutlineView: NSOutlineView {
     }
 
     override func draggingExited(_ sender: NSDraggingInfo?) {
-        InteractionHooks.dragHover?(nil, nil)
+        InteractionHooks.dragHover.send((nil, nil))
         super.draggingExited(sender)
     }
 
@@ -98,7 +98,9 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
     private var roots: [NavNode] = []
     private var suppressNavigation = false
     /// Drives listed under "This Mac" (the This Mac feature supplies them; nil = mounted volumes as-is).
-    static var volumeNodes: (() -> [NavNode])?
+    static let volumeNodes = Provided<(() -> [NavNode])?>(
+        "NavigationPaneController.volumeNodes", "The drives listed under This Mac in the tree.",
+        signature: "() -> [NavNode]", default: nil)
 
     override func loadView() {
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("tree"))
@@ -156,7 +158,7 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
             NavNode(kind: .favorite, title: displayName(of: $0), location: .folder($0))
         }
         let keys: [URLResourceKey] = [.volumeLocalizedNameKey, .volumeIsEjectableKey, .volumeIsRemovableKey]
-        let volumes = Self.volumeNodes?() ?? (fm.mountedVolumeURLs(includingResourceValuesForKeys: keys, options: [.skipHiddenVolumes]) ?? []).map { url in
+        let volumes = Self.volumeNodes.value?() ?? (fm.mountedVolumeURLs(includingResourceValuesForKeys: keys, options: [.skipHiddenVolumes]) ?? []).map { url in
             let values = try? url.resourceValues(forKeys: Set(keys))
             return NavNode(kind: .volume, title: values?.volumeLocalizedName ?? displayName(of: url), location: .folder(url),
                            isEjectable: (values?.volumeIsEjectable ?? false) || (values?.volumeIsRemovable ?? false))
@@ -191,7 +193,7 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
     /// Marks the node for the current location if it is visible in the tree. The marker is the
     /// selection; keyboard focus is separate (spec §5.1).
     func reveal(_ location: Location) {
-        NavigationPaneHooks.willReveal?(self, location)
+        NavigationPaneHooks.willReveal.send((self, location))
         var row = -1
         for r in 0..<outline.numberOfRows {
             if let node = outline.item(atRow: r) as? NavNode, node.location == location { row = r; break }
@@ -271,7 +273,7 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
         cell.imageView?.image = node.icon
         cell.pin.isHidden = node.kind != .favorite
         cell.setAccessibilityLabel(node.kind == .favorite ? L10n.format("%@, pinned", "\(node.title)") : node.title)
-        NavigationPaneHooks.decorateCell?(cell, node)
+        NavigationPaneHooks.decorateCell.send((cell, node))
         return cell
     }
 
@@ -286,9 +288,9 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
     func outlineView(_ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo, proposedItem item: Any?,
                      proposedChildIndex index: Int) -> NSDragOperation {
         let node = index == NSOutlineViewDropOnItemIndex ? item as? NavNode : nil   // spring-loaded expansion (FE-108)
-        InteractionHooks.dragHover?(node?.url.map { "tree:" + $0.path }, node.map { node in
+        InteractionHooks.dragHover.send((node?.url.map { "tree:" + $0.path }, node.map { node in
             { [weak outlineView] in outlineView?.expandItem(node) }
-        })
+        }))
         if index == NSOutlineViewDropOnItemIndex, let url = (item as? NavNode)?.url,
            let op = ItemHooks.dropOperation(info, destination: url) { return op }
         guard index == NSOutlineViewDropOnItemIndex, let url = (item as? NavNode)?.url,
@@ -298,7 +300,7 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
     }
 
     func outlineView(_ outlineView: NSOutlineView, acceptDrop info: NSDraggingInfo, item: Any?, childIndex index: Int) -> Bool {
-        InteractionHooks.dragHover?(nil, nil)
+        InteractionHooks.dragHover.send((nil, nil))
         if ItemHooks.acceptDrop(info, destination: (item as? NavNode)?.url, window: outlineView.window) { return true }
         let urls = DropPolicy.fileURLs(from: info)
         guard let url = (item as? NavNode)?.url,

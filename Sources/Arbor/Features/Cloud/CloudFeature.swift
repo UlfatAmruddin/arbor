@@ -4,11 +4,12 @@ import ArborCore
 /// Cloud status (FE-189–FE-198, FE-162, FE-113, FE-244): iCloud Drive and File Provider roots in the
 /// navigation pane, a Status column and icon badges from the system's ubiquitous-item keys, and the
 /// provider actions a third-party app can actually request. See docs/features/cloud.md.
-enum CloudFeature {
+enum CloudFeature: ExplorerFeature {
+    static let id = "cloud"
     static let section = MenuSection(rank: 550, name: "cloud")
 
     static func register() {
-        NavigationPaneExtras.register(.afterGallery) {
+        NavigationPaneExtras.register(.afterGallery, "cloud.roots") {
             CloudEnvironment.roots.map { root in
                 let node = NavNode(kind: .folder, title: root.displayName, location: .folder(root.url))
                 node.icon = CloudGlyph.rootIcon(root, size: 16)
@@ -19,18 +20,22 @@ enum CloudFeature {
             // Root folders get the provider's name and icon (tab, address bar); listing stays with the folder provider.
             LocationRegistry.register(CloudRootProvider(base: LocationRegistry.provider(for: .folder(sample.url))))
         }
-        Breadcrumbs.register { location in
+        // Early: a cloud folder that sits inside a mounted network share (a network home folder) still gets
+        // cloud crumbs, as before the extension points (the later-registered builder used to win).
+        Breadcrumbs.register("cloud.crumbs", order: .early) { location in
             guard let url = location.folderURL, let root = CloudEnvironment.root(containing: url) else { return nil }
             return crumbs(for: url, in: root)
         }
-        DetailsColumns.register { location in CloudEnvironment.root(for: location) != nil ? layout : nil }
-        ItemBadges.register { item in
+        DetailsColumns.register("cloud.status-column") { location in CloudEnvironment.root(for: location) != nil ? layout : nil }
+        ItemBadges.register("cloud.status-badge") { item in
             guard CloudEnvironment.root(containing: item.url) != nil,
                   let status = CloudStatusStore.shared.status(for: item.url), status != .unknown else { return nil }
             return CloudGlyph.image(status, size: 16)
         }
-        TransferPreflight.register(hydrationPrompt)
-        CloudAwarePreviewPane.wrapRegisteredPreviewPane()
+        TransferPreflight.register("cloud.download-first", hydrationPrompt)
+        SidePaneRegistry.wrappers.add("cloud.preview-gate") { pane, id in
+            id == "preview" ? CloudAwarePreviewPane(wrapping: pane) : pane
+        }
         registerCommands()
         registerDebugHooks()
 
@@ -206,7 +211,7 @@ enum CloudFeature {
     // MARK: Scripted checks
 
     private static func registerDebugHooks() {
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("cloud.log") { window in
             var text = "cloud roots: " + CloudEnvironment.roots.map { "\($0.displayName) [\($0.kind.rawValue)]" }.joined(separator: ", ")
             guard let root = CloudEnvironment.root(for: window.location) else { return text }
             text += "\ncloud folder: \(root.displayName)"

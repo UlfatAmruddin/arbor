@@ -2,14 +2,31 @@
 # Headless regression checks for undo/redo, selection identity, window-modal alerts, sheet queueing,
 # recovery of queued jobs and headless safety (docs/features/qa-core.md, qa-places.md, file-operations.md).
 # Usage: scripts/build-app.sh debug && scripts/behavior-checks.sh [name…]   (no names = all groups)
+#   ARBOR_KEEP_FAILED=<dir>   move the folder (logs, fixture) of each group with a failure into <dir>
+#   Stale-bundle guard, one-suite-at-a-time lock, ARBOR_REBUILD: scripts/lib/app-bundle.sh
 set -uo pipefail
 cd "$(dirname "$0")/.."
-APP="$PWD/build/Arbor.app/Contents/MacOS/Arbor"
-[ -x "$APP" ] || { echo "Build first: scripts/build-app.sh debug"; exit 2; }
+. scripts/lib/app-bundle.sh
+arbor_prepare_app behavior-checks.sh debug
+APP="$ARBOR_APP_BIN"
 FAILED=0
+GROUP_FAILED=0
 GROUPS_WANTED=" ${*:-all} "
 
 want() { [[ "$GROUPS_WANTED" == *" all "* || "$GROUPS_WANTED" == *" $1 "* ]]; }
+
+# discard <group> <folder…>: remove a group's folders, or keep them in $ARBOR_KEEP_FAILED after a failure.
+discard() {
+  local group="$1" d; shift
+  if [ "$GROUP_FAILED" = 1 ] && [ -n "${ARBOR_KEEP_FAILED:-}" ]; then
+    mkdir -p "$ARBOR_KEEP_FAILED"
+    for d in "$@"; do chmod -R u+rwx "$d" 2>/dev/null; mv "$d" "$ARBOR_KEEP_FAILED/$group-$(basename "$d")"; done
+    echo "kept  $group → $ARBOR_KEEP_FAILED"
+  else
+    rm -rf "$@"
+  fi
+  GROUP_FAILED=0
+}
 
 run() {   # run <root> <start folder> <script> [VAR=value…]
   local root="$1" start="$2" script="$3"; shift 3
@@ -19,24 +36,24 @@ run() {   # run <root> <start folder> <script> [VAR=value…]
 
 check() {   # check <name> <file> <expected line>
   if [ -f "$2" ] && grep -qxF -- "$3" "$2"; then echo "pass  $1"; else
-    echo "FAIL  $1: expected “$3”"; [ -f "$2" ] && grep -E "^(rows|selected|location|sheet|undo action|redo action|operations|system open)" "$2" | sed 's/^/        /'; FAILED=1; fi
+    echo "FAIL  $1: expected “$3”"; [ -f "$2" ] && grep -E "^(rows|selected|location|sheet|undo action|redo action|operations|system open)" "$2" | sed 's/^/        /'; FAILED=1; GROUP_FAILED=1; fi
 }
 
 contains() {   # contains <name> <file> <fixed text>
   if [ -f "$2" ] && grep -qF -- "$3" "$2"; then echo "pass  $1"; else
     echo "FAIL  $1: expected to contain “$3”"
     [ -f "$2" ] && grep -E "^(sheet|selected|rows|system open|queue|operations|undo action|redo action|consistency: recent)" "$2" | sed 's/^/        /'
-    FAILED=1; fi
+    FAILED=1; GROUP_FAILED=1; fi
 }
 
 lacks() {   # lacks <name> <file> <fixed text>
   if [ -f "$2" ] && ! grep -qF -- "$3" "$2"; then echo "pass  $1"; else
-    echo "FAIL  $1: did not expect “$3”"; FAILED=1; fi
+    echo "FAIL  $1: did not expect “$3”"; FAILED=1; GROUP_FAILED=1; fi
 }
 
 fact() {   # fact <name> <shell test…>
   local name="$1"; shift
-  if "$@"; then echo "pass  $name"; else echo "FAIL  $name"; FAILED=1; fi
+  if "$@"; then echo "pass  $name"; else echo "FAIL  $name"; FAILED=1; GROUP_FAILED=1; fi
 }
 
 # QA-CORE-6: Undo and Redo keep each action's own name, however often they alternate.
@@ -69,7 +86,7 @@ if want undo; then
   check "redo of a batch rename" "$R/br2.txt" "undo action: Rename"
   check "undo of Copy offers redo Copy" "$R/cp1.txt" "redo action: Copy"
   check "redo of Copy" "$R/cp2.txt" "undo action: Copy"
-  rm -rf "$R"
+  discard undo "$R"
 fi
 
 # QA-CORE-5: Undo of a move from another volume runs as a background job (progress, cancel), not on the main thread.
@@ -91,7 +108,7 @@ if want undomove; then
   else
     echo "skip  undo of a cross-volume move (no disk image)"
   fi
-  rm -rf "$R"
+  discard undomove "$R"
 fi
 
 # Selection identity: duplicated tabs and the selection after a delete keep exactly the chosen items.
@@ -107,7 +124,7 @@ if want selection; then
   run "$R2" "$R2/P" "wait:1;search:readme;event;enter;wait:3;log:$R2/d0.txt;duptab;wait:3;log:$R2/d1.txt;quit"
   check "one same-named result selected" "$R2/d0.txt" "selected: readme.txt"
   check "a duplicated tab keeps one same-named item" "$R2/d1.txt" "selected: readme.txt"
-  rm -rf "$R" "$R2"
+  discard selection "$R" "$R2"
 fi
 
 # Rename prompts are window-modal sheets that scripts can answer.
@@ -122,7 +139,7 @@ if want sheets; then
   contains "conflict wording" "$R/x4.txt" "Couldn't rename “c.txt”."
   check "conflict renamed nothing" "$R/x5.txt" "rows: a.md | b.txt | c.txt"
   check "no sheet left open" "$R/x5.txt" "sheet: false"
-  rm -rf "$R"
+  discard sheets "$R"
 fi
 
 # qa-places #12: a second network error waits for the first sheet instead of stacking or going app-modal.
@@ -134,7 +151,7 @@ if want network; then
   contains "second error waits its turn" "$R/n2.txt" "nope-two"
   contains "an identical error isn't shown twice" "$R/n3.txt" "sheet: (none)"
   check "nothing left open" "$R/n4.txt" "sheet: false"
-  rm -rf "$R"
+  discard network "$R"
 fi
 
 # Headless runs never open anything outside Arbor's windows: requests are logged instead.
@@ -145,7 +162,7 @@ if want headless; then
   contains "opening a file is only logged" "$R/h.txt" "system open: open $P/a.txt"
   contains "Show in Finder is only logged" "$R/h.txt" "reveal $P/a.txt"
   contains "Open in Terminal is only logged" "$R/h.txt" "Terminal"
-  rm -rf "$R"
+  discard headless "$R"
 fi
 
 # consistency.md: opening a file shortcut records its target in Recent.
@@ -156,7 +173,7 @@ if want recent; then
   contains "shortcut created" "$R/r0.txt" "report.txt - Shortcut"
   contains "target opened (logged)" "$R/r1.txt" "open $(cd "$R/F" && pwd -P)/report.txt"
   contains "target recorded in Recent" "$R/r1.txt" "consistency: recent=[report.txt]"
-  rm -rf "$R"
+  discard recent "$R"
 fi
 
 # file-operations.md: a job still waiting in the queue at quit is offered again at the next launch.
@@ -172,7 +189,7 @@ if want queue; then
   cat "$R/q1.txt" "$R/q2.txt" > "$R/q12.txt" 2>/dev/null
   contains "waiting job is offered again" "$R/q12.txt" "was waiting to start"
   fact "Start ran the waiting job" test -f "$R/B/two.txt"
-  rm -rf "$R"
+  discard queue "$R"
 fi
 
 exit $FAILED

@@ -56,24 +56,28 @@ final class IconProvider {
     // MARK: Public API
 
     /// Features may override icons for some items or locations (e.g. network drives). Keep these cheap: no I/O.
-    static var itemIconOverrides: [(FileItem, CGFloat) -> NSImage?] = []
-    static var locationIconOverrides: [(Location, CGFloat) -> NSImage?] = []
+    static let itemIconOverrides = Handlers<(FileItem, CGFloat), NSImage>(
+        "IconProvider.itemIconOverrides", "An item's icon instead of the drawn one (network drives). No I/O.",
+        signature: "(item, size) -> icon?")
+    static let locationIconOverrides = Handlers<(Location, CGFloat), NSImage>(
+        "IconProvider.locationIconOverrides", "A location's icon instead of the drawn one (network drives). No I/O.",
+        signature: "(location, size) -> icon?")
 
     func icon(for item: FileItem, size: CGFloat = 16) -> NSImage {
-        for override in Self.itemIconOverrides { if let image = override(item, size) { return image } }
+        if let image = Self.itemIconOverrides.first((item, size)) { return image }
         return ItemBadges.decorate(decoratedIcon(for: item, size: size), item: item, size: size)
     }
 
     /// Plain icon plus feature decorations such as shortcut arrows (cached). Status badges, which
     /// change over time, are added on top by `icon(for:size:)` (see `ItemBadges`).
     func decoratedIcon(for item: FileItem, size: CGFloat) -> NSImage {
-        guard let decorate = InteractionHooks.decorateIcon else { return plainIcon(for: item, size: size) }
+        guard !InteractionHooks.decorateIcon.isEmpty else { return plainIcon(for: item, size: size) }
         // A custom icon found later gets its own entry (the type icon was cached under the plain key).
         let custom = !item.isFolder && CustomIcons.shared.icon(for: item.url) != nil
         let key = "decorated-\(item.url.path)-\(size)" + (custom ? "-custom" : "")
         if let hit = lock.withLock({ cache.value(for: key) }) { return hit }
         let plain = plainIcon(for: item, size: size)
-        let decorated = decorate(item, plain, size)
+        let decorated = InteractionHooks.decorateIcon.first((item, plain, size))
         // Most items aren't decorated: the entry then only points at the shared plain icon.
         let pixels = Int(size * 2)
         lock.withLock { cache.insert(decorated ?? plain, for: key, cost: decorated == nil ? 256 : max(1024, pixels * pixels * 4)) }
@@ -95,7 +99,7 @@ final class IconProvider {
     }
 
     func icon(for location: Location, size: CGFloat = 16) -> NSImage {
-        for override in Self.locationIconOverrides { if let image = override(location, size) { return image } }
+        if let image = Self.locationIconOverrides.first((location, size)) { return image }
         switch location {
         case .folder(let url):
             if Location.isVolumeRoot(url) { return driveIcon(for: url, size: size) }

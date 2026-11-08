@@ -568,9 +568,12 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
 /// "Clear Arbor history" (Folder Options › Privacy). Features that keep history (recent files, frequent
 /// folders, address suggestions) register a clearer that returns how many entries it removed.
 enum FolderOptionsHistory {
-    private static var clearers: [(name: String, clear: () -> Int)] = []
+    /// Each contribution adds how many entries it removed.
+    static let clearers = Pipeline<Int, Void>(
+        "FolderOptionsHistory.clearers", "Clears a feature's history for \"Clear Arbor history\"; adds the count removed.",
+        signature: "(removed) -> removed")
 
-    static func register(_ name: String, _ clear: @escaping () -> Int) { clearers.append((name, clear)) }
+    static func register(_ id: String, _ clear: @escaping () -> Int) { clearers.add(id) { $0 + clear() } }
 
     @discardableResult
     static func clear() -> Int {
@@ -578,7 +581,6 @@ enum FolderOptionsHistory {
         let documents = NSDocumentController.shared
         removed += documents.recentDocumentURLs.count
         documents.clearRecentDocuments(nil)
-        for clearer in clearers { removed += clearer.clear() }
-        return removed
+        return clearers.apply(removed)
     }
 }

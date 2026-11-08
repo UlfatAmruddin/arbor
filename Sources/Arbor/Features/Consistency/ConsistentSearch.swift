@@ -10,9 +10,12 @@ import ArborCore
 ///   with an explanation instead of accepting text that does nothing.
 enum ConsistentSearch {
     static func register() {
-        let inner = SearchRegistry.registered
-        SearchRegistry.register { window in ScopedSearchController(window: window, inner: inner(window)) }
-        ExplorerSearchController.scopedRequest = { location, window in request(for: location, window: window) }
+        SearchRegistry.wrappers.add("consistency.search-box-per-location") { inner, window in
+            ScopedSearchController(window: window, inner: inner)
+        }
+        ExplorerSearchController.scopedRequest.register("consistency.scoped-search") { location, window in
+            request(for: location, window: window)
+        }
     }
 
     /// The search a place runs (query filled in by the caller), or nil for the default.

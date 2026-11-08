@@ -65,9 +65,18 @@ public struct SortCriterion: Equatable, Sendable, Codable {
 /// Names use Finder-style natural ordering (`localizedStandardCompare`). That is NOT a
 /// claim of exact parity with Explorer's comparator; see spec §6.3.
 public enum FileSorter {
-    /// Values for columns that aren't in the listing (set by the app to its metadata cache).
-    /// Missing values (still loading) sort last.
-    nonisolated(unsafe) public static var columnValues: ColumnValueLookup?
+    /// Values for columns that aren't in the listing (DEC-024). A handler answers for the columns it owns,
+    /// `.some(nil)` while a value is still loading; nil lets the next handler answer. The app's metadata
+    /// cache answers last. Missing values (still loading) sort last.
+    public static let columnValues = Handlers<(FileItem, ColumnID), ColumnValue?>(
+        "FileSorter.columnValues", "Sort values for columns that aren't in the listing (extra columns, metadata).",
+        signature: "(item, column) -> value? (nil = not mine, .some(nil) = still loading)")
+
+    /// A non-listing column's value from `columnValues` (nil = unknown or still loading).
+    @inlinable
+    public static func columnValue(_ item: FileItem, _ column: ColumnID) -> ColumnValue? {
+        columnValues.first((item, column)) ?? nil
+    }
 
     public static func sorted(_ items: [FileItem], by order: FileSortOrder) -> [FileItem] {
         if items.count >= LargeSort.threshold { return LargeSort.sorted(items, by: order) }
@@ -112,8 +121,8 @@ public enum FileSorter {
         if let key = SortKey(rawValue: column.rawValue) {
             return compareKey(a, b, FileSortOrder(key: key, ascending: ascending, foldersFirst: false))
         }
-        let x = ColumnValues.sortValue(ColumnValues.value(a, column, lookup: columnValues))
-        let y = ColumnValues.sortValue(ColumnValues.value(b, column, lookup: columnValues))
+        let x = ColumnValues.sortValue(ColumnValues.value(a, column, lookup: columnValue))
+        let y = ColumnValues.sortValue(ColumnValues.value(b, column, lookup: columnValue))
         return compareOptional(x, y) { ascending ? $0 : $0.reversed }
     }
 

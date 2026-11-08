@@ -5,7 +5,7 @@ import ArborCore
 /// Scripted checks for docs/features/consistency.md (TESTING.md). Log lines are added to `log:`.
 enum ConsistencyDebug {
     static func register() {
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("consistency.log") { window in
             guard !window.tabs.isEmpty else { return "consistency: no tabs" }
             let tab = window.activeTab
             let order = tab.sortOrder
@@ -41,7 +41,7 @@ enum ConsistencyDebug {
         // openwith:1 — chooses the Nth entry of Open With ▸ for the selection (headless: records only).
         DebugScript.registerStep("openwith") { arg, window in
             guard let window, let command = CommandRegistry.shared.command("file.openWith") else { return nil }
-            let items = command.submenu?(window.context(surface: .itemContextMenu, sender: nil)) ?? []
+            let items = command.submenuItems(window.context(surface: .itemContextMenu, sender: nil))
             let index = max(0, (Int(arg) ?? 1) - 1)
             guard index < items.count, let action = items[index].action else { NSLog("DebugScript: no Open With entry \(arg)"); return 0.3 }
             NSApp.sendAction(action, to: items[index].target, from: items[index])
@@ -71,10 +71,10 @@ enum ConsistencyDebug {
             if let window { ItemActionsEverywhere.scriptHover(window, name: arg) }
             return 0.8
         }
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("consistency.log-2") { window in
             var line = "consistency: " + ItemActionsEverywhere.debugLine
             if let grid = window.itemView?.focusView as? ItemGridView {
-                let underlined = grid.items.indices.filter { ItemViewHooks.underlinesName?(grid, $0) == true }.map { grid.items[$0].name }
+                let underlined = grid.items.indices.filter { ItemViewHooks.underlinesName.first((grid, $0)) == true }.map { grid.items[$0].name }
                 line += "\nconsistency: icon underlined=[\(underlined.joined(separator: ","))] click=\(Prefs.singleClickToOpen) underline=\(Prefs.underlineTitles) hover=\(ItemClickBehavior.shared.debugLine)"
             }
             return line

@@ -59,15 +59,17 @@ final class FolderViews {
     private var saveScheduled = false
 
     func install() {
-        ViewOptions.folderKindResolver = { location, items in
+        ViewOptions.folderKindResolver.provide("folder-options.folder-type") { location, items in
             guard let url = location.folderURL else { return ViewOptions.defaultKind(location, items) }
             return Self.folderType(url, items).kind
         }
-        ViewOptions.columnsEdited = { [unowned self] options in self.columnsEdited(options) }
-        WindowHooks.willDisplay.append { [unowned self] window, tab, location, changed in
+        ViewOptions.columnsEdited.register("folder-options.folder-columns") { [unowned self] options in
+            self.columnsEdited(options) ? true : nil
+        }
+        WindowHooks.willDisplay.observe("folder-options.folder-views") { [unowned self] window, tab, location, changed in
             self.willDisplay(window, tab, location, changed)
         }
-        WindowHooks.viewStateChanged.append { [unowned self] window, tab in self.record(window, tab) }
+        WindowHooks.viewStateChanged.observe("folder-options.remember-view") { [unowned self] window, tab in self.record(window, tab) }
         NotificationCenter.default.addObserver(forName: PropertiesFeature.folderTemplateChanged, object: nil, queue: .main) { [unowned self] _ in
             self.reresolveAll(redetect: true)
         }

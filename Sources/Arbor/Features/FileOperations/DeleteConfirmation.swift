@@ -79,11 +79,12 @@ final class DeleteConfirmation: FileOpsDialog {
 }
 
 /// Replaces the core Delete commands (same ids, placements and keys) with versions that use the
-/// Windows dialogs. Registered after the core commands, so these win.
+/// Windows dialogs (`CommandRegistry.replace`).
 enum DeleteCommands {
     static func register() {
         let backspace = String(Character(UnicodeScalar(8)))
-        CommandRegistry.shared.register([
+        // The core Move to Trash and Delete Permanently, upgraded with Explorer's confirmations.
+        let commands = [
             ExplorerCommand(
                 id: "file.trash", title: "Move to Trash", symbol: "trash", tooltip: "Delete (move to the Trash)",
                 shortcut: Shortcut(backspace),
@@ -111,7 +112,8 @@ enum DeleteCommands {
                     guard let window = ctx.window else { NSSound.beep(); return }
                     confirmPermanentDelete(ctx.selection, window: window, mode: .permanent)
                 }),
-        ])
+        ]
+        commands.forEach { CommandRegistry.shared.replace($0, "file-operations.delete-confirmation") }
     }
 
     static func moveToTrash(_ items: [FileItem], window: BrowserWindowController) {

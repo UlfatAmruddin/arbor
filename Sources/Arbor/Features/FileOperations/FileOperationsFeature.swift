@@ -3,7 +3,8 @@ import ArborCore
 
 /// Copy/move/delete dialogs, the progress window, the job journal review and Undo Copy
 /// (FE-114–FE-130, FE-241, FE-250, FE-255, FE-257). See docs/features/file-operations.md.
-enum FileOperationsFeature {
+enum FileOperationsFeature: ExplorerFeature {
+    static let id = "file-operations"
     static let operationsSection = MenuSection(rank: 950, name: "fileOperations")
 
     static func register() {
@@ -88,7 +89,7 @@ enum FileOperationsFeature {
             JobRecovery.check()
             return 1.0
         }
-        DebugScript.registerLogger { _ in
+        DebugScript.registerLogger("file-operations.log") { _ in
             let jobs = OperationCenter.shared.jobs.map { job -> String in
                 let p = job.progress
                 return "\(job.transfer.kind.rawValue) phase=\(p.phase.rawValue) paused=\(job.transfer.isPaused) " +

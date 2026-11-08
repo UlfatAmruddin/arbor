@@ -4,7 +4,10 @@ import ArborCore
 /// Network: the Network page, servers and shares, Map/Disconnect network drive, network folders
 /// that time out instead of hanging, and `\\server\share` in the address bar (FE-014, FE-078,
 /// FE-176–FE-179, FE-187, FE-188). See docs/features/network.md.
-enum NetworkFeature {
+enum NetworkFeature: ExplorerFeature {
+    static let id = "network"
+    /// This Mac lists mapped drives and its page reloads on network changes.
+    static let requires = ["this-mac"]
     static let section = MenuSection(rank: 510, name: "network")
 
     static func register() {
@@ -15,27 +18,27 @@ enum NetworkFeature {
         NetworkThisMac.register()
 
         // A disconnected mapped drive's row in This Mac reconnects when opened.
-        LocationRegistry.registerOpenHandler { item in
+        LocationRegistry.registerOpenHandler("network.disconnected-drive") { item in
             NetworkThisMac.drive(forPlaceholder: item.url).map { .server($0.address) }
         }
 
         // FE-014: typed `\\server\share` / `smb://…` connects and navigates after the mount.
-        BrowserWindowController.networkAddressHandler = { window, url in
+        BrowserWindowController.networkAddressHandler.register("network.typed-address", handles: { window, url in
             guard let address = NetworkAddress(url: url) else { return false }
             window.navigate(to: .server(address))
             return true
-        }
+        })
 
         // A tab inside a network share that went away stays put with "disconnected" + Reconnect (all tabs).
-        BrowserWindowController.volumeUnmountHandler = { window, tab, _ in
+        BrowserWindowController.volumeUnmountHandler.register("network.keep-disconnected-tabs", handles: { window, tab, _ in
             NetworkCenter.shared.invalidateMounts()
             guard let url = tab.location.folderURL, NetworkCenter.shared.disconnectedShare(containing: url) != nil else { return false }
             if tab === window.activeTab { window.statusBar.setMessage(L10n.tr("The network share was disconnected."), isError: true) }
             window.request(.reload, tab: tab)
             return true
-        }
+        })
 
-        AddressBar.editTextProviders.append { location in
+        AddressBar.editTextProviders.register("network.unc-path") { location in
             switch location {
             case .server(let address): return address.unc
             case .folder(let url):
@@ -45,7 +48,7 @@ enum NetworkFeature {
             }
         }
 
-        IconProvider.itemIconOverrides.append { item, size in
+        IconProvider.itemIconOverrides.register("network.drive-icons") { item, size in
             let key = Location.normalizedKey(item.url)
             if NetworkThisMac.snapshot.disconnected.contains(where: { Location.normalizedKey($0.url) == key }) {
                 return NetworkIcons.drive(size, disconnected: true)
@@ -53,7 +56,7 @@ enum NetworkFeature {
             guard item.isFolder, key.hasPrefix("/") else { return nil }
             return NetworkCenter.shared.mountedShares().contains { Location.normalizedKey($0.mountPoint) == key } ? NetworkIcons.drive(size) : nil
         }
-        IconProvider.locationIconOverrides.append { location, size in
+        IconProvider.locationIconOverrides.register("network.drive-icons") { location, size in
             if case .server(let address) = location, !address.isServer {
                 return NetworkIcons.drive(size, disconnected: NetworkCenter.shared.existingMount(for: address) == nil)
             }
@@ -65,7 +68,7 @@ enum NetworkFeature {
             return NetworkCenter.shared.mountedShares().contains { Location.normalizedKey($0.mountPoint) == key } ? NetworkIcons.drive(size) : nil
         }
 
-        Breadcrumbs.register { location in crumbs(for: location) }
+        Breadcrumbs.register("network.crumbs") { location in crumbs(for: location) }
 
         registerCommands()
         registerDebugSteps()
@@ -231,7 +234,7 @@ enum NetworkFeature {
     // MARK: Scripted checks (TESTING.md)
 
     private static func registerDebugSteps() {
-        DebugScript.registerLogger { window in debugLine(window) }
+        DebugScript.registerLogger("network.log") { window in debugLine(window) }
         DebugScript.registerStep("netlog") { path, window in
             append(debugLine(window) + "\n---\n", to: path)
             return 0.3
@@ -304,16 +307,7 @@ enum NetworkFeature {
             FileManager.default.createFile(atPath: fake.root.appendingPathComponent(path).appendingPathComponent(".arbor-busy").path, contents: Data())
             return 0.3
         }
-        // Draw the window's sheet (dialogs are separate windows, so `snapshot:` doesn't include them).
-        DebugScript.registerStep("sheetsnapshot") { path, window in
-            guard let frame = window?.window?.attachedSheet?.contentView?.superview else { return 0.3 }
-            frame.layoutSubtreeIfNeeded()
-            if let rep = frame.bitmapImageRepForCachingDisplay(in: frame.bounds) {
-                frame.cacheDisplay(in: frame.bounds, to: rep)
-                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
-            }
-            return 0.3
-        }
+        // `sheetsnapshot:` (the window's sheet as a PNG) is item-actions' step (ItemActionsDebug.swift).
         // Log the text of the sheet or alert on the window.
         DebugScript.registerStep("sheetlog") { path, window in
             let sheet = window?.window?.attachedSheet

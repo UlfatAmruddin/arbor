@@ -21,12 +21,15 @@ enum TransferPreflight {
     }
 
     typealias Check = (_ kind: TransferKind, _ sources: [URL], _ destination: URL) -> Prompt?
-    private static var checks: [Check] = []
+    static let checks = Handlers<(TransferKind, [URL], URL), Prompt>(
+        "TransferPreflight.checks", "A question before a copy or move starts (download online-only files first).",
+        signature: "(kind, sources, destination) -> Prompt?")
 
-    static func register(_ check: @escaping Check) { checks.append(check) }
+    static func register(_ id: String, order: ExtensionOrder = .normal, _ check: @escaping Check) {
+        checks.register(id, order: order) { kind, sources, destination in check(kind, sources, destination) }
+    }
 
     static func prompt(_ kind: TransferKind, _ sources: [URL], to destination: URL) -> Prompt? {
-        for check in checks { if let prompt = check(kind, sources, destination) { return prompt } }
-        return nil
+        checks.first((kind, sources, destination))
     }
 }

@@ -154,7 +154,7 @@ public enum SpotlightMetadata {
             rows.append(MetadataRow(group: field.group, label: field.label, value: text))
         }
         // Keep Explorer's group order with Dimensions first in Image.
-        let order = ["Description", "Origin", "Image", "Camera", "GPS", "Media", "Audio", "Video", "Content", "File"]
+        let order = ["Description", "Origin", "Image", "Camera", "GPS", "Media", "Audio", "Video", "Content", "File"].map { L10n.tr($0) }   // groups are stored localized
         return rows.enumerated().sorted { a, b in
             let ga = order.firstIndex(of: a.element.group) ?? order.count
             let gb = order.firstIndex(of: b.element.group) ?? order.count

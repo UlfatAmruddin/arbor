@@ -381,7 +381,7 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
         var lines = [item.name, L10n.format("Type: %@", "\(item.typeDescription)")]
         if let size = item.size, !item.isFolder { lines.append(L10n.format("Size: %@", "\(StatusText.bytes(size))")) }
         if let date = item.modified { lines.append(L10n.format("Date modified: %@", "\(ItemGridView.dateFormatter.string(from: date))")) }
-        if let detail = InteractionHooks.itemDetail?(item, location) { lines.append("\(detail.label) \(detail.value)") }
+        if let detail = InteractionHooks.itemDetail.first((item, location)) { lines.append("\(detail.label) \(detail.value)") }
         return lines.joined(separator: "\n")
     }
 
@@ -474,13 +474,13 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
     /// A feature may start a right-button drag here (FE-106); otherwise the context menu opens.
     override func rightMouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        if let i = itemHit(point), let begin = InteractionHooks.rightDrag {
+        if let i = itemHit(point), !InteractionHooks.rightDrag.isEmpty {
             let urls: () -> [URL] = { [weak self] in
                 guard let self else { return [] }
                 if !self.selection.selected.contains(i) { self.setSelection(IndexSet(integer: i)) }
                 return self.selectedItems.filter { ItemHooks.dragWriter(for: $0) == nil }.map(\.url)
             }
-            if begin(self, event, urls) { return }
+            if InteractionHooks.rightDrag.handle((self, event, urls)) { return }
         }
         super.rightMouseDown(with: event)
     }
@@ -711,9 +711,9 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
         }
         setDropTarget(index)
         let spring = index.map { items[$0] }   // spring-loaded folders (FE-108), as in Details
-        InteractionHooks.dragHover?(spring?.url.path, spring.map { item in
+        InteractionHooks.dragHover.send((spring?.url.path, spring.map { item in
             { [weak self] in self?.host?.gridOpen([item], inNewTab: false) }
-        })
+        }))
         return kind == .move ? .move : .copy
     }
 
@@ -732,13 +732,13 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
 
     override func draggingExited(_ sender: NSDraggingInfo?) {
         setDropTarget(nil)
-        InteractionHooks.dragHover?(nil, nil)
+        InteractionHooks.dragHover.send((nil, nil))
     }
     override func draggingEnded(_ sender: NSDraggingInfo) { setDropTarget(nil) }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         defer { setDropTarget(nil) }
-        InteractionHooks.dragHover?(nil, nil)
+        InteractionHooks.dragHover.send((nil, nil))
         if ItemHooks.acceptDrop(sender, destination: dropDestination(sender).url, window: window) { return true }
         let urls = DropPolicy.fileURLs(from: sender)
         guard let dest = dropDestination(sender).url,

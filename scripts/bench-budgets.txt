@@ -1,7 +1,8 @@
 # Budgets for scripts/bench.sh --check: "<metric> <maximum>". A run fails when the median exceeds the maximum by more
 # than the margin (25 %, BENCH_MARGIN). Proposed from measurements on the reference Mac (docs/PERFORMANCE.md); the
 # values leave headroom for slower Macs, not for regressions. Derived metrics (per_tab, plateau, growth) are computed
-# by bench.sh from the medians.
+# by bench.sh from the medians. Slower hardware (CI) scales the budgets instead of editing them: BENCH_TOLERANCE multiplies
+# the time budgets and BENCH_MEMORY_TOLERANCE the memory budgets (both default 1; counts such as "stale" never scale).
 #
 # Idle launch (one folder, previews closed)
 idle.idle.footprint_mb                 45

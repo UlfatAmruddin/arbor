@@ -12,7 +12,7 @@ final class MetadataLossDialog: FileOpsDialog {
     let loss: MetadataLoss
 
     static func install() {
-        OperationCenter.prepareJob = { job in
+        OperationCenter.prepareJob.observe("file-operations-extras.metadata-loss-prompt") { job in
             job.transfer.metadataLossResolver = { loss in await MetadataLossDialog.resolve(loss, job: job) }
         }
     }

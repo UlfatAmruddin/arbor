@@ -7,7 +7,7 @@ import ArborCore
 /// them, and search results open in relevance order (FE-145) until another column is chosen.
 enum ConsistentSorting {
     /// Sort values for columns that aren't in `ColumnCatalog`, by column id. nil = still loading.
-    static var values: [String: (FileItem) -> ColumnValue?] = [:]
+    private static let values: [String: (FileItem) -> ColumnValue?] = makeValues()
 
     /// The search whose results are being ordered (the location a tab is about to display).
     static var searchLocation: Location?
@@ -20,16 +20,14 @@ enum ConsistentSorting {
     ]
 
     static func register() {
-        registerValues()
-        let previous = FileSorter.columnValues
-        FileSorter.columnValues = { item, column in
-            if let value = values[column.rawValue] { return value(item) }
-            return previous?(item, column)
+        // Answers for the extra columns before the metadata cache (details-depth.metadata, order .late).
+        FileSorter.columnValues.register("consistency.extra-columns") { item, column in
+            values[column.rawValue].map { value in value(item) }
         }
-        WindowHooks.willDisplay.append { _, tab, location, changed in
+        WindowHooks.willDisplay.observe("consistency.relevance-order") { _, tab, location, changed in
             adjustOrder(tab, location, changed)
         }
-        WindowHooks.viewStateChanged.append { window, tab in
+        WindowHooks.viewStateChanged.observe("consistency.relevance-memory") { window, tab in
             if case .search? = tab.displayedLocation { searchLocation = tab.displayedLocation }
             // The order picked for results is the tab's; the folder default stays untouched.
             if RelevanceMemory.isSearch(tab), SearchRelevance.isRelevance(Prefs.sortOrder) {
@@ -42,7 +40,8 @@ enum ConsistentSorting {
 
     // MARK: Values
 
-    private static func registerValues() {
+    private static func makeValues() -> [String: (FileItem) -> ColumnValue?] {
+        var values: [String: (FileItem) -> ColumnValue?] = [:]
         values["originalLocation"] = { item in
             TrashStore.entry(for: item.url)?.record.map { .text($0.originalFolder) } ?? .unknown
         }
@@ -74,6 +73,7 @@ enum ConsistentSorting {
         values[SearchRelevance.column.rawValue] = { item in
             SearchSortContext.current.map { .number($0.score(item)) }
         }
+        return values
     }
 
     private static func archiveEntry(_ item: FileItem) -> ArchiveEntry? {

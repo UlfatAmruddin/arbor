@@ -59,7 +59,7 @@ final class TabState {
         return copy
     }
 
-    var title: String { WindowHooks.tabTitle?(location) ?? LocationRegistry.provider(for: location).title(for: location) }
+    var title: String { WindowHooks.tabTitle.first(location) ?? LocationRegistry.provider(for: location).title(for: location) }
     var icon: NSImage { LocationRegistry.provider(for: location).icon(for: location, size: 16) }
 
     // MARK: Visible rows
@@ -72,7 +72,7 @@ final class TabState {
         // While a background sort runs, the rows keep their previous order (FE-228).
         if let cache = visibleCache, cache.query == searchText, cache.order == sortOrder || isSorting { return cache.items }
         var filtered = FileFilter.apply(items, query: searchText)
-        if let hook = TabState.visibleItemsFilter { filtered = hook(self, filtered) }
+        filtered = TabState.visibleItemsFilter.apply(filtered, self)
         let result = FileSorter.sorted(filtered, by: sortOrder)
         visibleCache = (searchText, sortOrder, result)
         return result
@@ -80,7 +80,9 @@ final class TabState {
 
     /// Feature hook (column header filters, FE-039): narrows the rows after the search text.
     /// Call `invalidateVisibleItems()` whenever its result would change.
-    static var visibleItemsFilter: ((TabState, [FileItem]) -> [FileItem])?
+    static let visibleItemsFilter = Pipeline<[FileItem], TabState>(
+        "TabState.visibleItemsFilter", "Narrows a tab's rows after the search text (column header filters).",
+        signature: "(items, tab) -> items")
 
     /// Drops the cached rows (a filter or a sort column's metadata changed).
     func invalidateVisibleItems() { visibleCache = nil }
@@ -98,7 +100,7 @@ final class TabState {
         guard let items else { return false }
         if let cache = visibleCache, cache.query == searchText, cache.order == sortOrder { return false }
         var filtered = FileFilter.apply(items, query: searchText)
-        if let hook = TabState.visibleItemsFilter { filtered = hook(self, filtered) }
+        filtered = TabState.visibleItemsFilter.apply(filtered, self)
         guard BackgroundSort.shouldSortInBackground(filtered.count, sortOrder) else { return false }
         sortGeneration += 1
         let generation = sortGeneration, query = searchText, order = sortOrder, listing = listingGeneration

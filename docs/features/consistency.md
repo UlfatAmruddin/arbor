@@ -1,7 +1,7 @@
 # Consistency across features
 
 Features were built separately; this area makes them behave the same everywhere. Code: `Sources/Arbor/Features/Consistency/`
-(registered last, in the "spare 1" slot of `Features.swift`, so it can adjust what other features installed),
+(it requires the features whose contributions it adjusts, so it registers after them; DEC-024),
 logic in `Sources/ArborCore/Consistency/`, unit tests in `Tests/ArborCoreTests/ConsistencyTests.swift`.
 
 ## Status
@@ -42,7 +42,8 @@ logic in `Sources/ArborCore/Consistency/`, unit tests in `Tests/ArborCoreTests/C
 - `BrowserWindowController`: `applyFilter` passes text to a `LocationPageFiltering` page; pages adopting `LocationPageViewState`
   are captured into history and restored; Quick Look asks `PreviewHooks.url(for:)`; Quick Look keys go to a page's view.
 - `Locations/LocationPageExtras.swift` (new): `LocationPageFiltering`, `LocationPageViewState`, `PreviewHooks`.
-- `SearchRegistry.registered`; `ExplorerSearchController.scopedRequest`; `SearchSession` scans `extraScopes`.
+- `SearchRegistry.wrappers` (the box per location wraps the search controller); `ExplorerSearchController.scopedRequest`;
+  `SearchSession` scans `extraScopes`.
 - `InteractionHooks.rightDrag`; `ItemViewHooks.underlinesName`; `TileView.titleField`, `showsDescriptions`, `refreshToolTip()`;
   `GalleryGridView.showsDescriptions`, `item(atWindowPoint:)`, `windowPoint(ofName:)`, Gallery infotips; `GalleryPageController.filterText`;
   `TileSectionsView.filterText`; `LibrariesPageController.filterText`; `ExplorerHomePage` view state and section accessors;

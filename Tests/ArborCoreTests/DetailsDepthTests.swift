@@ -212,8 +212,8 @@ struct ColumnSortTests {
     @Test func sortsByMetadataColumnWithLoadingLast() {
         let values: [String: ColumnValue] = ["a": .dimensions(width: 100, height: 100), "b": .dimensions(width: 10, height: 10),
                                              "c": .unsupported]
-        FileSorter.columnValues = { item, _ in values[item.name] }
-        defer { FileSorter.columnValues = nil }
+        FileSorter.columnValues.register("tests.dimensions") { item, _ in .some(values[item.name]) }
+        defer { FileSorter.columnValues.remove("tests.dimensions") }
         var order = FileSortOrder()
         order.setPrimary(.dimensions, ascending: true)
         let items = [item("d"), item("c"), item("a"), item("b")]

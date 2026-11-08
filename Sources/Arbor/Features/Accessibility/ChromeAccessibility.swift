@@ -8,11 +8,11 @@ import ArborCore
 /// navigation tree) already uses real controls or `ChromeButton`, whose role and state are set there.
 enum ChromeAccessibility {
     static func install() {
-        WindowHooks.didCreate.append { c in
+        WindowHooks.didCreate.observe("accessibility.chrome-labels") { c in
             label(c)
             RightToLeft.adjustArrows(c)
         }
-        WindowHooks.didDisplay.append { c, _ in label(c) }
+        WindowHooks.didDisplay.observe("accessibility.chrome-labels") { c, _ in label(c) }
         NotificationCenter.default.addObserver(forName: Prefs.changed, object: nil, queue: .main) { note in
             guard (note.userInfo?["key"] as? String) == "sidePane" else { return }
             (NSApp.delegate as? AppDelegate)?.controllers.forEach(label)

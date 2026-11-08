@@ -14,8 +14,8 @@ enum SessionRestore {
     private static var enabled = false
 
     static func install() {
-        WindowHooks.restoreSession = { app in restore(into: app) }
-        WindowHooks.didCreate.append { controller in recoverPlacement(controller) }
+        WindowHooks.restoreSession.provide("folder-options.session-restore") { app in restore(into: app) }
+        WindowHooks.didCreate.observe("folder-options.recover-placement") { controller in recoverPlacement(controller) }
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { _ in
             FolderViews.windows.forEach(recoverPlacement)
         }

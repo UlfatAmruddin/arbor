@@ -3,7 +3,8 @@ import ArborCore
 
 /// Window chrome parity with Windows 11 Explorer (docs/features/visual-parity.md): scripted checks for
 /// tab tear-off/merge and tab overflow.
-enum VisualParityFeature {
+enum VisualParityFeature: ExplorerFeature {
+    static let id = "visual-parity"
     static func register() {
         registerScriptSteps()
         registerMenuWording()
@@ -18,7 +19,7 @@ enum VisualParityFeature {
             guard let location = note.userInfo?["location"] as? Location else { return }
             recent.record(location)
         }
-        AddressBar.recentLocations = {
+        AddressBar.recentLocations.provide("visual-parity.recent-locations") {
             // Folders that went away since are dropped (a quick existence check of a handful of paths).
             recent.prune { place in place.folderURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? true }
             return recent.entries
@@ -27,9 +28,10 @@ enum VisualParityFeature {
 
     /// Windows 11 wording and order for the menus inside the window (reference §1.5–§1.7, §2.3, §4).
     private static func registerMenuWording() {
-        CommandDispatcher.menuTitleHook = { command, title, context in
+        CommandDispatcher.menuTitleHook.add("visual-parity.menu-wording") { title, item in
+            let (command, context) = item
             guard context.surface != .menuBar else { return title }   // the Mac menu bar keeps title case
-            if command.id == "view.detailsPane", title == L10n.tr("Details") { return L10n.tr("Details paneL10n.tr(") }   // the button says ")Details"
+            if command.id == "view.detailsPane", title == L10n.tr("Details") { return L10n.tr("Details pane") }   // the button says "Details"
             return ExplorerMenuWording.inWindowTitle(title)
         }
         // Background menu (§4.4): View › · Sort by › · Group by › · Refresh, then Undo / Paste, then New ›,
@@ -101,7 +103,7 @@ enum VisualParityFeature {
             SelectionEmphasis.headlessWindowActive = arg != "0"
             return 0.4
         }
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("visual-parity.log") { window in
             // Which selection style the file list draws now: accent (focused, active window) or grey.
             let responder = window.window?.firstResponder as? NSView
             let inItems = window.itemView.map { responder?.isDescendant(of: $0.view) ?? false } ?? false
@@ -109,7 +111,7 @@ enum VisualParityFeature {
             return "selection emphasis: window=\(SelectionEmphasis.windowIsActive(window.window) ? "active" : "inactive") items="
                 + (focused ? "accent" : "grey")
         }
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("visual-parity.log-2") { window in
             let all = controllers.enumerated().map { i, c in
                 "\(i + 1)[\(c.tabs.map(\.title).joined(separator: ", "))]" + (c === window ? "*" : "")
             }

@@ -32,20 +32,22 @@ enum MenuAudit {
 
     static func register() {
         for id in hiddenWhenDisabled {
-            guard let command = CommandRegistry.shared.command(id) else { continue }
-            let enabled = command.isEnabled
-            hide(id) { ctx in !enabled(ctx) }
+            hide(id, "consistency.hide-when-disabled") { ctx in CommandRegistry.shared.command(id)?.isEnabled(ctx) == false }
         }
-        for id in fileCommands { hide(id, when: involvesDisconnectedDrive) }
-        for id in notInTrash { hide(id) { $0.location == .trash && $0.surface != .treeContextMenu } }
-        for id in notInArchive { hide(id) { $0.location?.archiveFile != nil && $0.surface != .treeContextMenu } }
+        for id in fileCommands { hide(id, "consistency.disconnected-drive", when: involvesDisconnectedDrive) }
+        for id in notInTrash { hide(id, "consistency.not-in-trash") { $0.location == .trash && $0.surface != .treeContextMenu } }
+        for id in notInArchive {
+            hide(id, "consistency.not-in-archive") { $0.location?.archiveFile != nil && $0.surface != .treeContextMenu }
+        }
         // New and Paste on the background need a folder to put items in (search results, Home, Gallery
         // have none); in folders they stay, greyed while the clipboard is empty, like Explorer.
         for id in ["menu.new", "edit.paste", "edit.pasteShortcut", "edit.pasteMove"] {
-            hide(id) { ctx in ctx.surface == .backgroundContextMenu && (ctx.targetFolder == nil || !ctx.allowsEditing) }
+            hide(id, "consistency.background-needs-folder") { ctx in
+                ctx.surface == .backgroundContextMenu && (ctx.targetFolder == nil || !ctx.allowsEditing)
+            }
         }
         // A page without a folder has no path to copy.
-        hide("file.copyPath") { ctx in
+        hide("file.copyPath", "consistency.no-path-to-copy") { ctx in
             ctx.surface == .backgroundContextMenu && [.gallery, .home, .thisMac, .network].contains(ctx.location)
         }
     }
@@ -54,14 +56,10 @@ enum MenuAudit {
         [.itemContextMenu, .backgroundContextMenu, .treeContextMenu].contains(ctx.surface)
     }
 
-    /// Hides a command in context menus while `rule` holds; it stays available elsewhere.
-    static func hide(_ id: String, when rule: @escaping (CommandContext) -> Bool) {
-        guard let command = CommandRegistry.shared.command(id) else { return }
-        let available = command.isAvailable
-        command.isAvailable = { ctx in
-            guard available(ctx) else { return false }
-            return !(isContextMenu(ctx) && rule(ctx))
-        }
+    /// Hides a command in context menus while `rule` holds; it stays available elsewhere. These rules
+    /// only ever hide, so their order among other overrides doesn't change the result.
+    static func hide(_ commandID: String, _ id: String, when rule: @escaping (CommandContext) -> Bool) {
+        CommandRegistry.shared.hide(commandID, id) { ctx in isContextMenu(ctx) && rule(ctx) }
     }
 
     /// A disconnected mapped drive (its row stands for a share that isn't mounted): only opening,

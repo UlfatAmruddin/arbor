@@ -7,7 +7,8 @@ import ArborCore
 ///   the way its menu item delivers it (responder chain first). The `key:` step delivers keys to the window only.
 /// - `log:` gains a `clipboard:` line: what the pasteboard names, whether a paste would copy or move, and which
 ///   listed items are drawn as cut.
-enum AcceptanceScriptSteps {
+enum AcceptanceScriptSteps: ExplorerFeature {
+    static let id = "acceptance-steps"
     static func register() {
         DebugScript.registerStep("menukey") { spec, window in
             // Headless windows are never key, so AppKit's own key-equivalent matching can't be used: find the menu
@@ -31,7 +32,7 @@ enum AcceptanceScriptSteps {
             }
             return 0.6
         }
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("acceptance-steps.log") { window in
             let clipboard = FileClipboard.shared
             let urls = clipboard.readURLs()
             let kind = urls.isEmpty ? "none" : clipboard.pasteKind(for: urls).rawValue

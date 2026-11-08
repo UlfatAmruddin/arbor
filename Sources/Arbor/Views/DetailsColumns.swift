@@ -31,17 +31,20 @@ struct DetailsLayout {
 /// displays items and asks `cell(for:columnID:item:)` for columns it doesn't know. Leaving a location
 /// restores the standard columns (order, titles, widths) exactly as they were.
 ///
-///     DetailsColumns.register { $0 == .trash ? trashLayout : nil }
+///     DetailsColumns.register("trash.columns") { $0 == .trash ? trashLayout : nil }
 enum DetailsColumns {
-    private static var providers: [(Location) -> DetailsLayout?] = []
+    static let providers = Handlers<Location, DetailsLayout>(
+        "DetailsColumns.providers", "A location's Details column layout (Trash, search, ZIP, cloud, libraries).",
+        signature: "(location) -> DetailsLayout?")
 
-    /// The most recently registered provider that returns a layout wins.
-    static func register(_ provider: @escaping (Location) -> DetailsLayout?) { providers.append(provider) }
+    /// The first provider (in run order) that returns a layout wins.
+    static func register(_ id: String, order: ExtensionOrder = .normal, _ provider: @escaping (Location) -> DetailsLayout?) {
+        providers.register(id, order: order, provider)
+    }
 
     static func layout(for location: Location?) -> DetailsLayout? {
         guard let location else { return nil }
-        for provider in providers.reversed() { if let layout = provider(location) { return layout } }
-        return nil
+        return providers.first(location)
     }
 
     static func apply(to table: NSTableView, location: Location?) {

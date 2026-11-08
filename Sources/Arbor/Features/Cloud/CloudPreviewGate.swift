@@ -67,14 +67,6 @@ final class CloudAwarePreviewPane: NSView, SidePaneProvider {
         gate.reset()
         inner.releaseResources()
     }
-
-    /// Re-registers the Preview pane wrapped by this gate. Call after any feature replaces "preview".
-    static func wrapRegisteredPreviewPane() {
-        guard let previous = SidePaneRegistry.descriptor("preview") else { return }
-        SidePaneRegistry.register(SidePaneDescriptor(id: previous.id, title: previous.title) {
-            CloudAwarePreviewPane(wrapping: previous.make())
-        })
-    }
 }
 
 /// "“Report.pdf” is available when online · Download to preview".

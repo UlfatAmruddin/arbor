@@ -2,9 +2,9 @@ import AppKit
 import ArborCore
 
 /// What the search box calls (B5). One instance per window. The default filters the current
-/// folder (DEC-014); the search feature registers a replacement:
+/// folder (DEC-014); the search feature provides a replacement:
 ///
-///     SearchRegistry.register { window in IndexedSearchController(window: window) }
+///     SearchRegistry.factory.provide("search.explorer") { window in IndexedSearchController(window: window) }
 protocol SearchController: AnyObject {
     /// Placeholder text for the box, e.g. "Search Documents".
     func placeholder(for location: Location) -> String
@@ -26,12 +26,18 @@ extension SearchController {
 }
 
 enum SearchRegistry {
-    private static var factory: (BrowserWindowController) -> SearchController = { FolderFilterSearch(window: $0) }
+    /// Makes a window's search controller. Default: filter the current folder.
+    static let factory = Provided<(BrowserWindowController) -> SearchController>(
+        "SearchRegistry.factory", "Makes each window's search controller (Explorer search).",
+        signature: "(window) -> SearchController", default: { FolderFilterSearch(window: $0) })
+    /// Wraps the controller the factory made (the search box per location).
+    static let wrappers = Pipeline<SearchController, BrowserWindowController>(
+        "SearchRegistry.wrappers", "Wraps the window's search controller (per-location behavior of the box).",
+        signature: "(controller, window) -> controller")
 
-    static func register(_ make: @escaping (BrowserWindowController) -> SearchController) { factory = make }
-    static func make(for window: BrowserWindowController) -> SearchController { factory(window) }
-    /// The factory registered so far, so a feature can wrap it.
-    static var registered: (BrowserWindowController) -> SearchController { factory }
+    static func make(for window: BrowserWindowController) -> SearchController {
+        wrappers.apply(factory.value(window), window)
+    }
 }
 
 /// v0.1 behavior: filter the visible folder by name; Return moves focus to the first match.

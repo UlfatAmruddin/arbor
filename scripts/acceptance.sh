@@ -4,12 +4,15 @@
 # Results and how to read them: docs/ACCEPTANCE.md.
 #
 # Usage: scripts/build-app.sh debug && scripts/acceptance.sh [T01 T07 …]   (no names = all scenarios)
-#   ACCEPT_KEEP=1   keep each scenario's folder (logs, snapshots) and print its path
+#   ACCEPT_KEEP=1             keep each scenario's folder (logs, snapshots) and print its path
+#   ARBOR_KEEP_FAILED=<dir>   move the folder of each failing scenario into <dir>/<id>
+#   Stale-bundle guard, one-suite-at-a-time lock, ARBOR_REBUILD: scripts/lib/app-bundle.sh
 set -uo pipefail
 cd "$(dirname "$0")/.."
 REPO="$PWD"
-APP="$REPO/build/Arbor.app/Contents/MacOS/Arbor"
-[ -x "$APP" ] || { echo "Build first: scripts/build-app.sh debug"; exit 2; }
+. scripts/lib/app-bundle.sh
+arbor_prepare_app acceptance.sh debug
+APP="$ARBOR_APP_BIN"
 WANTED=" ${*:-all} "
 SUMMARY=()
 FAILED_ANY=0
@@ -30,8 +33,19 @@ finish() {
   [ "$SCEN_FAILS" -gt 0 ] && { result="FAIL"; FAILED_ANY=1; }
   [ "$result" = "pass" ] && [ -n "${1:-}" ] && result="partial"
   SUMMARY+=("$(printf '%-4s %-8s %s%s' "$SCEN" "$result" "$SCEN_TITLE" "${1:+  ($1)}")")
-  if [ "${ACCEPT_KEEP:-0}" = 1 ]; then echo "   kept: $R"; else chmod -R u+rwx "$R" 2>/dev/null; rm -rf "$R"; fi
+  if [ "${ACCEPT_KEEP:-0}" = 1 ]; then echo "   kept: $R"; return; fi
+  chmod -R u+rwx "$R" 2>/dev/null
+  if [ "$result" = "FAIL" ] && [ -n "${ARBOR_KEEP_FAILED:-}" ]; then
+    mkdir -p "$ARBOR_KEEP_FAILED"; rm -rf "${ARBOR_KEEP_FAILED:?}/$SCEN"; mv "$R" "$ARBOR_KEEP_FAILED/$SCEN"
+    echo "   kept: $ARBOR_KEEP_FAILED/$SCEN"
+  else
+    rm -rf "$R"
+  fi
 }
+
+# Scenarios that rely on permissions being enforced can't show anything when run as root.
+as_root() { [ "$(id -u)" = 0 ]; }
+skip_as_root() { echo "   skip  (running as root: permissions aren't enforced, so the access-denied case can't occur)"; finish "skipped: run as root"; }
 
 # run <start folder or -> <script> [VAR=value…]: one headless launch (killed after 120 s).
 run() {
@@ -323,7 +337,8 @@ if want T17; then
   finish
 fi
 
-if want T18; then
+if want T18 && as_root; then begin T18 "Search with missing coverage"; skip_as_root
+elif want T18; then
   begin T18 "Search with missing coverage"
   mkdir -p "$R/fx/open" "$R/fx/locked"; echo 1 > "$R/fx/open/report.txt"; echo 2 > "$R/fx/locked/report-2.txt"; chmod 000 "$R/fx/locked"
   run "$R/fx" "wait:1;search:report;event;wait:3;log:$R/a.txt;searchdetails:$R/d.txt;quit"
@@ -358,7 +373,8 @@ if want T20; then
   finish "download policy shown with a simulated provider; real File Provider downloads weren't run"
 fi
 
-if want T21; then
+if want T21 && as_root; then begin T21 "Paste into library"; skip_as_root
+elif want T21; then
   begin T21 "Paste into library"
   mkdir -p "$R/L1" "$R/L2" "$R/RO" "$R/src"; echo x > "$R/src/doc.txt"; echo y > "$R/src/doc2.txt"; echo l2 > "$R/L2/in-l2.txt"; chmod 555 "$R/RO"
   run "$R/src" "wait:1;librarydef:Documents=$R/L1|$R/L2;select:doc.txt;click:edit.copy;event;location:library?name=Documents;wait:1.5;log:$R/a.txt;click:edit.paste;event;wait:2;log:$R/b.txt;librarydef:Documents=$R/RO;wait:1;location:$R/src;wait:1;select:doc2.txt;click:edit.copy;event;location:library?name=Documents;wait:1.5;click:edit.paste;event;wait:1.5;log:$R/c.txt;sheetlog:$R/c.txt;quit"
@@ -382,7 +398,8 @@ if want T22; then
   finish
 fi
 
-if want T23; then
+if want T23 && as_root; then begin T23 "Delete on nonrecycling provider"; skip_as_root
+elif want T23; then
   begin T23 "Delete on nonrecycling provider"
   mkdir -p "$R/fx"; echo a > "$R/fx/a.txt"; chmod 555 "$R/trash"   # the Trash can't take anything
   run "$R/fx" "wait:1;select:a.txt;click:file.trash;event;wait:1.5;log:$R/a.txt;opsnap:dialog:$R/cannot-trash.png;opbutton:No;wait:1;log:$R/b.txt;select:a.txt;click:file.trash;event;wait:1.5;opbutton:Yes;wait:1.5;log:$R/e.txt;quit"
@@ -441,6 +458,8 @@ if want T26; then
     wait
     check "a tab on the disk image lists it" "$R/d.txt" "rows: x.txt"
     contains "after the disk disappears the tab leaves it instead of hanging" "$R/e.txt" "location: thismac"
+  else
+    echo "   skip  disk disconnect (hdiutil couldn't create or attach a disk image here)"
   fi
   finish "simulated servers; real network loss and File Provider disconnects weren't run"
 fi

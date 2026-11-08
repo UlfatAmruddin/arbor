@@ -2,32 +2,28 @@ import AppKit
 import ArborCore
 
 /// Explorer-style search (spec §10, FE-131–FE-146, FE-236, FE-237). See docs/features/search.md.
-enum SearchFeature {
+enum SearchFeature: ExplorerFeature {
+    static let id = "search"
     static func register() {
         LocationRegistry.register(SearchProvider())
-        SearchRegistry.register { window in ExplorerSearchController(window: window) }
+        SearchRegistry.factory.provide("search.explorer") { window in ExplorerSearchController(window: window) }
         SearchColumns.register()
         SearchCommands.register()
         // Layouts without columns (Content view, icon infotips) show where a result lives.
-        let previousDetail = InteractionHooks.itemDetail
-        InteractionHooks.itemDetail = { item, location in
-            guard case .search? = location else { return previousDetail?(item, location) }
+        InteractionHooks.itemDetail.register("search.result-folder") { item, location in
+            guard case .search? = location else { return nil }
             return ("Folder:", SearchColumns.folderText(item, location))
         }
 
         // Opening a saved .arborsearch file reruns its search (FE-138).
-        LocationRegistry.registerOpenHandler { item in
+        LocationRegistry.registerOpenHandler("search.saved-search") { item in
             guard item.url.pathExtension.lowercased() == SavedSearch.fileExtension else { return nil }
             return try? SearchCommands.location(forSavedSearch: item.url)
         }
 
         // Refresh (F5, View ▸ Refresh) reruns a search instead of re-showing cached results.
-        if let refresh = CommandRegistry.shared.command("nav.refresh") {
-            let original = refresh.perform
-            refresh.perform = { ctx in
-                if case .search(let request)? = ctx.location { SearchSessions.restart(request, showHidden: Prefs.showHidden) }
-                original(ctx)
-            }
+        CommandRegistry.shared.beforePerform("nav.refresh", "search.rerun-on-refresh") { ctx in
+            if case .search(let request)? = ctx.location { SearchSessions.restart(request, showHidden: Prefs.showHidden) }
         }
 
         registerDebugSteps()
@@ -36,7 +32,7 @@ enum SearchFeature {
     // MARK: Scripted checks (TESTING.md)
 
     private static func registerDebugSteps() {
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("search.log") { window in
             let shown = window.activeTab.displayedLocation ?? window.location
             var lines = ["search box: “\(window.searchBox.text)”"]
             if let session = SearchProvider.session(for: shown) {

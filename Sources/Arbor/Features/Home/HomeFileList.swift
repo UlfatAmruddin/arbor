@@ -217,7 +217,7 @@ final class HomeFileList: NSView, NSTableViewDataSource, NSTableViewDelegate {
             cell.nameField.setAccessibilityLabel(entry.item.name)
             cell.icon.image = IconProvider.shared.icon(for: entry.item, size: 16)
             cell.setCheckboxVisible(false)
-            ItemViewHooks.decorateName?(cell.nameField, entry.item, row, tableView)   // infotip, underline (Folder Options)
+            ItemViewHooks.decorateName.send((cell.nameField, entry.item, row, tableView))   // infotip, underline (Folder Options)
             return cell
         }
         let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier("TextCell-\(id)"), owner: nil) as? TextCellView

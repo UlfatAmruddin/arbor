@@ -226,7 +226,7 @@ extension ItemGridView {
         let m = metrics
         let primary = Theme.primaryText
         let secondary = Theme.secondaryText
-        let underline = ItemViewHooks.underlinesName?(self, i) ?? false
+        let underline = ItemViewHooks.underlinesName.first((self, i)) ?? false
         switch m.style {
         case .iconAbove:
             let name = displayName(item)
@@ -264,7 +264,7 @@ extension ItemGridView {
 
         let middleX = left + available * 0.47
         let middleWidth = available * 0.24
-        if let detail = InteractionHooks.itemDetail?(item, location) {
+        if let detail = InteractionHooks.itemDetail.first((item, location)) {
             drawPair(detail.label, detail.value, in: CGRect(x: middleX, y: line2.minY, width: middleWidth, height: line2.height))
         } else if ThumbnailPolicy.hasDimensions(item), let dims = ImageInfoService.shared.dimensions(for: item), !dims.isEmpty {
             drawPair("Dimensions:", dims, in: CGRect(x: middleX, y: line2.minY, width: middleWidth, height: line2.height))

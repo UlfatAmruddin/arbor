@@ -5,20 +5,22 @@ import ArborCore
 /// drops that carry file promises instead of URLs. Item views call these (Details, icon layouts);
 /// opening and extra columns use `InteractionHooks` and `DetailsColumns`.
 ///
-///     ItemHooks.registerDragWriter { item in isMine(item) ? MyPromise(item) : nil }
+///     ItemHooks.registerDragWriter("archives.member-promise") { item in isMine(item) ? MyPromise(item) : nil }
 ///     ItemHooks.registerDropHandler(types: [...], operation: { info, dest in .copy }, accept: { info, dest, window in true })
 enum ItemHooks {
     // MARK: Dragging out
 
-    private static var dragWriters: [(FileItem) -> NSPasteboardWriting?] = []
+    static let dragWriters = Handlers<FileItem, NSPasteboardWriting>(
+        "ItemHooks.dragWriters", "A custom pasteboard writer for dragging an item out (archive member promises).",
+        signature: "(item) -> writer?")
 
-    static func registerDragWriter(_ writer: @escaping (FileItem) -> NSPasteboardWriting?) { dragWriters.append(writer) }
+    static func registerDragWriter(_ id: String, order: ExtensionOrder = .normal,
+                                   _ writer: @escaping (FileItem) -> NSPasteboardWriting?) {
+        dragWriters.register(id, order: order, writer)
+    }
 
     /// A custom pasteboard writer (a file promise, say) for an item, or nil for the item's file URL.
-    static func dragWriter(for item: FileItem) -> NSPasteboardWriting? {
-        for writer in dragWriters.reversed() { if let w = writer(item) { return w } }
-        return nil
-    }
+    static func dragWriter(for item: FileItem) -> NSPasteboardWriting? { dragWriters.first(item) }
 
     // MARK: Dropping in (drops that carry no file URLs, such as file promises)
 

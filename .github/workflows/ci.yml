@@ -1,4 +1,6 @@
-# Builds and tests every push and pull request, and keeps the unsigned disk image as an artifact.
+# Every push and pull request: builds and unit-tests Arbor and keeps the unsigned disk image, runs the
+# scripted checks against the real app (headless), and checks the performance budgets. The three jobs run
+# in parallel; each builds what it needs. How to run a job locally: TESTING.md, "Continuous integration".
 name: CI
 
 on:
@@ -12,8 +14,13 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash   # bash -eo pipefail, so a suite piped through tee still fails its step
+
 jobs:
-  build:
+  build-and-test:
+    name: Build and unit tests
     runs-on: macos-26   # Xcode 26 toolchain, the same Swift the project is developed with
     timeout-minutes: 60
     steps:
@@ -44,4 +51,92 @@ jobs:
           name: Arbor-unsigned-${{ github.sha }}
           path: build/Arbor-*.dmg
           if-no-files-found: error
+          retention-days: 14
+
+  # The headless suites drive build/Arbor.app (ARBOR_HEADLESS=1). The debug app is built here rather than
+  # passed from build-and-test: a clean debug build takes under a minute on a developer Mac (a few on a runner),
+  # while an artifact would lose the executable bit and the timestamps the stale-bundle guard compares, and
+  # would make this job wait for the other one.
+  app-checks:
+    name: App checks (behavior, core, acceptance)
+    runs-on: macos-26
+    timeout-minutes: 75   # about 18 minutes on a developer Mac (behavior 4, core 1, acceptance 13); runners are slower
+    env:
+      ARBOR_KEEP_FAILED: ${{ github.workspace }}/build/failed   # folders of failing checks, uploaded below
+      ARBOR_LOCK_WAIT: "0"   # the suites run one after another here; a busy lock would be a bug
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Show toolchain and session
+        run: |
+          swift --version
+          sw_vers
+          echo "session: $(launchctl managername)"   # Aqua = a window server session the app can use
+          mkdir -p build/logs
+
+      - name: Debug build
+        id: build
+        run: scripts/build-app.sh debug
+
+      # Each suite runs even when an earlier one failed, so one push reports all of them.
+      - name: Extension point registration
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: scripts/list-extension-points.sh > build/logs/extension-points.txt
+
+      - name: Behavior checks
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: scripts/behavior-checks.sh 2>&1 | tee build/logs/behavior-checks.txt
+
+      - name: Core checks
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: scripts/core-checks.sh 2>&1 | tee build/logs/core-checks.txt
+
+      - name: Acceptance scenarios T01–T30
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: scripts/acceptance.sh 2>&1 | tee build/logs/acceptance.txt
+
+      - name: Upload logs and snapshots of failing checks
+        if: failure()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: app-checks-failures-${{ github.sha }}
+          path: |
+            build/logs/
+            build/failed/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  performance:
+    name: Performance budgets
+    runs-on: macos-26
+    timeout-minutes: 45   # about 10 minutes on a developer Mac
+    env:
+      # The budgets were measured on an Apple silicon developer Mac. Hosted runners are virtual machines with
+      # a few shared cores and no GPU of their own, so main-thread work and drawing take longer and layer
+      # backing costs more memory. The factors keep the job a regression alarm on that hardware rather than
+      # a comparison with the reference Mac; correctness counts (search.churn1.stale) are never scaled.
+      # Retune them from the uploaded results when the runner image changes.
+      BENCH_TOLERANCE: "3"
+      BENCH_MEMORY_TOLERANCE: "1.5"
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Benchmarks (quick fixtures) against the budgets
+        run: |
+          mkdir -p build
+          scripts/bench.sh --check --quick --out build/bench/ci 2>&1 | tee build/bench-check.txt
+
+      - name: Upload benchmark results
+        if: ${{ !cancelled() }}   # also on success: the numbers are what the tolerances are tuned from
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: bench-${{ github.sha }}
+          path: |
+            build/bench-check.txt
+            build/bench/ci/
+          if-no-files-found: ignore
           retention-days: 14

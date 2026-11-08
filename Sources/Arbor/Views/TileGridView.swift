@@ -46,15 +46,16 @@ class TileView: NSView {
     weak var titleField: NSTextField?
 
     /// Folder Options › "Show pop-up description for folder and desktop items" (set by that feature).
-    static var showsDescriptions: () -> Bool = { true }
+    static let showsDescriptions = Provided<() -> Bool>(
+        "TileView.showsDescriptions", "Whether page tiles show pop-up descriptions.", signature: "() -> Bool", default: { true })
     private var storedTip: String?
     /// The tile's pop-up description; shown only while descriptions are turned on.
     override var toolTip: String? {
         get { super.toolTip }
-        set { storedTip = newValue; super.toolTip = Self.showsDescriptions() ? newValue : nil }
+        set { storedTip = newValue; super.toolTip = Self.showsDescriptions.value() ? newValue : nil }
     }
     /// Re-applies the description after the preference changed.
-    func refreshToolTip() { super.toolTip = Self.showsDescriptions() ? storedTip : nil }
+    func refreshToolTip() { super.toolTip = Self.showsDescriptions.value() ? storedTip : nil }
 
     override init(frame: NSRect) {
         super.init(frame: frame)

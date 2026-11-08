@@ -27,22 +27,18 @@ public enum SystemTrash {
         return trashed
     }
 
-    // MARK: Observers (additive hook, e.g. the Trash journal that remembers original locations)
+    // MARK: Observers (e.g. the Trash journal that remembers original locations)
 
-    private static let observerLock = NSLock()
-    private static var observers: [(_ original: URL, _ trashed: URL) -> Void] = []
+    /// Called after every successful move to Trash, on the thread that trashed the item. Observers are
+    /// added at launch (main thread) and only read afterwards, so any thread may trash.
+    public static let observers = Observers<(original: URL, trashed: URL)>(
+        "SystemTrash.observers", "An item was moved to the Trash (any thread).", signature: "(original, trashed)")
 
-    /// Called after every successful move to Trash, on the thread that trashed the item.
-    public static func addObserver(_ observer: @escaping (_ original: URL, _ trashed: URL) -> Void) {
-        observerLock.lock()
-        observers.append(observer)
-        observerLock.unlock()
+    public static func addObserver(_ id: String, _ observer: @escaping (_ original: URL, _ trashed: URL) -> Void) {
+        observers.observe(id) { original, trashed in observer(original, trashed) }
     }
 
     private static func notify(original: URL, trashed: URL) {
-        observerLock.lock()
-        let list = observers
-        observerLock.unlock()
-        list.forEach { $0(original.standardizedFileURL, trashed.standardizedFileURL) }
+        observers.send((original.standardizedFileURL, trashed.standardizedFileURL))
     }
 }

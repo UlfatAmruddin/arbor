@@ -70,7 +70,7 @@ enum NavigationCommands {
             place("documents", L10n.tr("Documents"), folder(.documentDirectory), Shortcut("o", [.command, .shift]), 30),
             place("downloads", L10n.tr("Downloads"), folder(.downloadsDirectory), Shortcut("l", [.command, .option]), 40),
             place("userFolder", L10n.tr("Home Folder"), .folder(fm.homeDirectoryForCurrentUser), nil, 45),
-            place("applications", L10n.tr("Applications"), .folder(URL(fileURLWithPath: L10n.tr("/Applications"))), Shortcut("a", [.command, .shift]), 50),
+            place("applications", L10n.tr("Applications"), .folder(URL(fileURLWithPath: "/Applications")), Shortcut("a", [.command, .shift]), 50),
             place("network", L10n.tr("Network"), .network, Shortcut("k", [.command, .shift]), 60),
             place("trash", L10n.tr("Trash"), .trash, nil, 70),
         ])
@@ -90,7 +90,7 @@ enum TabCommands {
                 id: "tab.new", title: "New Tab", symbol: "plus", shortcut: Shortcut("t"),
                 placements: [.mainMenu("File", .new, 10), .tabContextMenu(.new, 10)],
                 perform: { ctx in
-                    if let window = ctx.window { window.openTab(WindowHooks.startLocation()) }
+                    if let window = ctx.window { window.openTab(WindowHooks.startLocation.value()) }
                     else { (NSApp.delegate as? AppDelegate)?.openWindow() }
                 }),
             ExplorerCommand(

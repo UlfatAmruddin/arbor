@@ -4,7 +4,8 @@ import ArborCore
 /// The seven non-Details layouts (Features.swift slot "icon views"): Extra large / Large / Medium /
 /// Small icons, List, Tiles and Content, plus ⌘-scroll to step icon sizes and scripted-test steps.
 /// See docs/features/icon-views.md.
-enum IconViewsFeature {
+enum IconViewsFeature: ExplorerFeature {
+    static let id = "icon-views"
     static func register() {
         ViewModeRegistry.register(IconViewController.modes) { IconViewController() }
         installSizeWheel()
@@ -51,7 +52,7 @@ enum IconViewsFeature {
     }
 
     private static func registerDebugSteps() {
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("icon-views.log") { window in
             let view = (window.itemView as? IconViewController)?.debugState ?? "iconview: none"
             return view + "\n" + ThumbnailService.shared.debugSummary + "  footprintMB=\(memoryFootprintMB())"
         }

@@ -17,13 +17,16 @@ struct CrumbChild {
 
 /// Builds breadcrumbs for a location. Features with new location kinds can register a builder.
 enum Breadcrumbs {
-    private static var builders: [(Location) -> [Crumb]?] = []
+    static let builders = Handlers<Location, [Crumb]>(
+        "Breadcrumbs.builders", "Breadcrumbs for location kinds the core doesn't build.", signature: "(location) -> [Crumb]?")
 
-    /// Most recently registered builder that returns non-nil wins.
-    static func register(_ builder: @escaping (Location) -> [Crumb]?) { builders.append(builder) }
+    /// The first builder (in run order) that answers wins; otherwise the core builds them.
+    static func register(_ id: String, order: ExtensionOrder = .normal, _ builder: @escaping (Location) -> [Crumb]?) {
+        builders.register(id, order: order, builder)
+    }
 
     static func crumbs(for location: Location) -> [Crumb] {
-        for builder in builders.reversed() { if let crumbs = builder(location) { return crumbs } }
+        if let crumbs = builders.first(location) { return crumbs }
         switch location {
         case .folder(let url): return folderCrumbs(url)
         case .archive(let url, let inner):

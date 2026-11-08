@@ -2,17 +2,20 @@ import AppKit
 import ArborCore
 
 /// Trash (Explorer's Recycle Bin): FE-077, FE-090 (Trash side). See docs/features/trash.md.
-enum TrashFeature {
+enum TrashFeature: ExplorerFeature {
+    static let id = "trash"
+    /// In the Trash, Delete changes the file-operation delete commands.
+    static let requires = ["file-operations"]
     static func register() {
         // Every move to Trash through SystemTrash is journaled, so Original Location and Date Deleted are known.
-        SystemTrash.addObserver { original, trashed in
+        SystemTrash.addObserver("trash.journal") { original, trashed in
             TrashJournal.shared.record(original: original, trashed: trashed)
             TrashStore.noteChanged()
         }
 
         LocationRegistry.register(TrashProvider())
-        DetailsColumns.register { $0 == .trash ? layout : nil }
-        NavigationPaneExtras.register(.afterNetwork) {
+        DetailsColumns.register("trash.columns") { $0 == .trash ? layout : nil }
+        NavigationPaneExtras.register(.afterNetwork, "trash.navigation-node") {
             let node = NavNode(kind: .place, title: L10n.tr("Trash"), location: .trash)
             node.icon = TrashIcon.image(full: TrashStore.isFull == true, size: 16)
             return [node]
@@ -118,21 +121,12 @@ enum TrashFeature {
     private static func adaptCoreCommands() {
         let registry = CommandRegistry.shared
         for id in ["file.trash", "file.deletePermanently"] {
-            guard let command = registry.command(id) else { continue }
-            let enabled = command.isEnabled, perform = command.perform
-            let title = command.title, dynamic = command.dynamicTitle
-            command.isEnabled = { ctx in inTrash(ctx) ? ctx.hasSelection : enabled(ctx) }
-            command.perform = { ctx in
-                if inTrash(ctx) { TrashActions.deletePermanently(ctx.selection, window: ctx.window) } else { perform(ctx) }
-            }
-            if id == "file.trash" {
-                command.dynamicTitle = { ctx in inTrash(ctx) ? "Delete" : (dynamic?(ctx) ?? title) }
-            }
+            registry.override(id, "trash.delete-permanently", when: inTrash,
+                              isEnabled: { $0.hasSelection },
+                              title: id == "file.trash" ? { _ in "Delete" } : nil,
+                              perform: { ctx in TrashActions.deletePermanently(ctx.selection, window: ctx.window) })
         }
-        if let cut = registry.command("edit.cut") {
-            let enabled = cut.isEnabled
-            cut.isEnabled = { ctx in inTrash(ctx) ? ctx.hasSelection : enabled(ctx) }
-        }
+        registry.override("edit.cut", "trash.cut-out-of-trash", when: inTrash, isEnabled: { $0.hasSelection })
     }
 
     // MARK: Scripted checks
@@ -146,7 +140,7 @@ enum TrashFeature {
             try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
             return 0.3
         }
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("trash.log") { window in
             guard let sheet = window.window?.attachedSheet ?? NSApp.modalWindow, let root = sheet.contentView else { return "sheet text: -" }
             func texts(_ view: NSView) -> [String] {
                 var out: [String] = []
@@ -156,7 +150,7 @@ enum TrashFeature {
             }
             return "sheet text: " + texts(root).joined(separator: " / ").replacingOccurrences(of: "\n", with: " ⏎ ")
         }
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("trash.log-2") { window in
             guard window.location == .trash else { return "trash: (not shown) full=\(String(describing: TrashStore.isFull))" }
             var text = "trash: full=\(String(describing: TrashStore.isFull)) denied=\(TrashStore.lastListingDenied)"
             if let details = window.itemView as? DetailsViewController {

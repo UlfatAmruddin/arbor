@@ -45,16 +45,7 @@ extension DetailsDepth {
             if let d = details(w), let g = group(named: arg, in: d) { d.selectGroup(g); d.focus() }
             return 0.5
         }
-        DebugScript.registerStep("key") { arg, w in
-            guard let d = details(w), let code = UInt16(arg), let window = w?.window else { return 0.3 }
-            d.focus()
-            if let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
-                                            windowNumber: window.windowNumber, context: nil, characters: keyCharacters(code),
-                                            charactersIgnoringModifiers: keyCharacters(code), isARepeat: false, keyCode: code) {
-                d.table.keyDown(with: event)
-            }
-            return 0.3
-        }
+        // `key:` (keys through the real keyboard path) is the accessibility feature's step (AccessibilityDebug.swift).
         DebugScript.registerStep("filter") { arg, w in
             guard let tab = w?.activeTab, let colon = arg.firstIndex(of: ":") else { return 0.5 }
             let column = ColumnID(String(arg[..<colon]))
@@ -134,7 +125,7 @@ extension DetailsDepth {
             return 0.3
         }
 
-        DebugScript.registerLogger { w in
+        DebugScript.registerLogger("details-depth.log") { w in
             guard !w.tabs.isEmpty, !w.activeTab.showsPage else { return "details: (page)" }
             let tab = w.activeTab
             let o = ViewOptions.options(for: tab)
@@ -189,17 +180,6 @@ extension DetailsDepth {
         }
     }
 
-    private static func keyCharacters(_ code: UInt16) -> String {
-        switch code {
-        case 123: return String(Character(UnicodeScalar(NSLeftArrowFunctionKey)!))
-        case 124: return String(Character(UnicodeScalar(NSRightArrowFunctionKey)!))
-        case 125: return String(Character(UnicodeScalar(NSDownArrowFunctionKey)!))
-        case 126: return String(Character(UnicodeScalar(NSUpArrowFunctionKey)!))
-        case 36: return "\r"
-        case 49: return " "
-        default: return ""
-        }
-    }
 
     private static func snapshot(_ view: NSView, to path: String) {
         view.layoutSubtreeIfNeeded()

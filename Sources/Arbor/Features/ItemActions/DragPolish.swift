@@ -22,9 +22,11 @@ enum DragPolish {
     static var lastSpring: String?
 
     static func install() {
-        InteractionHooks.dragHover = hover
-        InteractionHooks.drop = drop
-        InteractionHooks.rightMouseDown = rightMouseDown
+        InteractionHooks.dragHover.observe("item-actions.spring-loading") { key, activate in hover(key, activate) }
+        InteractionHooks.drop.register("item-actions.drop-polish", handles: { window, kind, urls, destination in
+            drop(window, kind, urls, destination)
+        })
+        InteractionHooks.rightMouseDown.register("item-actions.right-drag", handles: { table, event in rightMouseDown(table, event) })
     }
 
     /// The pasteboard drags use. Headless runs use a private one so tests never touch the system's.

@@ -34,7 +34,7 @@ final class DriveTileView: TileView {
     init(_ volume: VolumeSummary) {
         self.volume = volume
         super.init(frame: .zero)
-        let icon = NSImageView(image: VolumeCatalog.iconOverride?(volume, 48) ?? VolumeCatalog.icon(for: volume.kind, size: 48))
+        let icon = NSImageView(image: VolumeCatalog.iconOverride.first((volume, 48)) ?? VolumeCatalog.icon(for: volume.kind, size: 48))
         icon.hideFromAccessibility()   // the tile reads the drive name
         icon.translatesAutoresizingMaskIntoConstraints = false
         let name = NSTextField(labelWithString: volume.name)
@@ -80,7 +80,7 @@ final class DriveTileView: TileView {
     required init?(coder: NSCoder) { fatalError() }
 
     static func detailText(_ v: VolumeSummary) -> String {
-        if let status = VolumeCatalog.statusOverride?(v) { return status }
+        if let status = VolumeCatalog.statusOverride.first(v) { return status }
         if let total = v.total, total > 0, let free = v.free { return CapacityText.freeOfTotal(free: free, total: total) }
         return v.kind.typeName
     }

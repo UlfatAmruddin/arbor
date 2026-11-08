@@ -59,7 +59,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
             activate(activeTab)
         }
         reloadTabStrip()
-        WindowHooks.didCreate.forEach { $0(self) }
+        WindowHooks.didCreate.send(self)
     }
 
     convenience init(location: Location, initialSelection: [String] = []) {
@@ -197,7 +197,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
               let volume = note.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL else { return }
         for tab in tabs {
             guard let url = tab.location.folderURL, FileOps.isSameOrInside(url, volume) else { continue }
-            if let handler = Self.volumeUnmountHandler, handler(self, tab, volume) { continue }
+            if Self.volumeUnmountHandler.handle((self, tab, volume)) { continue }
             if tab === activeTab { statusBar.setMessage(L10n.format("“%@” was disconnected.", "\(displayName(of: volume))"), isError: true) }
             request(.visit(.thisMac, select: [], selectURLs: []), tab: tab)
         }
@@ -396,7 +396,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
     // TabStripDelegate
     func tabStripSelect(_ index: Int) { selectTab(at: index) }
     func tabStripClose(_ index: Int) { closeTab(at: index) }
-    func tabStripNewTab() { openTab(WindowHooks.startLocation()) }
+    func tabStripNewTab() { openTab(WindowHooks.startLocation.value()) }
     func tabStripMove(from: Int, to: Int) { moveTab(from: from, to: to) }
     func tabStripDetach(_ index: Int) { moveTabToNewWindow(at: index) }
     func tabStripMenu(for index: Int) -> NSMenu? {
@@ -558,7 +558,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
                 scrollTo = tab.topVisibleName
                 reset = true
             }
-            WindowHooks.willDisplay.forEach { $0(self, tab, target, changed) }
+            WindowHooks.willDisplay.send((self, tab, target, changed))
             if tab === activeTab {
                 display(tab, select: explicit, top: scrollTo, locationChanged: reset)
                 if changed || watchToken == nil { startWatching(tab) }
@@ -649,7 +649,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         if !savedURLs.isEmpty, view.selectedItems.count > savedURLs.count {
             view.select(urls: savedURLs)
         }
-        WindowHooks.didDisplay.forEach { $0(self, tab) }
+        WindowHooks.didDisplay.send((self, tab))
     }
 
     private func embed(_ view: NSView) {
@@ -691,7 +691,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
             display(tab, select: tab.selectedNames, top: tab.topVisibleName, locationChanged: false)
         }
         updateChrome()
-        WindowHooks.viewStateChanged.forEach { $0(self, tab) }
+        WindowHooks.viewStateChanged.send((self, tab))
     }
 
     func setSortOrder(_ order: FileSortOrder) {
@@ -708,7 +708,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
             if !deferred { display(activeTab, select: nil, top: nil, locationChanged: false) }
         }
         updateChrome()
-        WindowHooks.viewStateChanged.forEach { $0(self, activeTab) }
+        WindowHooks.viewStateChanged.send((self, activeTab))
     }
 
     /// Redraws tab titles and chrome after a setting that affects them changed (full path in title bar…).
@@ -826,7 +826,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
             itemView?.focus()
         case .success(.network(let url)):
             addressBar.endEditing()
-            if let handler = Self.networkAddressHandler, handler(self, url) { itemView?.focus(); return }
+            if Self.networkAddressHandler.handle((self, url)) { itemView?.focus(); return }
             SystemOpen.open(url)
             statusBar.setMessage(L10n.format("Connecting to %@… The share will appear under This Mac once it's mounted.", "\(url.host ?? url.absoluteString)"))
             itemView?.focus()
@@ -836,11 +836,15 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         }
     }
 
-    /// Hook for `smb://` / `\\server\share` typed in the address bar; return true when handled (network feature).
-    static var networkAddressHandler: ((BrowserWindowController, URL) -> Bool)?
-    /// Hook for a tab showing a folder on a volume that was just unmounted; return true when handled
+    /// `smb://` / `\\server\share` typed in the address bar; a handler returns true when it handled it (network feature).
+    static let networkAddressHandler = Handlers<(BrowserWindowController, URL), Void>(
+        "BrowserWindowController.networkAddressHandler", "A network address typed in the address bar; true = handled.",
+        signature: "(window, url) -> handled")
+    /// A tab showing a folder on a volume that was just unmounted; a handler returns true when it handled it
     /// (the network feature keeps such tabs on a "disconnected" page instead of going to This Mac).
-    static var volumeUnmountHandler: ((BrowserWindowController, TabState, URL) -> Bool)?
+    static let volumeUnmountHandler = Handlers<(BrowserWindowController, TabState, URL), Void>(
+        "BrowserWindowController.volumeUnmountHandler", "A tab's volume was unmounted; true = handled (tab stays).",
+        signature: "(window, tab, volume) -> handled")
 
     func focusAddressBar(text: String? = nil) { addressBar.beginEditing(text: text) }
     func focusSearch() { searchBox.focus() }
@@ -916,12 +920,12 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
             if let location = LocationRegistry.locationForOpening(item) { locations.append(location) } else { files.append(item) }
         }
         if locations.count == 1, files.isEmpty, !inNewTab {
-            if WindowHooks.openFolder?(self, locations[0]) == true { return }
+            if WindowHooks.openFolder.handle((self, locations[0])) { return }
             navigate(to: locations[0])
             return
         }
         locations.forEach { openTab($0) }
-        files.removeAll { InteractionHooks.openFile?(self, $0) == true }
+        files.removeAll { InteractionHooks.openFile.handle((self, $0)) }
         files.forEach { SystemOpen.open($0.url) }
         if !files.isEmpty { NotificationCenter.default.post(name: LocationEvents.didOpenFiles, object: self, userInfo: ["urls": files.map(\.url)]) }
     }
@@ -937,7 +941,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
         }
         updateChrome()
         refreshQuickLook()
-        WindowHooks.selectionChanged.forEach { $0(self) }
+        WindowHooks.selectionChanged.send(self)
     }
 
     func itemViewContextMenu() -> NSMenu? {
@@ -945,7 +949,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
     }
 
     func itemViewRename(_ item: FileItem, to newName: String) -> Bool {
-        if let handled = InteractionHooks.commitRename?(self, item, newName) { return handled }
+        if let handled = InteractionHooks.commitRename.first((self, item, newName)) { return handled }
         if !item.isFolder {
             let change = ExtensionChange.between(item.name, newName)
             if change != .unchanged {
@@ -1000,7 +1004,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
     }
 
     func itemViewTransfer(_ kind: TransferKind, _ urls: [URL], to folder: URL) {
-        if InteractionHooks.drop?(self, kind, urls, folder) == true { return }
+        if InteractionHooks.drop.handle((self, kind, urls, folder)) { return }
         startTransfer(kind, urls, to: folder)
     }
 
@@ -1020,7 +1024,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate, NSSpl
     func navigationPaneNavigate(to location: Location) { navigate(to: location) }
     func navigationPaneOpenInNewTab(_ location: Location) { openTab(location) }
     func navigationPaneTransfer(_ kind: TransferKind, _ urls: [URL], to folder: URL) {
-        if InteractionHooks.drop?(self, kind, urls, folder) == true { return }
+        if InteractionHooks.drop.handle((self, kind, urls, folder)) { return }
         startTransfer(kind, urls, to: folder)
     }
 

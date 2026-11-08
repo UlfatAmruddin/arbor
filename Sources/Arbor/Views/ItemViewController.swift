@@ -85,9 +85,21 @@ extension ItemViewController {
 ///     ViewModeRegistry.register([.largeIcons, .mediumIcons]) { IconGridViewController() }
 enum ViewModeRegistry {
     private static var factories: [ViewMode: () -> ItemViewController] = [:]
+    /// The feature that registered each mode, so a duplicate names both features.
+    private static var owners: [ViewMode: String] = [:]
 
+    /// Each mode has one factory; registering a mode twice is an extension error (DEC-024).
     static func register(_ modes: [ViewMode], factory: @escaping () -> ItemViewController) {
-        for mode in modes { factories[mode] = factory }
+        for mode in modes {
+            guard factories[mode] == nil else {
+                ExtensionRegistry.shared.report(point: "ViewModeRegistry", "view mode \(mode.rawValue) is registered twice.",
+                                                contribution: ExtensionRegistry.shared.currentFeature ?? "(unknown feature)",
+                                                existing: owners[mode] ?? "(unknown feature)")
+                continue
+            }
+            factories[mode] = factory
+            owners[mode] = ExtensionRegistry.shared.currentFeature ?? ""
+        }
     }
 
     static func isRegistered(_ mode: ViewMode) -> Bool { factories[mode] != nil }

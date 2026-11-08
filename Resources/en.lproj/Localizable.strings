@@ -69,7 +69,6 @@
 "%@:today or %@:1/1/2026..1/31/2026" = "%@:today or %@:1/1/2026..1/31/2026";
 "%@\n\nClose any files or apps using it, then try again." = "%@\n\nClose any files or apps using it, then try again.";
 "(None)" = "(None)";
-"/Applications" = "/Applications";
 "/Users/you/Documents/Report.pdf" = "/Users/you/Documents/Report.pdf";
 "1 item" = "1 item";
 "1 item selected" = "1 item selected";
@@ -336,14 +335,13 @@
 "Couldn't create “%@” in “%@”." = "Couldn't create “%@” in “%@”.";
 "Couldn't create “%@”." = "Couldn't create “%@”.";
 "Couldn't delete “%@”." = "Couldn't delete “%@”.";
-"Couldn't rename the items.L10n.tr(" = "Couldn't rename the items.L10n.tr(";
+"Couldn't rename the items." = "Couldn't rename the items.";
 "Couldn't rename these items." = "Couldn't rename these items.";
-"Couldn't rename these items.L10n.tr(" = "Couldn't rename these items.L10n.tr(";
 "Couldn't rename “%@”." = "Couldn't rename “%@”.";
 "Couldn't rename “%@”: %@" = "Couldn't rename “%@”: %@";
 "Couldn't save the search." = "Couldn't save the search.";
 "Couldn't set “%@” as the desktop background." = "Couldn't set “%@” as the desktop background.";
-"Couldn't undo the rename.L10n.tr(" = "Couldn't undo the rename.L10n.tr(";
+"Couldn't undo the rename." = "Couldn't undo the rename.";
 "Couldn't undo: %@" = "Couldn't undo: %@";
 "Create" = "Create";
 "Create Copy" = "Create Copy";
@@ -400,7 +398,6 @@
 "Details" = "Details";
 "Details Pane" = "Details Pane";
 "Details pane" = "Details pane";
-"Details paneL10n.tr(" = "Details paneL10n.tr(";
 "Details:" = "Details:";
 "Devices and drives" = "Devices and drives";
 "Digital Signature Information" = "Digital Signature Information";
@@ -753,6 +750,8 @@
 "Not changed: %@" = "Not changed: %@";
 "Not done" = "Not done";
 "Nothing is selected." = "Nothing is selected.";
+"Nothing was changed." = "Nothing was changed.";
+"Nothing was renamed." = "Nothing was renamed.";
 "Number position" = "Number position";
 "Numbers:" = "Numbers:";
 "OK" = "OK";

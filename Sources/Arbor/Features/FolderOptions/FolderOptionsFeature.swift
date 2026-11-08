@@ -10,7 +10,10 @@ extension MenuSection {
 
 /// Folder Options (FE-042/043/045/046), per-folder views (FE-040/041/052/248) and session restore
 /// (FE-024/026/251). See docs/features/folder-options.md.
-enum FolderOptionsFeature {
+enum FolderOptionsFeature: ExplorerFeature {
+    static let id = "folder-options"
+    /// Folder views decide column sets and Group by, "Clear history" clears Home, folder templates come from Properties.
+    static let requires = ["details-depth", "home", "properties"]
     static func register() {
         HeadlessPrefsSeed.load()
         registerCommands()
@@ -59,27 +62,33 @@ enum FolderOptionsFeature {
     // MARK: Hooks
 
     private static func installHooks() {
-        WindowHooks.startLocation = { Prefs.openTo }
-        WindowHooks.tabTitle = { location in Prefs.fullPathInTitleBar ? location.folderURL?.path : nil }
-        WindowHooks.openFolder = { _, location in
+        WindowHooks.startLocation.provide("folder-options.open-to") { Prefs.openTo }
+        WindowHooks.tabTitle.register("folder-options.full-path-title") { location in
+            Prefs.fullPathInTitleBar ? location.folderURL?.path : nil
+        }
+        WindowHooks.openFolder.register("folder-options.own-window", handles: { _, location in
             guard Prefs.openFoldersInOwnWindow, let app = NSApp.delegate as? AppDelegate else { return false }
             app.openWindow(at: location)
             return true
-        }
-        WindowHooks.itemFilters.append { items, _ in
+        })
+        WindowHooks.itemFilters.add("folder-options.hide-protected") { items, _ in
             Prefs.hideProtectedSystemFiles ? ProtectedSystemItems.filter(items) : items
         }
-        WindowHooks.didCreate.append { controller in controller.statusBar.setVisibleForFolderOptions(Prefs.showStatusBar) }
-        WindowHooks.willDisplay.append(syncProviderNotice)
-        WindowHooks.didDisplay.append { window, _ in
+        WindowHooks.didCreate.observe("folder-options.status-bar") { controller in
+            controller.statusBar.setVisibleForFolderOptions(Prefs.showStatusBar)
+        }
+        WindowHooks.willDisplay.observe("folder-options.provider-notice") { window, tab, location, changed in
+            syncProviderNotice(window, tab, location, changed)
+        }
+        WindowHooks.didDisplay.observe("folder-options.dialog-info") { window, _ in
             // Keep the dialog's "This folder:" line in step with its window.
             if let dialog = FolderOptionsWindowController.shared, dialog.origin === window, dialog.window?.isVisible == true {
                 dialog.refreshFolderViewsInfo()
             }
         }
-        PreviewPolicy.showsPreviewHandlers = { Prefs.showPreviewHandlers }
+        PreviewPolicy.showsPreviewHandlers.provide("folder-options.preview-handlers") { Prefs.showPreviewHandlers }
         // "Clear Arbor history" also clears Home's Recent, frequent folders and removal marks.
-        FolderOptionsHistory.register("home") {
+        FolderOptionsHistory.register("folder-options.home-history") {
             HomeStore.clearHistory()
             return 1
         }
@@ -226,7 +235,7 @@ enum FolderOptionsFeature {
             NotificationCenter.default.post(name: NSApplication.didChangeScreenParametersNotification, object: NSApp)
             return 0.5
         }
-        DebugScript.registerLogger { window in
+        DebugScript.registerLogger("folder-options.log") { window in
             let shown = !window.statusBar.isHidden
             return FolderViews.shared.debugLine(window) + "\nstatus bar shown: \(shown)  " + ItemClickBehavior.shared.debugLine
                 + "  window title: \(window.window?.title ?? "-")"

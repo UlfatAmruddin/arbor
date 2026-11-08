@@ -74,7 +74,7 @@ enum SearchColumns {
     /// Uses main's `DetailsColumns` layouts: Name · Date modified · Type · Size · Folder · Match.
     /// The layout id carries the location key so each search binds its own session.
     static func register() {
-        DetailsColumns.register { location in
+        DetailsColumns.register("search.columns") { location in
             guard case .search = location else { return nil }
             return DetailsLayout(
                 id: "search:" + location.key,

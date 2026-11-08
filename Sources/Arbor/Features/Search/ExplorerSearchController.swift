@@ -140,13 +140,15 @@ final class ExplorerSearchController: SearchController {
     static func isSearchable(_ location: Location) -> Bool {
         switch location {
         case .folder, .search, .home, .thisMac: return true
-        default: return scopedRequest?(location, nil) != nil
+        default: return scopedRequest.first((location, nil)) != nil
         }
     }
 
     /// Builds the search for a place that isn't a plain folder (Home with its pinned folders and
     /// recent files, a library's folders, every drive from This Mac). nil = the default for `location`.
-    static var scopedRequest: ((Location, BrowserWindowController?) -> SearchRequest?)?
+    static let scopedRequest = Handlers<(Location, BrowserWindowController?), SearchRequest>(
+        "ExplorerSearchController.scopedRequest", "The search a place that isn't a plain folder runs (Home, libraries, This Mac).",
+        signature: "(location, window?) -> SearchRequest?")
 
     /// The folder a search from `location` covers (nil = everywhere / This Mac).
     static func scope(for location: Location) -> URL? {
@@ -167,7 +169,7 @@ final class ExplorerSearchController: SearchController {
             request = r
             request.query = query
         } else {
-            request = Self.scopedRequest?(shown, window) ?? SearchRequest(query: query, scope: Self.scope(for: shown), recursive: true)
+            request = Self.scopedRequest.first((shown, window)) ?? SearchRequest(query: query, scope: Self.scope(for: shown), recursive: true)
             request.query = query
         }
         if case .success = AQSParser.parse(query) {   // only searches that could run go into the history

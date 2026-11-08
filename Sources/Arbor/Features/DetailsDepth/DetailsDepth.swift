@@ -4,10 +4,11 @@ import ArborCore
 /// Details view depth: Group by, column header filters, more columns with lazily loaded metadata,
 /// Choose Details, column sets per folder kind, and sorting by any column
 /// (FE-035, FE-036, FE-038, FE-039, FE-040, FE-051, FE-235). See docs/features/grouping.md.
-enum DetailsDepth {
+enum DetailsDepth: ExplorerFeature {
+    static let id = "details-depth"
     static func register() {
-        FileSorter.columnValues = lookup
-        TabState.visibleItemsFilter = { tab, items in filter(tab, items) }
+        FileSorter.columnValues.register("details-depth.metadata", order: .late) { item, column in .some(lookup(item, column)) }
+        TabState.visibleItemsFilter.add("details-depth.column-filters") { items, tab in filter(tab, items) }
         registerSortCommands()
         registerGroupCommands()
         registerDebugSteps()
@@ -100,12 +101,12 @@ enum DetailsDepth {
         // Replace the core Name/Date modified/Type/Size items so they know about column sorts.
         for (i, key) in SortKey.allCases.enumerated() {
             let column = ColumnID(key.rawValue)
-            r.register(ExplorerCommand(
+            r.replace(ExplorerCommand(
                 id: "sort.\(key.rawValue)", title: key.title,
                 placements: [.sortMenu(.main, Double(i))],
                 isEnabled: { $0.tab != nil },
                 state: { ctx in ctx.tab?.sortOrder.primaryColumn == column ? .on : .off },
-                perform: { sortBy($0, column) }))
+                perform: { sortBy($0, column) }), "details-depth.column-sorts")
         }
         // Other columns appear while they are shown in Details.
         for (i, d) in ColumnCatalog.builtIn.enumerated() where !coreColumns.contains(d.id) {

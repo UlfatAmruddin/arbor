@@ -151,13 +151,15 @@ struct CommandContext {
 
 // MARK: - Command
 
-/// One user-visible action. Register with `CommandRegistry.shared.register(...)`; registering an
-/// existing id replaces it (a feature can upgrade a core command).
+/// One user-visible action. Register with `CommandRegistry.shared.register(...)`, once per id. Other
+/// features change how it behaves in their places (Trash, archives, Gallery…) with
+/// `CommandRegistry.shared.override(...)`, never by assigning its closures, so the result doesn't
+/// depend on registration order (DEC-024).
 final class ExplorerCommand {
     let id: String
     var title: String
     /// Optional context-dependent title ("Pin to Quick access" / "Unpin from Quick access").
-    var dynamicTitle: ((CommandContext) -> String)?
+    let dynamicTitle: ((CommandContext) -> String)?
     var symbol: String?
     var tooltip: String?
     var shortcut: Shortcut?
@@ -170,12 +172,14 @@ final class ExplorerCommand {
     var yieldsToTextInput: Bool
     /// Command bar: show the title next to the icon.
     var showsTitle: Bool
-    var isAvailable: (CommandContext) -> Bool
-    var isEnabled: (CommandContext) -> Bool
-    var state: (CommandContext) -> NSControl.StateValue
-    /// A submenu instead of an action (Open with ▸, Sort by ▸).
-    var submenu: ((CommandContext) -> [NSMenuItem])?
-    var perform: (CommandContext) -> Void
+    /// The command's own rules, as registered. Callers use `isAvailable(_:)` & co., which apply overrides.
+    private let ownIsAvailable: (CommandContext) -> Bool
+    private let ownIsEnabled: (CommandContext) -> Bool
+    private let ownState: (CommandContext) -> NSControl.StateValue
+    private let ownSubmenu: ((CommandContext) -> [NSMenuItem])?
+    private let ownPerform: (CommandContext) -> Void
+    /// What other features contributed (shared with the registry, which may hold it before the command exists).
+    fileprivate(set) var extensions: CommandExtensions
 
     init(id: String, title: String, symbol: String? = nil, tooltip: String? = nil, shortcut: Shortcut? = nil,
          keyBindings: [KeyBinding] = [], placements: [CommandPlacement] = [], menuAction: Selector? = nil,
@@ -197,14 +201,55 @@ final class ExplorerCommand {
         self.yieldsToTextInput = yieldsToTextInput
         self.showsTitle = showsTitle
         self.dynamicTitle = dynamicTitle
-        self.isAvailable = isAvailable
-        self.isEnabled = isEnabled
-        self.state = state
-        self.submenu = submenu
-        self.perform = perform
+        self.ownIsAvailable = isAvailable
+        self.ownIsEnabled = isEnabled
+        self.ownState = state
+        self.ownSubmenu = submenu
+        self.ownPerform = perform
+        self.extensions = CommandExtensions(commandID: id)
     }
 
-    func title(in context: CommandContext) -> String { dynamicTitle.map { L10n.tr($0(context)) } ?? title }
+    // MARK: Effective behavior (the first matching override, else the command's own)
+
+    func isAvailable(_ context: CommandContext) -> Bool {
+        extensions.isAvailable.first(context) ?? ownIsAvailable(context)
+    }
+
+    func isEnabled(_ context: CommandContext) -> Bool {
+        extensions.isEnabled.first(context) ?? ownIsEnabled(context)
+    }
+
+    func state(_ context: CommandContext) -> NSControl.StateValue {
+        extensions.state.first(context) ?? ownState(context)
+    }
+
+    func title(in context: CommandContext) -> String {
+        if let title = extensions.title.first(context) { return L10n.tr(title) }
+        return dynamicTitle.map { L10n.tr($0(context)) } ?? title
+    }
+
+    /// Whether the title can change with the context (its own dynamic title, or an override's).
+    var hasDynamicTitle: Bool { dynamicTitle != nil || !extensions.title.isEmpty }
+
+    /// Whether the command shows a submenu (Open with ▸, Sort by ▸) instead of performing an action.
+    var hasSubmenu: Bool { ownSubmenu != nil || !extensions.submenu.isEmpty }
+
+    /// The submenu's items: an override's or the command's own, then every submenu adjustment.
+    func submenuItems(_ context: CommandContext) -> [NSMenuItem] {
+        let items = extensions.submenu.first(context) ?? ownSubmenu?(context) ?? []
+        return extensions.submenuItems.apply(items, context)
+    }
+
+    func perform(_ context: CommandContext) {
+        extensions.willPerform.send(context)
+        if extensions.perform.first(context) == nil { ownPerform(context) }
+    }
+
+    /// What `perform` would do without override `overrideID` and the overrides that run before it:
+    /// for an override that adds to the behavior it replaces ("forget the tile, then delete as usual").
+    func perform(_ context: CommandContext, after overrideID: String) {
+        if extensions.perform.first(context, after: overrideID) == nil { ownPerform(context) }
+    }
 
     /// "Cut (⌘X)" for tooltips.
     var tooltipText: String {
@@ -235,6 +280,37 @@ extension Shortcut {
     }
 }
 
+// MARK: - Overrides
+
+/// Per-command extension points (DEC-024). Each holds contributions by id; an override contributes to
+/// the aspects it changes. For every aspect the first override (in run order) whose condition holds
+/// decides; with none, the command's own closure does.
+final class CommandExtensions {
+    let commandID: String
+    private(set) lazy var isAvailable = Handlers<CommandContext, Bool>(point("isAvailable"), "Where the command is listed.")
+    private(set) lazy var isEnabled = Handlers<CommandContext, Bool>(point("isEnabled"), "Whether the command can run.")
+    private(set) lazy var state = Handlers<CommandContext, NSControl.StateValue>(point("state"), "Check mark or toggle state.")
+    private(set) lazy var title = Handlers<CommandContext, String>(point("title"), "The command's title.")
+    private(set) lazy var submenu = Handlers<CommandContext, [NSMenuItem]>(point("submenu"), "The command's submenu.")
+    private(set) lazy var submenuItems = Pipeline<[NSMenuItem], CommandContext>(
+        point("submenuItems"), "Adjusts the submenu's items (extra entries, recording opened files).")
+    private(set) lazy var perform = Handlers<CommandContext, Void>(point("perform"), "What the command does.")
+    private(set) lazy var willPerform = Observers<CommandContext>(point("willPerform"), "Runs before the command performs.")
+    /// The feature that replaced the command with its own version, if any (at most one).
+    private(set) lazy var replacement = Provided<Bool>(point("replacement"), "A newer version of the command replaced it.",
+                                                       default: false)
+
+    init(commandID: String) { self.commandID = commandID }
+
+    private func point(_ aspect: String) -> String { "commands[\(commandID)].\(aspect)" }
+
+    /// The aspects that have contributions.
+    var points: [ExtensionPointInfo] {
+        let all: [ExtensionPointInfo] = [replacement, isAvailable, isEnabled, state, title, submenu, submenuItems, perform, willPerform]
+        return all.filter { !$0.contributions.isEmpty }
+    }
+}
+
 // MARK: - Registry
 
 final class CommandRegistry {
@@ -243,11 +319,142 @@ final class CommandRegistry {
 
     private var commands: [String: ExplorerCommand] = [:]
     private var registrationOrder: [String] = []
+    /// Overrides by command id; kept here so a feature may override a command registered after it.
+    private var extensionsByID: [String: CommandExtensions] = [:]
+    /// The feature that registered each command.
+    private var owners: [String: String] = [:]
 
+    /// Registers a command. Each id is registered once: a second registration is an extension error
+    /// (use `override` to change another feature's command).
     func register(_ command: ExplorerCommand) {
-        if commands[command.id] == nil { registrationOrder.append(command.id) }
+        let registry = ExtensionRegistry.shared
+        if let existing = commands[command.id] {
+            let owner = owners[command.id].map { "feature \"\($0)\"" } ?? "an earlier registration"
+            registry.report(ExtensionError(point: "CommandRegistry", problem: .duplicateID, existing: owner,
+                                           rejected: existing.id + (registry.currentFeature.map { " (feature \"\($0)\")" } ?? "")
+                                               + "; use CommandRegistry.replace or override"))
+            return
+        }
+        owners[command.id] = registry.currentFeature
+        registrationOrder.append(command.id)
+        if let shared = extensionsByID[command.id] { command.extensions = shared } else { extensionsByID[command.id] = command.extensions }
+        commands[command.id] = command
+        for rule in prefixRules where rule.matches(command.id) { rule.apply(command.id) }
+        NotificationCenter.default.post(name: Self.changed, object: nil)
+    }
+
+    private func extensions(for commandID: String) -> CommandExtensions {
+        if let existing = extensionsByID[commandID] { return existing }
+        let created = CommandExtensions(commandID: commandID)
+        extensionsByID[commandID] = created
+        return created
+    }
+
+    /// Changes a command where `when` holds (a location such as the Trash or Gallery): each closure given
+    /// replaces the command's own for that aspect. Elsewhere the command is unchanged. `id` names the
+    /// contribution ("trash.delete-permanently"); `order` decides between overrides whose conditions
+    /// overlap (the first that holds wins).
+    func override(_ commandID: String, _ id: String, order: ExtensionOrder = .normal,
+                  when condition: @escaping (CommandContext) -> Bool,
+                  isAvailable: ((CommandContext) -> Bool)? = nil,
+                  isEnabled: ((CommandContext) -> Bool)? = nil,
+                  state: ((CommandContext) -> NSControl.StateValue)? = nil,
+                  title: ((CommandContext) -> String)? = nil,
+                  submenu: ((CommandContext) -> [NSMenuItem])? = nil,
+                  perform: ((CommandContext) -> Void)? = nil) {
+        let ext = extensions(for: commandID)
+        if let isAvailable { ext.isAvailable.register(id, order: order) { condition($0) ? isAvailable($0) : nil } }
+        if let isEnabled { ext.isEnabled.register(id, order: order) { condition($0) ? isEnabled($0) : nil } }
+        if let state { ext.state.register(id, order: order) { condition($0) ? state($0) : nil } }
+        if let title { ext.title.register(id, order: order) { condition($0) ? title($0) : nil } }
+        if let submenu { ext.submenu.register(id, order: order) { condition($0) ? submenu($0) : nil } }
+        if let perform {
+            ext.perform.register(id, order: order) { context -> Void? in
+                guard condition(context) else { return nil }
+                perform(context)
+                return ()
+            }
+        }
+    }
+
+    /// Hides a command where `condition` holds.
+    func hide(_ commandID: String, _ id: String, order: ExtensionOrder = .normal, when condition: @escaping (CommandContext) -> Bool) {
+        override(commandID, id, order: order, when: condition, isAvailable: { _ in false })
+    }
+
+    /// Hides, where `condition` holds, every command whose id starts with `prefix` (except `excluded`),
+    /// including commands registered later.
+    func hide(prefix: String, except excluded: Set<String> = [], _ id: String, order: ExtensionOrder = .normal,
+              when condition: @escaping (CommandContext) -> Bool) {
+        let feature = ExtensionRegistry.shared.currentFeature
+        let rule = PrefixRule(prefix: prefix, excluded: excluded) { [unowned self] commandID in
+            // Recorded as the rule's feature, also for commands that register later.
+            let registry = ExtensionRegistry.shared
+            let current = registry.currentFeature
+            registry.currentFeature = feature
+            self.hide(commandID, id, order: order, when: condition)
+            registry.currentFeature = current
+        }
+        prefixRules.append(rule)
+        registrationOrder.filter(rule.matches).forEach(rule.apply)
+    }
+
+    private struct PrefixRule {
+        let prefix: String
+        let excluded: Set<String>
+        let apply: (String) -> Void
+        func matches(_ commandID: String) -> Bool { commandID.hasPrefix(prefix) && !excluded.contains(commandID) }
+    }
+
+    private var prefixRules: [PrefixRule] = []
+
+    /// Replaces a registered command with a new version (a feature upgrading a core command: Sort ▾ items
+    /// that know about column sorts). It keeps its place and the overrides made for it; each command can
+    /// be replaced once. The feature replacing it must require the feature that registered it.
+    func replace(_ command: ExplorerCommand, _ id: String) {
+        guard commands[command.id] != nil else {
+            ExtensionRegistry.shared.report(point: "commands[\(command.id)].replacement",
+                                            "there is no command to replace (is the feature that registers it required?).",
+                                            contribution: id)
+            return
+        }
+        let ext = extensions(for: command.id)
+        guard ext.replacement.providerID == nil else {
+            ext.replacement.provide(id, true)   // records the second replacement as an error
+            return
+        }
+        ext.replacement.provide(id, true)
+        command.extensions = ext
         commands[command.id] = command
         NotificationCenter.default.post(name: Self.changed, object: nil)
+    }
+
+    /// Adjusts a command's submenu items after they are built (every contribution, in run order).
+    func adjustSubmenu(_ commandID: String, _ id: String, order: ExtensionOrder = .normal,
+                       _ transform: @escaping ([NSMenuItem], CommandContext) -> [NSMenuItem]) {
+        extensions(for: commandID).submenuItems.add(id, order: order, transform)
+    }
+
+    /// Runs `observer` before a command performs (the command still does what it would).
+    func beforePerform(_ commandID: String, _ id: String, order: ExtensionOrder = .normal,
+                       _ observer: @escaping (CommandContext) -> Void) {
+        extensions(for: commandID).willPerform.observe(id, order: order, observer)
+    }
+
+    /// Every per-command point with contributions, by command id.
+    var extensionPoints: [ExtensionPointInfo] {
+        extensionsByID.keys.sorted().flatMap { extensionsByID[$0]?.points ?? [] }
+    }
+
+    /// Records an extension error for every override of a command that was never registered (a typo,
+    /// or a feature that went away). Run once all features registered.
+    func checkOverrides() {
+        for id in extensionsByID.keys.sorted() where commands[id] == nil {
+            guard let ext = extensionsByID[id], !ext.points.isEmpty else { continue }
+            let contributors = Set(ext.points.flatMap(\.contributionIDs)).sorted().joined(separator: ", ")
+            ExtensionRegistry.shared.report(point: "commands[\(id)]", "no command has this id (contributions: \(contributors)).",
+                                            contribution: contributors)
+        }
     }
 
     func register(_ list: [ExplorerCommand]) { list.forEach(register) }
@@ -329,11 +536,12 @@ final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
     static let shared = CommandDispatcher()
 
     /// Adjusts a command's title in menus (not buttons), e.g. Explorer's sentence case in context menus.
-    static var menuTitleHook: ((ExplorerCommand, String, CommandContext) -> String)?
+    static let menuTitleHook = Pipeline<String, (command: ExplorerCommand, context: CommandContext)>(
+        "CommandDispatcher.menuTitleHook", "Adjusts a command's title in menus (sentence case in context menus).",
+        signature: "(title, (command, context)) -> title")
 
     static func menuTitle(_ command: ExplorerCommand, context: CommandContext) -> String {
-        let title = command.title(in: context)
-        return menuTitleHook?(command, title, context) ?? title
+        menuTitleHook.apply(command.title(in: context), (command, context))
     }
 
     /// Context for the menu bar: the frontmost browser window's active tab.
@@ -371,9 +579,9 @@ final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
             item.keyEquivalent = shortcut.key
             item.keyEquivalentModifierMask = shortcut.modifiers
         }
-        if let submenu = command.submenu {
+        if command.hasSubmenu {
             let menu = NSMenu(title: command.title)
-            if let context { submenu(context).forEach(menu.addItem) }
+            if let context { command.submenuItems(context).forEach(menu.addItem) }
             else { menu.delegate = self }   // menu bar: fill when opened
             item.submenu = menu
             item.representedObject = command.id
@@ -415,8 +623,8 @@ final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         guard let parent = menu.supermenu?.items.first(where: { $0.submenu === menu }),
               let id = parent.representedObject as? String, let command = CommandRegistry.shared.command(id),
-              let submenu = command.submenu else { return }
+              command.hasSubmenu else { return }
         menu.removeAllItems()
-        submenu(liveContext(surface: .menuBar)).forEach(menu.addItem)
+        command.submenuItems(liveContext(surface: .menuBar)).forEach(menu.addItem)
     }
 }

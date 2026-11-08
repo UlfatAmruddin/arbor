@@ -29,7 +29,7 @@ enum JobVerification {
     static func progress(_ job: OperationCenter.Job) -> (done: Int64, total: Int64)? { running[job.id] }
 
     static func install() {
-        OperationCenter.afterRun = { job, report in await verify(job, report) }
+        OperationCenter.afterRun.provide("file-operations-extras.verify-after-copy") { job, report in await verify(job, report) }
     }
 
     /// Runs on the job's task, between the copy and its report.

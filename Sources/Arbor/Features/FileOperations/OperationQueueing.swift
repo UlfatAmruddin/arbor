@@ -42,7 +42,7 @@ final class TransferQueueController {
 
     func install() {
         scheduler = TransferScheduler(queueSameDrive: Prefs.fileOpsQueueSameDrive, concurrencyLimit: Prefs.fileOpsConcurrencyLimit)
-        OperationCenter.admission = { job, launch in TransferQueueController.shared.admit(job, launch) }
+        OperationCenter.admission.provide("file-operations-extras.transfer-queue") { job, launch in TransferQueueController.shared.admit(job, launch) }
         observer = NotificationCenter.default.addObserver(forName: Prefs.changed, object: nil, queue: .main) { [weak self] note in
             guard let key = note.userInfo?["key"] as? String, key.hasPrefix("fileOpsQueue") || key == "fileOpsConcurrencyLimit" else { return }
             self?.reconfigure()

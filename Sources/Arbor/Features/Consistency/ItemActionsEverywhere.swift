@@ -11,10 +11,12 @@ enum ItemActionsEverywhere {
     private static let hover = PageHoverTracker()
 
     static func register() {
-        InteractionHooks.rightDrag = rightDrag
-        TileView.showsDescriptions = { Prefs.showPopupDescriptions }
-        GalleryGridView.showsDescriptions = { Prefs.showPopupDescriptions }
-        WindowHooks.didCreate.append { window in window.window?.acceptsMouseMovedEvents = true }
+        InteractionHooks.rightDrag.register("consistency.right-drag-in-icon-views", handles: { view, event, urls in
+            rightDrag(view, event, urls)
+        })
+        TileView.showsDescriptions.provide("consistency.popup-descriptions") { Prefs.showPopupDescriptions }
+        GalleryGridView.showsDescriptions.provide("consistency.popup-descriptions") { Prefs.showPopupDescriptions }
+        WindowHooks.didCreate.observe("consistency.page-hover") { window in window.window?.acceptsMouseMovedEvents = true }
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in pageMouseDown(event) } as Any)
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { event in
             hover.moved(event)

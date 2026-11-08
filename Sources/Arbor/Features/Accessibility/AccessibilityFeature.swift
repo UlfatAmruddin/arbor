@@ -3,7 +3,8 @@ import ArborCore
 
 /// Accessibility, keyboard and input, localization infrastructure (FE-012, FE-016, FE-050, FE-061,
 /// FE-062, FE-066–FE-068, FE-199–FE-204; spec §16.2). See docs/features/accessibility.md.
-enum AccessibilityFeature {
+enum AccessibilityFeature: ExplorerFeature {
+    static let id = "accessibility"
     static func register() {
         LayoutDirection.applyEnvironment()
         KeyboardRouter.install()
@@ -41,8 +42,8 @@ enum LayoutDirection {
 /// being lost.
 enum FocusKeeper {
     static func install() {
-        WindowHooks.didDisplay.append { c, _ in schedule(c) }
-        WindowHooks.willDisplay.append { c, _, _, _ in schedule(c) }
+        WindowHooks.didDisplay.observe("accessibility.keep-focus") { c, _ in schedule(c) }
+        WindowHooks.willDisplay.observe("accessibility.keep-focus") { c, _, _, _ in schedule(c) }
         NotificationCenter.default.addObserver(forName: Prefs.changed, object: nil, queue: .main) { note in
             let key = note.userInfo?["key"] as? String
             guard key == "sidePane" || key == "navigationPaneVisible" else { return }

@@ -2,12 +2,13 @@ import AppKit
 import ArborCore
 
 /// This Mac page (FE-074) and the drives under "This Mac" in the navigation pane.
-enum ThisMacFeature {
+enum ThisMacFeature: ExplorerFeature {
+    static let id = "this-mac"
     private static var observers: [NSObjectProtocol] = []
 
     static func register() {
         LocationRegistry.register(ThisMacPageProvider())
-        NavigationPaneController.volumeNodes = { VolumeCatalog.navigationNodes() }
+        NavigationPaneController.volumeNodes.provide("this-mac.drives") { VolumeCatalog.navigationNodes() }
         observers.append(NotificationCenter.default.addObserver(forName: Prefs.changed, object: nil, queue: .main) { note in
             guard note.userInfo?["key"] as? String == HomePrefKeys.hideEmptyDrives else { return }
             for controller in (NSApp.delegate as? AppDelegate)?.controllers ?? [] {
@@ -40,6 +41,6 @@ enum ThisMacFeature {
             Prefs.hideEmptyDrives = arg != "off"
             return 0.8
         }
-        DebugScript.registerLogger { window in page(window)?.debugSummary ?? "thismac: (not shown)" }
+        DebugScript.registerLogger("this-mac.log") { window in page(window)?.debugSummary ?? "thismac: (not shown)" }
     }
 }

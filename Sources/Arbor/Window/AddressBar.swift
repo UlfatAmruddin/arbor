@@ -14,8 +14,10 @@ final class AddressBar: NSView, NSTextFieldDelegate {
     private let field = NSTextField()
     /// "▾" at the right end: recent locations (Windows 11 address bar).
     let recentButton = ChromeButton(symbol: "chevron.down", tooltip: "Recent locations")
-    /// Supplies the recent-locations list; the button hides while nil.
-    static var recentLocations: (() -> [Location])?
+    /// Supplies the recent-locations list; the button hides while there is no provider.
+    static let recentLocations = Provided<(() -> [Location])?>(
+        "AddressBar.recentLocations", "The address bar's recent locations (▾); hidden without a provider.",
+        signature: "() -> [Location]", default: nil)
     private let overflowButton = ChromeButton(symbol: "chevron.left.2", tooltip: "Show the rest of the path")
     private let rootChevron = ChromeButton(symbol: "chevron.right", tooltip: "Show places")
     private var segmentButtons: [ChromeButton] = []
@@ -35,11 +37,13 @@ final class AddressBar: NSView, NSTextFieldDelegate {
 
     /// What the field shows when editing: the path for folders, otherwise the place's name.
     var editText: String {
-        if let custom = Self.editTextProviders.lazy.compactMap({ $0(self.location) }).first { return custom }
+        if let custom = Self.editTextProviders.first(location) { return custom }
         return location.folderURL?.path ?? LocationRegistry.provider(for: location).title(for: location)
     }
     /// Features may supply the editable text for their locations (e.g. `\\server\share`).
-    static var editTextProviders: [(Location) -> String?] = []
+    static let editTextProviders = Handlers<Location, String>(
+        "AddressBar.editTextProviders", "The text the address field edits for a location; nil = path or title.",
+        signature: "(location) -> text?")
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -132,7 +136,7 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         super.layout()
         let h = bounds.height
         iconView.frame = NSRect(x: 8, y: (h - 16) / 2, width: 16, height: 16)
-        let showsRecent = Self.recentLocations != nil
+        let showsRecent = Self.recentLocations.value != nil
         recentButton.isHidden = !showsRecent
         recentButton.frame = NSRect(x: bounds.width - 30, y: (h - 24) / 2, width: 26, height: 24)
         let end = showsRecent ? recentButton.frame.minX - 2 : bounds.width - 6
@@ -212,7 +216,7 @@ final class AddressBar: NSView, NSTextFieldDelegate {
 
     /// The recent-locations menu entries (also for scripted checks).
     var recentMenuEntries: [CrumbChild] {
-        (Self.recentLocations?() ?? []).map { place in
+        (Self.recentLocations.value?() ?? []).map { place in
             let provider = LocationRegistry.provider(for: place)
             return CrumbChild(title: place.folderURL?.path ?? provider.title(for: place), location: place,
                               icon: provider.icon(for: place, size: 16))

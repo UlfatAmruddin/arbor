@@ -72,7 +72,7 @@ enum NetworkThisMac {
             ws.addObserver(forName: name, object: nil, queue: .main) { _ in refresh() }
         }
 
-        VolumeCatalog.adjustments.append { volumes in
+        VolumeCatalog.adjustments.add("network.mapped-drives") { volumes in
             let snap = snapshot
             var result = volumes.map { v -> VolumeSummary in
                 guard v.kind == .network, let label = snap.labels[v.url.path] else { return v }
@@ -90,12 +90,12 @@ enum NetworkThisMac {
             }
             return result
         }
-        VolumeCatalog.iconOverride = { volume, size in
+        VolumeCatalog.iconOverride.register("network.drive-icons") { volume, size in
             guard volume.kind == .network else { return nil }
             let key = Location.normalizedKey(volume.url)
             return NetworkIcons.drive(size, disconnected: snapshot.disconnected.contains { Location.normalizedKey($0.url) == key })
         }
-        VolumeCatalog.statusOverride = { volume in
+        VolumeCatalog.statusOverride.register("network.disconnected-status") { volume in
             guard volume.kind == .network else { return nil }
             let key = Location.normalizedKey(volume.url)
             return snapshot.disconnected.first { Location.normalizedKey($0.url) == key }?.status

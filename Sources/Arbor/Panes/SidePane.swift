@@ -23,9 +23,18 @@ struct SidePaneDescriptor {
 ///     SidePaneRegistry.register(SidePaneDescriptor(id: "details", title: "Details pane") { PropertiesPane() })
 enum SidePaneRegistry {
     private static var descriptors: [String: SidePaneDescriptor] = [:]
+    /// Registering an id that exists replaces that pane (a feature upgrades the core Details pane).
     static func register(_ descriptor: SidePaneDescriptor) { descriptors[descriptor.id] = descriptor }
     static func descriptor(_ id: String) -> SidePaneDescriptor? { descriptors[id] }
     static var ids: [String] { descriptors.keys.sorted() }
+
+    /// Wraps a pane when it is created (the cloud download gate and archive member previews wrap "preview").
+    static let wrappers = Pipeline<SidePaneProvider, String>(
+        "SidePaneRegistry.wrappers", "Wraps a side pane when it is created (by pane id).", signature: "(pane, id) -> pane")
+
+    static func make(_ descriptor: SidePaneDescriptor) -> SidePaneProvider {
+        wrappers.apply(descriptor.make(), descriptor.id)
+    }
 }
 
 /// Hosts the visible side pane inside the window's split view.
@@ -59,7 +68,7 @@ final class SidePaneContainer: NSView {
         provider = nil
         currentID = ""
         guard !id.isEmpty, let descriptor = SidePaneRegistry.descriptor(id) else { return false }
-        let pane = descriptor.make()
+        let pane = SidePaneRegistry.make(descriptor)
         let v = pane.view
         v.translatesAutoresizingMaskIntoConstraints = false
         addSubview(v)
