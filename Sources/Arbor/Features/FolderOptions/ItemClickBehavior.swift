@@ -38,6 +38,7 @@ final class ItemClickBehavior: NSObject {
         DispatchQueue.main.async { [weak controller] in
             guard let controller, let up = NSApp.currentEvent, up.type == .leftMouseUp,
                   hypot(up.locationInWindow.x - start.x, up.locationInWindow.y - start.y) < 5,
+                  ItemSurface(controller)?.pressBecameMarquee != true,
                   controller.itemView?.items.contains(where: { $0.url == item.url }) == true else { return }
             ItemSurface(controller)?.prepareToOpen()
             controller.itemView?.select(urls: [item.url])
@@ -96,12 +97,7 @@ final class ItemClickBehavior: NSObject {
     /// Simulates a plain click on an item (mouse down and up) through the real event path.
     func scriptClick(_ controller: BrowserWindowController, name: String, clickCount: Int = 1) {
         guard let window = controller.window, let surface = ItemSurface(controller), let point = surface.windowPoint(of: name) else { return }
-        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
-            if let e = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                                          windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: clickCount, pressure: 1) {
-                NSApp.postEvent(e, atStart: false)
-            }
-        }
+        ScriptedMouse.postClick(in: window, at: point, count: clickCount)
     }
 
     func scriptHover(_ controller: BrowserWindowController, name: String) {
@@ -196,6 +192,12 @@ struct ItemSurface {
         let column = d.table.column(withIdentifier: NSUserInterfaceItemIdentifier("name"))
         guard column >= 0, let field = (d.table.view(atColumn: column, row: slot, makeIfNecessary: false) as? NSTableCellView)?.textField else { return }
         ItemClickBehavior.setUnderline(field, on)
+    }
+
+    /// The press swept a band and may have come back to where it started.
+    var pressBecameMarquee: Bool {
+        if case .table(let d) = kind { return d.table.pressBecameMarquee }
+        return false
     }
 
     /// A click that opens must not also start the grid's slow-click rename.

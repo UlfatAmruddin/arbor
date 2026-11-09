@@ -5,6 +5,7 @@ import ArborCore
 ///
 ///     axdump:/path          append the window's accessibility hierarchy (what VoiceOver sees)
 ///     key:shift+F10         send a key through the same path as the keyboard (monitor, then window)
+///     keyrepeat:return      the same key, as the auto-repeat of a held key
 ///     focus:/path           append the focused region and view
 ///     mouse:3               mouse button 4 (Back; AppKit numbers it 3) or 4 (Forward)
 ///     swipe:back|forward    a completed trackpad swipe
@@ -19,12 +20,15 @@ enum AccessibilityDebug {
             append(AXDump.dump(window) + "---\n", to: path)
             return 0.5
         }
-        DebugScript.registerStep("key") { spec, c in
-            guard let window = c?.window, let event = keyEvent(spec, window: window) else {
-                NSLog("DebugScript: bad key \(spec)")
+        DebugScript.registerStep("key") { spec, c in send(spec, to: c, isRepeat: false) }
+        DebugScript.registerStep("keyrepeat") { spec, c in send(spec, to: c, isRepeat: true) }
+        // `key:` reaches the browsing window; a sheet's own key equivalents need its window.
+        DebugScript.registerStep("sheetkey") { spec, c in
+            guard let sheet = c?.window?.attachedSheet, let event = keyEvent(spec, window: sheet) else {
+                NSLog("DebugScript: no sheet or bad key %@", spec)
                 return 0.5
             }
-            if !KeyboardRouter.handle(event) { window.sendEvent(event) }
+            sheet.sendEvent(event)
             return 0.6
         }
         DebugScript.registerStep("focus") { path, c in
@@ -100,7 +104,16 @@ enum AccessibilityDebug {
         }
     }
 
-    static func keyEvent(_ spec: String, window: NSWindow) -> NSEvent? {
+    private static func send(_ spec: String, to c: BrowserWindowController?, isRepeat: Bool) -> TimeInterval {
+        guard let window = c?.window, let event = keyEvent(spec, window: window, isRepeat: isRepeat) else {
+            NSLog("DebugScript: bad key \(spec)")
+            return 0.5
+        }
+        if !KeyboardRouter.handle(event) { window.sendEvent(event) }
+        return 0.6
+    }
+
+    static func keyEvent(_ spec: String, window: NSWindow, isRepeat: Bool = false) -> NSEvent? {
         guard let key = KeyNames.parse(spec) else { return nil }
         var flags: NSEvent.ModifierFlags = []
         if key.modifiers.contains("command") { flags.insert(.command) }
@@ -110,7 +123,7 @@ enum AccessibilityDebug {
         if key.characters.unicodeScalars.first.map({ (0xF700...0xF8FF).contains($0.value) }) == true { flags.insert(.function) }
         return NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
                                 windowNumber: window.windowNumber, context: nil, characters: key.characters,
-                                charactersIgnoringModifiers: key.characters, isARepeat: false, keyCode: key.code)
+                                charactersIgnoringModifiers: key.characters, isARepeat: isRepeat, keyCode: key.code)
     }
 
     /// The type-to-select input of the focused file list (Details or an icon layout).

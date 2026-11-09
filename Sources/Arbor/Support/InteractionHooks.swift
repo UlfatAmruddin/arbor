@@ -14,7 +14,7 @@ enum InteractionHooks {
         "InteractionHooks.commitRename", "An inline rename was committed; answer when the feature performs it.",
         signature: "(window, item, newName) -> done?")
 
-    /// Files dropped on a folder (item view, row, nav tree). True if handled (right-drag menu, shortcuts, dedup).
+    /// Files dropped on a folder (item view, row, nav tree, breadcrumb). True if handled (right-drag menu, shortcuts, dedup).
     static let drop = Handlers<(BrowserWindowController, TransferKind, [URL], URL), Void>(
         "InteractionHooks.drop", "Files dropped on a folder; true = handled.",
         signature: "(window, kind, urls, folder) -> handled")
@@ -27,6 +27,11 @@ enum InteractionHooks {
     /// Right mouse press in the Details list. True if consumed (right-button drag); else the context menu opens.
     static let rightMouseDown = Handlers<(NSTableView, NSEvent), Void>(
         "InteractionHooks.rightMouseDown", "Right mouse press in the Details list; true = consumed (right-button drag).",
+        signature: "(table, event) -> consumed")
+
+    /// Left press in the Details list. True if consumed; a handler answering false after tracking must re-post what it consumed.
+    static let leftMouseDown = Handlers<(NSTableView, NSEvent), Void>(
+        "InteractionHooks.leftMouseDown", "Left mouse press in the Details list; true = consumed (rubber-band selection).",
         signature: "(table, event) -> consumed")
 
     /// Right press on an item in icon layouts. `urls` gives the files to drag (selects it first). True if a drag started.

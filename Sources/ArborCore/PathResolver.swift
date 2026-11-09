@@ -14,6 +14,7 @@ public enum PathResolutionError: Error, Equatable, LocalizedError {
     case notFound(String)
     case unsupportedScheme(String)
     case invalidAddress(String)
+    case pathTooLong(String)
 
     public var errorDescription: String? {
         switch self {
@@ -27,6 +28,8 @@ public enum PathResolutionError: Error, Equatable, LocalizedError {
             return L10n.format("“%@” isn't a supported address. Use a folder path, a file:// URL, or a server address such as smb://server/share.", "\(input)")
         case .invalidAddress(let input):
             return L10n.format("“%@” isn't a valid address.", "\(input)")
+        case .pathTooLong(let path):
+            return L10n.format("The path to “%@” is too long for macOS to open.", (path as NSString).lastPathComponent)
         }
     }
 }
@@ -52,10 +55,7 @@ public struct PathResolver: Sendable {
     }
 
     public func resolve(_ raw: String, relativeTo current: URL?) -> Result<PathResolution, PathResolutionError> {
-        var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if text.count >= 2, let first = text.first, first == "\"" || first == "'", text.last == first {
-            text = String(text.dropFirst().dropLast()).trimmingCharacters(in: .whitespaces)
-        }
+        let text = Self.unquoted(raw)
         guard !text.isEmpty else { return .failure(.empty) }
 
         // UNC \\server\share\folder → smb://server/share/folder
@@ -89,26 +89,39 @@ public struct PathResolver: Sendable {
             // "smb:///share" names no server; never pass it to the connect flow.
             guard let host = url.host, !host.isEmpty else { return .failure(.invalidAddress(text)) }
             return .success(.network(url))
-        } else if text == "~" {
-            path = homeDirectory.path
-        } else if text.hasPrefix("~/") {
-            path = homeDirectory.appendingPathComponent(String(text.dropFirst(2))).path
-        } else if text.hasPrefix("~") {
+        } else if let local = Self.localPath(text, home: homeDirectory, base: current) {
+            path = local
+        } else {
+            // ~user can ask directory services, so it stays out of `localPath`, which runs on every keystroke.
             let expanded = (text as NSString).expandingTildeInPath
             guard !expanded.hasPrefix("~") else { return .failure(.notFound(text)) }
             path = expanded
-        } else if text.hasPrefix("/") {
-            path = text
-        } else {
-            path = (current ?? homeDirectory).appendingPathComponent(text).path
         }
 
         let url = URL(fileURLWithPath: path).standardizedFileURL
+        guard PathLimits.fits(url) else { return .failure(.pathTooLong(url.path)) }
         switch probe(url.path) {
         case .some(true): return .success(.folder(Self.onDiskSpelling(url)))
         case .some(false): return .success(.file(Self.onDiskSpelling(url)))
         case .none: return .failure(.notFound(url.path))
         }
+    }
+
+    /// Trimmed, and without one pair of surrounding quotes.
+    static func unquoted(_ raw: String) -> String {
+        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard text.count >= 2, let first = text.first, first == "\"" || first == "'", text.last == first else { return text }
+        return String(text.dropFirst().dropLast()).trimmingCharacters(in: .whitespaces)
+    }
+
+    /// The `~`, `~/x`, `/x` or relative form as a path; nil for `~user`. Strings only: `isDirectory:` keeps URL from calling stat.
+    static func localPath(_ text: String, home: URL, base: URL?) -> String? {
+        if text == "~" { return home.path }
+        if text.hasPrefix("~/") { return home.appendingPathComponent(String(text.dropFirst(2)), isDirectory: false).path }
+        if text.hasPrefix("~") { return nil }
+        if text.hasPrefix("/") { return text }
+        let parent = base ?? home
+        return text.isEmpty ? parent.path : parent.appendingPathComponent(text, isDirectory: false).path
     }
 
     /// Case and Unicode form as stored on disk, so a typed folder matches the clicked one (QA-CORE-2).

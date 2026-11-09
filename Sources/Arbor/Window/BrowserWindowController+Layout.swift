@@ -61,8 +61,11 @@ extension BrowserWindowController: NSSplitViewDelegate {
         navBar.forward.onClick = { [weak self] _ in self?.goForward() }
         navBar.up.onClick = { [weak self] _ in self?.goUp() }
         addressBar.onNavigate = { [weak self] location in self?.navigate(to: location) }
+        addressBar.onOpenInNewTab = { [weak self] location in self?.openTab(location) }
+        addressBar.onDrop = { [weak self] kind, urls, folder in self?.transferDropped(kind, urls, to: folder) }
         addressBar.onSubmit = { [weak self] text in self?.submitAddress(text) }
         addressBar.onRefresh = { [weak self] in self?.reload() }
+        addressBar.onAnnotationFocusLost = { [weak self] in if let self { FocusRegions.focus(.items, in: self) } }
         searchBox.onChange = { [weak self] text in self?.search.queryChanged(text) }
         searchBox.onSubmit = { [weak self] text in self?.search.submit(text) }
     }

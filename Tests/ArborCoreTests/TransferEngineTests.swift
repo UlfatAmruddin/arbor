@@ -4,10 +4,10 @@ import Testing
 
 // MARK: - Helpers
 
-private let MB: Int64 = 1 << 20
+let MB: Int64 = 1 << 20
 
 /// Writes `size` bytes of non-repeating data (so APFS can't dedupe and copies are real).
-private func writeDense(_ url: URL, size: Int64) throws {
+func writeDense(_ url: URL, size: Int64) throws {
     try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
     FileManager.default.createFile(atPath: url.path, contents: nil)
     let handle = try FileHandle(forWritingTo: url)
@@ -54,12 +54,12 @@ final class Flag: @unchecked Sendable {
     var isSet: Bool { lock.withLock { value } }
 }
 
-private let neverAsked: FileTransfer.ConflictResolver = { conflict in
+let neverAsked: FileTransfer.ConflictResolver = { conflict in
     Issue.record("Unexpected conflict for \(conflict.destination.lastPathComponent)")
     return ConflictDecision(.cancel)
 }
 
-private let noClone = FileTransfer.Options(allowClone: false, progressInterval: 0)
+let noClone = FileTransfer.Options(allowClone: false, progressInterval: 0)
 
 extension Fixture {
     func job(_ kind: TransferKind, _ sources: [String], to dest: String, options: FileTransfer.Options = noClone,

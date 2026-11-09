@@ -36,6 +36,12 @@ public final class SlowWorkQueue<Value>: @unchecked Sendable {
         return jobs.count
     }
 
+    /// Whether a new `run` with this key would join work already going.
+    public func isRunning(key: String) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return jobs[key] != nil
+    }
+
     /// Pass the token to `cancel` to stop callbacks; the work itself can't be interrupted.
     @discardableResult
     public func run(key: String, timeout: TimeInterval, work: @escaping () -> Value,

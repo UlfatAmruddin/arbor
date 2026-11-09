@@ -114,10 +114,8 @@ enum TrashStore {
     }
 
     static func isPermissionError(_ error: NSError) -> Bool {
-        if error.domain == NSCocoaErrorDomain, error.code == NSFileReadNoPermissionError { return true }
-        if error.domain == NSPOSIXErrorDomain, error.code == Int(EPERM) || error.code == Int(EACCES) { return true }
-        if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError { return isPermissionError(underlying) }
-        return false
+        let code = FileOps.posixCode(of: error)
+        return code == EPERM || code == EACCES
     }
 
     // MARK: Main-thread state
@@ -197,6 +195,15 @@ final class TrashProvider: LocationProvider {
     func icon(for location: Location, size: CGFloat) -> NSImage { TrashIcon.image(full: TrashStore.isFull == true, size: size) }
     func targetFolder(for location: Location) -> URL? { nil }
     func allowsItemEditing(in location: Location) -> Bool { false }
+
+    /// Cut and Delete are nil: `TrashFeature` overrides them to work here.
+    func limitation(of action: LocationAction, in location: Location) -> String? {
+        switch action {
+        case .newItem, .paste: return L10n.tr("Items can't be created or pasted in the Trash. To put something here, delete it.")
+        case .rename: return L10n.tr("Items in the Trash can't be renamed. Restore them first.")
+        case .cut, .copy, .trash, .deletePermanently: return nil
+        }
+    }
 }
 
 /// Refreshes the Trash view on disk changes or Arbor's own Trash changes.

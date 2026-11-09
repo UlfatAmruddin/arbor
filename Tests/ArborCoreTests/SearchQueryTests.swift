@@ -385,6 +385,8 @@ struct SpotlightPredicateTests {
         #expect(try predicate("\"say hi\"")?.query == "kMDItemFSName == \"*say hi*\"cd")
         #expect(SpotlightPredicate.escape("a\"b\\c*d?", keepWildcards: false) == "a\\\"b\\\\c\\*d\\?")
         #expect(SpotlightPredicate.escape("a*b?", keepWildcards: true) == "a*b*")
+        #expect(SpotlightPredicate.escape("$time.today", keepWildcards: true) == "\\$time.today")
+        #expect(try predicate("\"$time.today\"")?.query == "kMDItemFSName == \"*\\$time.today*\"cd")
     }
 
     @Test func untranslatablePartsMakeASuperset() throws {

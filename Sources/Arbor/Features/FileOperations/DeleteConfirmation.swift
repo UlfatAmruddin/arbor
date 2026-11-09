@@ -4,11 +4,11 @@ import ArborCore
 /// Delete confirmations (windows11-reference §9.5). Trash asks only if the pref is on (Windows default: off);
 /// permanent deletion always asks. Trash never silently becomes a permanent delete.
 final class DeleteConfirmation: FileOpsDialog {
-    enum Mode {
+    enum Mode: Equatable {
         case trash
         case permanent
-        /// The items can't go to the Trash on this volume.
-        case cannotTrash
+        /// The items can't go to the Trash; `reason` says why.
+        case cannotTrash(reason: String)
     }
 
     private let completion: (Bool) -> Void
@@ -35,6 +35,11 @@ final class DeleteConfirmation: FileOpsDialog {
         let message = FileOpsStyle.label(text, font: FileOpsStyle.bodyFont, wraps: true)
         message.preferredMaxLayoutWidth = 420
         var views: [NSView] = [message]
+        if case .cannotTrash(let reason) = mode {
+            let why = FileOpsStyle.label(reason, font: FileOpsStyle.captionFont, color: Theme.secondaryText, wraps: true)
+            why.preferredMaxLayoutWidth = 420
+            views.append(why)
+        }
         if let single { views.append(Self.details(single)) }
         if mode != .trash {
             views.append(FileOpsStyle.label(L10n.tr("This can't be undone."), font: FileOpsStyle.captionFont, color: Theme.secondaryText))
@@ -77,7 +82,7 @@ final class DeleteConfirmation: FileOpsDialog {
     override func cancelled() { answer(false) }
 }
 
-/// Replaces the core Delete commands (same ids, placements, keys) via `CommandRegistry.replace`.
+/// Replaces the core Delete commands (same ids, placements, shortcuts) via `CommandRegistry.replace`.
 enum DeleteCommands {
     static func register() {
         let backspace = String(Character(UnicodeScalar(8)))
@@ -85,7 +90,6 @@ enum DeleteCommands {
             ExplorerCommand(
                 id: "file.trash", title: "Move to Trash", symbol: "trash", tooltip: "Delete (move to the Trash)",
                 shortcut: Shortcut(backspace),
-                keyBindings: [KeyBinding(117)],   // Forward Delete
                 placements: [.commandBar(60), .itemContextMenu(.organize, 20), .mainMenu("File", .organize, 10)],
                 yieldsToTextInput: true,
                 isAvailable: { $0.surface != .itemContextMenu || $0.hasSelection },
@@ -101,7 +105,6 @@ enum DeleteCommands {
             ExplorerCommand(
                 id: "file.deletePermanently", title: "Delete Permanently…",
                 shortcut: Shortcut(backspace, [.command, .option]),
-                keyBindings: [KeyBinding(117, [.shift])],   // Shift+Delete, always confirmed
                 placements: [.mainMenu("File", .organize, 20)],
                 yieldsToTextInput: true,
                 isEnabled: { $0.hasSelection && $0.allowsEditing },
@@ -114,19 +117,9 @@ enum DeleteCommands {
     }
 
     static func moveToTrash(_ items: [FileItem], window: BrowserWindowController) {
-        let nextSelection = window.neighborURL(after: items)
-        var trashed: [(original: URL, trashed: URL)] = []
-        var failed: [FileItem] = []
-        for item in items {
-            do { trashed.append((item.url, try SystemTrash.trash(item.url))) } catch { failed.append(item) }
+        DeleteFlow.moveToTrash(items, window: window) { failed, reason in
+            confirmPermanentDelete(failed, window: window, mode: .cannotTrash(reason: reason))
         }
-        if !trashed.isEmpty {
-            OperationCenter.shared.registerUndoTrash(trashed)
-            window.statusBar.setMessage(L10n.format("%@ moved to the Trash. Press ⌘Z to undo.", "\(StatusText.items(trashed.count))"))
-        }
-        window.refreshSelecting(urls: nextSelection.map { [$0] } ?? [])
-        // Never silently turn "move to Trash" into a permanent delete (spec §9.5): ask.
-        if !failed.isEmpty { confirmPermanentDelete(failed, window: window, mode: .cannotTrash) }
     }
 
     static func confirmPermanentDelete(_ items: [FileItem], window: BrowserWindowController, mode: DeleteConfirmation.Mode) {
@@ -134,21 +127,7 @@ enum DeleteCommands {
         let next = window.neighborURL(after: items)
         DeleteConfirmation(items, mode: mode) { [weak window] yes in
             guard yes else { return }
-            DispatchQueue.global(qos: .userInitiated).async {
-                var failures: [String] = []
-                for item in items {
-                    do { try FileManager.default.removeItem(at: item.url) } catch {
-                        failures.append("• \(item.name): \(error.localizedDescription)")
-                    }
-                }
-                DispatchQueue.main.async {
-                    guard let window else { return }
-                    window.refreshSelecting(urls: next.map { [$0] } ?? [])
-                    if !failures.isEmpty {
-                        NSAlert.show(L10n.tr("Some items couldn't be deleted."), failures.joined(separator: "\n"), in: window.window)
-                    }
-                }
-            }
+            DeleteFlow.deletePermanently(items, selecting: next, window: window)
         }.present(over: window.window)
     }
 }

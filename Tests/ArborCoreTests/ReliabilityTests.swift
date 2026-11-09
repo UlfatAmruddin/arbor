@@ -261,7 +261,7 @@ struct FolderPropertyLossTests {
         "NSWorkspace.shared.open(", "activateFileViewerSelecting", "setDesktopImageURL",
         "setDefaultApplication(", "unmountAndEjectDevice", ".openApplication(at", "launchApplication(",
         "NSSharingServicePicker(", ".perform(withItems", "\"/usr/bin/open\"", "\"/usr/bin/osascript\"", "NSAppleScript(",
-        "openURLs(", "selectFile(",
+        "openURLs(", "selectFile(", "NSPerformService(",
     ]
 
     static var sources: URL {

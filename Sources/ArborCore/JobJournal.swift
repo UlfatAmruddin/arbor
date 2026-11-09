@@ -165,8 +165,14 @@ public struct InterruptedJob: Sendable {
         items.filter { $0.status != .completed }.map(\.source).filter(FileOps.exists)
     }
 
+    /// A real journal holds a line per item; anything this big isn't one.
+    static let maxJournalBytes = 64 << 20
+
     init?(file: URL) {
-        guard let text = try? String(contentsOf: file, encoding: .utf8) else { return nil }
+        guard let handle = FileHandle.openRegularFile(atPath: file.path) else { return nil }
+        defer { try? handle.close() }
+        guard let data = try? handle.read(upToCount: Self.maxJournalBytes + 1), data.count <= Self.maxJournalBytes,
+              let text = String(data: data, encoding: .utf8) else { return nil }
         let lines = text.split(separator: "\n", omittingEmptySubsequences: true)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601

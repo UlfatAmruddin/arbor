@@ -28,15 +28,21 @@ extension BrowserWindowController {
         }
     }
 
+    /// Drops from the tree, item views and breadcrumb end here, so features see them (right-drag menu, shortcuts, overlapping sources).
+    func transferDropped(_ kind: TransferKind, _ urls: [URL], to folder: URL) {
+        if InteractionHooks.drop.handle((self, kind, urls, folder)) { return }
+        startTransfer(kind, urls, to: folder)
+    }
+
     /// Refreshes the active folder, selects `names` and optionally starts renaming one of them.
     func refreshSelecting(_ names: [String], rename: String? = nil) {
-        activeTab.renameAfterLoad = rename
+        activeTab.renameAfterLoad = rename.map(RenameTarget.name)
         navigate(to: location, select: names)
     }
 
     /// Reloads and selects exactly these items (names repeat in search results and libraries).
-    func refreshSelecting(urls: [URL], rename: String? = nil) {
-        activeTab.renameAfterLoad = rename
+    func refreshSelecting(urls: [URL], rename: URL? = nil) {
+        activeTab.renameAfterLoad = rename.map(RenameTarget.url)
         request(.visit(location, select: urls.map(\.lastPathComponent), selectURLs: urls), tab: activeTab)
     }
 
@@ -71,8 +77,16 @@ extension BrowserWindowController {
             return
         }
         locations.forEach { openTab($0) }
-        files.removeAll { InteractionHooks.openFile.handle((self, $0)) }
+        explainUnopenable(files.filter { !PathLimits.fits($0.url) })
+        files.removeAll { !PathLimits.fits($0.url) || InteractionHooks.openFile.handle((self, $0)) }
         files.forEach { SystemOpen.open($0.url) }
         if !files.isEmpty { NotificationCenter.default.post(name: LocationEvents.didOpenFiles, object: self, userInfo: ["urls": files.map(\.url)]) }
+    }
+
+    /// The kernel refuses paths past the limit, so opening such a file would silently do nothing.
+    private func explainUnopenable(_ files: [FileItem]) {
+        guard let first = files.first else { return }
+        let reasons = files.compactMap { PathResolutionError.pathTooLong($0.url.path).errorDescription }
+        NSAlert.show(L10n.format("Can't open “%@”", first.name), reasons.joined(separator: "\n"), in: window)
     }
 }

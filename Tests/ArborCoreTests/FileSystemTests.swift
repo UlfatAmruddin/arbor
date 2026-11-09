@@ -60,13 +60,32 @@ private func always(_ choice: ConflictChoice, all: Bool = false, counter: Counte
     { _ in counter?.increment(); return ConflictDecision(choice, applyToRemaining: all) }
 }
 
-private let neverAsked: FileTransfer.ConflictResolver = { conflict in
-    Issue.record("Unexpected conflict for \(conflict.destination.lastPathComponent)")
-    return ConflictDecision(.cancel)
-}
-
 @Suite("Directory listing (FE-015, FE-044)")
 struct DirectoryListerTests {
+    @Test func aLinkToAFolderListsItsTargetUnderTheLinksAddress() throws {
+        let fx = try Fixture()
+        let target = try fx.folder("target")
+        try fx.file("target/inner.txt")
+        try fx.folder("target/sub")
+        let link = fx.url("link")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+        let items = try DirectoryLister.list(link, includeHidden: false)
+        #expect(Set(items.map(\.name)) == ["inner.txt", "sub"])
+        #expect(Set(items.map(\.url.path)) == [link.appendingPathComponent("inner.txt").path, link.appendingPathComponent("sub").path])
+        #expect(items.first { $0.name == "sub" }?.isFolder == true)
+    }
+
+    @Test func linksToNothingOrToAFileStillFail() throws {
+        let fx = try Fixture()
+        let broken = fx.url("broken")
+        try FileManager.default.createSymbolicLink(atPath: broken.path, withDestinationPath: fx.url("gone").path)
+        #expect(throws: ListingError.notFound(path: broken.path)) { try DirectoryLister.list(broken, includeHidden: false) }
+        let file = try fx.file("plain")
+        let link = fx.url("to-file")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: file)
+        #expect(throws: ListingError.notAFolder(path: link.path)) { try DirectoryLister.list(link, includeHidden: false) }
+    }
+
     @Test func listsWithAndWithoutHiddenItems() throws {
         let fx = try Fixture()
         try fx.file("box/visible.txt")

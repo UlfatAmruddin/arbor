@@ -19,6 +19,11 @@ public struct FileItem: Hashable, Sendable, Identifiable {
 
     public var id: String { name }
 
+    /// From the name alone, so it is cheap per row. A symbolic link answers for its own name, not its target's.
+    public var windowsShortcutKind: WindowsShortcutKind? {
+        WindowsShortcutKind(itemName: name, isFolder: isFolder, isPackage: isPackage)
+    }
+
     public init(
         url: URL,
         name: String,
@@ -84,7 +89,8 @@ public struct FileItem: Hashable, Sendable, Identifiable {
                 localized: TypeDescriptions.shared.describe(url, name: name, isFolder: isFolder, isPackage: isPackage,
                                                             isSymbolicLink: isSymlink, isAlias: isAlias),
                 typeIdentifier: isAlias ? ExplorerTypeName.aliasTypeIdentifier : nil,
-                isFolder: isFolder, isSymbolicLink: isSymlink, targetDescription: targetType)
+                isFolder: isFolder, isSymbolicLink: isSymlink, targetDescription: targetType,
+                windowsShortcut: WindowsShortcutKind(itemName: name, isFolder: isFolder, isPackage: isPackage))
         )
     }
 }

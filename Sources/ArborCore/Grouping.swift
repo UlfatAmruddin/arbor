@@ -203,37 +203,63 @@ public enum FileGrouper {
 
 // MARK: - Column header filters (FE-039)
 
-/// Checked buckets per column. Columns combine with AND; buckets within one column with OR.
+/// Per column, a checked bucket or the date range admits an item; columns combine with AND.
 public struct ColumnFilters: Equatable, Sendable {
-    public private(set) var selections: [ColumnID: Set<String>] = [:]
+    private struct Condition: Equatable, Sendable {
+        var buckets: Set<String> = []
+        var range: DayRange?
+
+        var isEmpty: Bool { buckets.isEmpty && range == nil }
+
+        func matches(_ item: FileItem, column: ColumnID, ctx: GroupingContext, lookup: ColumnValueLookup?) -> Bool {
+            // A missing or still-loading date can only match a checked "Unspecified" or "Loading…".
+            if let range, case .date(let date)? = ColumnValues.value(item, column, lookup: lookup), range.contains(date) { return true }
+            guard !buckets.isEmpty else { return false }
+            return Buckets.buckets(for: item, column: column, ctx: ctx, lookup: lookup).contains { buckets.contains($0.id) }
+        }
+    }
+
+    /// An empty condition is never stored, so a key always means "this column is filtered".
+    private var conditions: [ColumnID: Condition] = [:]
 
     public init() {}
 
-    public var isEmpty: Bool { selections.isEmpty }
-    public var columns: [ColumnID] { Array(selections.keys) }
+    public var isEmpty: Bool { conditions.isEmpty }
+    public var columns: [ColumnID] { Array(conditions.keys) }
 
-    public func isFiltered(_ column: ColumnID) -> Bool { selections[column] != nil }
-    public func selected(_ column: ColumnID) -> Set<String> { selections[column] ?? [] }
+    public func isFiltered(_ column: ColumnID) -> Bool { conditions[column] != nil }
+    public func selected(_ column: ColumnID) -> Set<String> { conditions[column]?.buckets ?? [] }
+    public func dateRange(_ column: ColumnID) -> DayRange? { conditions[column]?.range }
 
-    /// Sets a column's checked buckets; an empty set removes the column's filter.
+    private mutating func edit(_ column: ColumnID, _ change: (inout Condition) -> Void) {
+        var condition = conditions[column] ?? Condition()
+        change(&condition)
+        conditions[column] = condition.isEmpty ? nil : condition
+    }
+
+    /// Sets a column's checked buckets, keeping its date range.
     public mutating func set(_ column: ColumnID, _ bucketIDs: Set<String>) {
-        selections[column] = bucketIDs.isEmpty ? nil : bucketIDs
+        edit(column) { $0.buckets = bucketIDs }
     }
 
     public mutating func toggle(_ column: ColumnID, bucket id: String) {
-        var current = selected(column)
-        if current.contains(id) { current.remove(id) } else { current.insert(id) }
-        set(column, current)
+        edit(column) { condition in
+            if condition.buckets.remove(id) == nil { condition.buckets.insert(id) }
+        }
+    }
+
+    /// Sets a column's date range, keeping its checked buckets.
+    public mutating func setDateRange(_ column: ColumnID, _ range: DayRange?) {
+        edit(column) { $0.range = range }
     }
 
     public mutating func clear(_ column: ColumnID? = nil) {
-        if let column { selections[column] = nil } else { selections.removeAll() }
+        if let column { conditions[column] = nil } else { conditions.removeAll() }
     }
 
     public func matches(_ item: FileItem, ctx: GroupingContext, lookup: ColumnValueLookup?) -> Bool {
-        for (column, wanted) in selections {
-            let ids = Buckets.buckets(for: item, column: column, ctx: ctx, lookup: lookup).map(\.id)
-            if !ids.contains(where: wanted.contains) { return false }
+        for (column, condition) in conditions where !condition.matches(item, column: column, ctx: ctx, lookup: lookup) {
+            return false
         }
         return true
     }

@@ -37,6 +37,8 @@ public struct ColumnID: RawRepresentable, Hashable, Sendable, Codable, Expressib
     public static let year: ColumnID = "year"
     public static let pages: ColumnID = "pages"
     public static let comments: ColumnID = "comments"
+    /// Which folder an item lives in (libraries merge several).
+    public static let folder: ColumnID = "folder"
 }
 
 /// One cell's value; empty, unknown and unsupported stay distinct (spec §6.2, §16.1).
@@ -106,10 +108,15 @@ public struct ColumnDescriptor: Sendable {
     public let keywords: [String]
     /// For `.listing` columns; others are read by `MetadataReader`.
     public let listingValue: (@Sendable (FileItem) -> ColumnValue)?
+    /// Long paths keep both ends readable.
+    public let truncatesMiddle: Bool
+    /// A cell's tooltip when it has no state to report.
+    public let toolTip: (@Sendable (FileItem) -> String)?
 
     public init(id: ColumnID, title: String, width: Double, minWidth: Double = 50, alignRight: Bool = false,
                 source: ColumnSource, groupStyle: GroupStyle, isCommon: Bool = false, keywords: [String] = [],
-                listingValue: (@Sendable (FileItem) -> ColumnValue)? = nil) {
+                listingValue: (@Sendable (FileItem) -> ColumnValue)? = nil, truncatesMiddle: Bool = false,
+                toolTip: (@Sendable (FileItem) -> String)? = nil) {
         self.id = id
         self.title = title
         self.width = width
@@ -120,6 +127,8 @@ public struct ColumnDescriptor: Sendable {
         self.isCommon = isCommon
         self.keywords = keywords
         self.listingValue = listingValue
+        self.truncatesMiddle = truncatesMiddle
+        self.toolTip = toolTip
     }
 }
 
@@ -190,6 +199,9 @@ public enum ColumnCatalog {
                          keywords: ["page count"]),
         ColumnDescriptor(id: .comments, title: L10n.tr("Comments"), width: 180, source: .content, groupStyle: .distinct,
                          keywords: ["finder comment"]),
+        ColumnDescriptor(id: .folder, title: L10n.tr("Folder"), width: 280, minWidth: 80, source: .listing, groupStyle: .distinct,
+                         keywords: ["location", "path"], listingValue: { .text(LibraryMerge.folderColumnText(for: $0.url)) },
+                         truncatesMiddle: true, toolTip: { $0.url.deletingLastPathComponent().path }),
     ]
 }
 

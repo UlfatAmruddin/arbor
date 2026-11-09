@@ -31,7 +31,7 @@ struct DetailsLayout {
 ///     DetailsColumns.register("trash.columns") { $0 == .trash ? trashLayout : nil }
 enum DetailsColumns {
     static let providers = Handlers<Location, DetailsLayout>(
-        "DetailsColumns.providers", "A location's Details column layout (Trash, search, ZIP, cloud, libraries).",
+        "DetailsColumns.providers", "A location's Details column layout (Trash, search, ZIP, cloud).",
         signature: "(location) -> DetailsLayout?")
 
     /// The first provider (in run order) that returns a layout wins.

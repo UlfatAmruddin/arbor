@@ -7,8 +7,10 @@ final class CommandBarView: ThemeBackgroundView {
     /// Supplies a fresh context for every press and every update.
     var contextProvider: ((CommandSurface, Any?) -> CommandContext)?
 
+    static let newTooltip = L10n.tr("Create a new item")
+
     private let stack = NSStackView()
-    let newButton = ChromeButton(symbol: "plus.circle", title: L10n.tr("New"), tooltip: "Create a new item")
+    let newButton = ChromeButton(symbol: "plus.circle", title: L10n.tr("New"), tooltip: CommandBarView.newTooltip)
     let sortButton = ChromeButton(symbol: "arrow.up.arrow.down", title: L10n.tr("Sort"), tooltip: "Sort items")
     let viewButton = ChromeButton(symbol: "list.bullet.rectangle", title: L10n.tr("View"), tooltip: "Layout and view options")
     let moreButton = ChromeButton(symbol: "ellipsis", tooltip: "See more")
@@ -115,14 +117,11 @@ final class CommandBarView: ThemeBackgroundView {
     /// Updates enabled/toggled states and inserts contextual commands that are available now.
     func update(_ context: CommandContext) {
         // "New ▾" greys out where nothing can be created (This Mac, Trash, archives), like Explorer.
-        newButton.isEnabled = CommandRegistry.shared.entries(in: .newMenu).contains {
+        let canCreate = CommandRegistry.shared.entries(in: .newMenu).contains {
             $0.command.isAvailable(context) && $0.command.isEnabled(context)
         }
-        for (command, button) in primary + trailing + contextual {
-            button.isEnabled = command.isAvailable(context) && command.isEnabled(context)
-            button.isToggled = command.state(context) == .on
-            if command.hasDynamicTitle, command.showsTitle { button.title = command.title(in: context) }
-        }
+        show(newButton, enabled: canCreate, action: .newItem, tooltip: Self.newTooltip, context)
+        for (command, button) in primary + trailing + contextual { refresh(button, for: command, context) }
         let available = CommandRegistry.shared.entries(in: .commandBarContextual).map(\.command).filter { $0.isAvailable(context) }
         guard available.map(\.id) != contextualIDs else { return }
         contextual.forEach { $0.1.removeFromSuperview() }
@@ -131,9 +130,33 @@ final class CommandBarView: ThemeBackgroundView {
         let insertAt = (stack.arrangedSubviews.firstIndex(of: contextualSeparator) ?? 0) + 1
         for (offset, pair) in contextual.enumerated() {
             stack.insertArrangedSubview(pair.1, at: insertAt + offset)
-            pair.1.isEnabled = pair.0.isEnabled(context)
+            refresh(pair.1, for: pair.0, context)
         }
         contextualSeparator.isHidden = contextual.isEmpty
+    }
+
+    private func refresh(_ button: ChromeButton, for command: ExplorerCommand, _ context: CommandContext) {
+        let title = command.hasDynamicTitle ? command.title(in: context) : command.title
+        // An icon-only button says what it will do when an override changed the action (Delete library vs Move to Trash).
+        let tooltip = !command.showsTitle && title != command.title ? title : command.tooltipText
+        show(button, enabled: command.isAvailable(context) && command.isEnabled(context), action: command.locationAction, tooltip: tooltip, context)
+        button.isToggled = command.state(context) == .on
+        guard command.hasDynamicTitle else { return }
+        if command.showsTitle { button.title = title } else { button.setAccessibilityLabel(title) }
+    }
+
+    /// Greys a button out with the location's reason as its tooltip; the usual tooltip returns once it can run.
+    private func show(_ button: ChromeButton, enabled: Bool, action: LocationAction?, tooltip: String, _ context: CommandContext) {
+        button.isEnabled = enabled
+        let reason = enabled ? nil : CommandDispatcher.shared.limitation(of: action, in: context)
+        if button.toolTip != reason ?? tooltip { button.toolTip = reason ?? tooltip }
+        button.setAccessibilityHelp(reason)
+    }
+
+    /// "id=tooltip" for New and every button, for scripted checks.
+    var debugTooltips: String {
+        ([("menu.new", newButton)] + (primary + contextual + trailing).map { ($0.0.id, $0.1) })
+            .map { "\($0.0)=\($0.1.toolTip ?? "")" }.joined(separator: " | ")
     }
 
     /// "id:enabled" for every button, for scripted checks.

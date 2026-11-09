@@ -27,6 +27,7 @@ final class GalleryProvider: LocationProvider {
     /// Items are real files; New/Paste don't apply (no target folder).
     func allowsItemEditing(in location: Location) -> Bool { true }
     func targetFolder(for location: Location) -> URL? { nil }
+    func limitation(of action: LocationAction, in location: Location) -> String? { action.notAFolderLimitation(itemsAreFiles: true) }
 }
 
 /// Watches the collection's current folders, following changes to the collection.

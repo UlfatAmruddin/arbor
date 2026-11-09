@@ -9,9 +9,16 @@ enum NetworkThisMac {
         var labels: [String: String] = [:]
         /// Shares the system volume list doesn't contain (the fake network's folders).
         var extraMounted: [(url: URL, label: String)] = []
-        /// Disconnected mapped drives: placeholder path → (label, status text, drive id).
-        var disconnected: [(url: URL, label: String, status: String, id: UUID)] = []
+        /// Disconnected mapped drives: placeholder path → (label, status text, drive id, address).
+        var disconnected: [Disconnected] = []
         var mountPoints: Set<String> = []
+
+        typealias Disconnected = (url: URL, label: String, status: String, id: UUID, address: NetworkAddress)
+
+        func disconnectedEntry(forPlaceholder url: URL) -> Disconnected? {
+            let key = Location.normalizedKey(url)
+            return disconnected.first { Location.normalizedKey($0.url) == key }
+        }
     }
 
     private static let lock = NSLock()
@@ -24,9 +31,12 @@ enum NetworkThisMac {
 
     /// Placeholder path → mapped drive, for rows of disconnected drives (main thread).
     static func drive(forPlaceholder url: URL) -> MappedDrive? {
-        let key = Location.normalizedKey(url)
-        guard let id = snapshot.disconnected.first(where: { Location.normalizedKey($0.url) == key })?.id else { return nil }
-        return NetworkCenter.shared.drives.drive(id: id)
+        snapshot.disconnectedEntry(forPlaceholder: url).flatMap { NetworkCenter.shared.drives.drive(id: $0.id) }
+    }
+
+    /// Placeholder path → the drive's address; any thread.
+    static func address(forPlaceholder url: URL) -> NetworkAddress? {
+        snapshot.disconnectedEntry(forPlaceholder: url)?.address
     }
 
     /// Last mount point (so tabs inside it and its row agree), else `/Volumes/<share>`.
@@ -54,7 +64,7 @@ enum NetworkThisMac {
             case .disconnected(let reason?): status = "Unavailable — \(reason)"
             default: status = "Disconnected"
             }
-            snap.disconnected.append((placeholder(for: drive), drive.label, status, drive.id))
+            snap.disconnected.append((placeholder(for: drive), drive.label, status, drive.id, drive.address))
         }
         lock.lock()
         current = snap
@@ -89,13 +99,11 @@ enum NetworkThisMac {
         }
         VolumeCatalog.iconOverride.register("network.drive-icons") { volume, size in
             guard volume.kind == .network else { return nil }
-            let key = Location.normalizedKey(volume.url)
-            return NetworkIcons.drive(size, disconnected: snapshot.disconnected.contains { Location.normalizedKey($0.url) == key })
+            return NetworkIcons.drive(size, disconnected: snapshot.disconnectedEntry(forPlaceholder: volume.url) != nil)
         }
         VolumeCatalog.statusOverride.register("network.disconnected-status") { volume in
             guard volume.kind == .network else { return nil }
-            let key = Location.normalizedKey(volume.url)
-            return snapshot.disconnected.first { Location.normalizedKey($0.url) == key }?.status
+            return snapshot.disconnectedEntry(forPlaceholder: volume.url)?.status
         }
 
         // This Mac reloads when mapped drives change state (not only on mount events).
@@ -109,6 +117,7 @@ final class ThisMacReloadOnNetworkChange: LocationProvider {
     init(base: LocationProvider) { self.base = base }
 
     func handles(_ location: Location) -> Bool { location == .thisMac }
+    func limitation(of action: LocationAction, in location: Location) -> String? { base.limitation(of: action, in: location) }
     func load(_ location: Location, context: LocationLoadContext,
               completion: @escaping (Result<LocationContent, Error>) -> Void) -> LoadHandle? {
         base.load(location, context: context, completion: completion)

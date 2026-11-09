@@ -25,7 +25,8 @@ struct GeneralInfo {
         info.contentType = v?.contentType
         let kind = entry.item.isSymbolicLink ? entry.item.typeDescription
             : ExplorerTypeName.name(localized: v?.localizedTypeDescription ?? entry.item.typeDescription,
-                                    typeIdentifier: v?.contentType?.identifier, isFolder: entry.item.isFolder)
+                                    typeIdentifier: v?.contentType?.identifier, isFolder: entry.item.isFolder,
+                                    windowsShortcut: entry.item.windowsShortcutKind)
         let ext = entry.item.isFolder ? "" : url.pathExtension
         info.typeText = ext.isEmpty ? kind : "\(kind) (.\(ext))"
         info.location = url.deletingLastPathComponent().path

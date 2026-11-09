@@ -49,6 +49,18 @@
 			</dict>
 		</dict>
 	</array>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key><dict><key>default</key><string>Open in Arbor</string></dict>
+			<key>NSMessage</key><string>openInArbor</string>
+			<key>NSPortName</key><string>Arbor</string>
+			<key>NSSendFileTypes</key><array><string>public.item</string></array>
+			<!-- Empty on purpose: no filter applies. Kept so the service can be on by default; docs/features/qa-core.md has the manual check. -->
+			<key>NSRequiredContext</key><dict/>
+			<key>NSForbiddenContext</key><dict><key>NSApplicationIdentifier</key><string>io.github.arbor-files.Arbor</string></dict>
+		</dict>
+	</array>
 	<key>NSDesktopFolderUsageDescription</key><string>Arbor shows the files in your Desktop folder when you open it.</string>
 	<key>NSDocumentsFolderUsageDescription</key><string>Arbor shows the files in your Documents folder when you open it.</string>
 	<key>NSDownloadsFolderUsageDescription</key><string>Arbor shows the files in your Downloads folder when you open it.</string>

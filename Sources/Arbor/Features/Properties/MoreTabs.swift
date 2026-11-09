@@ -4,7 +4,15 @@ import ArborCore
 
 /// Which tabs a selection gets, in Explorer's order (spec §11.3 matrix, reference §10).
 enum PropertiesTabs {
+    static let extraTabs = Pipeline<[PropertiesTab], (PropertiesModel, PropertiesWindowController)>(
+        "PropertiesTabs.extraTabs", "The tabs of a Properties window; a feature adds its own.",
+        signature: "(tabs, (model, controller)) -> tabs")
+
     static func make(for model: PropertiesModel, controller: PropertiesWindowController) -> [PropertiesTab] {
+        extraTabs.apply(standardTabs(for: model, controller: controller), (model, controller))
+    }
+
+    private static func standardTabs(for model: PropertiesModel, controller: PropertiesWindowController) -> [PropertiesTab] {
         switch model.subject {
         case .multiple:
             return [GeneralTab(model: model, controller: controller)]

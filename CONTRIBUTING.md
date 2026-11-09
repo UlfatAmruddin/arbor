@@ -28,6 +28,24 @@ scripts/build-app.sh debug    # must build without warnings
 ```
 Logic belongs in `Sources/ArborCore` with unit tests. UI goes in `Sources/Arbor`. For UI behavior, add a scripted check with `ARBOR_SCRIPT` (see `TESTING.md` and `Sources/Arbor/DebugScript.swift`) and describe what you verified in the pull request.
 
+## Code standards
+Security is part of writing the code, not a pass at the end. Treat every file name, file content, archive field, metadata value and network reply as hostile.
+
+- **Never trap on outside data.** No `!`, `try!`, or plain arithmetic and `Int(_:)` on values from disk or the network: use `Int(checked:)`, `saturatingAdd` and explicit bounds checks.
+- **Act on what you checked.** For anything that deletes, moves, overwrites or changes permissions, hold a descriptor (`O_NOFOLLOW`, `fstatat`, `unlinkat`) instead of checking a path and using it again.
+- **Bound what you read.** Cap the bytes, entries and depth taken from a file, a tool's output or a server, and fail with a clear message.
+- **Run tools safely.** `Process` with an absolute path and an argument array, `--` before names, and never a shell. Typed text and file contents never execute.
+- **Open through `SystemOpen`.** A URL or path that comes from a file needs the same checks and confirmation as any other outside input.
+- **Keep secrets out.** Passwords live in the Keychain and never reach logs, history, preferences or exported settings.
+
+To keep the code easy to change:
+
+- A feature is one folder in `Sources/Arbor/Features` with an `ExplorerFeature` and one registration line. Use extension points; change shared files only to add a point.
+- Logic without UI goes in `Sources/ArborCore`, as small pure types with tests. UI code stays thin.
+- Search before adding a helper, and give each type one job.
+- No disk or network work on the main thread; cancel work that has gone stale.
+- User-visible strings go through `L10n`. Comments are one line and say why, not what.
+
 ## Pull requests
 - Keep each pull request to one topic, with plain, descriptive commit messages.
 - Fill in the pull request checklist. CI (`.github/workflows/ci.yml`) builds with no warnings, runs the tests and builds the disk image on every push and pull request; it must be green.

@@ -13,6 +13,7 @@ enum ReliabilityFeature: ExplorerFeature {
                 + "system open: \(requests.isEmpty ? "none" : requests.joined(separator: " | "))\n"
                 + "alerts waiting: \(AlertSheets.waitingCount(in: window.window))"
         }
+        DebugScript.registerLogger("reliability.command-bar-tooltips") { "command bar tooltips: \($0.commandBar.debugTooltips)" }
         // terminate — quits like "Quit Anyway" (journals kept for next launch), then exits.
         DebugScript.registerStep("terminate") { _, _ in
             OperationCenter.shared.cancelAllForQuit {

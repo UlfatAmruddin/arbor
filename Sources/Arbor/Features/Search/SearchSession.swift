@@ -248,11 +248,11 @@ final class SearchSession {
                 guard !verified.isEmpty else { return }
                 DispatchQueue.main.async { self?.merge(verified) }
             }
-        }, onFinish: { [weak self] timedOut in
+        }, onFinish: { [weak self] outcome in
             verifyQueue.async {   // after the last verification batch
                 DispatchQueue.main.async {
                     guard let self else { return }
-                    self.spotlightTimedOut = timedOut
+                    self.spotlightTimedOut = outcome == .timedOut
                     self.spotlightDone = true
                     self.finishIfDone()
                 }

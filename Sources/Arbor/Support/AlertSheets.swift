@@ -47,7 +47,7 @@ enum AlertSheets {
         pump(queue)
     }
 
-    /// Number of alerts waiting behind the current sheet of `window` (scripted checks).
+    /// Number of alerts waiting behind the current sheet of `window`.
     static func waitingCount(in window: NSWindow?) -> Int {
         guard let window else { return 0 }
         return queues[ObjectIdentifier(window)]?.waiting.count ?? 0

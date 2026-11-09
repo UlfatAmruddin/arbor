@@ -87,19 +87,24 @@ public enum ArchivePath {
 
     /// Whether a symlink at `entry` with `target` resolves inside `base` (all components); absolute targets never do.
     public static func linkStaysInside(entry: [String], target: String, base: [String] = []) -> Bool {
-        guard target.utf8.count <= maxPathBytes, !target.isEmpty, !target.hasPrefix("/"), !target.contains("\u{0}") else { return false }
-        guard entry.count > base.count, Array(entry.prefix(base.count)) == base else { return false }
+        resolvedLink(entry: entry, target: target, base: base) != nil
+    }
+
+    /// The components a link at `entry` points to, from the top of `entry`; nil if it would leave `base`.
+    public static func resolvedLink(entry: [String], target: String, base: [String] = []) -> [String]? {
+        guard target.utf8.count <= maxPathBytes, !target.isEmpty, !target.hasPrefix("/"), !target.contains("\u{0}") else { return nil }
+        guard entry.count > base.count, Array(entry.prefix(base.count)) == base else { return nil }
         var resolved = Array(entry.dropLast())
         for part in target.split(separator: "/", omittingEmptySubsequences: true) {
             switch part {
             case ".": continue
             case "..":
-                guard resolved.count > base.count else { return false }
+                guard resolved.count > base.count else { return nil }
                 resolved.removeLast()
             default: resolved.append(String(part))
             }
         }
-        return resolved.count >= base.count
+        return resolved.count >= base.count ? resolved : nil
     }
 }
 

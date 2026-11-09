@@ -8,7 +8,7 @@ enum NavigationCommands {
         r.register([
             ExplorerCommand(
                 id: "nav.back", title: "Back", symbol: "arrow.left", shortcut: Shortcut("["),
-                keyBindings: [KeyBinding(51), KeyBinding(123, [.option])],   // Delete (Backspace), ⌥←
+                keyBindings: [KeyBinding(123, [.option])],   // ⌥←
                 placements: [.mainMenu("Go", .navigation, 10)],
                 isEnabled: { $0.tab?.history.canGoBack ?? false },
                 perform: { $0.window?.goBack() }),
@@ -22,6 +22,7 @@ enum NavigationCommands {
                 id: "nav.up", title: "Up", symbol: "arrow.up", shortcut: .function(NSUpArrowFunctionKey, [.command]),
                 keyBindings: [KeyBinding(126, [.option])],
                 placements: [.mainMenu("Go", .navigation, 30)],
+                yieldsToTextInput: true,   // ⌘↑ moves the caret while a text field is editing
                 isEnabled: { $0.location?.parent() != nil },
                 perform: { $0.window?.goUp() }),
             ExplorerCommand(

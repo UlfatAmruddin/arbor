@@ -146,13 +146,23 @@ final class HeaderOverlayView: NSView {
     }
 }
 
-/// A column's filter dropdown: a checklist of its buckets.
+/// A column's filter dropdown: a calendar for date columns, then a checklist of its buckets.
 final class ColumnFilterViewController: NSViewController {
     let column: ColumnID
     /// (choices, checked bucket ids).
     var optionsProvider: () -> ([GroupBucket], Set<String>) = { ([], []) }
     var onToggle: (String) -> Void = { _ in }
+    /// Read once, when the dropdown opens.
+    var dateRangeProvider: () -> DayRange? = { nil }
+    var onDateRange: (DayRange?) -> Void = { _ in }
+    /// Whether the tab and folder this dropdown edits are still on screen.
+    var isCurrent: () -> Bool = { true }
+    private var dateView: DateRangeFilterView?
+    /// The calendar, loading the view first (script steps).
+    var loadedDateView: DateRangeFilterView? { _ = view; return dateView }
     private let stack = NSStackView()
+    /// Rebuilt when metadata arrives; the calendar lives outside it so that can't interrupt a drag.
+    private let checklist = NSStackView()
     private var reloadScheduled = false
 
     init(column: ColumnID) {
@@ -169,7 +179,42 @@ final class ColumnFilterViewController: NSViewController {
         stack.edgeInsets = NSEdgeInsets(top: 10, left: 12, bottom: 10, right: 16)
         stack.setAccessibilityLabel(L10n.format("Filter by %@", "\(ColumnCatalog.title(column))"))
         view = stack
+        checklist.orientation = .vertical
+        checklist.alignment = .leading
+        checklist.spacing = 6
+        if ColumnCatalog.descriptor(column)?.groupStyle == .date { addDateView() }
+        stack.addArrangedSubview(checklist)
         reload()
+    }
+
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        view.window?.autorecalculatesKeyViewLoop = true   // Tab reaches the controls even after the checklist is rebuilt
+    }
+
+    private func addDateView() {
+        let dateView = DateRangeFilterView(range: dateRangeProvider(), context: GroupingContext())
+        dateView.onChange = { [weak self] range in self?.onDateRange(range) }
+        dateView.onContentChange = { [weak self] in self?.fitContent() }
+        self.dateView = dateView
+        let separator = NSBox()
+        separator.boxType = .separator
+        stack.addArrangedSubview(dateView)
+        stack.addArrangedSubview(separator)
+        separator.widthAnchor.constraint(equalTo: dateView.widthAnchor).isActive = true
+    }
+
+    /// Keyboard and VoiceOver users start inside the dropdown; a checkbox only takes focus with Full Keyboard Access.
+    func focusFirstControl() {
+        guard let window = view.window else { return }
+        window.makeKey()
+        window.makeFirstResponder(dateView?.firstField ?? checklist.arrangedSubviews.first)
+    }
+
+    /// One line for `log:`.
+    var debugSummary: String {
+        let focus = view.window?.firstResponder.map { String(describing: type(of: $0)) } ?? "none"
+        return "filter dropdown: \(column) focus=\(focus) width=\(Int(view.bounds.width)) fits=\(view.bounds.width >= stack.fittingSize.width)"
     }
 
     /// Titles with ✓ for checked ones (script logging).
@@ -179,20 +224,26 @@ final class ColumnFilterViewController: NSViewController {
     }
 
     func reload() {
-        stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        checklist.arrangedSubviews.forEach { $0.removeFromSuperview() }
         let (choices, checked) = optionsProvider()
         if choices.isEmpty {
-            stack.addArrangedSubview(NSTextField(labelWithString: L10n.tr("No values to filter by.")))
+            checklist.addArrangedSubview(NSTextField(labelWithString: L10n.tr("No values to filter by.")))
         }
         for bucket in choices.prefix(200) {
-            let box = NSButton(checkboxWithTitle: bucket.title, target: self, action: #selector(toggled(_:)))
+            let box = NSButton(checkboxWithTitle: ColumnFilterSummary.displayValue(bucket.title), target: self, action: #selector(toggled(_:)))
             box.identifier = NSUserInterfaceItemIdentifier(bucket.id)
             box.state = checked.contains(bucket.id) ? .on : .off
             box.font = Theme.bodyFont
-            stack.addArrangedSubview(box)
+            checklist.addArrangedSubview(box)
         }
+        fitContent()
+    }
+
+    // Width only grows while open, so dragging across the calendar can't make the dropdown wobble.
+    private func fitContent() {
         view.layoutSubtreeIfNeeded()
-        preferredContentSize = NSSize(width: max(180, stack.fittingSize.width), height: stack.fittingSize.height)
+        let fitting = stack.fittingSize
+        preferredContentSize = NSSize(width: max(180, preferredContentSize.width, fitting.width), height: fitting.height)
     }
 
     func reloadSoon() {

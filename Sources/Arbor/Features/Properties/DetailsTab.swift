@@ -118,7 +118,7 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
             MetadataRow(group: L10n.tr("File"), label: L10n.tr("Name"), value: url.lastPathComponent),
             MetadataRow(group: L10n.tr("File"), label: L10n.tr("Item type"), value: item.isSymbolicLink ? item.typeDescription
                         : ExplorerTypeName.name(localized: v?.localizedTypeDescription ?? item.typeDescription, typeIdentifier: nil,
-                                                isFolder: item.isFolder)),
+                                                isFolder: item.isFolder, windowsShortcut: item.windowsShortcutKind)),
             MetadataRow(group: L10n.tr("File"), label: L10n.tr("Folder path"), value: url.deletingLastPathComponent().path),
         ]
         if let d = v?.creationDate { rows.append(MetadataRow(group: L10n.tr("File"), label: L10n.tr("Date created"), value: PropertyFormat.shortDate(d))) }

@@ -95,17 +95,8 @@ enum IconViewsFeature: ExplorerFeature {
         // top-left; a point outside plus a hold exercises autoscroll.
         DebugScript.registerStep("iconmarquee") { arg, window in
             guard let view = iconView(window) else { return 0.3 }
-            let parts = arg.components(separatedBy: ":")
-            let n = parts[0].split(separator: ",").compactMap { Double($0) }
-            guard n.count == 4 else { return 0.3 }
-            let origin = view.grid.visibleRect.origin
-            let a = CGPoint(x: origin.x + n[0], y: origin.y + n[1]), b = CGPoint(x: origin.x + n[2], y: origin.y + n[3])
-            var flags: NSEvent.ModifierFlags = []
-            if parts.count > 1, parts[1].contains("cmd") { flags.insert(.command) }
-            if parts.count > 1, parts[1].contains("shift") { flags.insert(.shift) }
-            let hold = parts.count > 2 ? Double(parts[2]) ?? 0 : 0
-            marquee(view.grid, from: a, to: b, flags: flags, hold: hold)
-            return 0.5 + hold
+            guard let drag = ScriptedMarquee(arg) else { return 0.3 }
+            return drag.run(in: view.grid, origin: view.grid.visibleRect.origin)
         }
         DebugScript.registerStep("iconhover") { name, window in
             guard let view = iconView(window) else { return 0.3 }
@@ -177,55 +168,17 @@ enum IconViewsFeature: ExplorerFeature {
         view.keyDown(with: event)
     }
 
-    private static func mouseEvent(_ type: NSEvent.EventType, _ view: NSView, _ point: CGPoint, _ flags: NSEvent.ModifierFlags,
-                                   count: Int = 1) -> NSEvent? {
-        guard let window = view.window else { return nil }
-        return NSEvent.mouseEvent(with: type, location: view.convert(point, to: nil), modifierFlags: flags,
-                                  timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
-                                  eventNumber: 0, clickCount: count, pressure: 1)
-    }
-
     private static func click(_ grid: ItemGridView, at point: CGPoint, flags: NSEvent.ModifierFlags, count: Int, right: Bool) {
         if right {
-            if let down = mouseEvent(.rightMouseDown, grid, point, flags) { _ = grid.menu(for: down) }
+            if let down = ScriptedMouse.event(.rightMouseDown, in: grid, at: point, flags: flags) { _ = grid.menu(for: down) }
             return
         }
         for n in 1...count {
-            guard let down = mouseEvent(.leftMouseDown, grid, point, flags, count: n),
-                  let up = mouseEvent(.leftMouseUp, grid, point, flags, count: n) else { return }
+            guard let down = ScriptedMouse.event(.leftMouseDown, in: grid, at: point, flags: flags, count: n),
+                  let up = ScriptedMouse.event(.leftMouseUp, in: grid, at: point, flags: flags, count: n) else { return }
             NSApp.postEvent(up, atStart: false)
             grid.mouseDown(with: down)
         }
-    }
-
-    private static func marquee(_ grid: ItemGridView, from a: CGPoint, to b: CGPoint, flags: NSEvent.ModifierFlags, hold: Double) {
-        guard let down = mouseEvent(.leftMouseDown, grid, a, flags) else { return }
-        // Drag events use window coordinates now; the grid may scroll meanwhile.
-        let windowA = grid.convert(a, to: nil), windowB = grid.convert(b, to: nil)
-        for step in 1...4 {
-            let t = CGFloat(step) / 4
-            let p = NSPoint(x: windowA.x + (windowB.x - windowA.x) * t, y: windowA.y + (windowB.y - windowA.y) * t)
-            if let window = grid.window, let drag = NSEvent.mouseEvent(with: .leftMouseDragged, location: p, modifierFlags: flags,
-                                                                       timestamp: ProcessInfo.processInfo.systemUptime,
-                                                                       windowNumber: window.windowNumber, context: nil,
-                                                                       eventNumber: 0, clickCount: 1, pressure: 1) {
-                NSApp.postEvent(drag, atStart: false)
-            }
-        }
-        let postUp = {
-            guard let window = grid.window, let up = NSEvent.mouseEvent(with: .leftMouseUp, location: windowB, modifierFlags: flags,
-                                                                         timestamp: ProcessInfo.processInfo.systemUptime,
-                                                                         windowNumber: window.windowNumber, context: nil,
-                                                                         eventNumber: 0, clickCount: 1, pressure: 1) else { return }
-            NSApp.postEvent(up, atStart: false)
-        }
-        if hold > 0 {
-            // A run-loop timer fires in the tracking loop; a main-queue block would wait until this step ends.
-            RunLoop.main.add(Timer(timeInterval: hold, repeats: false) { _ in postUp() }, forMode: .common)
-        } else {
-            postUp()
-        }
-        grid.mouseDown(with: down)
     }
 
     static func memoryFootprintMB() -> Int {

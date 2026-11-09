@@ -62,7 +62,7 @@ extension BrowserWindowController: ItemViewDelegate {
             return true
         } catch {
             NSAlert.show(L10n.format("Couldn't rename “%@”.", "\(item.name)"), error.localizedDescription, in: window)
-            if reopenOnFailure { itemView?.beginRename(named: item.name, text: newName) }
+            if reopenOnFailure { itemView?.beginRename(item, text: newName) }
             return false
         }
     }
@@ -73,19 +73,18 @@ extension BrowserWindowController: ItemViewDelegate {
         editor.doCommand(by: #selector(NSResponder.cancelOperation(_:)))
     }
 
-    func itemViewTransfer(_ kind: TransferKind, _ urls: [URL], to folder: URL) {
-        if InteractionHooks.drop.handle((self, kind, urls, folder)) { return }
-        startTransfer(kind, urls, to: folder)
-    }
+    func itemViewTransfer(_ kind: TransferKind, _ urls: [URL], to folder: URL) { transferDropped(kind, urls, to: folder) }
 
     func itemViewSortChanged(_ order: FileSortOrder) { setSortOrder(order) }
 
     func itemViewKey(_ event: NSEvent) -> Bool {
+        // Quick Look forwards keys straight to the view, past the key monitor.
+        if FileListKeys.handle(event, in: self) { return true }
         let registry = CommandRegistry.shared
         guard let command = registry.command(for: event, scope: .itemView) ?? registry.command(for: event, scope: .window) else { return false }
         let ctx = context(surface: .keyboard, sender: nil)
         guard command.isAvailable(ctx) else { return false }
-        if command.isEnabled(ctx) { command.perform(ctx) } else { NSSound.beep() }
+        if command.isEnabled(ctx) { command.perform(ctx) } else { CommandDispatcher.shared.refuse(command, ctx) }
         return true
     }
 }
@@ -95,10 +94,7 @@ extension BrowserWindowController: NavigationPaneDelegate {
 
     func navigationPaneNavigate(to location: Location) { navigate(to: location) }
     func navigationPaneOpenInNewTab(_ location: Location) { openTab(location) }
-    func navigationPaneTransfer(_ kind: TransferKind, _ urls: [URL], to folder: URL) {
-        if InteractionHooks.drop.handle((self, kind, urls, folder)) { return }
-        startTransfer(kind, urls, to: folder)
-    }
+    func navigationPaneTransfer(_ kind: TransferKind, _ urls: [URL], to folder: URL) { transferDropped(kind, urls, to: folder) }
 
     func navigationPaneMenu(for node: NavNode) -> NSMenu? {
         var ctx = context(surface: .treeContextMenu, sender: nil)

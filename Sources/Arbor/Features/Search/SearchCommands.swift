@@ -206,7 +206,7 @@ enum SearchCommands {
     static func save(_ ctx: CommandContext) {
         guard case .search(let request)? = ctx.location, let host = ctx.window?.window else { return }
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = SavedSearch.suggestedFileName(for: request.query)
+        panel.nameFieldStringValue = SavedSearch.suggestedFileName(for: request)
         panel.allowedContentTypes = [savedSearchType]
         panel.directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
         panel.message = L10n.tr("Save this search. Opening the file in Arbor runs it again.")
@@ -230,7 +230,7 @@ enum SearchCommands {
     /// The search a saved file describes. Scope by bookmark first (follows moves), then path;
     /// a path on a different disk than the saved one is not used.
     static func location(forSavedSearch url: URL) throws -> Location {
-        let saved = try SavedSearch.decode(Data(contentsOf: url))
+        let saved = try SavedSearch.read(from: url)
         var scope: URL?
         if let bookmark = saved.scopeBookmark {
             var stale = false

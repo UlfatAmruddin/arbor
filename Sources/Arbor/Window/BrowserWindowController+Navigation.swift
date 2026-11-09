@@ -7,7 +7,8 @@ extension BrowserWindowController {
 
     enum NavRequest {
         case visit(Location, select: [String], selectURLs: [URL])
-        case back, forward, reload
+        case back(steps: Int)
+        case forward, reload
     }
 
     func navigate(to location: Location, select: [String] = []) {
@@ -16,7 +17,7 @@ extension BrowserWindowController {
 
     func navigate(to url: URL, select: [String] = []) { navigate(to: .folder(url), select: select) }
 
-    func goBack() { request(.back, tab: activeTab) }
+    func goBack(steps: Int = 1) { request(.back(steps: steps), tab: activeTab) }
     func goForward() { request(.forward, tab: activeTab) }
     func reload() { request(.reload, tab: activeTab) }
 
@@ -60,8 +61,8 @@ extension BrowserWindowController {
         switch request {
         case .visit(let location, let names, let urls):
             target = location; select = names; selectURLs = urls
-        case .back:
-            guard let entry = tab.history.peekBack() else { return }
+        case .back(let steps):
+            guard let entry = tab.history.peekBack(steps: steps) else { return }
             target = entry.location; select = entry.selectedNames; top = entry.topVisibleName
             tab.selectedNames = entry.selectedNames; tab.selectedURLs = entry.selectedURLs   // display() restores by URL
         case .forward:
@@ -107,7 +108,7 @@ extension BrowserWindowController {
             }
             switch request {
             case .visit(let location, let names, _): tab.history.visit(location, selectedNames: names)
-            case .back: tab.history.goBack()
+            case .back(let steps): tab.history.goBack(steps: steps)
             case .forward: tab.history.goForward()
             case .reload: break
             }
@@ -155,9 +156,9 @@ extension BrowserWindowController {
             if tab === activeTab {
                 display(tab, select: explicit, top: scrollTo, locationChanged: reset)
                 if changed || watchToken == nil { startWatching(tab) }
-                if let rename = tab.renameAfterLoad, tab.items?.contains(where: { $0.name == rename }) == true {
+                if let target = tab.renameAfterLoad, let item = tab.items?.first(where: target.matches) {
                     tab.renameAfterLoad = nil
-                    itemView?.beginRename(named: rename, text: nil)
+                    itemView?.beginRename(item, text: nil)
                 }
             } else if let names = explicit {
                 tab.selectedNames = names

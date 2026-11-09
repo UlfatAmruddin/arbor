@@ -12,14 +12,14 @@ Code: `Sources/Arbor/Features/Accessibility/`, logic in `Sources/ArborCore/Acces
 | FE-050 | Text size and row height | implemented | View ▾ › Text Size (100/115/130/150 %), View menu ⌘+ / ⌘− / ⌘0. Details rows, icon labels, Tiles/Content, group headers and the navigation pane scale; row heights grow with the font (unit test: no clipping at any level). Snapshots at 150 % in Details and Tiles |
 | FE-061 | Tree keyboard expansion | implemented | Left/Right native; `*` (main or keypad) expands everything under the node breadth-first, bounded to 400 folders / depth 6 (status message when cut short); `+` / `−` expand / collapse. Scripted (`tree` run) and unit-tested plan |
 | FE-062 | Focus traversal | implemented | F6 / ⇧F6 and Tab / ⇧Tab cycle tabs → address → search → command bar → navigation pane → items → side pane, skipping hidden regions; arrows move inside the tab strip and the command bar; Home's sections keep their own Tab order. Scripted with `key:` + `focus:` |
-| FE-066 | Keyboard presets | partial | One preset (DEC-009 plus this feature). Text fields keep normal editing keys (Tab/F6/Esc handling defers to them). No second "Mac-only" preset |
-| FE-067 | Mac Delete keys | implemented (documented) | Delete (⌫) = Back in the file list, Forward Delete (fn⌫ / ⌦) = move to Trash, ⇧ Forward Delete = delete permanently with confirmation, ⌘⌫ = Move to Trash (menu). Delete on a focused tab closes it. Plain ⌫ never deletes files |
+| FE-066 | Keyboard presets | implemented | Windows style (default, DEC-009) and Mac style, chosen in Folder Options ▸ View ▸ Keyboard and read at key time, so Apply takes effect at once. One table, `FileListKeyPreset.rows`, run by `FileListKeys` through the command registry (DEC-accessibility-13). Text fields keep their keys in both presets, and ⌘↑ now yields to them. Unit tests `KeyboardPresetTests`; registration tests (no `KeyBinding` for a table chord); scripted `keypreset` group in `scripts/behavior-checks.sh`. Menu validation of ⌘↑ needs a key window, so it is unit-tested only |
+| FE-067 | Mac Delete keys | implemented (documented) | Windows style: Delete (⌫) = Back in the file list, Forward Delete (fn⌫ / ⌦) = move to Trash, ⇧ Forward Delete = delete permanently with confirmation. Mac style: plain ⌫ and ⌦ do nothing in the file list. Both: ⌘⌫ = Move to Trash, ⌥⌘⌫ = Delete Permanently (menu). Delete on a focused tab closes it. Plain ⌫ never deletes files. ⌫ also goes Back on the Network page, which used to ignore it |
 | FE-068 | IME and international keyboards | implemented | While a text field has marked (uncommitted) input-method text, every key without ⌘ goes to the input method: F6, Tab, ⌃Tab, ⌥ shortcuts and window key bindings can't fire (scripted: `compose:か` then F6 / ⌃Tab leave focus and tab unchanged). Type-to-select in Details and the icon layouts goes through an input context of the list's own (`TypeSelectInput`): the uncommitted text shows in a small underlined box at the top left of the items, every key belongs to the input method while it composes (arrows pick candidates, Escape cancels, Return accepts), and committed text selects by prefix (width-, case- and diacritic-insensitive). Scripted: `compose:か`, `key:down` (selection unchanged), `key:escape`, `composecommit:かな` (selects かな.txt), `key:b`; snapshots light/dark; unit tests `TypeSelectInputTests` |
 | FE-199 | Keyboard-only operation | implemented | Every region reachable; chrome buttons press with Space/Return, drop-downs open with ↓; ⇧F10 / Menu key open the context menu for the focused items, tree node or tab; Esc returns from chrome to the items; F6 also in Go ▸ Move Focus to Next Area |
 | FE-200 | VoiceOver | implemented | Navigation-pane separator rows are hidden from the tree (no more empty rows); row and tile icons are decoration (hidden); text fields and pop-up buttons in Batch rename, the archive options dialog, Choose Details, Extract All and Properties are named on their cells as well. `axaudit:` reports 0 unnamed controls and 0 empty rows on: folder, Details / Preview panes, icon layouts, Home, This Mac, Gallery, Network, Trash, search, Folder Options, Properties, copy progress, Replace or Skip, compare, operation history, Map network drive, Extract All, Choose Details, Batch rename, Create shortcut, archive options. `axdump:` walks the window's accessibility tree (what VoiceOver reads): tab group with tab buttons (selected value, Close tab action, show-menu), breadcrumb in reading order with menu-button chevrons, command bar toolbar with menu buttons, labelled status bar group, outline rows, Details table labelled with its count, icon/List/Tiles/Content items as cells with name, type, selected and focused state, press = open, show menu = context menu, settable selection; Home/This Mac/Network tiles and headers enabled; Gallery photos exposed. Announcements: location (+ item count), selection count (throttled), status bar outcomes and errors, region changes |
 | FE-201 | Contrast, motion, transparency | implemented | Increase contrast: stronger borders, separators, secondary text, hover/selection, accent outline on selected items, thicker focus ring (`ARBOR_CONTRAST=1` snapshot). Reduce motion: search progress fade skipped. Reduce transparency: Arbor has no translucent surfaces |
 | FE-202 | Text scaling | implemented | See FE-050; chrome stays at its fixed size so no control disappears |
-| FE-203 | Focus after refresh/navigation | implemented | New windows start on the items; when navigation, a page change, tab switch or pane toggle hides or removes the focused view, focus moves to the items (or the page); Esc out of the address/search box returns to the items |
+| FE-203 | Focus after refresh/navigation | implemented | New windows start on the items; when navigation, a page change, tab switch or pane toggle hides or removes the focused view, focus moves to the items (or the page), while a control in a dropdown attached to the window keeps it; Esc out of the address/search box returns to the items |
 | FE-204 | Localization and RTL | implemented (English only) | `L10n` string table with English keys, `Resources/en.lproj/Localizable.strings` generated by `scripts/extract-strings.sh` (~1,340 strings) and copied into the app; `scripts/test.sh` runs `extract-strings.sh --check`. Routed: menu bar titles and items, command titles/tooltips, page texts (Home, This Mac, Gallery, Network, Trash, Libraries), dialogs and wizards, placeholders, tooltips, column headers, status messages, and display titles kept in ArborCore (Folder Options catalog, archive formats, batch-rename choices, permissions, cloud status, drive kinds, metadata labels, time remaining). Sentences that assembled English words (file/folder, it/them, verbs, plurals) are whole sentences per case. Under `ARBOR_PSEUDO_LOC=1` only strings that are in the table are transformed, so anything not extracted stays plain. `l10naudit:` reports 0 plain strings (other than file, folder, volume, user and type names, which come from the system) and 0 clipped labels on the 21 screens listed under FE-200, light and dark. `ARBOR_RTL=1`: tab strip (contents and drag slots), breadcrumb and navigation arrows mirror |
 
 ## Keyboard reference (additions)
@@ -40,6 +40,21 @@ Code: `Sources/Arbor/Features/Accessibility/`, logic in `Sources/ArborCore/Acces
 | ⌘+ ⌘− ⌘0 | anywhere | text size bigger / smaller / default |
 | mouse buttons 4, 5 | window | Back, Forward |
 
+## File-list keys by preset (FE-066)
+
+| Keys | Windows style (default) | Mac style |
+|---|---|---|
+| Return, keypad Enter | Open | Rename |
+| ⌘↓ | — | Open |
+| ⌫ | Back | — |
+| fn⌫ (⌦) | Move to Trash | — |
+| ⇧fn⌫ (⇧⌦) | Delete permanently (always asks) | — |
+
+The same in both, so not in the table: F2 renames, ⌘↑ goes to the parent, ⌘⌫ moves to Trash, ⌥⌘⌫ deletes permanently, ⌘Return
+opens in a new tab, ⌥←/→/↑, ⌘[ ⌘], Space, F5. Windows-style keys are from docs/research/windows11-reference.md §8.1 ([W01] and
+[W03], DOC). The Mac-style keys are Finder's convention as FE-066 asks for them and were not checked against Apple's documentation:
+PROP. "—" means the key goes to the focused view as usual.
+
 ## Decisions
 
 - **DEC-accessibility-1** — App-wide keys (F6, Tab, ⇧F10, Esc, IME guard) live in one local key-event monitor, not in each view, so the region order is defined once and shared views stay untouched. Status: Provisional.
@@ -54,19 +69,23 @@ Code: `Sources/Arbor/Features/Accessibility/`, logic in `Sources/ArborCore/Acces
 - **DEC-accessibility-11** — Pseudo-localization transforms only strings that are in the string table, so missing extraction is visible and names passed through `L10n.tr` by accident never look translated. Status: Provisional.
 - **DEC-accessibility-12** — Decorative icons (row icons, tile icons, dialog header icons) are hidden from VoiceOver; the row, tile or heading already says the name. Status: Provisional.
 - **DEC-accessibility-8** — Two-finger swipe navigation follows the system "Swipe between pages" setting and only starts at the scroll edge; it can be turned off in Go. Status: Provisional.
+- **DEC-accessibility-13** — A second, opt-in keyboard preset, amending DEC-009 (which rejected separate presets): the default stays DEC-009's keys and Mac style is chosen in Folder Options. Only keys whose meaning differs by preset are in the table, and they run the registry's commands, so every override still applies. When a command can't run, the key goes on to the focused view, so group headers and the tiles of Home, This Mac and Network keep their Return. The exception is a selected item in the file list, where it beeps and stops: in Trash and ZIP listings a key the preset calls "renames" must never fall into the view's open and launch the item. Status: Provisional.
 
 ## Scripted checks
 
 Steps added (`AccessibilityDebug.swift`, `LocalizationAudit.swift`, `AccessibilityAudit.swift`): `l10naudit:/path` (plain and
 clipped text in every window; run with `ARBOR_PSEUDO_LOC=1`), `axaudit:/path` (unnamed controls and empty rows in every
 window), `composecommit:<text>`, `axdump:/path`, `key:<keys>` (e.g. `shift+F10`, `cmd+opt+right`, `numstar`, `menu`),
-`focus:/path`, `mouse:3|4`, `swipe:back|forward`, `compose:<text>`, `announcements:/path`, `contextkey:/path`, `textsize:130`.
+`keyrepeat:<keys>` (the auto-repeat of a held key), `focus:/path`, `mouse:3|4`, `swipe:back|forward`, `compose:<text>`, `announcements:/path`, `contextkey:/path`, `textsize:130`.
 The `log:` output gains an `accessibility:` line. Environment: `ARBOR_PSEUDO_LOC=1`, `ARBOR_RTL=1`, `ARBOR_CONTRAST=1`,
 `ARBOR_REDUCE_MOTION=1`, `ARBOR_TEXT_SIZE=100|115|130|150`. Run `scripts/extract-strings.sh --check` to verify the string table.
 
 ## Known gaps
 
 - No translations exist yet (English base table only).
+- Menus keep showing F2 for Rename and ⌘O for Open in both presets: a menu item has one shortcut, and a Return key equivalent would break dialogs and text fields. The Folder Options radio text states each preset's keys instead.
+- In Mac style, Return under Quick Look still opens (the panel forwards keys straight to the view, which opens first), and a held Return on a Gallery tile presses the rename sheet's default button with the name unchanged.
+- Not verifiable headless: ⌘↑ moving the caret in the address box (menu validation needs a key window), a real keyboard's auto-repeat, and keys forwarded by the real Quick Look panel. Each needs one manual check.
 - Not routed on purpose, to stay clear of the transfer engine and undo code: the status bar's transfer line ("Copying 3 items ·
   37% complete"), undo action names and the end-of-transfer report built in `OperationCenter`, transfer failure reasons
   (`TransferFailure`) and the interrupted-job recovery text (`JobRecovery`). A few formatted strings still embed English

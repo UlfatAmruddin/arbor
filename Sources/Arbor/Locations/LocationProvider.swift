@@ -47,6 +47,8 @@ protocol LocationProvider: AnyObject {
     func targetFolder(for location: Location) -> URL?
     /// Whether rename, delete and new-item commands apply to items shown here.
     func allowsItemEditing(in location: Location) -> Bool
+    /// Why `action` can't run here, or nil (FE-231). No default, so a new provider must answer; in-memory only, like `targetFolder`.
+    func limitation(of action: LocationAction, in location: Location) -> String?
     /// Text for the empty state ("This folder is empty.").
     func emptyText(for location: Location) -> String
     /// Extra status-bar text after the item count.
@@ -72,18 +74,23 @@ protocol LocationPageStatus {
 enum LocationRegistry {
     private static var providers: [LocationProvider] = []
     static let openHandlers = Handlers<FileItem, Location>(
-        "LocationRegistry.openHandlers", "Turns an opened item into a location (archives, saved searches, aliases).",
+        "LocationRegistry.openHandlers",
+        "Turns an opened item into a location (archives, saved searches, aliases). May run off the main thread: thread-safe state only.",
         signature: "(item) -> Location?")
     private static let fallback = PlaceholderProvider(locations: { _ in true })
 
     static func register(_ provider: LocationProvider) { providers.append(provider) }
+
+    /// Every registered provider, shadowed ones included.
+    static var allProviders: [LocationProvider] { providers }
 
     static func provider(for location: Location) -> LocationProvider {
         providers.last { $0.handles(location) } ?? fallback
     }
 
     /// Turns an opened item into a location (e.g. .zip → `.archive`). First handler in run order wins;
-    /// otherwise folders open as folders and files with their app.
+    /// otherwise folders open as folders and files with their app. Outside opens run handlers off the main thread:
+    /// a handler must touch only thread-safe state, never `NetworkCenter`, windows or views.
     static func registerOpenHandler(_ id: String, order: ExtensionOrder = .normal, _ handler: @escaping (FileItem) -> Location?) {
         openHandlers.register(id, order: order, handler)
     }

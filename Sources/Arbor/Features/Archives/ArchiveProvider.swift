@@ -180,6 +180,11 @@ final class ArchiveProvider: LocationProvider {
 
     func targetFolder(for location: Location) -> URL? { nil }
     func allowsItemEditing(in location: Location) -> Bool { false }
+
+    func limitation(of action: LocationAction, in location: Location) -> String? {
+        action == .copy ? nil : L10n.tr("Archives are read-only here. Use Extract all, then change the extracted items.")
+    }
+
     func emptyText(for location: Location) -> String { L10n.tr("This folder is empty.") }
 }
 

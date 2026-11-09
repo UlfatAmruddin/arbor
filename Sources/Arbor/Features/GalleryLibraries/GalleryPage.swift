@@ -609,6 +609,7 @@ final class GalleryGridView: NSView, NSDraggingSource {
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {
+        window?.makeFirstResponder(self)   // AppKit moves focus on left-click only, and a text field would hide Services
         let point = convert(event.locationInWindow, from: nil)
         if let hit = index(at: point) {
             if !selection.contains(tiles[hit].item.key) { click(hit, modifiers: []) }

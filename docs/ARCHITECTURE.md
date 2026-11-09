@@ -7,18 +7,26 @@ Read this before adding a feature. Goal: each feature lives in **its own files**
 
 | Folder | Holds |
 |---|---|
-| `Sources/ArborCore` | UI-free, unit-tested logic: `Location`, `NavigationHistory`, `ViewMode`, listing, sorting, paths, names, transfers, journals, history, queue, verification. Subfolders per area: `Search/` (AQS parser, evaluator, Spotlight translation, direct scan), `Archives/` (ZIP reader, bsdtar listing, safety planner), `Properties/`, `FolderOptions/`, `Consistency/`, `Accessibility/` (string table, key names), `Performance/` (budgets, background sort, stall recorder) |
+| `Sources/ArborCore` | UI-free, unit-tested logic: `Location`, `NavigationHistory`, `ViewMode`, listing, sorting, paths, names, transfers, journals, history, queue, verification. Subfolders per area: `Search/` (AQS parser, evaluator, Spotlight translation, direct scan), `Archives/` (ZIP reader, bsdtar listing, safety planner), `Properties/`, `FolderOptions/`, `Consistency/`, `Accessibility/` (string table, key names), `Performance/` (budgets, background sort, stall recorder), `PortableSettings/` (settings file allowlist, format and import plan) |
+| `Sources/ArborCore` | UI-free, unit-tested logic: `Location`, `NavigationHistory`, `ViewMode`, listing, sorting, paths, names, transfers, journals, history, queue, verification. Subfolders per area: `Search/` (AQS parser, evaluator, Spotlight translation, direct scan), `Archives/` (ZIP reader, bsdtar listing, safety planner), `Properties/`, `FolderOptions/`, `Consistency/`, `Accessibility/` (string table, key names), `Performance/` (budgets, background sort, stall recorder), `Workspaces/` (saved tab sets) |
 | `Window/` | `BrowserWindowController` (one per window, split by area into `BrowserWindowController+*.swift`), `TabState` (one per tab), tab strip and tear-off, address bar and breadcrumbs, navigation row, search box, command bar, status bar, `WindowHooks` |
 | `Views/` | `ItemViewController` protocol + `ViewModeRegistry`, `DetailsViewController`, `DetailsColumns` (per-location column layouts), `IconProvider`, `ItemBadges`, row and tile styling |
 | `Commands/` | `ExplorerCommand`, `CommandRegistry`, menu building, core commands, menu bar |
 | `Locations/` | `LocationProvider` + `LocationRegistry`, `FolderProvider`, page protocols (`LocationPageSelection`, `LocationPageFiltering`, `LocationPageViewState`), placeholder pages |
 | `Panes/` | navigation pane (+ `NavigationPaneExtras` for extra nodes), `SidePaneRegistry`, core Preview pane |
 | `Support/` | `Theme`, `ChromeButton`, `Prefs`, `FileClipboard`, `OperationCenter` (jobs, undo), `SystemOpen` (every hand-off to other apps; logged only in headless runs), `AlertSheets` (one sheet at a time per window), `InteractionHooks`, `ItemHooks`, `SelectionEmphasis` |
-| `Features/<Area>/` | One folder per feature area, each registered by one line in `Features.swift`: `IconViews`, `DetailsDepth` (grouping, filters, columns), `Home`, `ThisMac`, `Search`, `FileOperations`, `Properties`, `Archives`, `Network`, `Trash`, `Cloud`, `GalleryLibraries`, `FolderOptions`, `ItemActions`, `Accessibility`, `VisualParity`, `Consistency`, `Performance`, `Reliability`. Each has an area document in `docs/features/` |
+| `Features/<Area>/` | One folder per feature area, each registered by one line in `Features.swift`: `IconViews`, `DetailsDepth` (grouping, filters, columns), `Home`, `ThisMac`, `Search`, `FileOperations`, `Properties`, `Archives`, `Network`, `Trash`, `Cloud`, `GalleryLibraries`, `FolderOptions`, `ItemActions`, `Accessibility`, `VisualParity`, `Consistency`, `Performance`, `Reliability`, `SettingsTransfer`. Each has an area document in `docs/features/` |
+| `Features/<Area>/` | One folder per feature area, each registered by one line in `Features.swift`: `IconViews`, `DetailsDepth` (grouping, filters, columns), `Home`, `ThisMac`, `Search`, `FileOperations`, `Properties`, `Archives`, `Network`, `Trash`, `Cloud`, `GalleryLibraries`, `FolderOptions`, `ItemActions`, `Accessibility`, `VisualParity`, `Consistency`, `Performance`, `Reliability`, `Workspaces`. Each has an area document in `docs/features/` |
+| `Features/<Area>/` | One folder per feature area, each registered by one line in `Features.swift`: `IconViews`, `DetailsDepth` (grouping, filters, columns), `Home`, `ThisMac`, `Search`, `FileOperations`, `Properties`, `Archives`, `Network`, `Trash`, `Cloud`, `GalleryLibraries`, `FolderOptions`, `ItemActions`, `Accessibility`, `VisualParity`, `Consistency`, `Performance`, `Reliability`, `WindowsShortcuts`. Each has an area document in `docs/features/` |
+| `Features/<Area>/` | One folder per feature area, each registered by one line in `Features.swift`: `IconViews`, `DetailsDepth` (grouping, filters, columns), `Home`, `ThisMac`, `Search`, `FileOperations`, `Properties`, `Archives`, `Network`, `Trash`, `Cloud`, `GalleryLibraries`, `FinderTags`, `FolderOptions`, `ItemActions`, `Accessibility`, `VisualParity`, `Consistency`, `Performance`, `Reliability`. Each has an area document in `docs/features/` |
+| `Features/<Area>/` | One folder per feature area, each registered by one line in `Features.swift`: `IconViews`, `DetailsDepth` (grouping, filters, columns), `Home`, `ThisMac`, `Search`, `FileOperations`, `Properties`, `Archives`, `Network`, `Trash`, `Cloud`, `GalleryLibraries`, `FolderOptions`, `ItemActions`, `Accessibility`, `VisualParity`, `Consistency`, `Performance`, `Reliability`, `AddressEntry`. Each has an area document in `docs/features/` |
+| `Features/<Area>/` | One folder per feature area, each registered by one line in `Features.swift`: `IconViews`, `DetailsDepth` (grouping, filters, columns), `Home`, `ThisMac`, `Search`, `FileOperations`, `Properties`, `Archives`, `Network`, `Trash`, `Cloud`, `GalleryLibraries`, `FolderOptions`, `ItemActions`, `Accessibility`, `VisualParity`, `Consistency`, `Performance`, `Reliability`, `Services`. Each has an area document in `docs/features/` |
 
 Features never depend on line order: each declares the features it `requires`, and `Features.registerAll()` registers
 them in a stable dependency order (DEC-024). How to write one, and the extension points it plugs into: **Writing a
 feature** below and [EXTENSION-POINTS.md](EXTENSION-POINTS.md).
+
+A feature that adds a `LocationProvider` also says what that place refuses: see section 1.
 
 **Registering.** Write `enum MyFeature: ExplorerFeature { static let id = "my-feature"; static func register() { … } }`
 in your files, then add *one* line `MyFeature.self,` to `Features.all` in a free slot. Don't reorder lines or remove the
@@ -111,7 +119,7 @@ internal only because Swift has no cross-file `private`; features use the API ab
 
 | File | Holds |
 |---|---|
-| `BrowserWindowController.swift` | stored state, `active`, initializers, the tab list (open, select, close, move, take/adopt, `TabStripDelegate`) and `ensureItemView(for:)`, so only it writes `tabs`, `activeIndex` and `itemView` |
+| `BrowserWindowController.swift` | stored state, `active`, initializers, the tab list (open, select, close, move, replace all, take/adopt, `TabStripDelegate`) and `ensureItemView(for:)`, so only it writes `tabs`, `activeIndex` and `itemView` |
 | `+Layout.swift` | building the window's views and split view, side pane show/toggle, `ExplorerSplitView` |
 | `+Observation.swift` | preference, Quick access, clipboard, job and volume notifications; `volumeUnmountHandler` |
 | `+Navigation.swift` | `NavRequest`, navigate/Back/Forward/Up/Refresh, loading, committing history, load failures, folder watching |
@@ -119,6 +127,8 @@ internal only because Swift has no cross-file `private`; features use the API ab
 | `+Chrome.swift` | `updateChrome()` and `refreshChrome()`: address bar, buttons, command bar, status bar, side pane |
 | `+Commands.swift` | `context(surface:sender:)`, `perform`, Edit menu responder actions, menu validation, context menus |
 | `+AddressBar.swift` | typed addresses, `networkAddressHandler`, focusing the address bar and search box |
+| `+FileOperations.swift` | `startTransfer`, `transferDropped` (drops from the tree, item views and breadcrumb), `refreshSelecting`, `neighborURL(after:)`, `open(_:inNewTab:)` |
+| `+AddressBar.swift` | typed addresses, `networkAddressHandler`, `unresolvedAddress`, focusing the address bar and search box |
 | `+FileOperations.swift` | `startTransfer`, `refreshSelecting`, `neighborURL(after:)`, `open(_:inNewTab:)` |
 | `+Delegates.swift` | `ItemViewDelegate` (open, selection, inline rename, drop, keys), `NavigationPaneDelegate`, `LocationHost` |
 | `+QuickLook.swift` | the Quick Look panel (Space) |
@@ -146,12 +156,20 @@ final class TrashProvider: LocationProvider {
     }                            // .custom(NSViewController) → your own page (Home, This Mac tiles)
     func allowsItemEditing(in location: Location) -> Bool { false }   // disables Rename/New/Delete commands
     func targetFolder(for location: Location) -> URL? { nil }         // where New/Paste write
+    func limitation(of action: LocationAction, in location: Location) -> String? {   // required: why an action can't run here
+        action.notAFolderLimitation()
+    }
     // Optional: watch(_:onChange:) -> AnyObject?, title(for:), icon(for:size:), emptyText(for:)
 }
 // register(): LocationRegistry.register(TrashProvider())
 ```
+`limitation(of:in:)` has no default on purpose, so a new provider can't compile without saying what it refuses. Answer from
+memory only (main thread, like `targetFolder`). The reason appears as the tooltip of the greyed button or menu item and in the
+status bar when the command is pressed (`CommandDispatcher.refuse`), by button, menu or shortcut. A page that isn't a folder answers
+`action.notAFolderLimitation()`, as here; `TrashProvider` shows how to answer per action. Add a sample of the new provider to `ProviderCapabilityMatrixTests.samples`: the test fails
+until it has one, and it checks that a command runs exactly where the provider gives no reason.
 Pages get `context.host` (`LocationHost`: `navigate(to:select:)`, `openInNewTab(_:)`, `showStatusMessage`), and may adopt
-`LocationPageStatus` for status-bar text. Open handlers: `LocationRegistry.registerOpenHandler("archives.browse") { item in item.url.pathExtension == "zip" ? .archive(item.url, innerPath: "") : nil }`.
+`LocationPageStatus` for status-bar text. Open handlers: `LocationRegistry.registerOpenHandler("archives.browse") { item in item.url.pathExtension == "zip" ? .archive(item.url, innerPath: "") : nil }`. They may run off the main thread (outside opens), so they use thread-safe state only.
 Breadcrumbs for new kinds: `Breadcrumbs.register("myfeature.crumbs") { location in … [Crumb] or nil }`.
 
 ## 2. Commands and menu slots
@@ -177,8 +195,9 @@ CommandRegistry.shared.register(ExplorerCommand(
 `targetFolder`, `surface`, `sender` (anchor view), `tabIndex` (tab menu), `treeLocation` (tree menu), `allowsEditing`.
 Also: `dynamicTitle`, `state` (checkmarks/toggles), `submenu`, `menuAction` (responder selector so text fields win, e.g.
 `cut:`), `yieldsToTextInput`. Each id is registered once; another feature changes it with `CommandRegistry.shared.override`
-(per location) or upgrades it with `replace` (see Writing a feature). Keys inside the file list (F2, Delete, Space)
-use `KeyBinding(code)` with the default `.itemView` scope. Run any command from scripts with `click:<id>`.
+(per location) or upgrades it with `replace` (see Writing a feature). Keys inside the file list (F2, Space) use
+`KeyBinding(code)` with the default `.itemView` scope, except keys whose meaning differs between the keyboard presets
+(Return, ⌘↓, ⌫, ⌦): those belong in `FileListKeyPreset.rows` and nowhere else. Run any command from scripts with `click:<id>`.
 
 ## 3. View modes
 
@@ -239,13 +258,13 @@ editing another feature's files. The full list with every contribution in run or
 
 | Points | Where | Used for |
 |---|---|---|
-| `InteractionHooks` | `Support/InteractionHooks.swift` | open file, commit rename, drop, drag hover (spring-loading), right mouse down, icon decoration, extra item detail lines |
+| `InteractionHooks` | `Support/InteractionHooks.swift` | open file, commit rename, drop, drag hover (spring-loading), left and right mouse down, icon decoration, extra item detail lines |
 | `ItemHooks` | `Support/ItemHooks.swift` | drag writers (file promises for archive members) and drop handlers for drops without file URLs |
 | `WindowHooks`, `ItemViewHooks`, `NavigationPaneHooks`, `PreviewPolicy` | `Window/WindowHooks.swift` | Folder Options effects (title bar path, name decoration, tree options, preview handlers), selection changes |
 | `PreviewHooks`, `SidePaneRegistry.wrappers` | `Locations/LocationPageExtras.swift`, `Panes/SidePane.swift` | Quick Look / Preview pane for items without a file on disk; wrapping a pane when it is created |
 | `ViewOptions`, `FileSorter.columnValues` | `Features/DetailsDepth/ViewOptions.swift`, ArborCore | per-tab columns, Group by, filters; `folderKindResolver`, `columnsEdited`; sort values of extra columns |
 | `DetailsColumns.register`, `ColumnCatalog.register` | `Views/DetailsColumns.swift`, ArborCore | per-location column layouts (Trash, search, ZIP, cloud) and extra columns |
-| `Breadcrumbs.register`, `LocationRegistry.registerOpenHandler` | `Window/`, `Locations/` | breadcrumbs for new location kinds; opening a file as a location (archives, saved searches) |
+| `Breadcrumbs.register`, `LocationRegistry.registerOpenHandler` | `Window/`, `Locations/` | breadcrumbs for new location kinds; opening a file as a location (archives, saved searches); open handlers may run off the main thread, thread-safe state only |
 | `CommandRegistry.override` & co. | `Commands/ExplorerCommand.swift` | another feature's command behaving differently in your place |
 | `OperationCenter`, `TransferPreflight`, `SystemTrash.observers` | `Support/`, ArborCore | job preparation, admission (queue), verification, history; questions before a copy; the Trash journal |
 

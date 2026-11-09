@@ -16,6 +16,9 @@ extension Prefs {
     static var showStatusBar: Bool { bool("showStatusBar", default: true) }
     static var showSyncProviderNotifications: Bool { bool("showSyncProviderNotifications", default: true) }
     static var typeIntoSearchBox: Bool { string("typingMode", default: "select") == "search" }
+    static var fileListKeyPreset: FileListKeyPreset {
+        FileListKeyPreset(stored: string(FileListKeyPreset.preferenceKey, default: FileListKeyPreset.standard.rawValue))
+    }
     static var navShowAvailabilityStatus: Bool { bool("navShowAvailabilityStatus", default: false) }
     static var navExpandToOpenFolder: Bool { bool("navExpandToOpenFolder", default: false) }
     static var navShowAllFolders: Bool { bool("navShowAllFolders", default: false) }
@@ -60,7 +63,11 @@ enum FolderOptionsPrefs {
         default:
             switch fallback {
             case .bool(let b): return .bool(Prefs.bool(key, default: b))
-            case .string(let s): return .string(Prefs.string(key, default: s))
+            case .string(let s):
+                let stored = Prefs.string(key, default: s)
+                let choices = FolderOptionsCatalog.item(key)?.choices ?? []
+                // A damaged value would otherwise leave every radio unselected.
+                return .string(choices.isEmpty || choices.contains { $0.value == stored } ? stored : s)
             }
         }
     }

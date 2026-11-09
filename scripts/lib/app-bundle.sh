@@ -27,6 +27,10 @@
 # 4. Smoke launch. Before the first check, the app is started headless once; when it can't start at
 #    all here (no window server session, a broken bundle) the suite stops with that reason instead of
 #    reporting every check as failed.
+#
+# 5. Private copy. The suites run a copy of the bundle in their temporary folder, with its own identifier and no
+#    Dock icon. macOS treats copies started from one bundle as the same app, so a Dock icon or double-click on
+#    build/Arbor.app would otherwise land on a test window.
 
 ARBOR_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ARBOR_APP_BIN="${ARBOR_APP_BIN:-$ARBOR_REPO/build/Arbor.app/Contents/MacOS/Arbor}"
@@ -176,6 +180,22 @@ arbor_release_suite_lock() {
   ARBOR_LOCK_HELD=0
 }
 
+# Points ARBOR_APP_BIN at a private copy of the bundle. Needs the suite's temporary folder, so call it with the lock held.
+arbor_use_private_app() {
+  [ -n "$ARBOR_SUITE_TMP" ] || { arbor_say "no temporary folder for a private copy of the app"; exit 2; }
+  case "$ARBOR_APP_BIN" in "$ARBOR_SUITE_TMP"/*) return 0 ;; esac
+  local source="${ARBOR_APP_BIN%/Contents/MacOS/Arbor}" private="$ARBOR_SUITE_TMP/app/Arbor.app"
+  mkdir -p "$ARBOR_SUITE_TMP/app"
+  if ! ditto "$source" "$private" \
+     || ! plutil -replace CFBundleIdentifier -string io.github.arbor-files.Arbor.checks "$private/Contents/Info.plist" \
+     || ! plutil -replace LSUIElement -bool YES "$private/Contents/Info.plist" \
+     || ! codesign --force --sign - --preserve-metadata=entitlements,requirements,flags,runtime "$private" 2>/dev/null; then
+    arbor_say "couldn't make a private copy of the app from $source"
+    exit 2
+  fi
+  ARBOR_APP_BIN="$private/Contents/MacOS/Arbor"
+}
+
 # Starts the app headless once and checks that it lists a folder.
 arbor_smoke_launch() {
   local tmp status=0
@@ -205,5 +225,6 @@ arbor_prepare_app() {   # <suite name> [debug|release]
     (cd "$ARBOR_REPO" && scripts/build-app.sh "$ARBOR_BUILD_CONFIG") >&2 || { arbor_say "the build failed"; exit 2; }
   fi
   arbor_require_fresh_app
+  arbor_use_private_app
   arbor_smoke_launch
 }

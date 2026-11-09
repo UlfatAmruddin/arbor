@@ -46,6 +46,7 @@ public struct SavedSearch: Codable, Equatable, Sendable {
     public static let fileExtension = "arborsearch"
     public static let formatName = "arbor.search"
     public static let currentVersion = 1
+    static let maxFileBytes = 1 << 20
 
     public var format: String = SavedSearch.formatName
     public var version: Int = SavedSearch.currentVersion
@@ -112,6 +113,17 @@ public struct SavedSearch: Codable, Equatable, Sendable {
         }
         guard search.version <= currentVersion else { throw DecodeError.newerVersion(search.version) }
         return search
+    }
+
+    /// A tag collection is named after its tag, any other search after its query.
+    public static func suggestedFileName(for request: SearchRequest) -> String {
+        suggestedFileName(for: TagCollectionQuery.title(of: request) ?? request.query)
+    }
+
+    /// Reads a saved file: never blocks on a FIFO, and takes no more than a saved search can need.
+    public static func read(from url: URL) throws -> SavedSearch {
+        guard let data = try FileHandle.readRegularFile(at: url, maxBytes: maxFileBytes) else { throw DecodeError.notASavedSearch }
+        return try decode(data)
     }
 
     /// File name for the query ("report" → "report.arborsearch").

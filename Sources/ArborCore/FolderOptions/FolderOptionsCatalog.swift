@@ -106,6 +106,7 @@ public struct FolderOptionItem: Sendable {
 public enum FolderOptionsCatalog {
     public static let files = L10n.tr("Files and Folders")
     public static let navigation = L10n.tr("Navigation pane")
+    public static let keyboard = L10n.tr("Keyboard")
 
     public static let general: [FolderOptionItem] = [
         FolderOptionItem("openTo", L10n.tr("Open Arbor to:"), kind: .popup([OptionChoice("home", L10n.tr("Home")), OptionChoice("thismac", L10n.tr("This Mac"))]),
@@ -171,6 +172,12 @@ public enum FolderOptionsCatalog {
         nav("navExpandToOpenFolder", L10n.tr("Expand to open folder"), false),
         nav("navShowAllFolders", L10n.tr("Show all folders"), false),
         nav("showLibraries", L10n.tr("Show libraries"), false),
+        nav("navShowTags", L10n.tr("Show tags"), true),
+        // Arbor's own, after Windows' groups so their order stays undisturbed (FE-066).
+        FolderOptionItem("group.keyboard", keyboard, kind: .group, default: nil, tab: .view, section: keyboard),
+        FolderOptionItem(FileListKeyPreset.preferenceKey, L10n.tr("Keys in the file list"),
+                         kind: .radio(FileListKeyPreset.allCases.map { OptionChoice($0.rawValue, $0.title) }),
+                         default: .string(FileListKeyPreset.standard.rawValue), tab: .view, section: keyboard),
     ]
 
     public static let search: [FolderOptionItem] = [

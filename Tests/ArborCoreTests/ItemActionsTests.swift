@@ -81,6 +81,40 @@ import UniformTypeIdentifiers
         let data = try WebLocation.data(for: url)
         #expect(WebLocation.url(from: data) == url)
     }
+
+    @Test func webLocationFileReadsDirectlyAndThroughALink() throws {
+        let folder = try scratchFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let address = try #require(URL(string: "https://example.com/a"))
+        let file = folder.appendingPathComponent("a.webloc")
+        try WebLocation.data(for: address).write(to: file)
+        let link = folder.appendingPathComponent("link.webloc")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: file)
+        #expect(WebLocation.url(contentsOf: file) == address)
+        #expect(WebLocation.url(contentsOf: link) == address)
+    }
+
+    @Test func webLocationFileRefusesOversizedFilesAndFIFOsWithoutBlocking() throws {
+        let folder = try scratchFolder()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let big = folder.appendingPathComponent("big.webloc")
+        // A valid plist, so only the size can be why it is refused.
+        let padded = try PropertyListSerialization.data(
+            fromPropertyList: ["URL": "https://example.com/", "padding": String(repeating: "x", count: WebLocation.maxFileBytes)],
+            format: .xml, options: 0)
+        try padded.write(to: big)
+        #expect(WebLocation.url(from: padded) != nil)
+        #expect(WebLocation.url(contentsOf: big) == nil)
+        let fifo = folder.appendingPathComponent("pipe.webloc")
+        #expect(mkfifo(fifo.path, 0o600) == 0)
+        #expect(WebLocation.url(contentsOf: fifo) == nil)
+    }
+
+    private func scratchFolder() throws -> URL {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
+    }
 }
 
 // MARK: - Multi-item rename (FE-089)

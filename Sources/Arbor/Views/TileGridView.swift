@@ -304,8 +304,8 @@ final class TileGridView: NSView, SectionTagged, NSDraggingSource {
 
     fileprivate func menuForTile(_ tile: TileView) -> NSMenu? {
         window?.makeFirstResponder(self)
+        focusIndex = tile.index   // the page's menu acts on the tile that was clicked, even within a selection
         if !selection.contains(tile.index) {
-            focusIndex = tile.index
             anchor = tile.index
             select([tile.index])
         }

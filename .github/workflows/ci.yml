@@ -58,7 +58,7 @@ jobs:
   # while an artifact would lose the executable bit and the timestamps the stale-bundle guard compares, and
   # would make this job wait for the other one.
   app-checks:
-    name: App checks (behavior, core, acceptance)
+    name: App checks (behavior, core, Windows shortcuts, acceptance)
     runs-on: macos-26
     timeout-minutes: 75   # about 18 minutes on a developer Mac (behavior 4, core 1, acceptance 13); runners are slower
     env:
@@ -92,6 +92,10 @@ jobs:
       - name: Core checks
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: scripts/core-checks.sh 2>&1 | tee build/logs/core-checks.txt
+
+      - name: Windows shortcut checks
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: scripts/windows-shortcut-checks.sh 2>&1 | tee build/logs/windows-shortcut-checks.txt
 
       - name: Acceptance scenarios T01–T30
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}

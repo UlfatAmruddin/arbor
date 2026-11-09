@@ -39,7 +39,18 @@ public struct NavigationHistory: Sendable {
 
     public var canGoBack: Bool { !backStack.isEmpty }
     public var canGoForward: Bool { !forwardStack.isEmpty }
-    public func peekBack() -> NavigationEntry? { backStack.last }
+
+    /// The entry `steps` back; nil past the oldest.
+    public func peekBack(steps: Int = 1) -> NavigationEntry? {
+        guard steps >= 1, steps <= backStack.count else { return nil }
+        return backStack[backStack.count - steps]
+    }
+
+    /// Back steps to the nearest entry `matches` accepts; nil when none does.
+    public func stepsBack(toNearest matches: (NavigationEntry) -> Bool) -> Int? {
+        backStack.lastIndex(where: matches).map { backStack.count - $0 }
+    }
+
     public func peekForward() -> NavigationEntry? { forwardStack.last }
 
     /// Visiting the current location is not a new entry.
@@ -64,11 +75,13 @@ public struct NavigationHistory: Sendable {
     }
 
     @discardableResult
-    public mutating func goBack() -> NavigationEntry? {
-        guard let previous = backStack.popLast() else { return nil }
-        forwardStack.append(current)
-        current = previous
-        return previous
+    public mutating func goBack(steps: Int = 1) -> NavigationEntry? {
+        guard peekBack(steps: steps) != nil else { return nil }
+        for _ in 0..<steps {
+            forwardStack.append(current)
+            current = backStack.removeLast()
+        }
+        return current
     }
 
     @discardableResult
@@ -83,6 +96,16 @@ public struct NavigationHistory: Sendable {
     public mutating func clearBackForward() {
         backStack.removeAll()
         forwardStack.removeAll()
+    }
+
+    /// Points entries at a place's new identity (a renamed library); `moved` returns nil to leave an entry alone.
+    public mutating func rewriteLocations(_ moved: (Location) -> Location?) {
+        func rewrite(_ entry: inout NavigationEntry) {
+            if let location = moved(entry.location) { entry.location = location }
+        }
+        rewrite(&current)
+        for index in backStack.indices { rewrite(&backStack[index]) }
+        for index in forwardStack.indices { rewrite(&forwardStack[index]) }
     }
 
     /// Call before leaving the current entry.

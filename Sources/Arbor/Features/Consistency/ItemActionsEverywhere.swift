@@ -91,12 +91,7 @@ enum ItemActionsEverywhere {
     static func scriptClick(_ controller: BrowserWindowController, name: String) {
         guard let window = controller.window, let surface = controller.activeTab.page as? PageItemSurface,
               let point = surface.windowPoint(ofName: name) else { NSLog("DebugScript: no page item \(name)"); return }
-        for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
-            if let e = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                                          windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) {
-                NSApp.postEvent(e, atStart: false)
-            }
-        }
+        ScriptedMouse.postClick(in: window, at: point)
     }
 
     static func scriptHover(_ controller: BrowserWindowController, name: String) {

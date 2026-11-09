@@ -14,7 +14,7 @@ enum ConsistentSorting {
     static let extraColumns: [(id: String, title: String)] = [
         ("originalLocation", "Original Location"), ("dateDeleted", "Date Deleted"), ("cloudStatus", "Status"),
         ("search.folder", "Folder"), ("search.match", "Match"), ("archive.compressedSize", "Compressed size"),
-        ("archive.passwordProtected", "Password protected"), ("archive.ratio", "Ratio"), ("folder", "Folder"),
+        ("archive.passwordProtected", "Password protected"), ("archive.ratio", "Ratio"),
     ]
 
     static func register() {
@@ -67,7 +67,6 @@ enum ConsistentSorting {
             guard !item.isFolder, let e = archiveEntry(item), let size = e.size, let packed = e.compressedSize else { return .unknown }
             return .number(size > 0 ? max(0, 100 - Double(packed) * 100 / Double(size)) : 0)
         }
-        values["folder"] = { item in .text(LibraryMerge.folderColumnText(for: item.url)) }
         values[SearchRelevance.column.rawValue] = { item in
             SearchSortContext.current.map { .number($0.score(item)) }
         }

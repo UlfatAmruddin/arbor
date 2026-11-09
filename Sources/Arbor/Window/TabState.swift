@@ -34,7 +34,7 @@ final class TabState {
 
     var loadToken = UUID()
     var pendingLoad: LoadHandle?
-    var renameAfterLoad: String?
+    var renameAfterLoad: RenameTarget?
     /// Content not on screen yet; restore selection/scroll when it arrives.
     var restoreOnDisplay = false
     /// Next reload is a background check (watcher, tab switch): an unchanged listing leaves the view alone.
@@ -81,8 +81,12 @@ final class TabState {
         "TabState.visibleItemsFilter", "Narrows a tab's rows after the search text (column header filters).",
         signature: "(items, tab) -> items")
 
-    /// Drops the cached rows (a filter or a sort column's metadata changed).
-    func invalidateVisibleItems() { visibleCache = nil }
+    /// Drops the cached rows and supersedes any running sort, which worked on the old rows.
+    func invalidateVisibleItems() {
+        visibleCache = nil
+        sortGeneration += 1
+        isSorting = false
+    }
 
     private var sortGeneration = 0
     private var listingGeneration = 0
@@ -156,5 +160,18 @@ final class TabState {
     /// Set for the tab on screen, which is never evicted; inactive tabs also drop their sorted rows.
     var isActive = false {
         didSet { if !isActive { visibleCache = nil } }
+    }
+}
+
+/// The item to rename once a listing arrives; a URL when names can repeat there (libraries).
+enum RenameTarget {
+    case name(String)
+    case url(URL)
+
+    func matches(_ item: FileItem) -> Bool {
+        switch self {
+        case .name(let name): return item.name == name
+        case .url(let url): return Location.folder(item.url) == Location.folder(url)
+        }
     }
 }

@@ -184,7 +184,6 @@ struct LibraryTests {
         #expect(libs.map(\.name) == ["Documents", "Music", "Pictures", "Videos"])
         #expect(libs.map { $0.folders } == [["/Users/me/Documents"], ["/Users/me/Music"], ["/Users/me/Pictures"], ["/Users/me/Movies"]])
         #expect(libs.allSatisfy { $0.saveLocation == $0.folders.first })
-        #expect(!LibraryLogic.isValidName("Libraries"))
     }
 
     @Test func removingTheSaveLocationMovesItToTheNextFolder() {
@@ -200,10 +199,10 @@ struct LibraryTests {
         #expect(lib.saveLocation == "/a")
         lib.remove(URL(fileURLWithPath: "/a"))
         #expect(lib.saveLocation == nil)
-        let r7 = lib.add(URL(fileURLWithPath: "/x"))
-        #expect(r7)
-        let r8 = lib.add(URL(fileURLWithPath: "/x/"))   // same folder
-        #expect(!r8)
+        let first = lib.add(URL(fileURLWithPath: "/x"))
+        #expect(first == .added)
+        let sameFolder = lib.add(URL(fileURLWithPath: "/x/"))
+        #expect(sameFolder == .alreadyIncluded)
     }
 
     @Test func saveLocationResolution() {

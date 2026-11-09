@@ -64,7 +64,6 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
 
     let textCache = NSCache<NSString, NSString>()
     let heightCache = NSCache<NSString, NSNumber>()
-    let widthCache = NSCache<NSString, NSNumber>()
 
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
@@ -77,7 +76,6 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
         registerForDraggedTypes([.fileURL] + ItemHooks.dropTypes)
         textCache.countLimit = 3000
         heightCache.countLimit = 6000
-        widthCache.countLimit = 20000
         thumbnails.onLoaded = { [weak self] _ in
             self?.canvas.needsDisplay = true
             self?.scheduleVisibleWork()
@@ -212,14 +210,9 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
         guard let clip = clipView else { return false }
         let p = clip.convert(windowPoint, from: nil)
         let b = clip.bounds
-        var delta: CGFloat = 0
-        if layout.flow == .rows {
-            if p.y < b.minY { delta = p.y - b.minY } else if p.y > b.maxY { delta = p.y - b.maxY }
-        } else {
-            if p.x < b.minX { delta = p.x - b.minX } else if p.x > b.maxX { delta = p.x - b.maxX }
-        }
-        guard delta != 0 else { return false }
-        let step = (delta < 0 ? -1 : 1) * min(max(abs(delta) * 0.6, 6), 80)
+        let step = layout.flow == .rows ? MarqueeDrag.autoscrollStep(pointer: p.y, low: b.minY, high: b.maxY)
+                                        : MarqueeDrag.autoscrollStep(pointer: p.x, low: b.minX, high: b.maxX)
+        guard step != 0 else { return false }
         var origin = b.origin
         if layout.flow == .rows {
             origin.y = min(max(0, origin.y + step), max(0, frame.height - b.height))
@@ -441,16 +434,9 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
 
     /// Waits for a drag past the threshold (true once dragging) or mouse up.
     private func trackDrag(from down: NSEvent) -> Bool {
-        let start = down.locationInWindow
-        while let next = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {
-            if next.type == .leftMouseUp { return false }
-            let p = next.locationInWindow
-            if hypot(p.x - start.x, p.y - start.y) > 4 {
-                beginDrag(with: down)
-                return true
-            }
-        }
-        return false
+        guard case .dragged = PointerTracking.awaitDrag(in: self, from: down) else { return false }
+        beginDrag(with: down)
+        return true
     }
 
     private func scheduleSlowRename(_ index: Int) {
@@ -491,10 +477,14 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
 
     /// Right-clicking an unselected item selects it; empty space clears the selection (spec §7.1).
     override func menu(for event: NSEvent) -> NSMenu? {
+        takeFocusForContextMenu()
         cancelSlowRename()
         let point = convert(event.locationInWindow, from: nil)
+        let hit = itemHit(point)
+        // Changing the selection would end the rename and leave the menu on the wrong item.
+        if isEditingTextInside, hit.map({ !selection.selected.contains($0) }) ?? true { return nil }
         let old = selection
-        if let i = itemHit(point) {
+        if let i = hit {
             if !selection.selected.contains(i) { selection.click(i, .none) }
         } else {
             selection.clickBackground(keepSelection: false)
@@ -505,42 +495,21 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
 
     // MARK: Marquee (FE-058)
 
-    private struct MarqueeState {
-        var start: CGPoint
-        var base: IndexSet
-        var toggle: Bool
-        var add: Bool
-    }
-    private var marquee: MarqueeState?
+    private var marquee: MarqueeDrag?
 
     private func trackMarquee(from event: NSEvent) {
         marqueeBegan(at: convert(event.locationInWindow, from: nil), toggle: event.modifierFlags.contains(.command),
                      add: event.modifierFlags.contains(.shift))
-        NSEvent.startPeriodicEvents(afterDelay: 0.05, withPeriod: 0.04)
-        defer {
-            NSEvent.stopPeriodicEvents()
-            marqueeEnded()
-        }
-        var last = event.locationInWindow
-        var moved = false
-        while let next = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp, .periodic]) {
-            switch next.type {
-            case .leftMouseUp:
-                return
-            case .leftMouseDragged:
-                last = next.locationInWindow
-                moved = true
-                marqueeMoved(toWindowPoint: last)
-            default:
-                if moved, autoscrollStep(windowPoint: last) { marqueeMoved(toWindowPoint: last) }
-            }
-        }
+        defer { marqueeEnded() }
+        PointerTracking.followMarquee(in: self, from: event, alreadyMoved: false,
+                                      moved: { marqueeMoved(toWindowPoint: $0) },
+                                      autoscroll: { autoscrollStep(windowPoint: $0) })
     }
 
     func marqueeBegan(at point: CGPoint, toggle: Bool, add: Bool) {
         let old = selection
         if !toggle && !add { selection.clickBackground(keepSelection: false) }
-        marquee = MarqueeState(start: point, base: selection.selected, toggle: toggle, add: add)
+        marquee = MarqueeDrag(start: point, base: selection.selected, toggle: toggle, add: add)
         commit(old)
     }
 
@@ -548,16 +517,14 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
 
     func marqueeMoved(to point: CGPoint) {
         guard let state = marquee else { return }
-        let clamped = CGPoint(x: min(max(point.x, 0), bounds.maxX), y: min(max(point.y, 0), bounds.maxY))
-        let rect = CGRect(x: min(state.start.x, clamped.x), y: min(state.start.y, clamped.y),
-                          width: abs(clamped.x - state.start.x), height: abs(clamped.y - state.start.y))
+        let rect = state.band(to: point, within: bounds)
         marqueeRect = rect
         var hits = IndexSet()
         let candidates = layout.indexes(in: rect)
-        let precise = candidates.count <= 3000
+        let precise = candidates.count <= MarqueeDrag.preciseHitLimit
         for i in candidates where !precise || marqueeShape(i).intersects(rect) { hits.insert(i) }
         let old = selection
-        selection.selected = ItemSelection.marquee(base: state.base, hits: hits, toggle: state.toggle, add: state.add)
+        selection.selected = state.selection(hits: hits)
         if let last = hits.last { selection.focus = last; selection.anchor = hits.first }
         commit(old)
     }
@@ -597,7 +564,7 @@ final class ItemGridView: NSView, NSDraggingSource, NSViewToolTipOwner {
             return
         }
         switch event.keyCode {
-        case 36, 76:   // Return / Enter opens, like Explorer
+        case 36, 76:   // Return / Enter opens, like Explorer; the Mac preset takes them first (FileListKeys)
             if !selection.selected.isEmpty, mods.isEmpty || mods == .command {
                 host?.gridOpen(selectedItems, inNewTab: mods == .command)
                 return

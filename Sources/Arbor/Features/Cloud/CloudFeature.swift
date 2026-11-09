@@ -254,5 +254,6 @@ final class CloudRootProvider: LocationProvider {
     }
     func targetFolder(for location: Location) -> URL? { base.targetFolder(for: location) }
     func allowsItemEditing(in location: Location) -> Bool { base.allowsItemEditing(in: location) }
+    func limitation(of action: LocationAction, in location: Location) -> String? { base.limitation(of: action, in: location) }
     func emptyText(for location: Location) -> String { base.emptyText(for: location) }
 }

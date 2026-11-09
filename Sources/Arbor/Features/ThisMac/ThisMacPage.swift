@@ -22,6 +22,7 @@ final class ThisMacPageProvider: LocationProvider {
     func watch(_ location: Location, onChange: @escaping () -> Void) -> AnyObject? { VolumeWatcher(onChange: onChange) }
     func allowsItemEditing(in location: Location) -> Bool { false }
     func targetFolder(for location: Location) -> URL? { nil }
+    func limitation(of action: LocationAction, in location: Location) -> String? { action.notAFolderLimitation() }
     func emptyText(for location: Location) -> String { L10n.tr("No drives are connected.") }
 }
 

@@ -46,6 +46,8 @@ enum Features {
 
         GalleryLibrariesFeature.self,   // Gallery and Libraries
 
+        FinderTagsFeature.self,   // Tags section of the navigation pane
+
         FolderOptionsFeature.self,
 
         ItemActionsFeature.self,   // New menu, shortcuts and batch rename
@@ -60,9 +62,17 @@ enum Features {
 
         PerformanceFeature.self,   // memory and responsiveness
 
+        AddressEntryFeature.self,   // path suggestions and shell: names
+        ServicesFeature.self,   // macOS Services
+
         ReliabilityFeature.self,   // behavior and safety checks (undo names, headless safety, alert queue)
 
+        WorkspacesFeature.self,   // named tab sets, an Arbor addition
+
         AcceptanceScriptSteps.self,   // script steps and log lines for scripts/acceptance.sh
+
+        SettingsTransferFeature.self,   // export and import of preferences
+        WindowsShortcutsFeature.self,   // reads Windows .lnk and .url files
     ]
 
     /// The dependency graph of `all` ("core" is added to every other feature's requirements).

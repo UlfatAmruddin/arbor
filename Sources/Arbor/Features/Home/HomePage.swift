@@ -15,6 +15,7 @@ final class ExplorerHomeProvider: LocationProvider {
 
     func allowsItemEditing(in location: Location) -> Bool { false }
     func targetFolder(for location: Location) -> URL? { nil }
+    func limitation(of action: LocationAction, in location: Location) -> String? { action.notAFolderLimitation() }
 }
 
 /// The Home sections, in Explorer's order.

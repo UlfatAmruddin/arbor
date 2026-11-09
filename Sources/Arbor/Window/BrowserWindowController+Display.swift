@@ -35,8 +35,9 @@ extension BrowserWindowController {
         let location = tab.displayedLocation ?? tab.location
         let provider = LocationRegistry.provider(for: location)
         let visible = tab.visibleItems
-        let empty = tab.items?.isEmpty == false && visible.isEmpty
-            ? "No items match “\(tab.searchText)”." : provider.emptyText(for: location)
+        let nothingMatches = tab.searchText.isEmpty ? L10n.tr("No items match the current filters.")
+            : L10n.format("No items match “%@”.", tab.searchText)
+        let empty = tab.items?.isEmpty == false && visible.isEmpty ? nothingMatches : provider.emptyText(for: location)
         // Restore by URL: names repeat in search results, so by name Delete could hit unpicked items.
         let savedURLs = select != nil && select == tab.selectedNames
             && Set(tab.selectedURLs.map(\.lastPathComponent)) == Set(tab.selectedNames) ? tab.selectedURLs : []

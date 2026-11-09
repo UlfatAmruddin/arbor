@@ -25,28 +25,36 @@ Registered in this order (each after what it requires; "core" is required by all
 | `network` | `this-mac` |
 | `trash` | `file-operations` |
 | `cloud` | — |
-| `gallery-libraries` | — |
+| `finder-tags` | `search` |
 | `folder-options` | `details-depth`, `home`, `properties` |
+| `gallery-libraries` | `folder-options` |
 | `item-actions` | `archives` |
 | `accessibility` | — |
 | `visual-parity` | — |
 | `consistency` | `search`, `archives`, `trash`, `cloud`, `gallery-libraries`, `folder-options`, `item-actions`, `home`, `network`, `properties` |
 | `file-operations-extras` | `file-operations`, `archives`, `properties` |
 | `performance` | — |
+| `address-entry` | `home`, `trash`, `this-mac`, `network`, `gallery-libraries` |
+| `services` | — |
 | `reliability` | — |
+| `workspaces` | — |
 | `acceptance-steps` | — |
+| `settings-transfer` | — |
+| `windows-shortcuts` | `item-actions`, `properties`, `archives` |
 
 ## Interactions in item views
 
 | Point | Kind | For | Contributions, in run order |
 |---|---|---|---|
-| `InteractionHooks.openFile` | Handlers | Opening a file from an item view; true = handled. `(window, file) -> handled` | `archives.open-file` (early), `item-actions.shortcuts` |
+| `InteractionHooks.openFile` | Handlers | Opening a file from an item view; true = handled. `(window, file) -> handled` | `windows-shortcuts.archive-member` (first), `archives.open-file` (early), `item-actions.shortcuts`, `windows-shortcuts.open` (late) |
+| `Shortcuts.openTarget` | Handlers | An alias is being opened; true = its resolved target was handled. `(window, target) -> handled` | `windows-shortcuts.alias-target` |
 | `InteractionHooks.commitRename` | Handlers | An inline rename was committed; answer when the feature performs it. `(window, item, newName) -> done?` | `item-actions.multi-rename` |
 | `InteractionHooks.drop` | Handlers | Files dropped on a folder; true = handled. `(window, kind, urls, folder) -> handled` | `item-actions.drop-polish` |
 | `InteractionHooks.dragHover` | Observers | A file drag rests on something that can spring open (nil = left it). `(key?, activate?)` | `item-actions.spring-loading` |
+| `InteractionHooks.leftMouseDown` | Handlers | Left mouse press in the Details list; true = consumed (rubber-band selection). `(table, event) -> consumed` | `details-depth.marquee` |
 | `InteractionHooks.rightMouseDown` | Handlers | Right mouse press in the Details list; true = consumed (right-button drag). `(table, event) -> consumed` | `item-actions.right-drag` |
 | `InteractionHooks.rightDrag` | Handlers | Right mouse press on an item in icon layouts; true = a right-button drag started. `(view, event, urls) -> started` | `consistency.right-drag-in-icon-views` |
-| `InteractionHooks.decorateIcon` | Handlers | Decorates an item's cached icon (shortcut arrow); nil keeps it. `(item, icon, size) -> icon?` | `item-actions.shortcut-arrow` |
+| `InteractionHooks.decorateIcon` | Handlers | Decorates an item's cached icon (shortcut arrow); nil keeps it. `(item, icon, size) -> icon?` | `item-actions.shortcut-arrow`, `windows-shortcuts.arrow` (late) |
 | `InteractionHooks.itemDetail` | Handlers | An extra "Label: value" line for layouts without columns. `(item, location) -> (label, value)?` | `search.result-folder` |
 | `ItemHooks.dragWriters` | Handlers | A custom pasteboard writer for dragging an item out (archive member promises). `(item) -> writer?` | `archives.member-promise` |
 | `ItemViewHooks.decorateName` | Observers | Each Details name cell after it is configured. `(field, item, row, table)` | `folder-options.click-behavior` |
@@ -56,9 +64,9 @@ Registered in this order (each after what it requires; "core" is required by all
 
 | Point | Kind | For | Contributions, in run order |
 |---|---|---|---|
-| `WindowHooks.didCreate` | Observers | A browser window finished building. `(window)` | `folder-options.status-bar`, `folder-options.recover-placement`, `accessibility.chrome-labels`, `consistency.page-hover` |
-| `WindowHooks.willDisplay` | Observers | A tab's content loaded, before it is drawn (may set view mode and sort). `(window, tab, location, changed)` | `folder-options.provider-notice`, `folder-options.folder-views`, `accessibility.announce-location`, `accessibility.keep-focus`, `consistency.relevance-order`, `performance.first-content`, `performance.displayed-token` |
-| `WindowHooks.didDisplay` | Observers | The active tab's items were put on screen. `(window, tab)` | `folder-options.dialog-info`, `folder-options.hover-underline`, `accessibility.chrome-labels`, `accessibility.keep-focus` |
+| `WindowHooks.didCreate` | Observers | A browser window finished building. `(window)` | `folder-options.status-bar`, `folder-options.recover-placement`, `accessibility.chrome-labels`, `consistency.page-hover`, `address-entry.completion`, `workspaces.load` |
+| `WindowHooks.willDisplay` | Observers | A tab's content loaded, before it is drawn (may set view mode and sort). `(window, tab, location, changed)` | `details-depth.close-stale-filter`, `folder-options.provider-notice`, `folder-options.folder-views`, `accessibility.announce-location`, `accessibility.keep-focus`, `consistency.relevance-order`, `performance.first-content`, `performance.displayed-token` |
+| `WindowHooks.didDisplay` | Observers | The active tab's items were put on screen. `(window, tab)` | `details-depth.close-stale-filter`, `folder-options.dialog-info`, `folder-options.hover-underline`, `accessibility.chrome-labels`, `accessibility.keep-focus` |
 | `WindowHooks.selectionChanged` | Observers | The active tab's selection changed. `(window)` | `accessibility.announce-selection` |
 | `WindowHooks.viewStateChanged` | Observers | The user changed the active tab's view mode or sort order. `(window, tab)` | `folder-options.remember-view`, `consistency.relevance-memory` |
 | `WindowHooks.itemFilters` | Pipeline | Filters a loaded listing before the tab caches it. `(items, location) -> items` | `folder-options.hide-protected` |
@@ -68,10 +76,12 @@ Registered in this order (each after what it requires; "core" is required by all
 | `WindowHooks.restoreSession` | Provided | Reopens the last session's windows at launch. `(app)` | `folder-options.session-restore` |
 | `TabState.visibleItemsFilter` | Pipeline | Narrows a tab's rows after the search text (column header filters). `(items, tab) -> items` | `details-depth.column-filters` |
 | `BrowserWindowController.networkAddressHandler` | Handlers | A network address typed in the address bar; true = handled. `(window, url) -> handled` | `network.typed-address` |
+| `BrowserWindowController.unresolvedAddress` | Handlers | Address text the resolver could not place; true = handled. `(window, text, error) -> handled` | `address-entry.shell-names` |
 | `BrowserWindowController.volumeUnmountHandler` | Handlers | A tab's volume was unmounted; true = handled (tab stays). `(window, tab, volume) -> handled` | `network.keep-disconnected-tabs` |
 | `AddressBar.recentLocations` | Provided | The address bar's recent locations (▾); hidden without a provider. `() -> [Location]` | `visual-parity.recent-locations` |
 | `AddressBar.editTextProviders` | Handlers | The text the address field edits for a location; nil = path or title. `(location) -> text?` | `network.unc-path` |
-| `Breadcrumbs.builders` | Handlers | Breadcrumbs for location kinds the core doesn't build. `(location) -> [Crumb]?` | `archives.crumbs`, `network.crumbs`, `cloud.crumbs`, `gallery-libraries.crumbs` |
+| `AddressBar.annotationProviders` | Handlers | A state of the view shown after the last crumb that is not a place (Filtered). `(tab) -> annotation?` | `details-depth.filtered` |
+| `Breadcrumbs.builders` | Handlers | Breadcrumbs for location kinds the core doesn't build. `(location) -> [Crumb]?` | `cloud.crumbs` (early), `archives.crumbs`, `network.crumbs`, `gallery-libraries.crumbs` |
 | `StatusBarView.messageHooks` | Observers | A status bar message was set. `(bar, text?, isError)` | `accessibility.announce-status` |
 | `SearchRegistry.factory` | Provided | Makes each window's search controller (Explorer search). `(window) -> SearchController` | `search.explorer` |
 | `SearchRegistry.wrappers` | Pipeline | Wraps the window's search controller (per-location behavior of the box). `(controller, window) -> controller` | `consistency.search-box-per-location` |
@@ -81,34 +91,38 @@ Registered in this order (each after what it requires; "core" is required by all
 
 | Point | Kind | For | Contributions, in run order |
 |---|---|---|---|
-| `LocationRegistry.openHandlers` | Handlers | Turns an opened item into a location (archives, saved searches, aliases). `(item) -> Location?` | `item-actions.shortcuts` (early), `search.saved-search`, `archives.browse`, `network.disconnected-drive` |
+| `LocationRegistry.openHandlers` | Handlers | Turns an opened item into a location (archives, saved searches, aliases). May run off the main thread: thread-safe state only. `(item) -> Location?` | `item-actions.shortcuts` (early), `search.saved-search`, `archives.browse`, `network.disconnected-drive` |
 | `NavigationPaneHooks.adjustRoots` | Pipeline | Adjusts the navigation pane's root nodes. `(roots) -> roots` | `folder-options.navigation-roots` |
 | `NavigationPaneHooks.filterChildren` | Pipeline | Filters a tree folder's children when it expands. `(items) -> items` | `folder-options.hide-protected` |
-| `NavigationPaneHooks.willReveal` | Observers | Before the pane marks the current location. `(pane, location)` | `folder-options.expand-to-open-folder` |
-| `NavigationPaneHooks.decorateCell` | Observers | Each tree cell after it is configured. `(cell, node)` | `folder-options.tree-cells` |
-| `NavigationPaneExtras.builders` | Pipeline | Extra top-level tree nodes after Gallery or after Network. `(nodes, position) -> nodes` | `trash.navigation-node`, `cloud.roots`, `gallery-libraries.libraries-node` (late) |
+| `NavigationPaneHooks.willReveal` | Observers | Before the pane marks the current location. `(pane, location)` | `finder-tags.expand-to-open-collection`, `folder-options.expand-to-open-folder` |
+| `NavigationPaneHooks.decorateCell` | Observers | Each tree cell after it is configured. `(cell, node)` | `finder-tags.cell-label`, `folder-options.tree-cells` |
+| `NavigationPaneHooks.didExpand` | Observers | A tree node was expanded. `(pane, node)` | `finder-tags.refresh-on-expand` |
+| `NavigationPaneExtras.builders` | Pipeline | Extra top-level tree nodes after Gallery or after Network. `(nodes, position) -> nodes` | `trash.navigation-node`, `cloud.roots`, `gallery-libraries.libraries-node` (late), `finder-tags.section` (last) |
 | `NavigationPaneController.volumeNodes` | Provided | The drives listed under This Mac in the tree. `() -> [NavNode]` | `this-mac.drives` |
 | `SidePaneRegistry.wrappers` | Pipeline | Wraps a side pane when it is created (by pane id). `(pane, id) -> pane` | `cloud.preview-gate`, `consistency.archive-member-preview` (late) |
 | `PreviewPolicy.showsPreviewHandlers` | Provided | Whether the Preview pane may run preview handlers. `() -> Bool` | `folder-options.preview-handlers` |
 | `PreviewHooks.localURL` | Handlers | A local file to preview for an item that isn't on disk (archive members). `(item) -> url?` | `consistency.archive-member-preview` |
-| `DetailsColumns.providers` | Handlers | A location's Details column layout (Trash, search, ZIP, cloud, libraries). `(location) -> DetailsLayout?` | `search.columns`, `archives.zip-columns`, `trash.columns`, `cloud.status-column`, `gallery-libraries.folder-column` |
+| `DetailsColumns.providers` | Handlers | A location's Details column layout (Trash, search, ZIP, cloud). `(location) -> DetailsLayout?` | `search.columns`, `archives.zip-columns`, `trash.columns`, `cloud.status-column` |
 | `FileSorter.columnValues` | Handlers | Sort values for columns that aren't in the listing (extra columns, metadata). `(item, column) -> value? (nil = not mine, .some(nil) = still loading)` | `consistency.extra-columns`, `details-depth.metadata` (late) |
 | `ViewOptions.folderKindResolver` | Provided | The folder kind whose column set a location uses. `(location, items) -> FolderKind` | `folder-options.folder-type` |
 | `ViewOptions.columnsEdited` | Handlers | The user changed a tab's columns; true = saved (for the folder). `(options) -> saved?` | `folder-options.folder-columns` |
+| `FolderViews.virtualFolders` | Handlers | A non-folder location that keeps a saved view like a folder (libraries). `(location) -> VirtualFolder?` | `gallery-libraries.library-views` |
 | `IconProvider.itemIconOverrides` | Handlers | An item's icon instead of the drawn one (network drives). No I/O. `(item, size) -> icon?` | `network.drive-icons` |
-| `IconProvider.locationIconOverrides` | Handlers | A location's icon instead of the drawn one (network drives). No I/O. `(location, size) -> icon?` | `network.drive-icons` |
+| `IconProvider.locationIconOverrides` | Handlers | A location's icon instead of the drawn one (network drives). No I/O. `(location, size) -> icon?` | `network.drive-icons`, `finder-tags.icons` |
 | `ItemBadges.providers` | Handlers | A status glyph on icons of 32 pt and up (cloud status). `(item) -> badge?` | `cloud.status-badge` |
 | `TileView.showsDescriptions` | Provided | Whether page tiles show pop-up descriptions. `() -> Bool` | `consistency.popup-descriptions` |
 | `GalleryGridView.showsDescriptions` | Provided | Whether Gallery thumbnails show pop-up descriptions. `() -> Bool` | `consistency.popup-descriptions` |
 | `VolumeCatalog.adjustments` | Pipeline | Adjusts the drive list (mapped and disconnected network drives). May run off the main thread. `(volumes) -> volumes` | `network.mapped-drives` |
 | `VolumeCatalog.iconOverride` | Handlers | A drive's icon on This Mac; nil = the kind's icon. `(volume, size) -> icon?` | `network.drive-icons` |
 | `VolumeCatalog.statusOverride` | Handlers | A drive's status line on This Mac; nil = free space. `(volume) -> text?` | `network.disconnected-status` |
+| `PropertiesTabs.extraTabs` | Pipeline | The tabs of a Properties window; a feature adds its own. `(tabs, (model, controller)) -> tabs` | `windows-shortcuts.tab` |
 
 ## Commands and menus
 
 | Point | Kind | For | Contributions, in run order |
 |---|---|---|---|
 | `CommandDispatcher.menuTitleHook` | Pipeline | Adjusts a command's title in menus (sentence case in context menus). `(title, (command, context)) -> title` | `visual-parity.menu-wording` |
+| `CommandDispatcher.menuBuilt` | Observers | A slot's menu was built (per-slot AppKit settings). `((slot, menu)) -> Void` | `services.item-menus-only` |
 | `ContextMenuKey.presenter` | Provided | Shows the menu the context-menu key opens. `(menu, view, point)` | — |
 
 ## File operations and the Trash
@@ -129,7 +143,7 @@ Registered in this order (each after what it requires; "core" is required by all
 |---|---|---|---|
 | `FolderOptionsHistory.clearers` | Pipeline | Clears a feature's history for "Clear Arbor history"; adds the count removed. `(removed) -> removed` | `folder-options.home-history` |
 | `PerformanceDebug.extraMemoryFields` | Pipeline | More key=value fields for the memlog script step. `(line) -> line` | — |
-| `DebugScript.loggers` | Pipeline | Lines the log: script step appends. `(text, window) -> text` | `icon-views.log`, `details-depth.log`, `home.log`, `this-mac.log`, `search.log`, `file-operations.log`, `properties.log`, `archives.log`, `network.log`, `trash.log`, `trash.log-2`, `cloud.log`, `gallery-libraries.log`, `folder-options.log`, `item-actions.log`, `item-actions.log-2`, `accessibility.log`, `visual-parity.log`, `visual-parity.log-2`, `consistency.log`, `consistency.log-2`, `file-operations-extras.log`, `file-operations-extras.log-2`, `performance.log`, `reliability.log`, `acceptance-steps.log` |
+| `DebugScript.loggers` | Pipeline | Lines the log: script step appends. `(text, window) -> text` | `icon-views.log`, `details-depth.log`, `details-depth.marquee-log`, `home.log`, `this-mac.log`, `search.log`, `file-operations.log`, `properties.log`, `archives.log`, `network.log`, `trash.log`, `trash.log-2`, `cloud.log`, `finder-tags.log`, `folder-options.log`, `gallery-libraries.log`, `item-actions.log`, `item-actions.log-2`, `accessibility.log`, `visual-parity.log`, `visual-parity.log-2`, `consistency.log`, `consistency.log-2`, `file-operations-extras.log`, `file-operations-extras.log-2`, `performance.log`, `services.log`, `reliability.log`, `reliability.command-bar-tooltips`, `workspaces.log`, `acceptance-steps.log`, `settings-transfer.log`, `windows-shortcuts.log` |
 
 ## Per-command overrides
 
@@ -140,6 +154,7 @@ Only commands that other features change are listed (`CommandRegistry.override`,
 |---|---|---|---|
 | `commands[archive.compressTo].isAvailable` | Handlers | Where the command is listed. | `consistency.disconnected-drive`, `consistency.not-in-trash` |
 | `commands[archive.compressTo].submenuItems` | Pipeline | Adjusts the submenu's items (extra entries, recording opened files). | `file-operations-extras.compress-options` |
+| `commands[archive.newZip].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.only-libraries-are-new` (early) |
 | `commands[edit.copy].isAvailable` | Handlers | Where the command is listed. | `consistency.hide-when-disabled`, `consistency.disconnected-drive` |
 | `commands[edit.copy].isEnabled` | Handlers | Whether the command can run. | `archives.copy-out` |
 | `commands[edit.copy].perform` | Handlers | What the command does. | `archives.copy-out` |
@@ -166,8 +181,13 @@ Only commands that other features change are listed (`CommandRegistry.override`,
 | `commands[file.deletePermanently].isAvailable` | Handlers | Where the command is listed. | `consistency.disconnected-drive`, `consistency.not-in-archive` |
 | `commands[file.deletePermanently].isEnabled` | Handlers | Whether the command can run. | `trash.delete-permanently` |
 | `commands[file.deletePermanently].perform` | Handlers | What the command does. | `trash.delete-permanently` |
+| `commands[file.new.bmp].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.only-libraries-are-new` (early) |
+| `commands[file.new.rtf].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.only-libraries-are-new` (early) |
+| `commands[file.new.txt].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.only-libraries-are-new` (early) |
+| `commands[file.newFolder].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.only-libraries-are-new` (early) |
 | `commands[file.newFolder].isEnabled` | Handlers | Whether the command can run. | `gallery-libraries.library-save-location` (early) |
 | `commands[file.newFolder].perform` | Handlers | What the command does. | `gallery-libraries.library-save-location` (early) |
+| `commands[file.newShortcut].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.only-libraries-are-new` (early) |
 | `commands[file.openInTerminal].isAvailable` | Handlers | Where the command is listed. | `consistency.hide-when-disabled`, `consistency.disconnected-drive`, `consistency.not-in-trash`, `consistency.not-in-archive` |
 | `commands[file.openInTerminal].isEnabled` | Handlers | Whether the command can run. | `archives.no-target` |
 | `commands[file.openWith].isAvailable` | Handlers | Where the command is listed. | `consistency.disconnected-drive`, `consistency.not-in-trash` |
@@ -177,7 +197,8 @@ Only commands that other features change are listed (`CommandRegistry.override`,
 | `commands[file.properties].isAvailable` | Handlers | Where the command is listed. | `consistency.disconnected-drive`, `consistency.not-in-trash` |
 | `commands[file.rename].replacement` | Provided | A newer version of the command replaced it. | `item-actions.multi-rename` |
 | `commands[file.rename].isAvailable` | Handlers | Where the command is listed. | `consistency.hide-when-disabled`, `consistency.disconnected-drive`, `consistency.not-in-trash`, `consistency.not-in-archive` |
-| `commands[file.rename].perform` | Handlers | What the command does. | `gallery-libraries.rename-in-sheet` (early) |
+| `commands[file.rename].isEnabled` | Handlers | Whether the command can run. | `gallery-libraries.rename-library` (early) |
+| `commands[file.rename].perform` | Handlers | What the command does. | `gallery-libraries.rename-in-sheet` (early), `gallery-libraries.rename-library` (early) |
 | `commands[file.sendTo].isAvailable` | Handlers | Where the command is listed. | `archives.no-send-to`, `consistency.disconnected-drive`, `consistency.not-in-trash` |
 | `commands[file.share].isAvailable` | Handlers | Where the command is listed. | `consistency.hide-when-disabled`, `consistency.disconnected-drive`, `consistency.not-in-trash`, `consistency.not-in-archive` |
 | `commands[file.share].isEnabled` | Handlers | Whether the command can run. | `archives.no-target` |
@@ -186,9 +207,9 @@ Only commands that other features change are listed (`CommandRegistry.override`,
 | `commands[file.showPackageContents].isAvailable` | Handlers | Where the command is listed. | `consistency.disconnected-drive` |
 | `commands[file.trash].replacement` | Provided | A newer version of the command replaced it. | `file-operations.delete-confirmation` |
 | `commands[file.trash].isAvailable` | Handlers | Where the command is listed. | `consistency.hide-when-disabled`, `consistency.disconnected-drive`, `consistency.not-in-archive` |
-| `commands[file.trash].isEnabled` | Handlers | Whether the command can run. | `trash.delete-permanently` |
-| `commands[file.trash].title` | Handlers | The command's title. | `trash.delete-permanently` |
-| `commands[file.trash].perform` | Handlers | What the command does. | `gallery-libraries.forget-trashed-tiles` (early), `trash.delete-permanently` |
+| `commands[file.trash].isEnabled` | Handlers | Whether the command can run. | `gallery-libraries.delete-library` (early), `trash.delete-permanently` |
+| `commands[file.trash].title` | Handlers | The command's title. | `gallery-libraries.delete-library` (early), `trash.delete-permanently` |
+| `commands[file.trash].perform` | Handlers | What the command does. | `gallery-libraries.forget-trashed-tiles` (early), `gallery-libraries.delete-library` (early), `trash.delete-permanently` |
 | `commands[home.favorite].isAvailable` | Handlers | Where the command is listed. | `archives.no-target`, `consistency.disconnected-drive`, `consistency.not-in-trash` |
 | `commands[image.rotateLeft].isAvailable` | Handlers | Where the command is listed. | `consistency.disconnected-drive`, `consistency.not-in-trash`, `consistency.not-in-archive` |
 | `commands[image.rotateRight].isAvailable` | Handlers | Where the command is listed. | `consistency.disconnected-drive`, `consistency.not-in-trash`, `consistency.not-in-archive` |
@@ -208,6 +229,7 @@ Only commands that other features change are listed (`CommandRegistry.override`,
 | `commands[sort.column.dateCreated].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.sort-by-date-taken` (early) |
 | `commands[sort.column.dateTaken].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.sort-by-date-taken` (early) |
 | `commands[sort.column.dimensions].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.sort-by-date-taken` (early) |
+| `commands[sort.column.folder].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.sort-by-date-taken` (early) |
 | `commands[sort.column.genre].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.sort-by-date-taken` (early) |
 | `commands[sort.column.height].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.sort-by-date-taken` (early) |
 | `commands[sort.column.itemDate].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.sort-by-date-taken` (early) |
@@ -229,7 +251,6 @@ Only commands that other features change are listed (`CommandRegistry.override`,
 | `commands[sort.extra.archive.ratio].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.sort-by-date-taken` (early) |
 | `commands[sort.extra.cloudStatus].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.sort-by-date-taken` (early) |
 | `commands[sort.extra.dateDeleted].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.sort-by-date-taken` (early) |
-| `commands[sort.extra.folder].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.sort-by-date-taken` (early) |
 | `commands[sort.extra.originalLocation].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.sort-by-date-taken` (early) |
 | `commands[sort.extra.search.folder].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.sort-by-date-taken` (early) |
 | `commands[sort.extra.search.match].isAvailable` | Handlers | Where the command is listed. | `gallery-libraries.sort-by-date-taken` (early) |

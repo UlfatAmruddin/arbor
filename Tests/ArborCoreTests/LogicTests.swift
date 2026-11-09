@@ -100,6 +100,36 @@ struct NavigationHistoryTests {
         #expect(entry?.topVisibleName == "w.txt")
     }
 
+    @Test func goingBackSeveralStepsLeavesThemOnForward() {
+        var h = NavigationHistory(start: a)
+        h.visit(b)
+        h.visit(c)
+        #expect(h.peekBack(steps: 2)?.url == a)
+        #expect(h.goBack(steps: 2)?.url == a)
+        #expect(!h.canGoBack)
+        #expect(h.goForward()?.url == b)
+        #expect(h.goForward()?.url == c)
+    }
+
+    @Test func stepsOutsideTheStackDoNothing() {
+        var h = NavigationHistory(start: a)
+        h.visit(b)
+        for steps in [0, -1, 2] {
+            #expect(h.peekBack(steps: steps) == nil)
+            #expect(h.goBack(steps: steps) == nil)
+        }
+        #expect(h.current.url == b && h.canGoBack && !h.canGoForward)
+    }
+
+    @Test func stepsBackFindsTheNearestMatch() {
+        var h = NavigationHistory(start: a)
+        h.visit(b)
+        h.visit(c)
+        #expect(h.stepsBack(toNearest: { $0.url == b }) == 1)
+        #expect(h.stepsBack(toNearest: { $0.url == a }) == 2)
+        #expect(h.stepsBack(toNearest: { $0.url == c }) == nil)   // the current entry isn't behind us
+    }
+
     @Test func clearingBackForwardKeepsCurrentLocation() {
         var h = NavigationHistory(start: a)
         h.visit(b)

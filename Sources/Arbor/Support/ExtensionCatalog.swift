@@ -6,29 +6,32 @@ import ArborCore
 enum ExtensionCatalog {
     static let sections: [(title: String, points: [ExtensionPointInfo])] = [
         ("Interactions in item views", [
-            InteractionHooks.openFile, InteractionHooks.commitRename, InteractionHooks.drop, InteractionHooks.dragHover,
-            InteractionHooks.rightMouseDown, InteractionHooks.rightDrag, InteractionHooks.decorateIcon,
+            InteractionHooks.openFile, Shortcuts.openTarget, InteractionHooks.commitRename, InteractionHooks.drop, InteractionHooks.dragHover,
+            InteractionHooks.leftMouseDown, InteractionHooks.rightMouseDown, InteractionHooks.rightDrag, InteractionHooks.decorateIcon,
             InteractionHooks.itemDetail, ItemHooks.dragWriters, ItemViewHooks.decorateName, ItemViewHooks.underlinesName,
         ]),
         ("Windows, tabs and the search box", [
             WindowHooks.didCreate, WindowHooks.willDisplay, WindowHooks.didDisplay, WindowHooks.selectionChanged,
             WindowHooks.viewStateChanged, WindowHooks.itemFilters, WindowHooks.tabTitle, WindowHooks.openFolder,
             WindowHooks.startLocation, WindowHooks.restoreSession, TabState.visibleItemsFilter,
-            BrowserWindowController.networkAddressHandler, BrowserWindowController.volumeUnmountHandler,
-            AddressBar.recentLocations, AddressBar.editTextProviders, Breadcrumbs.builders, StatusBarView.messageHooks,
+            BrowserWindowController.networkAddressHandler, BrowserWindowController.unresolvedAddress,
+            BrowserWindowController.volumeUnmountHandler,
+            AddressBar.recentLocations, AddressBar.editTextProviders, AddressBar.annotationProviders, Breadcrumbs.builders,
+            StatusBarView.messageHooks,
             SearchRegistry.factory, SearchRegistry.wrappers, ExplorerSearchController.scopedRequest,
         ]),
         ("Locations, panes and views", [
             LocationRegistry.openHandlers, NavigationPaneHooks.adjustRoots, NavigationPaneHooks.filterChildren,
-            NavigationPaneHooks.willReveal, NavigationPaneHooks.decorateCell, NavigationPaneExtras.builders,
+            NavigationPaneHooks.willReveal, NavigationPaneHooks.decorateCell, NavigationPaneHooks.didExpand,
+            NavigationPaneExtras.builders,
             NavigationPaneController.volumeNodes, SidePaneRegistry.wrappers, PreviewPolicy.showsPreviewHandlers,
             PreviewHooks.localURL, DetailsColumns.providers, FileSorter.columnValues, ViewOptions.folderKindResolver,
-            ViewOptions.columnsEdited, IconProvider.itemIconOverrides, IconProvider.locationIconOverrides,
+            ViewOptions.columnsEdited, FolderViews.virtualFolders, IconProvider.itemIconOverrides, IconProvider.locationIconOverrides,
             ItemBadges.providers, TileView.showsDescriptions, GalleryGridView.showsDescriptions,
-            VolumeCatalog.adjustments, VolumeCatalog.iconOverride, VolumeCatalog.statusOverride,
+            VolumeCatalog.adjustments, VolumeCatalog.iconOverride, VolumeCatalog.statusOverride, PropertiesTabs.extraTabs,
         ]),
         ("Commands and menus", [
-            CommandDispatcher.menuTitleHook, ContextMenuKey.presenter,
+            CommandDispatcher.menuTitleHook, CommandDispatcher.menuBuilt, ContextMenuKey.presenter,
         ]),
         ("File operations and the Trash", [
             OperationCenter.prepareJob, OperationCenter.admission, OperationCenter.afterRun, OperationCenter.jobFinished,

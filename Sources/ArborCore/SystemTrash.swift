@@ -1,5 +1,11 @@
 import Foundation
 
+/// Why an item couldn't go to the Trash, and whether deleting it outright could still work.
+public struct TrashFailure: Equatable, Sendable {
+    public let reason: String
+    public let canDeletePermanently: Bool
+}
+
 /// The single path for "move to Trash". Headless runs (`ARBOR_HEADLESS`) never touch the real Trash:
 /// items go to a per-process folder (or `ARBOR_TEST_TRASH`).
 public enum SystemTrash {
@@ -13,18 +19,46 @@ public enum SystemTrash {
     /// Returns where the item ended up.
     @discardableResult
     public static func trash(_ url: URL) throws -> URL {
-        if let dir = testDirectory {
+        let trashed = try trash(url, into: testDirectory)
+        notify(original: url, trashed: trashed)
+        return trashed
+    }
+
+    /// `directory`: a private stand-in for the Trash, or nil for the real one; like the Trash, it keeps the name when free.
+    @discardableResult
+    static func trash(_ url: URL, into directory: URL?) throws -> URL {
+        if let dir = directory {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let target = dir.appendingPathComponent("\(UUID().uuidString)-\(url.lastPathComponent)")
+            var target = dir.appendingPathComponent(url.lastPathComponent)
+            if FileOps.exists(target) { target = dir.appendingPathComponent("\(UUID().uuidString)-\(url.lastPathComponent)") }
             try FileManager.default.moveItem(at: url, to: target)
-            notify(original: url, trashed: target)
             return target
         }
         var result: NSURL?
         try FileManager.default.trashItem(at: url, resultingItemURL: &result)
-        let trashed = (result as URL?) ?? url
-        notify(original: url, trashed: trashed)
-        return trashed
+        return (result as URL?) ?? url
+    }
+
+    /// Why `url` couldn't go to the Trash, in the user's words. The Trash reports a path past the limit as a missing file.
+    public static func failure(_ error: Error, for url: URL) -> TrashFailure {
+        let tooLong = TrashFailure(reason: L10n.tr("The path to this item is too long for the Trash."), canDeletePermanently: true)
+        guard PathLimits.fits(url) else { return tooLong }
+        if TransferFailure.hasLockFlag(url) {
+            return TrashFailure(reason: L10n.tr("The item is locked. Unlock it in Get Info, then try again."), canDeletePermanently: false)
+        }
+        switch FileOps.posixCode(of: error) {
+        case EACCES?, EPERM?:
+            return TrashFailure(reason: L10n.tr("You don't have permission to remove this item from its folder."), canDeletePermanently: true)
+        case EROFS?:
+            return TrashFailure(reason: L10n.tr("This disk is read-only, so nothing on it can be removed."), canDeletePermanently: false)
+        case ENAMETOOLONG?:
+            return tooLong
+        case ENOENT? where !FileOps.exists(url):
+            return TrashFailure(reason: L10n.tr("The item no longer exists."), canDeletePermanently: false)
+        default:
+            return TrashFailure(reason: L10n.tr("This location may not support the Trash. You can delete permanently instead, which can't be undone."),
+                                canDeletePermanently: true)
+        }
     }
 
     /// Only a real, user-owned `.Trash` or `.Trashes/<uid>` (no links on the way) may be emptied.

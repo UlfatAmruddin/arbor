@@ -15,6 +15,7 @@ extension BrowserWindowController {
         let tab = activeTab
         let shown = tab.displayedLocation ?? tab.location
         addressBar.location = shown
+        addressBar.annotation = AddressBar.annotationProviders.first(tab)
         searchBox.placeholder = search.placeholder(for: shown)
         navPane.reveal(shown)
         navBar.back.isEnabled = tab.history.canGoBack

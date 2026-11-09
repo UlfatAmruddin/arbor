@@ -9,7 +9,7 @@ Tests: `Tests/ArborCoreTests/SearchQueryTests.swift`, `SearchEngineTests.swift`.
 
 Typing in "Search <location>" starts a search after a 0.6 s pause, or at once on Return. The search opens a `.search` location in the
 current tab: "Search Results in <folder>". It covers the folder **and its subfolders**. Refining the query replaces that history entry,
-so Back returns to the folder with its selection restored. Clearing the box, Esc, or "Close search" goes back too. Two engines run side
+so Back returns to the folder with its selection restored. Clearing the box, Esc, or "Close search" goes back too, past any other search entries (moving between tag rows adds them). Two engines run side
 by side, and their hits are merged by file identity (device+inode; hard links stay separate):
 
 1. **Spotlight** (`NSMetadataQuery` scoped to the folder, or the whole Mac for This Mac). The query is translated to MDQuery syntax. The

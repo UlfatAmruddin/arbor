@@ -40,15 +40,20 @@ final class BrowserWindow: NSWindow {
 
     /// Window-scope command bindings; while editing text only those using ⌘ or ⌃.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.type == .keyDown, let command = CommandRegistry.shared.command(for: event, scope: .window),
-           let controller = windowController as? BrowserWindowController {
-            let mods = event.modifierFlags.intersection([.command, .control])
-            if !controller.isEditingText || !mods.isEmpty {
-                let context = controller.context(surface: .keyboard, sender: nil)
-                if command.isAvailable(context), command.isEnabled(context) {
-                    command.perform(context)
-                    return true
+        if event.type == .keyDown, let controller = windowController as? BrowserWindowController {
+            if let command = CommandRegistry.shared.command(for: event, scope: .window) {
+                let mods = event.modifierFlags.intersection([.command, .control])
+                if !controller.isEditingText || !mods.isEmpty {
+                    let context = controller.context(surface: .keyboard, sender: nil)
+                    if command.isAvailable(context), command.isEnabled(context) {
+                        command.perform(context)
+                        return true
+                    }
                 }
+            }
+            if !controller.isEditingText, let command = CommandRegistry.shared.locationCommand(forShortcut: event),
+               CommandDispatcher.shared.refuseIfLocationBlocks(command, controller.context(surface: .keyboard, sender: nil)) {
+                return true
             }
         }
         return super.performKeyEquivalent(with: event)

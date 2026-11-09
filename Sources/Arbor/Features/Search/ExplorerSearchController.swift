@@ -185,14 +185,14 @@ final class ExplorerSearchController: SearchController {
         window.navigate(to: target)
     }
 
-    /// "Close search": back to the folder the search started from, with its selection.
+    /// "Close search": back to the place before the searches, with its selection; tag rows stack search entries.
     func closeSearch() {
         guard let window, case .search(let r) = shown else { return }
         pending?.cancel()
         lastTyped = ""
         dropdown.hide()
-        if let back = window.activeTab.history.peekBack(), !Self.isSearchLocation(back.location) {
-            window.goBack()
+        if let steps = window.activeTab.history.stepsBack(toNearest: { !Self.isSearchLocation($0.location) }) {
+            window.goBack(steps: steps)
         } else {
             window.navigate(to: r.origin ?? r.scope.map { .folder($0) } ?? .home)
         }
@@ -254,7 +254,7 @@ final class ExplorerSearchController: SearchController {
     // MARK: Debug
 
     var debugDropdown: String { dropdown.debugDescription }
-    var dropdownView: NSView? { dropdown.contentView }
+    var dropdownPanel: DropdownPanel { dropdown.panel }
     var debugProgress: String { progress.debugDescription }
 }
 
@@ -371,12 +371,7 @@ final class SearchProgressFill: NSView {
 
 /// Recent-searches panel under the box, with "Clear search history". Never takes keyboard focus.
 final class SearchHistoryDropdown {
-    private final class Panel: NSPanel {
-        override var canBecomeKey: Bool { false }
-        override var canBecomeMain: Bool { false }
-    }
-
-    private let panel: Panel
+    let panel: DropdownPanel
     private let list = NSStackView()
     private let onPick: (String) -> Void
     private let onRemove: (String) -> Void
@@ -387,55 +382,23 @@ final class SearchHistoryDropdown {
         self.onPick = onPick
         self.onRemove = onRemove
         self.onClear = onClear
-        panel = Panel(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100), styleMask: [.borderless, .nonactivatingPanel],
-                      backing: .buffered, defer: true)
-        panel.isReleasedWhenClosed = false
-        panel.hasShadow = true
-        panel.backgroundColor = .clear
-        panel.isOpaque = false
-        panel.becomesKeyOnlyIfNeeded = true
-        panel.hidesOnDeactivate = true
-        let background = DropdownBackground()
         list.orientation = .vertical
         list.alignment = .leading
         list.spacing = 0
         list.edgeInsets = NSEdgeInsets(top: 6, left: 4, bottom: 6, right: 4)
-        list.translatesAutoresizingMaskIntoConstraints = false
-        background.addSubview(list)
-        NSLayoutConstraint.activate([
-            list.topAnchor.constraint(equalTo: background.topAnchor),
-            list.leadingAnchor.constraint(equalTo: background.leadingAnchor),
-            list.trailingAnchor.constraint(equalTo: background.trailingAnchor),
-            list.bottomAnchor.constraint(equalTo: background.bottomAnchor),
-        ])
-        background.setAccessibilityRole(.list)
-        background.setAccessibilityLabel(L10n.tr("Recent searches"))
-        panel.contentView = background
-        if AppDelegate.isHeadless {
-            panel.alphaValue = 0
-            panel.ignoresMouseEvents = true
-        }
+        panel = DropdownPanel(content: list, accessibilityLabel: L10n.tr("Recent searches"))
     }
 
-    var contentView: NSView? { panel.contentView }
-    var isVisible: Bool { panel.parent != nil }
+    var isVisible: Bool { panel.isVisible }
 
     func show(_ entries: [String], below anchor: NSView) {
-        guard !entries.isEmpty, let parent = anchor.window else { hide(); return }
+        guard !entries.isEmpty, anchor.window != nil else { hide(); return }
         self.entries = entries
         rebuild(width: anchor.bounds.width)
-        let anchorRect = parent.convertToScreen(anchor.convert(anchor.bounds, to: nil))
-        let size = panel.contentView?.fittingSize ?? .zero
-        let height = max(size.height, 40)
-        panel.setFrame(NSRect(x: anchorRect.minX, y: anchorRect.minY - height - 4, width: anchorRect.width, height: height), display: true)
-        if panel.parent == nil { parent.addChildWindow(panel, ordered: .above) }
-        panel.orderFront(nil)
+        panel.show(below: anchor)
     }
 
-    func hide() {
-        panel.parent?.removeChildWindow(panel)
-        panel.orderOut(nil)
-    }
+    func hide() { panel.hide() }
 
     private func rebuild(width: CGFloat) {
         list.arrangedSubviews.forEach { $0.removeFromSuperview() }
@@ -458,6 +421,7 @@ final class SearchHistoryDropdown {
             row.widthAnchor.constraint(equalToConstant: width - 8).isActive = true
             row.menu = {
                 let m = NSMenu()
+                m.allowsContextMenuPlugIns = false
                 m.addItem(ClosureMenuItem(L10n.tr("Remove from history")) { [weak self] in
                     self?.onRemove(entry)
                     self?.entries.removeAll { $0 == entry }
@@ -487,15 +451,6 @@ final class SearchHistoryDropdown {
 
     var debugDescription: String {
         "dropdown: \(isVisible ? "shown" : "hidden") [\(entries.joined(separator: " | "))]"
-    }
-
-    private final class DropdownBackground: NSView {
-        override func draw(_ dirtyRect: NSRect) {
-            let rect = bounds.insetBy(dx: 0.5, dy: 0.5)
-            fillRounded(rect, radius: 8, Theme.fieldBackground)
-            Theme.fieldBorder.setStroke()
-            NSBezierPath(roundedRect: rect, xRadius: 8, yRadius: 8).stroke()
-        }
     }
 
     private final class SeparatorLine: NSView {

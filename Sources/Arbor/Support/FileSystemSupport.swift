@@ -43,7 +43,7 @@ final class DirectoryWatcher {
     deinit { stop() }
 }
 
-/// Decides copy versus move for a drag (FE-104, FE-105, FE-112).
+/// Decides copy versus move for a drag (FE-104, FE-105, FE-112) and what a folder drop target does with it (FE-107).
 enum DropPolicy {
     static func kind(sources: [URL], destination: URL, mask: NSDragOperation) -> TransferKind? {
         let dest = destination.standardizedFileURL
@@ -60,6 +60,23 @@ enum DropPolicy {
 
     static func fileURLs(from info: NSDraggingInfo) -> [URL] {
         (info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
+    }
+
+    /// What dropping on `folder` would do; empty means refused. File promises are asked first.
+    static func operation(_ info: NSDraggingInfo, onto folder: URL) -> NSDragOperation {
+        if let promised = ItemHooks.dropOperation(info, destination: folder) { return promised }
+        guard let kind = kind(sources: fileURLs(from: info), destination: folder, mask: info.draggingSourceOperationMask) else { return [] }
+        return kind == .move ? .move : .copy
+    }
+
+    /// Runs the rules again at drop time: what was true while hovering may no longer hold.
+    static func accept(_ info: NSDraggingInfo, onto folder: URL, window: NSWindow?,
+                       transfer: (TransferKind, [URL], URL) -> Void) -> Bool {
+        if ItemHooks.acceptDrop(info, destination: folder, window: window) { return true }
+        let urls = fileURLs(from: info)
+        guard let kind = kind(sources: urls, destination: folder, mask: info.draggingSourceOperationMask) else { return false }
+        transfer(kind, urls, folder)
+        return true
     }
 }
 

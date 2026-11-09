@@ -161,6 +161,7 @@ extension DetailsViewController {
     func groupHeaderMenu(row: Int) -> NSMenu? {
         guard let g = headerIndex(atRow: row) else { return nil }
         let menu = NSMenu(title: "Group")
+        menu.allowsContextMenuPlugIns = false
         let collapsed = isCollapsed(g)
         menu.addItem(ClosureMenuItem(collapsed ? L10n.tr("Expand Group") : L10n.tr("Collapse Group")) { [weak self] in
             self?.setGroup(g, collapsed: !collapsed)
@@ -291,7 +292,9 @@ extension DetailsViewController {
         cell.label.stringValue = ColumnValues.text(value, column: column)
         cell.label.textColor = value == nil || value == .unknown ? Theme.disabledText : Theme.secondaryText
         let state = ColumnValues.stateDescription(value)
-        cell.toolTip = state
+        let descriptor = ColumnCatalog.descriptor(column)
+        cell.label.lineBreakMode = descriptor?.truncatesMiddle == true ? .byTruncatingMiddle : .byTruncatingTail
+        cell.toolTip = state ?? descriptor?.toolTip?(item)
         cell.label.setAccessibilityLabel(state.map { "\(ColumnCatalog.title(column)): \($0)" })
         if value == nil { scheduleVisibleLoad() }
     }
@@ -346,7 +349,7 @@ extension DetailsViewController {
         let overlay = HeaderOverlayView(frame: header.bounds)
         overlay.autoresizingMask = [.width, .height]
         overlay.table = table
-        overlay.isFilterable = { [weak self] i in self?.columnID(at: i) != nil }
+        overlay.isFilterable = { [weak self] i in self?.columnID(at: i).map(Self.canFilter) ?? false }
         overlay.isFiltered = { [weak self] i in
             guard let self, let id = self.columnID(at: i) else { return false }
             return self.hostOptions?.filters.isFiltered(id) ?? false
@@ -409,30 +412,58 @@ extension DetailsViewController {
 
     // MARK: Header filters
 
+    // Columns outside the catalog (Trash, search, archives, cloud) have no values for `Buckets` to read.
+    private static func canFilter(_ id: ColumnID) -> Bool { ColumnCatalog.descriptor(id) != nil }
+
+    var filterableColumns: [ColumnID] { shownColumnIDs.filter(Self.canFilter) }
+
+    func showFilter(_ id: ColumnID) {
+        let index = table.column(withIdentifier: NSUserInterfaceItemIdentifier(id.rawValue))
+        if index >= 0 { showFilter(column: index) }
+    }
+
     /// Opens the column's filter dropdown (FE-039).
     func showFilter(column index: Int) {
         guard let id = columnID(at: index), let tab = hostTab, let overlay = headerOverlay else { return }
+        DetailsDepth.activeFilterPopover?.close()
+        table.scrollColumnToVisible(index)   // the keyboard routes can name a column scrolled out of view
         let controller = ColumnFilterViewController(column: id)
+        let popover = NSPopover()
+        let locationKey = ViewOptions.options(for: tab).locationKey
+        // The tab may show another folder before the dropdown closes; its writes must not land there.
+        let liveOptions: () -> TabViewOptions? = { [weak tab] in
+            guard let tab, let options = ViewOptions.existingOptions(for: tab), options.locationKey == locationKey else { return nil }
+            return options
+        }
+        controller.isCurrent = { [weak self, weak tab] in
+            self?.view.window != nil && self?.hostTab === tab && liveOptions() != nil
+        }
         controller.optionsProvider = { [weak tab] in
-            guard let tab else { return ([], []) }
-            let o = ViewOptions.options(for: tab)
+            guard let tab, let o = liveOptions() else { return ([], []) }
             return (ColumnFilters.options(for: id, items: tab.items ?? [], lookup: DetailsDepth.lookup), o.filters.selected(id))
         }
         controller.onToggle = { [weak self, weak tab] bucket in
-            guard let tab else { return }
-            ViewOptions.options(for: tab).filters.toggle(id, bucket: bucket)
+            guard let tab, let o = liveOptions() else { return }
+            o.filters.toggle(id, bucket: bucket)
             DetailsDepth.refresh(tab)
             self?.headerOverlay?.needsDisplay = true
+        }
+        controller.dateRangeProvider = { liveOptions()?.filters.dateRange(id) }
+        controller.onDateRange = { [weak self, weak tab] range in
+            guard let tab, let o = liveOptions() else { return }
+            o.filters.setDateRange(id, range)
+            self?.headerOverlay?.needsDisplay = true
+            DetailsDepth.scheduleRefresh(tab)   // coalesced, so a calendar drag isn't one re-sort per day
         }
         if ColumnCatalog.needsLoading(id), let all = tab.items {
             ColumnValueStore.shared.request(all, columns: [id], owner: DetailsDepth.allValuesOwner(tab)) { [weak controller] _ in
                 controller?.reloadSoon()
             }
         }
-        let popover = NSPopover()
         popover.behavior = .transient
         popover.contentViewController = controller
         popover.show(relativeTo: overlay.dropdownRect(index), of: overlay, preferredEdge: .maxY)
-        activeFilterPopover = popover
+        DetailsDepth.activeFilterPopover = popover
+        controller.focusFirstControl()
     }
 }

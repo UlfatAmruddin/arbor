@@ -27,15 +27,6 @@ extension ItemGridView {
         return height
     }
 
-    /// Single-line width with the name font.
-    func textWidth(_ text: String, font: NSFont) -> CGFloat {
-        let key = "\(font.pointSize)|\(text)" as NSString
-        if let hit = widthCache.object(forKey: key) { return CGFloat(hit.doubleValue) }
-        let width = ceil((text as NSString).size(withAttributes: [.font: font]).width)
-        widthCache.setObject(NSNumber(value: Double(width)), forKey: key)
-        return width
-    }
-
     /// Name under an icon: whole if it fits, else shortened in the middle to keep the extension (DEC-013).
     func fittedLabel(_ text: String, width: CGFloat, lines: Int) -> String {
         let limit = CGFloat(lines) * metrics.lineHeight + 1
@@ -74,7 +65,7 @@ extension ItemGridView {
             let icon = CGRect(x: lead, y: cell.midY - s / 2, width: s, height: s)
             let textX = icon.maxX + m.iconLabelGap
             let maxWidth = max(10, cell.maxX - 6 - textX)
-            let width = i < items.count ? min(maxWidth, textWidth(displayName(items[i]), font: m.nameFont) + 2) : maxWidth
+            let width = i < items.count ? min(maxWidth, TextWidthCache.width(displayName(items[i]), font: m.nameFont) + 2) : maxWidth
             let name = CGRect(x: textX, y: cell.midY - m.lineHeight / 2, width: width, height: m.lineHeight)
             let highlight = CGRect(x: cell.minX, y: cell.minY + (m.compact ? 0 : 1), width: min(cell.width, name.maxX + 6 - cell.minX),
                                    height: cell.height - (m.compact ? 0 : 2))
@@ -123,7 +114,7 @@ extension ItemGridView {
     // MARK: Drawing
 
     func drawContent(in rect: CGRect) {
-        guard !items.isEmpty else { drawMarquee(); return }
+        guard !items.isEmpty else { marqueeRect.map(MarqueeBand.draw); return }
         let expanded = expandedIndex
         let active = isActive
         let visible = layout.indexes(in: rect.insetBy(dx: -2, dy: -2))
@@ -132,17 +123,7 @@ extension ItemGridView {
             let g = geometry(expanded, expanded: true)
             if g.highlight.intersects(rect) { drawItem(expanded, expanded: true, active: active) }
         }
-        drawMarquee()
-    }
-
-    private func drawMarquee() {
-        guard let rect = marqueeRect, rect.width > 0 || rect.height > 0 else { return }
-        Theme.accent.withAlphaComponent(0.16).setFill()
-        rect.fill(using: .sourceOver)
-        Theme.accent.withAlphaComponent(0.85).setStroke()
-        let path = NSBezierPath(rect: rect.insetBy(dx: 0.5, dy: 0.5))
-        path.lineWidth = 1
-        path.stroke()
+        marqueeRect.map(MarqueeBand.draw)
     }
 
     private func drawItem(_ i: Int, expanded: Bool, active: Bool) {

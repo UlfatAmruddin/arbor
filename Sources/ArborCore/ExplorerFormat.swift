@@ -82,8 +82,9 @@ public enum ExplorerTypeName {
 
     /// - Parameters:
     ///   - isSymbolicLink: if true, `targetDescription` is the type of the link's target.
+    ///   - windowsShortcut: set for a Windows shortcut file, which macOS would call "Document" or "Web site location".
     public static func name(localized: String?, typeIdentifier: String?, isFolder: Bool,
-                            isSymbolicLink: Bool = false, targetDescription: String? = nil) -> String {
+                            isSymbolicLink: Bool = false, targetDescription: String? = nil, windowsShortcut: WindowsShortcutKind? = nil) -> String {
         if typeIdentifier == aliasTypeIdentifier { return shortcut }
         if isSymbolicLink {
             // Explorer types a link by its target.
@@ -92,6 +93,7 @@ public enum ExplorerTypeName {
         }
         // The identifier isn't always fetched, so match the word "Alias" too.
         if localized == "Alias" { return shortcut }
+        if let windowsShortcut { return windowsShortcut.typeName }
         if let localized, !localized.isEmpty { return localized }
         return isFolder ? L10n.tr("Folder") : L10n.tr("Document")
     }

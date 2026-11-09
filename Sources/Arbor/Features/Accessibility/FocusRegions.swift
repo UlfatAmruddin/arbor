@@ -67,24 +67,8 @@ enum FocusRegions {
 
     /// Tab / Shift+Tab: the next stop inside a multi-stop page or pane, else the next region.
     static func tab(_ c: BrowserWindowController, forward: Bool) {
-        // The navigation row: Back · Forward · Up · Refresh (one toolbar stop) · address field · ▾.
-        if let view = focusedView(in: c.window), region(of: view, in: c) == .address {
-            let buttons = navigationButtons(in: c)
-            if let button = view as? ChromeButton, buttons.contains(where: { $0 === button }) {
-                if button === c.addressBar.recentButton {
-                    if !forward { c.focusAddressBar(); return }
-                } else if forward {
-                    c.focusAddressBar()
-                    return
-                }
-            } else if !forward, let first = buttons.first(where: { $0 !== c.addressBar.recentButton }) {
-                makeFocused(first, in: c.window)
-                return
-            } else if forward, let recent = buttons.first(where: { $0 === c.addressBar.recentButton }) {
-                c.addressBar.endEditing()
-                makeFocused(recent, in: c.window)
-                return
-            }
+        if let view = focusedView(in: c.window), region(of: view, in: c) == .address, tabAlongAddressRow(from: view, forward: forward, in: c) {
+            return
         }
         if let view = focusedView(in: c.window), let region = region(of: view, in: c),
            region == .items || region == .sidePane,
@@ -99,6 +83,39 @@ enum FocusRegions {
             }
         }
         cycle(c, forward: forward)
+    }
+
+    private enum AddressRowStop { case toolbar, field, annotation, recent }
+
+    /// Tab along Back · Forward · Up · Refresh (one stop) · address field · annotation · ▾; false past either end.
+    private static func tabAlongAddressRow(from view: NSView, forward: Bool, in c: BrowserWindowController) -> Bool {
+        let bar = c.addressBar
+        let buttons = navigationButtons(in: c)
+        let toolbar = buttons.filter { $0 !== bar.recentButton }
+        // The annotation hides while the path field edits, so its presence is what counts here.
+        var stops: [AddressRowStop] = toolbar.isEmpty ? [.field] : [.toolbar, .field]
+        if bar.annotation != nil { stops.append(.annotation) }
+        if buttons.contains(where: { $0 === bar.recentButton }) { stops.append(.recent) }
+
+        let current: AddressRowStop
+        switch view {
+        case bar.annotationButton: current = .annotation
+        case bar.recentButton: current = .recent
+        default: current = toolbar.contains { $0 === view } ? .toolbar : .field
+        }
+        guard let index = stops.firstIndex(of: current), stops.indices.contains(index + (forward ? 1 : -1)) else { return false }
+
+        switch stops[index + (forward ? 1 : -1)] {
+        case .toolbar: makeFocused(toolbar[0], in: c.window)
+        case .field: c.focusAddressBar()
+        case .annotation:
+            guard let button = bar.revealAnnotationButton() else { return false }
+            makeFocused(button, in: c.window)
+        case .recent:
+            bar.endEditing()
+            makeFocused(bar.recentButton, in: c.window)
+        }
+        return true
     }
 
     @discardableResult

@@ -125,6 +125,8 @@ public enum ShortcutNaming {
 
 /// `.webloc`: the Mac's Internet shortcut, a property list holding one URL.
 public enum WebLocation {
+    static let maxFileBytes = 1 << 20
+
     public static func data(for url: URL) throws -> Data {
         try PropertyListSerialization.data(fromPropertyList: ["URL": url.absoluteString], format: .xml, options: 0)
     }
@@ -133,6 +135,12 @@ public enum WebLocation {
         guard let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
               let text = plist["URL"] as? String else { return nil }
         return URL(string: text)
+    }
+
+    /// Reads a shortcut file: it can be anything with the right extension, so the size is capped and a FIFO can't block.
+    public static func url(contentsOf file: URL) -> URL? {
+        guard let data = try? FileHandle.readRegularFile(at: file, maxBytes: maxFileBytes) else { return nil }
+        return url(from: data)
     }
 
     /// Accepts "http(s)://…" and "www.…".

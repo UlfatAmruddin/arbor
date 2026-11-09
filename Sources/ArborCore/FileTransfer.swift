@@ -214,6 +214,9 @@ public final class FileTransfer: @unchecked Sendable {
     private var fingerprints: [URL: ItemFingerprint] = [:]
     private var discovered = false
     private var currentTopSource: URL?
+    private var mergeDepth = 0
+    /// Where the destination's volume was mounted at the start; nil if that couldn't be read.
+    private var destinationMount: String?
     private lazy var engine: CopyEngine = makeEngine()
 
     public init(kind: TransferKind, sources: [URL], destination: URL,
@@ -274,6 +277,7 @@ public final class FileTransfer: @unchecked Sendable {
             }
             thread.name = "Arbor \(kind.rawValue) job"
             thread.qualityOfService = .userInitiated
+            thread.stackSize = PathLimits.jobStackBytes
             thread.start()
         }
     }
@@ -300,6 +304,7 @@ public final class FileTransfer: @unchecked Sendable {
         progressSink = progress
         conflictResolver = conflicts
         failureResolver = failures
+        destinationMount = FileOps.mountPoint(of: destination)
         journal?.markRunning()   // from here the job isn't "waiting to start" any more
         control.onChange = { [weak self] in self?.emit(force: true) }
         defer { control.onChange = nil }
@@ -383,10 +388,18 @@ public final class FileTransfer: @unchecked Sendable {
         }
     }
 
+    /// By mount point: a reconnected disk may get a new device number, and a leftover folder reports its parent volume.
+    private func destinationIsIntact() -> Bool {
+        guard let expected = destinationMount else { return true }
+        return FileOps.mountPoint(of: destination) == expected
+    }
+
     private func makeEngine() -> CopyEngine {
         let engine = CopyEngine(control: control, allowClone: options.allowClone, verb: kind.verb)
         engine.bytesPerSecondLimit = options.bytesPerSecondLimit
         engine.bytesRemaining = { [unowned self] in lock.withLock { counters.bytesRemaining } }
+        engine.destinationIsIntact = { [unowned self] in destinationIsIntact() }
+        engine.jobDestination = destination
         engine.hooks.bytes = { [unowned self] delta in
             update { $0.bytesDone = $0.bytesDone.saturatingAdd(delta) }
             emit()
@@ -483,6 +496,10 @@ public final class FileTransfer: @unchecked Sendable {
     }
 
     private func plan(_ source: URL, in folder: URL) -> Plan {
+        guard PathLimits.fits(source) else {
+            let failure = TransferFailure.classify(errno: ENAMETOOLONG, source: source, destination: nil, stage: .copying)
+            return Plan(source: source, target: folder, action: .immediate(.failed(failure.summary)), sourceIsFolder: false)
+        }
         guard FileOps.exists(source) else {
             return Plan(source: source, target: folder, action: .immediate(.failed("The item no longer exists.")), sourceIsFolder: false)
         }
@@ -654,6 +671,12 @@ public final class FileTransfer: @unchecked Sendable {
     }
 
     private func merge(_ source: URL, into target: URL, top: Bool) -> ItemOutcome {
+        guard mergeDepth < PathLimits.maxFolderDepth else {
+            accountWhole(source, known: nil, top: top)
+            return .failed(TransferFailure.classify(errno: ENAMETOOLONG, source: source, destination: target, stage: .creatingFolder).summary)
+        }
+        mergeDepth += 1
+        defer { mergeDepth -= 1 }
         let children: [URL]
         do {
             children = try fileManager.contentsOfDirectory(at: source, includingPropertiesForKeys: nil, options: [])
@@ -677,26 +700,30 @@ public final class FileTransfer: @unchecked Sendable {
                 if !details.contains(where: { $0.source == child }) { details.append(ItemResult(source: child, outcome: outcome)) }
             }
         }
-        if kind == .move, !hadProblem, FileOps.isEffectivelyEmpty(source) {
-            try? fileManager.removeItem(at: source)
-        }
+        if kind == .move, !hadProblem { FileOps.removeEmptyFolder(at: source) }
         return hadProblem ? .failed("Some items inside couldn't be merged.") : .merged(target)
     }
 
     // MARK: - Moving data
+
+    /// 0 or an errno; never renames into the leftover folder of a destination that went away.
+    private func renameExclusively(_ source: URL, to target: URL) -> Int32 {
+        guard destinationIsIntact() else { return ENXIO }
+        return renamex_np(source.path, target.path, UInt32(RENAME_EXCL)) == 0 ? 0 : errno
+    }
 
     private func perform(_ source: URL, to target: URL, top: Bool, known: TransferTotals?) -> ItemOutcome {
         if isCancelled { return .cancelled }
         if kind == .move, sameVolume(source, target.deletingLastPathComponent()) {
             while true {
                 guard control.checkpoint() else { return .cancelled }
-                if renamex_np(source.path, target.path, UInt32(RENAME_EXCL)) == 0 {
+                let error = renameExclusively(source, to: target)
+                if error == 0 {
                     accountWhole(target, known: known, top: top)
                     return .succeeded(target)
                 }
-                let error = errno
                 if error == EXDEV || error == ENOTSUP { break }   // really another volume: copy instead
-                let failure = TransferFailure.classify(errno: error, source: source, destination: target, stage: .moving)
+                let failure = TransferFailure.classify(errno: error, source: source, destination: target, stage: .moving, jobDestination: destination)
                 let decision = askFailure(failure)
                 switch decision.choice {
                 case .retry: continue
@@ -709,7 +736,7 @@ public final class FileTransfer: @unchecked Sendable {
                 }
             }
         }
-        let outcome = engine.copyItem(source, to: target, moveSource: kind == .move)
+        let outcome = engine.copyItem(source, to: target, moveSource: kind == .move, depth: mergeDepth)
         switch outcome {
         case .done:
             if kind == .move, FileOps.exists(source), !FileOps.isPlainFolder(source) || !FileOps.isEffectivelyEmpty(source) {

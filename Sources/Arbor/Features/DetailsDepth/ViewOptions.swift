@@ -54,6 +54,12 @@ enum ViewOptions {
         groupMemoryOrder = []
     }
 
+    /// Forgets one location's Group by memory (a library's type changed, or it was renamed or deleted).
+    static func forgetGroupMemory(forKey key: String) {
+        groupMemory[key] = nil
+        groupMemoryOrder.removeAll { $0 == key }
+    }
+
     static func saveEditedColumns(_ options: TabViewOptions) {
         if columnsEdited.first(options) != true { setColumnSet(options.columns, for: options.kind) }
     }
@@ -84,6 +90,12 @@ enum ViewOptions {
             options.collapsed = []
             options.filters = ColumnFilters()
         }
+        return options
+    }
+
+    /// Read-only, so chrome can't pick a folder kind before the listing loads; nil until `options(for:)` has run.
+    static func existingOptions(for tab: TabState) -> TabViewOptions? {
+        guard let options = slots[tab.id]?.options, options.locationKey == (tab.displayedLocation ?? tab.location).key else { return nil }
         return options
     }
 

@@ -207,6 +207,214 @@ struct ColumnFilterTests {
     }
 }
 
+@Suite("Day ranges (FE-039)")
+struct DayRangeTests {
+    let newYork = calendar(firstWeekday: 1)
+
+    private func day(_ text: String, _ cal: Calendar) -> Date { date(text + " 12:00", cal) }
+
+    @Test func aSingleDayCoversItsWholeLength() throws {
+        let range = try #require(DayRange(from: day("2026-03-03", newYork), through: day("2026-03-03", newYork), calendar: newYork))
+        #expect(range.contains(date("2026-03-03 00:00", newYork)))
+        #expect(range.contains(date("2026-03-03 23:59", newYork)))
+        #expect(!range.contains(date("2026-03-04 00:00", newYork)))
+        #expect(!range.contains(date("2026-03-02 23:59", newYork)))
+    }
+
+    @Test func swappedEndpointsNormalise() {
+        let a = day("2026-03-03", newYork), b = day("2026-03-09", newYork)
+        #expect(DayRange(from: b, through: a, calendar: newYork) == DayRange(from: a, through: b, calendar: newYork))
+    }
+
+    @Test func clockChangeDaysCountInFull() throws {
+        let fall = try #require(DayRange(from: day("2026-10-31", newYork), through: day("2026-11-01", newYork), calendar: newYork))
+        #expect(fall.contains(date("2026-11-01 23:59", newYork)))
+        #expect(!fall.contains(date("2026-11-02 00:00", newYork)))
+        let spring = try #require(DayRange(from: day("2026-03-07", newYork), through: day("2026-03-08", newYork), calendar: newYork))
+        #expect(spring.contains(date("2026-03-08 23:59", newYork)))
+        #expect(!spring.contains(date("2026-03-09 00:00", newYork)))
+    }
+
+    @Test func aPickerSpanCountsDaysNotSeconds() throws {
+        // Midnight seed + 2 x 86,400 s would stop an hour short of Nov 2 across the 25-hour day.
+        let seed = date("2026-10-31 00:00", newYork)
+        let range = try #require(DayRange(from: seed, spanning: 2 * 86_400, calendar: newYork))
+        #expect(range.start == seed)
+        #expect(range.end == date("2026-11-03 00:00", newYork))
+    }
+
+    @Test(arguments: [Double.nan, .infinity, -.infinity, -86_400, 1e300, 86_400 * 36_601, Double(Int.max)])
+    func anOutOfBoundsSpanIsRefused(span: Double) {
+        #expect(DayRange(from: day("2026-03-03", newYork), spanning: span, calendar: newYork) == nil)
+    }
+
+    @Test func endpointsFollowTheSameBound() throws {
+        let start = day("2026-03-03", newYork)
+        let inside = try #require(newYork.date(byAdding: .day, value: DayRange.maxDayCount, to: start))
+        let outside = try #require(newYork.date(byAdding: .day, value: DayRange.maxDayCount + 2, to: start))
+        #expect(DayRange(from: start, through: inside, calendar: newYork) != nil)
+        #expect(DayRange(from: start, through: outside, calendar: newYork) == nil)
+        #expect(DayRange(from: start, through: Date(timeIntervalSinceReferenceDate: .nan), calendar: newYork) == nil)
+    }
+
+    @Test func aZoneWithoutMidnightStillWorks() throws {
+        // Havana's clocks go from 00:00 to 01:00 on 2026-03-08, so that day has no midnight.
+        let havana = calendar(firstWeekday: 1, zone: "America/Havana")
+        let range = try #require(DayRange(from: day("2026-03-07", havana), through: day("2026-03-08", havana), calendar: havana))
+        #expect(range.contains(date("2026-03-08 01:30", havana)))
+        #expect(!range.contains(date("2026-03-09 00:00", havana)))
+        let selection = range.pickerSelection(calendar: havana)
+        #expect(selection.span == 86_400)
+        #expect(DayRange(from: selection.anchor, spanning: selection.span, calendar: havana) == range)
+    }
+
+    @Test func pickerSelectionRoundTrips() throws {
+        for (first, last) in [("2026-03-03", "2026-03-03"), ("2026-10-30", "2026-11-03"), ("2026-03-07", "2026-03-10"), ("2025-12-28", "2026-02-02")] {
+            let range = try #require(DayRange(from: day(first, newYork), through: day(last, newYork), calendar: newYork))
+            let selection = range.pickerSelection(calendar: newYork)
+            #expect(DayRange(from: selection.anchor, spanning: selection.span, calendar: newYork) == range)
+        }
+    }
+
+    @Test func titlesNameTheDays() throws {
+        let one = try #require(DayRange(from: day("2026-03-03", newYork), through: day("2026-03-03", newYork), calendar: newYork))
+        #expect(one.title(calendar: newYork).contains("2026"))
+        #expect(!one.title(calendar: newYork).contains("–"))
+        let run = try #require(DayRange(from: day("2026-03-03", newYork), through: day("2026-03-09", newYork), calendar: newYork))
+        let title = run.title(calendar: newYork)
+        #expect(title.contains("3") && title.contains("9") && title.contains("2026"), "\(title)")
+        #expect(!title.contains("10"), "the exclusive end must not show: \(title)")
+    }
+}
+
+@Suite("Date range column filters (FE-039)")
+struct DateRangeFilterTests {
+    let cal = calendar(firstWeekday: 1)
+    let ctx: GroupingContext
+    let inside: FileItem, outside: FileItem, undated: FileItem
+    let march: DayRange
+
+    init() throws {
+        ctx = GroupingContext(now: date("2026-11-07 15:00", cal), calendar: cal)
+        inside = item("inside.txt", modified: date("2026-03-05 10:00", cal), type: "Text")
+        outside = item("outside.txt", modified: date("2026-04-05 10:00", cal), type: "Text")
+        undated = item("undated.png", modified: nil, type: "PNG image")
+        march = try #require(DayRange(from: date("2026-03-01 00:00", cal), through: date("2026-03-31 00:00", cal), calendar: cal))
+    }
+
+    private func names(_ f: ColumnFilters, _ items: [FileItem], lookup: ColumnValueLookup? = nil) -> [String] {
+        f.apply(items, ctx: ctx, lookup: lookup).map(\.name)
+    }
+
+    @Test func rangeOnlyKeepsDatesInside() {
+        var f = ColumnFilters()
+        f.setDateRange(.dateModified, march)
+        #expect(names(f, [inside, outside, undated]) == ["inside.txt"])
+        #expect(f.isFiltered(.dateModified) && !f.isEmpty && f.columns == [.dateModified])
+        #expect(f.dateRange(.dateModified) == march && f.selected(.dateModified).isEmpty)
+    }
+
+    @Test func rangeOrBucketWithinAColumnAndAcrossColumns() {
+        var f = ColumnFilters()
+        f.setDateRange(.dateModified, march)
+        f.set(.dateModified, ["~unspecified"])
+        #expect(names(f, [inside, outside, undated]) == ["inside.txt", "undated.png"])
+        f.set(.type, ["value.Text"])
+        #expect(names(f, [inside, outside, undated]) == ["inside.txt"])
+    }
+
+    @Test func loadingAndUnknownNeverSatisfyARange() {
+        var f = ColumnFilters()
+        f.setDateRange(.dateCreated, march)
+        let values: [String: ColumnValue] = ["unknown": .unknown, "unsupported": .unsupported, "empty": .empty,
+                                             "hit": .date(date("2026-03-05 10:00", cal))]
+        let lookup: ColumnValueLookup = { item, _ in values[item.name] }
+        let items = ["unknown", "unsupported", "empty", "hit", "loading"].map { item($0) }
+        #expect(names(f, items, lookup: lookup) == ["hit"])
+        f.set(.dateCreated, ["~unspecified"])
+        #expect(names(f, items, lookup: lookup) == ["unknown", "unsupported", "empty", "hit"])
+        f.set(.dateCreated, ["~loading"])
+        #expect(names(f, items, lookup: lookup) == ["hit", "loading"])
+    }
+
+    @Test func eachPartKeepsTheOtherAndTheLastOneRemovesTheColumn() {
+        var f = ColumnFilters()
+        f.setDateRange(.dateModified, march)
+        f.toggle(.dateModified, bucket: "date.today")
+        f.set(.dateModified, ["date.lastWeek"])
+        #expect(f.dateRange(.dateModified) == march)
+        f.setDateRange(.dateModified, nil)
+        #expect(f.selected(.dateModified) == ["date.lastWeek"])
+        f.toggle(.dateModified, bucket: "date.lastWeek")
+        #expect(f.isEmpty && !f.isFiltered(.dateModified))
+        f.setDateRange(.dateModified, march)
+        f.setDateRange(.dateModified, nil)
+        #expect(f.isEmpty)
+    }
+}
+
+@Suite("Column filter summaries (FE-039)")
+struct ColumnFilterSummaryTests {
+    let cal = calendar(firstWeekday: 1)
+    let items = [item("a.txt", type: "Text"), item("b.png", type: "PNG"), item("c.jpg", type: "JPEG"),
+                 item("d.gif", type: "GIF"), item("e.pdf", type: "PDF")]
+
+    @Test func columnOrderFollowsTheColumnsThenStableIDs() {
+        var f = ColumnFilters()
+        for column: ColumnID in ["zeta", .type, "alpha", .size] { f.set(column, ["x"]) }
+        #expect(f.orderedColumns([.size, .name, .type]) == [.size, .type, "alpha", "zeta"])
+        #expect(f.summaries(order: [.size, .name, .type], items: [], lookup: nil).map(\.column) == [.size, .type, "alpha", "zeta"])
+    }
+
+    @Test func valuesAreCappedAndTheRestCounted() throws {
+        var f = ColumnFilters()
+        f.set(.type, ["value.Text", "value.PNG", "value.JPEG", "value.GIF", "value.PDF", "value.Gone"])
+        let summary = try #require(f.summaries(order: [.type], items: items, lookup: nil).first)
+        #expect(summary.values == ["GIF", "JPEG", "PDF"])
+        #expect(summary.moreCount == 3)
+        #expect(summary.line == "Type: GIF or JPEG or PDF or 3 more")
+    }
+
+    @Test func aRangeComesFirstAndCountsTowardTheCap() throws {
+        let range = try #require(DayRange(from: date("2026-03-03 12:00", cal), through: date("2026-03-03 12:00", cal), calendar: cal))
+        var f = ColumnFilters()
+        f.setDateRange(.type, range)
+        f.set(.type, ["value.Text", "value.PNG", "value.JPEG"])
+        let ctx = GroupingContext(now: date("2026-11-07 15:00", cal), calendar: cal)
+        let summary = try #require(f.summaries(order: [.type], items: items, ctx: ctx, lookup: nil).first)
+        #expect(summary.values == [range.title(calendar: cal), "JPEG", "PNG"])
+        #expect(summary.moreCount == 1)
+    }
+
+    @Test func checkedChoicesAbsentFromTheListingStillRead() throws {
+        var f = ColumnFilters()
+        f.set(.type, ["value.Gone", "value.Lost"])
+        let summary = try #require(f.summaries(order: [.type], items: items, lookup: nil).first)
+        #expect(summary.values.isEmpty && summary.moreCount == 2)
+        #expect(summary.line == "Type: none in this folder")
+    }
+
+    @Test func displayValueRemovesControlsAndDirectionOverrides() {
+        #expect(ColumnFilterSummary.displayValue("a\u{202E}b\u{2066}c\u{2069}d\u{0007}e\nf\tg") == "abcdefg")
+        #expect(ColumnFilterSummary.displayValue("one\u{2028}two\u{2029}three") == "onetwothree")
+    }
+
+    @Test func displayValueKeepsJoinedEmoji() {
+        let family = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}"
+        #expect(ColumnFilterSummary.displayValue(family) == family)
+    }
+
+    @Test func displayValueIsBoundedByCharactersAndScalars() {
+        let long = ColumnFilterSummary.displayValue(String(repeating: "x", count: 100))
+        #expect(long == String(repeating: "x", count: 40) + "…")
+        #expect(ColumnFilterSummary.displayValue(String(repeating: "x", count: 40)) == String(repeating: "x", count: 40))
+        let zalgo = "a" + String(repeating: "\u{0301}", count: 5_000)
+        let bounded = ColumnFilterSummary.displayValue(zalgo)
+        #expect(bounded.unicodeScalars.count <= 161)
+        #expect(bounded.hasSuffix("…"))
+    }
+}
+
 @Suite("Column sorting (FE-235)")
 struct ColumnSortTests {
     @Test func sortsByMetadataColumnWithLoadingLast() {

@@ -74,7 +74,6 @@ enum FileCommands {
             ExplorerCommand(
                 id: "file.trash", title: "Move to Trash", symbol: "trash", tooltip: "Delete (move to the Trash)",
                 shortcut: Shortcut(backspace),
-                keyBindings: [KeyBinding(117)],   // Forward Delete
                 placements: [.commandBar(60), .itemContextMenu(.organize, 20), .mainMenu("File", .organize, 10)],
                 yieldsToTextInput: true,
                 isAvailable: { $0.surface != .itemContextMenu || $0.hasSelection },
@@ -83,7 +82,6 @@ enum FileCommands {
             ExplorerCommand(
                 id: "file.deletePermanently", title: "Delete Permanently…",
                 shortcut: Shortcut(backspace, [.command, .option]),
-                keyBindings: [KeyBinding(117, [.shift])],   // Shift+Delete, with confirmation
                 placements: [.mainMenu("File", .organize, 20)],
                 yieldsToTextInput: true,
                 isEnabled: { $0.hasSelection && $0.allowsEditing },
@@ -187,32 +185,17 @@ enum FileCommands {
     static func moveToTrash(_ ctx: CommandContext) {
         let items = ctx.selection
         guard !items.isEmpty, let window = ctx.window else { NSSound.beep(); return }
-        let nextSelection = window.neighborURL(after: items)
-        var trashed: [(original: URL, trashed: URL)] = []
-        var failed: [FileItem] = []
-        for item in items {
-            do {
-                trashed.append((item.url, try SystemTrash.trash(item.url)))
-            } catch {
-                failed.append(item)
-            }
-        }
-        if !trashed.isEmpty {
-            OperationCenter.shared.registerUndoTrash(trashed)
-            window.statusBar.setMessage(L10n.format("%@ moved to the Trash. Press ⌘Z to undo.", "\(StatusText.items(trashed.count))"))
-        }
-        window.refreshSelecting(urls: nextSelection.map { [$0] } ?? [])
-        guard !failed.isEmpty, let host = window.window else { return }
-        // Never silently turn "move to Trash" into a permanent delete (spec §9.5).
-        let alert = NSAlert()
-        alert.messageText = failed.count == 1 ? "“\(failed[0].name)” can't be moved to the Trash."
-                                              : "\(failed.count) items can't be moved to the Trash."
-        alert.informativeText = L10n.tr("This location may not support the Trash. You can delete permanently instead, which can't be undone.")
-        alert.addButton(withTitle: L10n.tr("Cancel"))
-        alert.addButton(withTitle: L10n.tr("Delete Permanently…"))
-        alert.beginSheetModal(for: host) { response in
-            if response == .alertSecondButtonReturn {
-                DispatchQueue.main.async { confirmPermanentDelete(failed, ctx: ctx) }
+        DeleteFlow.moveToTrash(items, window: window) { failed, reason in
+            guard let host = window.window else { return }
+            let alert = NSAlert()
+            alert.messageText = DeleteFlow.cannotTrashTitle(failed)
+            alert.informativeText = reason
+            alert.addButton(withTitle: L10n.tr("Cancel"))
+            alert.addButton(withTitle: L10n.tr("Delete Permanently…"))
+            alert.beginSheetModal(for: host) { response in
+                if response == .alertSecondButtonReturn {
+                    DispatchQueue.main.async { confirmPermanentDelete(failed, ctx: ctx) }
+                }
             }
         }
     }
@@ -231,21 +214,7 @@ enum FileCommands {
         let next = window.neighborURL(after: items)
         alert.beginSheetModal(for: host) { [weak window] response in
             guard response == .alertFirstButtonReturn else { return }
-            DispatchQueue.global(qos: .userInitiated).async {
-                var failures: [String] = []
-                for item in items {
-                    do { try FileManager.default.removeItem(at: item.url) } catch {
-                        failures.append("• \(item.name): \(error.localizedDescription)")
-                    }
-                }
-                DispatchQueue.main.async {
-                    guard let window else { return }
-                    window.refreshSelecting(urls: next.map { [$0] } ?? [])
-                    if !failures.isEmpty {
-                        NSAlert.show(L10n.tr("Some items couldn't be deleted."), failures.joined(separator: "\n"), in: window.window)
-                    }
-                }
-            }
+            DeleteFlow.deletePermanently(items, selecting: next, window: window)
         }
     }
 }

@@ -30,6 +30,14 @@ enum NavigationPaneExtras {
 
     private static var pendingRefresh: DispatchWorkItem?
 
+    /// Replaces one top-level node's children in every window; each window needs its own node objects.
+    static func updateChildren(ofRootAt location: Location, _ children: () -> [NavNode]) {
+        for controller in (NSApp.delegate as? AppDelegate)?.controllers ?? [] {
+            controller.navPane.replaceChildren(ofRootAt: location, with: children())
+            controller.navPane.reveal(controller.activeTab.displayedLocation ?? controller.location)
+        }
+    }
+
     private static func refreshAllNow() {
         for controller in (NSApp.delegate as? AppDelegate)?.controllers ?? [] {
             controller.navPane.rebuild()

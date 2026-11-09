@@ -77,6 +77,7 @@ class NetworkTilesPage: NSViewController, LocationPageStatus {
 
     func menu(_ items: [NSMenuItem]) -> NSMenu {
         let menu = NSMenu()
+        menu.allowsContextMenuPlugIns = false
         items.forEach(menu.addItem)
         return menu
     }

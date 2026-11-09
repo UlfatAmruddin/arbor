@@ -5,6 +5,27 @@ their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 
 ## Unreleased
 
+### New
+- Address bar: path suggestions while typing, and `shell:` names such as `shell:downloads` that go to the matching Mac
+  place or say why there is none.
+- Breadcrumbs: middle-click opens a segment in a new tab, and segments take file drops by the same rules as the tree.
+- Saved workspaces: named sets of tabs to save, reopen, rename and delete.
+- Export and import settings as one file, with a preview of what changes. Credentials and machine-specific paths stay out.
+- Windows `.lnk` and `.url` files show as shortcuts. Web addresses open after a confirmation showing the real address,
+  and Windows programs are never launched.
+- Tags section in the navigation pane.
+- Mac Services: "Open in Arbor" from other apps and a Services menu on files.
+- Column filters: a calendar for dates, and "Filtered" in the address bar with a way to clear it.
+- Details view: full drag-to-select from empty space.
+- Libraries: create your own, rename and delete them without touching their folders, and "Optimize library for".
+- Keyboard: a Mac-style set of file list keys in Folder Options, alongside the Windows-style default.
+
+### Files and reliability
+- Permanent delete stops at a volume mounted inside the folder instead of erasing it.
+- Items past the system's path limit are listed, and actions on them explain why they can't run.
+- Actions a location doesn't support say why instead of doing nothing.
+- A tag or search text with a quote joined to another character can no longer crash a Spotlight search.
+
 ### Privacy
 - Clear Arbor history (Folder Options and Home) now also clears recent searches, operation history, the address bar's
   recent locations, recent documents (Open Recent) and open tabs' Back/Forward.

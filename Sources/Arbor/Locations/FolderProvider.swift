@@ -30,6 +30,9 @@ final class FolderProvider: LocationProvider {
         return watcher
     }
 
+    /// A real folder allows everything; a job that then fails explains that one failure.
+    func limitation(of action: LocationAction, in location: Location) -> String? { nil }
+
     func title(for location: Location) -> String {
         guard let url = location.folderURL else { return location.displayName }
         if Location.isVolumeRoot(url), let name = try? url.resourceValues(forKeys: [.volumeLocalizedNameKey]).volumeLocalizedName {

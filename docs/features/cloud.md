@@ -21,6 +21,7 @@ Code: `Sources/Arbor/Features/Cloud/`, `Sources/ArborCore/CloudStatus.swift`.
 | FE-197 | iCloud Drive native state, coordinated downloads, optimized storage respected (never hydrates on browse) | Implemented | Status reads are metadata only, bounded to visible rows |
 | FE-198 | File Provider domains: enumeration, status, eviction per provider | Partial | Depends on what each provider reports through the same keys; unverified on real OneDrive/Dropbox/Google Drive in this run (headless runs never touch real cloud folders) |
 | FE-244 | Which provider capabilities a third-party browser can use | Documented below | API research |
+| FE-231 | Unsupported actions are explained, for every provider | Implemented | `ProviderCapabilityMatrixTests` (every provider and action: a command runs exactly where the provider gives no reason; every reason is in the string table; greyed commands stay listed; a network share both connected and dropped, driven by the fake network), `VolumeCapabilityMatrixTests`, `behavior-checks.sh capabilities` |
 
 ## FE-244: what an unrelated app (Arbor) can actually do
 
@@ -48,6 +49,7 @@ Code: `Sources/Arbor/Features/Cloud/`, `Sources/ArborCore/CloudStatus.swift`.
 - **DEC-cloud-6** The preview gate wraps the "preview" pane whenever one is created (`SidePaneRegistry.wrappers`, contribution `cloud.preview-gate`; archive member previews wrap it from outside, DEC-024).
 - **DEC-cloud-7** Status reads are batched on a background queue for displayed rows only, cached (4,000 entries, 15 s freshness) and only redraw when a value changes.
 - **DEC-cloud-8** Headless runs never read real cloud folders: only `ARBOR_TEST_CLOUD_ROOT` is used, with statuses from `ARBOR_TEST_CLOUD_STATUS`.
+- **DEC-cloud-9** Every `LocationProvider` must implement `limitation(of:in:)` (no default): cloud roots forward to the folder provider underneath, so a cloud folder allows what a folder allows and a job failure there is explained by that failure. Context menus still leave out what can't run (`MenuAudit`); the command bar keeps it greyed with the reason as its tooltip, and pressing the key shows the reason in the status bar.
 
 ## Testing
 
@@ -64,6 +66,7 @@ The `log` step gains `cloud roots:`, `cloud folder:` (layout, columns) and `clou
 
 ## Known gaps
 
+- FE-231 covers what a place refuses, whether pressed as a button, a menu item, a key binding (F2) or a menu shortcut (⌘V, handled in `BrowserWindow.performKeyEquivalent` because a disabled menu item never sends its action). Selection-dependent limits (a drive selected in This Mac can't be copied) still grey out without a reason. New ▸ templates have no reason of their own; the New button carries it.
 - Not checked against real OneDrive/Dropbox/Google Drive installs (FE-198 needs a manual audit per provider).
 - Status refreshes on folder changes, on visible-row redraw after 15 s, and after Arbor's own actions; there is no live `NSMetadataQuery` subscription.
 - Status column isn't sortable (no `SortKey` extension point).

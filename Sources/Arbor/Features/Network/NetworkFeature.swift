@@ -18,7 +18,7 @@ enum NetworkFeature: ExplorerFeature {
 
         // A disconnected mapped drive's row in This Mac reconnects when opened.
         LocationRegistry.registerOpenHandler("network.disconnected-drive") { item in
-            NetworkThisMac.drive(forPlaceholder: item.url).map { .server($0.address) }
+            NetworkThisMac.address(forPlaceholder: item.url).map { .server($0) }
         }
 
         // FE-014: typed `\\server\share` / `smb://…` connects and navigates after the mount.

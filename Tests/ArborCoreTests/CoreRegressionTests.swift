@@ -125,10 +125,10 @@ final class FormattedVolume {
     let image: URL
     let mount: URL
 
-    init?(_ fileSystem: String, megabytes: Int = 20) {
+    init?(_ fileSystem: String, megabytes: Int = 20, mountedAt mountPoint: URL? = nil) {
         let base = FileManager.default.temporaryDirectory.appendingPathComponent("arbor-qa-\(UUID().uuidString)")
         image = base.appendingPathExtension("dmg")
-        mount = base
+        mount = mountPoint ?? base
         try? FileManager.default.createDirectory(at: mount, withIntermediateDirectories: true)
         guard ScratchVolume.run("/usr/bin/hdiutil", ["create", "-size", "\(megabytes)m", "-fs", fileSystem, "-volname", "QA",
                                                      "-quiet", image.path]),
@@ -140,12 +140,12 @@ final class FormattedVolume {
     }
 
     /// Runs hdiutil on a GCD thread so it doesn't tie up the threads other tests' async work uses.
-    static func make(_ fileSystem: String, megabytes: Int = 20) async -> FormattedVolume? {
+    static func make(_ fileSystem: String, megabytes: Int = 20, mountedAt mountPoint: URL? = nil) async -> FormattedVolume? {
         final class Box: @unchecked Sendable { var volume: FormattedVolume? }
         let box = Box()
         await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
             DispatchQueue.global().async {
-                box.volume = FormattedVolume(fileSystem, megabytes: megabytes)
+                box.volume = FormattedVolume(fileSystem, megabytes: megabytes, mountedAt: mountPoint)
                 done.resume()
             }
         }

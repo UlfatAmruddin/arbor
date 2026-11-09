@@ -191,6 +191,39 @@ struct PerformanceTests {
         #expect(FileOps.sameVolumeCached(a, b) == FileOps.sameVolume(a, b))
         #expect(!FileOps.sameVolumeCached(a, fixture.root.appendingPathComponent("missing/x")))
     }
+
+    private func table(_ isLocal: [String: Bool]) -> MountPoints.Table {
+        isLocal.reduce(into: [:]) { $0[$1.key] = MountEntry(path: $1.key, isLocal: $1.value, fileSystemType: $1.value ? "apfs" : "smbfs") }
+    }
+
+    @Test func theKernelTableMarksLocalVolumes() {
+        #expect(MountPoints.kernelTable()["/"]?.isLocal == true)
+    }
+
+    @Test func aNetworkMountIsTheDeepestMountHoldingThePath() {
+        let mounts = MountPoints(read: {
+            self.table(["/": true, "/Volumes/Share": false, "/Volumes/Share/disk": true, "/Volumes/Local": true])
+        })
+        #expect(mounts.networkMount(holding: "/Volumes/Share") == "/Volumes/Share")
+        #expect(mounts.networkMount(holding: "/Volumes/Share/a/b") == "/Volumes/Share")
+        #expect(mounts.networkMount(holding: "/Volumes/Shared/a") == nil)
+        #expect(mounts.networkMount(holding: "/Volumes/Share/disk/a") == nil)
+        #expect(mounts.networkMount(holding: "/Volumes/Local/a") == nil)
+        #expect(mounts.networkMount(holding: "/Users/me/a") == nil)
+    }
+
+    /// These paths don't exist, so any answer but "not the same" proves the volume was never asked.
+    @Test func networkPathsAreComparedWithoutAskingTheVolume() throws {
+        let fixture = try Fixture()
+        let share = fixture.root.appendingPathComponent("share"), other = fixture.root.appendingPathComponent("other")
+        let local = try fixture.file("local.txt")
+        let mounts = MountPoints(read: { self.table([share.path: false, other.path: false]) })
+        let inShare = share.appendingPathComponent("a/b")
+        #expect(FileOps.sameVolumeCached(inShare, share.appendingPathComponent("c"), mounts: mounts))
+        #expect(!FileOps.sameVolumeCached(inShare, other.appendingPathComponent("c"), mounts: mounts))
+        #expect(!FileOps.sameVolumeCached(inShare, local, mounts: mounts))
+        #expect(!FileOps.sameVolumeCached(local, inShare, mounts: mounts))
+    }
 }
 
 @Suite("Change-event throttle (FE-229)")

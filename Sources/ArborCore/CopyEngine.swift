@@ -33,6 +33,10 @@ final class CopyEngine {
     var hooks = Hooks()
     /// For disk-full messages.
     var bytesRemaining: () -> Int64? = { nil }
+    /// False once the job's destination is no longer on the volume it started on.
+    var destinationIsIntact: () -> Bool = { true }
+    /// The folder the job writes into, to tell a problem with it from one with a folder inside it.
+    var jobDestination: URL?
     /// Testing: caps the rate so progress, pause and cancel can be observed.
     var bytesPerSecondLimit: Int64?
     private var throttleStart: Date?
@@ -47,13 +51,16 @@ final class CopyEngine {
 
     /// `target` must not exist. `moveSource` removes each original after its own copy (FE-122).
     /// `folder`: a descriptor of the source's parent, which the item is then looked up and removed relative to.
-    func copyItem(_ source: URL, to target: URL, moveSource: Bool, in folder: Int32? = nil) -> Outcome {
+    /// `depth`: how many folders down the walk already is.
+    func copyItem(_ source: URL, to target: URL, moveSource: Bool, in folder: Int32? = nil, depth: Int = 0) -> Outcome {
         guard control.checkpoint() else { return .cancelled(leftContent: false) }
+        let again = { [self] in copyItem(source, to: target, moveSource: moveSource, in: folder, depth: depth) }
+        // A leftover mount-point folder accepts writes, which would hide the files under a later remount.
+        guard destinationIsIntact() else { return fail(source, target, .copying, errno: ENXIO, retry: again) }
         var info = stat()
         let found = folder.map { fstatat($0, source.lastPathComponent, &info, AT_SYMLINK_NOFOLLOW) } ?? lstat(source.path, &info)
         guard found == 0 else {
-            return fail(source, target, .copying, errno: errno,
-                        retry: { [self] in copyItem(source, to: target, moveSource: moveSource, in: folder) })
+            return fail(source, target, .copying, errno: errno, retry: again)
         }
         let original = moveSource ? Identity(info) : nil
         switch info.st_mode & S_IFMT {
@@ -61,9 +68,9 @@ final class CopyEngine {
             // After a parent swap the path judged here may lead elsewhere; only the item found above can be a package.
             var now = stat()
             if Self.isPackage(source), lstat(source.path, &now) == 0, Identity(now) == Identity(info) {
-                return copyPackage(source, to: target, identity: Identity(info), original: original, in: folder)
+                return copyPackage(source, to: target, identity: Identity(info), original: original, in: folder, depth: depth)
             }
-            return copyFolder(source, to: target, identity: Identity(info), original: original, in: folder)
+            return copyFolder(source, to: target, identity: Identity(info), original: original, in: folder, depth: depth)
         case S_IFREG, S_IFLNK:
             return copyLeaf(source, to: target, size: (info.st_mode & S_IFMT) == S_IFREG ? Int64(info.st_size) : 0,
                             original: original, in: folder)
@@ -224,11 +231,18 @@ final class CopyEngine {
 
     // MARK: Folders
 
-    private func copyFolder(_ source: URL, to target: URL, identity: Identity, original: Identity?, in parent: Int32?) -> Outcome {
+    /// 0 or an errno; past the depth cap nothing is created.
+    private func makeFolder(_ target: URL, depth: Int) -> Int32 {
+        guard depth < PathLimits.maxFolderDepth else { return ENAMETOOLONG }
+        return mkdir(target.path, 0o700) == 0 ? 0 : errno
+    }
+
+    private func copyFolder(_ source: URL, to target: URL, identity: Identity, original: Identity?, in parent: Int32?, depth: Int) -> Outcome {
         // The folder's own properties; Skip leaves the whole folder out, as in Explorer.
         if let early = checkMetadata(source, target, totals: nil) { return early }
-        while mkdir(target.path, 0o700) != 0 {
-            let error = errno
+        while true {
+            let error = makeFolder(target, depth: depth)
+            if error == 0 { break }
             switch decide(source, target, .creatingFolder, error) {
             case .retry: continue
             case .skip(let why):
@@ -265,7 +279,7 @@ final class CopyEngine {
         for name in names {
             guard control.checkpoint() else { cancelled = true; break }
             let child = source.appendingPathComponent(name)
-            let outcome = copyItem(child, to: target.appendingPathComponent(name), moveSource: original != nil, in: folder)
+            let outcome = copyItem(child, to: target.appendingPathComponent(name), moveSource: original != nil, in: folder, depth: depth + 1)
             switch outcome {
             case .done: break
             case .partial: problems += 1
@@ -306,11 +320,11 @@ final class CopyEngine {
 
     // MARK: Packages
 
-    private func copyPackage(_ source: URL, to target: URL, identity: Identity, original: Identity?, in folder: Int32?) -> Outcome {
+    private func copyPackage(_ source: URL, to target: URL, identity: Identity, original: Identity?, in folder: Int32?, depth: Int) -> Outcome {
         if let early = checkMetadata(source, target, totals: nil) { return early }
         while true {
             hooks.current(source)
-            let (error, failedAt, bytes, items, created) = copyUnit(source, to: target, identity: identity, moving: original != nil, in: folder)
+            let (error, failedAt, bytes, items, created) = copyUnit(source, to: target, identity: identity, moving: original != nil, in: folder, depth: depth)
             if error == 0 {
                 hooks.entryDone(TransferTotals(items: items))
                 break
@@ -336,14 +350,14 @@ final class CopyEngine {
 
     /// No prompts. Walks through descriptors from `folder`, so only the item with `identity` is copied.
     /// Returns (errno or 0, failing path, bytes reported, entries, the root folder it made).
-    private func copyUnit(_ source: URL, to target: URL, identity: Identity, moving: Bool, in folder: Int32?) -> (Int32, URL, Int64, Int, Identity?) {
+    private func copyUnit(_ source: URL, to target: URL, identity: Identity, moving: Bool, in folder: Int32?, depth: Int) -> (Int32, URL, Int64, Int, Identity?) {
         var reported: Int64 = 0
         var items = 0
         var created: Identity?
         let outer = hooks.bytes
         hooks.bytes = { delta in reported += delta; outer(delta) }
         defer { hooks.bytes = outer }
-        func walk(_ src: URL, _ dst: URL, in parent: Int32?, wanted: Identity?) -> (Int32, URL) {
+        func walk(_ src: URL, _ dst: URL, in parent: Int32?, wanted: Identity?, depth: Int) -> (Int32, URL) {
             guard control.checkpoint() else { return (ECANCELED, src) }
             var info = stat()
             let found = parent.map { fstatat($0, src.lastPathComponent, &info, AT_SYMLINK_NOFOLLOW) } ?? lstat(src.path, &info)
@@ -352,13 +366,14 @@ final class CopyEngine {
             items += 1
             switch info.st_mode & S_IFMT {
             case S_IFDIR:
+                guard depth < PathLimits.maxFolderDepth else { return (ENAMETOOLONG, src) }
                 let (fd, listed, code) = Self.openFolder(src, in: parent, identity: Identity(info))
                 guard let names = listed else { return (code, src) }
                 defer { close(fd) }
                 guard mkdir(dst.path, 0o700) == 0 else { return (errno, src) }
                 if dst == target, lstat(dst.path, &info) == 0 { created = Identity(info) }
                 for name in names {
-                    let r = walk(src.appendingPathComponent(name), dst.appendingPathComponent(name), in: fd, wanted: nil)
+                    let r = walk(src.appendingPathComponent(name), dst.appendingPathComponent(name), in: fd, wanted: nil, depth: depth + 1)
                     if r.0 != 0 { return r }
                 }
                 applyFolderMetadata(from: src, to: dst)
@@ -371,7 +386,7 @@ final class CopyEngine {
                 return (0, src)   // special files inside packages are left out
             }
         }
-        let (error, at) = walk(source, target, in: folder, wanted: identity)
+        let (error, at) = walk(source, target, in: folder, wanted: identity, depth: depth)
         return (error, at, reported, items, created)
     }
 
@@ -406,15 +421,7 @@ final class CopyEngine {
         var info = stat()
         guard fstatat(parent, name, &info, AT_SYMLINK_NOFOLLOW) == 0 else { return errno }
         guard Identity(info) == original else { return nil }
-        if isFolder {
-            let folder = openat(parent, name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
-            guard folder >= 0 else { return errno }
-            defer { close(folder) }
-            guard fstat(folder, &info) == 0, Identity(info) == original else { return nil }
-            guard FileOps.entryNames(of: folder)?.allSatisfy({ $0 == ".DS_Store" }) == true else { return 0 }
-            unlinkat(folder, ".DS_Store", 0)
-            return unlinkat(parent, name, AT_REMOVEDIR) == 0 ? 0 : errno
-        }
+        if isFolder { return FileOps.removeEmptyFolder(name, in: parent, ifStill: { Identity($0) == original }) }
         // A fully copied package: removed level by level from the checked folder, never through a link.
         if (info.st_mode & S_IFMT) == S_IFDIR { return FileOps.removeTree(name, in: parent) }
         return unlinkat(parent, name, 0) == 0 ? 0 : errno
@@ -425,8 +432,11 @@ final class CopyEngine {
     enum Resolution { case retry, skip(String), cancel }
 
     private func decide(_ source: URL, _ target: URL, _ stage: FailureStage, _ error: Int32) -> Resolution {
+        // A forced eject surfaces as EIO and the like; only the destination check can say what really happened.
+        let writing = stage == .copying || stage == .creatingFolder
         let failure = TransferFailure.classify(errno: error, source: source, destination: target, stage: stage,
-                                               bytesNeeded: bytesRemaining())
+                                               bytesNeeded: bytesRemaining(), destinationLost: writing && !destinationIsIntact(),
+                                               jobDestination: jobDestination)
         let decision = hooks.failure(failure)
         switch decision.choice {
         case .retry: return .retry

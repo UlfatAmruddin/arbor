@@ -46,6 +46,27 @@ struct SearchSupportTests {
         #expect(back.request(resolvedScope: URL(fileURLWithPath: "/Moved")).scope?.path == "/Moved")
     }
 
+    @Test func savedSearchReadsFromAFileAndThroughALink() throws {
+        let fixture = try Fixture()
+        let saved = SavedSearch(request: SearchRequest(query: "x"))
+        let file = fixture.root.appendingPathComponent("a.arborsearch")
+        try saved.encoded().write(to: file)
+        let link = fixture.root.appendingPathComponent("link.arborsearch")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: file)
+        #expect(try SavedSearch.read(from: file).query == "x")
+        #expect(try SavedSearch.read(from: link).query == "x")
+    }
+
+    @Test func savedSearchRefusesOversizedFilesAndFIFOsWithoutBlocking() throws {
+        let fixture = try Fixture()
+        let big = fixture.root.appendingPathComponent("big.arborsearch")
+        try Data(repeating: 0x20, count: SavedSearch.maxFileBytes + 1).write(to: big)
+        #expect(throws: SavedSearch.DecodeError.notASavedSearch) { try SavedSearch.read(from: big) }
+        let fifo = fixture.root.appendingPathComponent("pipe.arborsearch")
+        #expect(mkfifo(fifo.path, 0o600) == 0)
+        #expect(throws: SavedSearch.DecodeError.notASavedSearch) { try SavedSearch.read(from: fifo) }
+    }
+
     @Test func savedSearchRejectsOtherFiles() throws {
         #expect(throws: SavedSearch.DecodeError.notASavedSearch) { try SavedSearch.decode(Data("{\"a\":1}".utf8)) }
         #expect(throws: SavedSearch.DecodeError.notASavedSearch) { try SavedSearch.decode(Data("not json".utf8)) }
@@ -54,6 +75,15 @@ struct SearchSupportTests {
         #expect(throws: SavedSearch.DecodeError.newerVersion(99)) { try SavedSearch.decode(try future.encoded()) }
         #expect(SavedSearch.suggestedFileName(for: "a/b: c") == "a-b- c.arborsearch")
         #expect(SavedSearch.suggestedFileName(for: "  ") == "Search.arborsearch")
+    }
+
+    @Test func aTagCollectionIsSavedUnderItsTagName() throws {
+        let work = try #require(TagCollectionQuery.request(for: "Work"))
+        #expect(SavedSearch.suggestedFileName(for: work) == "Work.arborsearch")
+        let path = try #require(TagCollectionQuery.request(for: "a/b"))
+        #expect(SavedSearch.suggestedFileName(for: path) == "a-b.arborsearch")
+        #expect(SavedSearch.suggestedFileName(for: TagCollectionQuery.allTagged) == "Tags.arborsearch")
+        #expect(SavedSearch.suggestedFileName(for: SearchRequest(query: "report")) == "report.arborsearch")
     }
 
     @Test func searchLocationKeysCarryOptions() {

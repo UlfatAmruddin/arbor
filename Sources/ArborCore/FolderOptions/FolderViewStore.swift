@@ -74,6 +74,17 @@ public final class FolderViewStore {
         prune()
     }
 
+    /// A renamed virtual folder keeps its saved view; anything already filed under the new identity is replaced.
+    public func moveOverride(from old: FolderIdentity, to new: FolderIdentity) {
+        guard old != new, let i = index(for: old) else { return }
+        var entry = entries.remove(at: i)
+        entry.id = new.id
+        entry.path = new.path
+        if let existing = index(for: new) { entries.remove(at: existing) }
+        entries.append(entry)
+        isDirty = true
+    }
+
     public func templateDefault(_ template: FolderTemplate) -> FolderViewSettings? { templates[template] }
 
     /// "Apply to Folders": every folder of this type uses `settings`; their own saved views are dropped.

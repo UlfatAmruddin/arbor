@@ -46,6 +46,7 @@ final class SearchProvider: LocationProvider {
     func title(for location: Location) -> String { location.displayName }
     func targetFolder(for location: Location) -> URL? { nil }          // New and Paste need a real folder
     func allowsItemEditing(in location: Location) -> Bool { true }     // results are real files
+    func limitation(of action: LocationAction, in location: Location) -> String? { action.notAFolderLimitation(itemsAreFiles: true) }
 
     func emptyText(for location: Location) -> String {
         guard let session = Self.session(for: location) else { return L10n.tr("Searching…") }

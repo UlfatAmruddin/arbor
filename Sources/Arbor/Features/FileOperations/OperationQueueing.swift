@@ -122,8 +122,8 @@ enum QueueOptionsMenu {
         let limitTitle = NSMenuItem(title: L10n.tr("Run at most"), action: nil, keyEquivalent: "")
         limitTitle.isEnabled = false
         list.append(limitTitle)
-        for value in [0, 1, 2, 3, 4] {
-            let item = ClosureMenuItem(value == 0 ? "No limit" : (value == 1 ? "1 operation at a time" : "\(value) operations at a time")) {
+        for value in TransferScheduler.concurrencyLimitChoices {
+            let item = ClosureMenuItem(TransferScheduler.concurrencyLimitTitle(value)) {
                 Prefs.fileOpsConcurrencyLimit = value
             }
             item.state = Prefs.fileOpsConcurrencyLimit == value ? .on : .off

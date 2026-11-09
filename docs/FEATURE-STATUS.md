@@ -17,30 +17,30 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 
 | Status | Requirements |
 |---|---|
-| implemented | 203 |
-| partial | 28 |
+| implemented | 217 |
+| partial | 17 |
 | macOS boundary | 13 |
-| not done | 14 |
+| not done | 11 |
 | **total** | **258** |
 
 | Area | Implemented | Partial | macOS boundary | Not done |
 |---|---|---|---|---|
 | Navigation and location | 15 | 1 | 0 | 0 |
-| Tabs, windows and session | 9 | 1 | 0 | 1 |
-| Views, density and readability | 26 | 2 | 0 | 0 |
-| Selection, focus and input | 11 | 2 | 0 | 0 |
-| Home, special locations and collections | 10 | 2 | 2 | 0 |
+| Tabs, windows and session | 11 | 0 | 0 | 0 |
+| Views, density and readability | 27 | 1 | 0 | 0 |
+| Selection, focus and input | 13 | 0 | 0 | 0 |
+| Home, special locations and collections | 12 | 0 | 2 | 0 |
 | File actions, clipboard and menus | 16 | 3 | 2 | 0 |
-| Drag and drop | 9 | 1 | 0 | 0 |
+| Drag and drop | 10 | 0 | 0 | 0 |
 | Operations, progress, conflicts and recovery | 17 | 0 | 0 | 0 |
 | Search and filtering | 14 | 1 | 1 | 0 |
 | Preview, metadata and properties | 14 | 2 | 0 | 0 |
 | Archives and disk images | 8 | 1 | 0 | 2 |
 | Drives, devices, network and sharing | 9 | 0 | 4 | 2 |
 | Cloud and account integrations | 4 | 3 | 1 | 2 |
-| Accessibility, localization and preferences | 8 | 1 | 0 | 1 |
-| System integration and expansion boundary | 5 | 3 | 3 | 3 |
-| Reliability and acceptance coverage | 7 | 3 | 0 | 2 |
+| Accessibility, localization and preferences | 9 | 1 | 0 | 0 |
+| System integration and expansion boundary | 7 | 2 | 3 | 2 |
+| Reliability and acceptance coverage | 10 | 0 | 0 | 2 |
 | Additional research requirements (§21) | 21 | 2 | 0 | 1 |
 
 ## Known limitations
@@ -66,7 +66,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-003 | Breadcrumb path | implemented | headless `crumbs:`; snapshots | [visual-parity](features/visual-parity.md) | Collapses leading segments into «; recent-locations ▾ at the right end |
 | FE-004 | Breadcrumb sibling menus | implemented | headless `crumbs:` | [visual-parity](features/visual-parity.md) | Each › lists that folder's subfolders; not compared item by item with Explorer |
 | FE-005 | Editable address bar | implemented | acceptance T03 | [qa-core](features/qa-core.md) | ⌘L / ⌥D / click; Escape cancels |
-| FE-006 | Path completion and history | partial | headless `log` (`recent:`) | [visual-parity](features/visual-parity.md) | Recent-locations ▾ (session history) only; no completion while typing |
+| FE-006 | Path completion and history | partial | unit; headless `address` | [address-entry](features/address-entry.md) | Completion while typing is built; history is still the session list |
 | FE-007 | Folder tree | implemented | acceptance T01 | [qa-core](features/qa-core.md) | Expanding never navigates; lazy, one level per expansion |
 | FE-008 | Expand tree to current folder | implemented | headless Folder Options run | [folder-options](features/folder-options.md) | "Expand to open folder" (off by default, as in Windows) |
 | FE-009 | Navigation pane visibility | implemented | headless `log` (frames) | [visual-parity](features/visual-parity.md) | View ▸ Show ▸ Navigation pane |
@@ -88,11 +88,11 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-020 | Detach and merge tabs | implemented | headless `tearoff:`, `mergetab:` | [visual-parity](features/visual-parity.md) | Pointer drag path manual only |
 | FE-021 | Multiple windows | implemented | headless | [visual-parity](features/visual-parity.md) | Each window has its own tabs and history |
 | FE-022 | Open folder in new tab or window | implemented | headless menus | [qa-core](features/qa-core.md) | Menus, ⌘Return, middle-click |
-| FE-023 | Middle-click behavior | partial | code review | [qa-core](features/qa-core.md) | Tabs, folders, tree nodes, Home tiles; breadcrumb segments don't take middle-clicks |
+| FE-023 | Middle-click behavior | implemented | headless `crumbmiddle` | [item-actions](features/item-actions.md) | Not tested with a physical third button |
 | FE-024 | Session restoration | implemented | two-launch headless run | [folder-options](features/folder-options.md) | Folder Options › Restore previous folder windows |
 | FE-025 | Mac window lifecycle | implemented | code review; acceptance T30 | [file-operations](features/file-operations.md) | App stays open after the last window (DEC-015); Dock reopen; quit asks during transfers |
 | FE-026 | Monitor placement | implemented | unit (geometry); `screenschanged` | [folder-options](features/folder-options.md) |  |
-| FE-027 | Saved workspaces | not done | — | — | Named tab sets not built |
+| FE-027 | Saved workspaces | implemented | unit; headless `menu:` | [workspaces](features/workspaces.md) | An addition to Explorer, labelled as one |
 
 ## Views, density and readability
 
@@ -109,7 +109,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-036 | Metadata-specific columns | implemented | fixtures (images, audio, tags) | [grouping](features/grouping.md) | Values depend on Spotlight/file parsers; video columns not fixture-tested |
 | FE-037 | Ascending and descending sorting | implemented | unit; acceptance T06 | [qa-core](features/qa-core.md) | Natural order, folders first, stable ties |
 | FE-038 | Grouping | implemented | unit; acceptance T06; snapshots | [grouping](features/grouping.md) |  |
-| FE-039 | Column header filters | partial | unit; headless `filter:` | [grouping](features/grouping.md) | No calendar picker for dates; address bar doesn't show "Filtered" |
+| FE-039 | Column header filters | implemented | unit; headless `filter:` | [grouping](features/grouping.md) |  |
 | FE-040 | Folder view templates | implemented | unit; headless | [folder-options](features/folder-options.md) | General, Documents, Pictures, Music, Videos, Downloads |
 | FE-041 | Per-folder settings | implemented | unit; acceptance T07 | [folder-options](features/folder-options.md) | Keyed by volume UUID + file number |
 | FE-042 | Folder Options | implemented | unit; headless snapshots of all pages | [folder-options](features/folder-options.md) |  |
@@ -133,7 +133,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 |---|---|---|---|---|---|
 | FE-056 | Range and disjoint selection | implemented | acceptance T08 | [qa-core](features/qa-core.md) | Anchor kept by item across folder updates; a file that appears inside a selected range is not added by the next ⇧-arrow |
 | FE-057 | Select all, none and invert | implemented | headless `menu:seemore`; core-checks | [item-actions](features/item-actions.md) |  |
-| FE-058 | Marquee selection | partial | headless real mouse events (icon layouts) | [icon-views](features/icon-views.md) | Full marquee in icon layouts; Details uses the table's drag-select |
+| FE-058 | Marquee selection | implemented | unit; behavior-checks `detailsmarquee` | [icon-views](features/icon-views.md) |  |
 | FE-059 | Type-to-select | implemented | headless `key:`, `compose:`; acceptance T27 | [accessibility](features/accessibility.md) | Through the input method |
 | FE-060 | Arrow, Home, End, Page keys | implemented | unit; headless `iconkey:` | [icon-views](features/icon-views.md) |  |
 | FE-061 | Tree keyboard expansion | implemented | unit; acceptance T01 | [accessibility](features/accessibility.md) | `*` bounded to 400 folders / 6 levels |
@@ -141,7 +141,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-063 | Rename editing | implemented | acceptance T10 | [qa-core](features/qa-core.md) | F2 selects the base name; Escape cancels |
 | FE-064 | Sequential rename | implemented | headless `editorcmd:`, `renametab` | [item-actions](features/item-actions.md) | Details and icon layouts |
 | FE-065 | Drag initiation | implemented | code review | [icon-views](features/icon-views.md) | Pointer drags can't be scripted headless |
-| FE-066 | Keyboard presets | partial | headless `key:` | [accessibility](features/accessibility.md) | One preset (Explorer keys in the file list, Mac keys elsewhere); no second preset |
+| FE-066 | Keyboard presets | implemented | unit; headless `key:` | [accessibility](features/accessibility.md) | Windows style by default, Mac style in Folder Options |
 | FE-067 | Mac delete-key distinction | implemented | headless `key:` | [accessibility](features/accessibility.md) | ⌫ = Back, fn⌫ = Trash, ⇧fn⌫ = delete permanently (asks) |
 | FE-068 | IME and international keyboards | implemented | unit; headless `compose:` | [accessibility](features/accessibility.md) |  |
 
@@ -156,12 +156,12 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-073 | Recommended and shared content | macOS boundary | — | [home-and-this-mac](features/home-and-this-mac.md) | Needs Microsoft account insights; no Mac provider |
 | FE-074 | This PC → This Mac | implemented | headless with a mounted disk image | [home-and-this-mac](features/home-and-this-mac.md) |  |
 | FE-075 | Gallery | implemented | unit; headless with generated photos | [gallery-libraries](features/gallery-libraries.md) |  |
-| FE-076 | Libraries | partial | unit; acceptance T21, T22 | [gallery-libraries](features/gallery-libraries.md) | No "Optimize library for", custom libraries or .library-ms import |
+| FE-076 | Libraries | implemented | unit; acceptance T21, T22 | [gallery-libraries](features/gallery-libraries.md) | No `.library-ms` import: its Windows paths don't resolve on a Mac (DEC-GL-16) |
 | FE-077 | Recycle Bin → Trash | implemented | unit; headless | [trash](features/trash.md) | Original location known only for items Arbor trashed |
 | FE-078 | Network root | implemented | headless (simulated servers) | [network](features/network.md) | Bonjour discovery not run against real servers |
 | FE-079 | Special shell locations | macOS boundary | unit (address keywords) | [qa-core](features/qa-core.md) | Home, This Mac/This PC, Gallery, Network, Trash/Recycle Bin accepted; Control Panel, printers and device nodes have no Mac counterpart |
 | FE-080 | Mac known folders | implemented | snapshots | [home-and-this-mac](features/home-and-this-mac.md) |  |
-| FE-081 | Finder tags and smart collections | partial | unit (search `tag:`); headless | [properties](features/properties.md) | Tags column, `tag:` search, tag editing, saved searches; no tag list in the navigation pane |
+| FE-081 | Finder tags and smart collections | implemented | unit; headless | [finder-tags](features/finder-tags.md) |  |
 | FE-082 | Control Home clutter | implemented | headless toggles | [home-and-this-mac](features/home-and-this-mac.md) | Sections collapse; Recent/frequent can be turned off; "Open Arbor to" in Folder Options |
 
 ## File actions, clipboard and menus
@@ -197,7 +197,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-104 | Same- vs cross-volume defaults | implemented | unit (drop policy); code review | [item-actions](features/item-actions.md) | Pointer drags not scriptable |
 | FE-105 | Modifier overrides | implemented | code review | [item-actions](features/item-actions.md) | ⌥ copy, ⌘ move, ⌥⌘ shortcut |
 | FE-106 | Right-button drag menu | implemented | headless `simdrop:right`, `dropmenu:` | [item-actions](features/item-actions.md) | Starting a right-drag with a real mouse not tested |
-| FE-107 | Tree and breadcrumb drop targets | partial | headless `springtree` | [item-actions](features/item-actions.md) | Tree and tabs accept drops; breadcrumb segments don't |
+| FE-107 | Tree and breadcrumb drop targets | implemented | behavior-checks `breadcrumb` | [item-actions](features/item-actions.md) |  |
 | FE-108 | Hover expansion and autoscroll | implemented | unit; headless `springrow`/`springtree`/`springtab` | [item-actions](features/item-actions.md) |  |
 | FE-109 | Drop into background | implemented | headless `simdrop:` | [item-actions](features/item-actions.md) |  |
 | FE-110 | Cross-window and cross-app drag | implemented | code review | [item-actions](features/item-actions.md) | File URLs and file promises |
@@ -333,7 +333,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-205 | Preferences persistence | implemented | two-launch headless run | [folder-options](features/folder-options.md) |  |
 | FE-206 | Recent activity privacy | implemented | headless | [home-and-this-mac](features/home-and-this-mac.md) |  |
 | FE-207 | Permission guidance | implemented | headless (Trash, Time Machine, Local Network denied states) | [trash](features/trash.md) |  |
-| FE-208 | Export and import preferences | not done | — | — |  |
+| FE-208 | Export and import preferences | implemented | unit; behavior-checks `settings` | [settings-transfer](features/settings-transfer.md) | Credentials and machine-specific paths stay out of the file |
 
 ## System integration and expansion boundary
 
@@ -343,12 +343,12 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-210 | Third-party columns and property pages | not done | — | — |  |
 | FE-211 | Namespace providers | implemented | unit; every location kind | [qa-core](features/qa-core.md) | `LocationProvider` registry (docs/ARCHITECTURE.md) |
 | FE-212 | Preview and icon handlers | implemented | unit; headless | [icon-views](features/icon-views.md) | Quick Look; Windows-only handlers have no equivalent |
-| FE-213 | Address commands and shell names | partial | unit; acceptance T03 | [qa-core](features/qa-core.md) | Place keywords only; no `shell:` names; typed text never runs |
+| FE-213 | Address commands and shell names | partial | unit; headless `address` | [address-entry](features/address-entry.md) | `shell:` names go to a Mac place or say why not; nothing launches, so hand-offs to System Settings, Font Book or Terminal are left out |
 | FE-214 | WSL and developer storage nodes | macOS boundary | — | — | No Mac counterpart (DEC-019) |
-| FE-215 | Windows shortcut file compatibility | not done | — | — | .lnk/.url files are not parsed; aliases and .webloc are used instead |
+| FE-215 | Windows shortcut file compatibility | implemented | unit; `windows-shortcut-checks.sh` | [windows-shortcuts](features/windows-shortcuts.md) | Read-only; Windows programs are never launched |
 | FE-216 | Windows desktop, taskbar and Start host | macOS boundary | — | — | OS shell, out of scope |
 | FE-217 | System Open and Save dialogs | macOS boundary | — | — | Other apps' dialogs can't be replaced |
-| FE-218 | Reveal in Finder and Services | partial | behavior-checks `headless` | [qa-core](features/qa-core.md) | Show in Finder; no Services menu provider |
+| FE-218 | Reveal in Finder and Services | implemented | unit; behavior-checks `services` | [qa-core](features/qa-core.md) |  |
 | FE-219 | Launch URLs and CLI entry | implemented | headless (path argument) | [qa-core](features/qa-core.md) | `Arbor <path>`; documents opened from Finder |
 | FE-220 | Signed, notarized universal releases | partial | build checks | [distribution](features/distribution.md) | Universal build and DMG done; signing/notarization pipeline not run (no Developer ID yet) |
 | FE-221 | Public open-source governance | implemented | — | [distribution](features/distribution.md) | MIT license, README, CONTRIBUTING, SECURITY, templates; this file is the roadmap |
@@ -360,13 +360,13 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 |---|---|---|---|---|---|
 | FE-223 | Unicode and normalization | implemented | unit (NFC/NFD, emoji) | [qa-core](features/qa-core.md) |  |
 | FE-224 | Case sensitivity and case-only rename | implemented | unit on case-sensitive APFS, ExFAT, HFS+ images; acceptance T10 | [qa-core](features/qa-core.md) |  |
-| FE-225 | Long and unusual paths | partial | unit (odd names) | [qa-core](features/qa-core.md) | Odd names covered; no deep-path limit tests |
+| FE-225 | Long and unusual paths | implemented | unit | [qa-core](features/qa-core.md) |  |
 | FE-226 | Filesystem races | implemented | unit; acceptance T08, T15 | [qa-core](features/qa-core.md) |  |
 | FE-227 | Symbolic link loops and packages | implemented | unit | [search](features/search.md) | Links never followed in copies or search; each folder visited once |
 | FE-228 | Large directory responsiveness | implemented | `bench.sh --check`; acceptance T28 | [performance](features/performance.md) |  |
 | FE-229 | Stable live updates | implemented | unit; acceptance T08, T28 | [performance](features/performance.md) |  |
-| FE-230 | Failure-injection suite | partial | unit; acceptance T13, T16, T23, T26 | [file-operations](features/file-operations.md) | Disk full, denied access, crash, network loss and cancellation covered in separate tests, not one suite |
-| FE-231 | Provider capability tests | partial | unit | [cloud](features/cloud.md) | Cloud, archive and network capabilities explained; no shared test matrix |
+| FE-230 | Failure-injection suite | implemented | unit (`FailureInjectionTests`) | [file-operations](features/file-operations.md) |  |
+| FE-231 | Provider capability tests | implemented | unit (`ProviderCapabilityMatrixTests`); behavior-checks `capabilities` | [cloud](features/cloud.md) |  |
 | FE-232 | Reference parity audit | not done | — | — | No Windows reference machine (see Known limitations) |
 | FE-233 | User task validation | not done | — | — | No user studies run |
 | FE-234 | Release completeness report | implemented | this file | — | Every FE-001…FE-258 row is listed |

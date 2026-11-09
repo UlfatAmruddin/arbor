@@ -16,7 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.windowsMenu = NSApp.mainMenu?.item(withTitle: L10n.tr("Window"))?.submenu
         didLaunch = true
         if !pendingOpen.isEmpty {
-            application(NSApp, open: pendingOpen)
+            // Decided here, not in the background: the first window comes before Home or session restore.
+            show(Self.plan(for: pendingOpen))
             pendingOpen = []
         }
         if controllers.isEmpty, launchLocation() == nil { WindowHooks.restoreSession.value?(self) }
@@ -74,27 +75,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return controller
     }
 
-    // Dock drop or `open -a Arbor folder`: a new tab in the front window.
+    // Dock drop, `open -a Arbor`, Finder documents and the Open in Arbor service: a new tab in the front window.
     func application(_ application: NSApplication, open urls: [URL]) {
         // Finder opens can arrive before launch finishes: wait until features exist.
         guard didLaunch else { pendingOpen += urls; return }
-        for url in urls {
-            var isDirectory: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
-            var location = Location.folder(isDirectory.boolValue ? url : url.deletingLastPathComponent())
-            var select = isDirectory.boolValue ? [] : [url.lastPathComponent]
-            // Files Arbor opens itself (.arborsearch, archives) show their own location.
-            if !isDirectory.boolValue, let item = FileItem(url: url), let own = LocationRegistry.locationForOpening(item) {
-                location = own
-                select = []
-            }
-            if let front = BrowserWindowController.active {
-                front.openTab(location, select: select)
-                front.window?.makeKeyAndOrderFront(nil)
-            } else {
-                openWindow(at: location, select: select)
+        openExternal(urls)
+    }
+
+    /// Checks the items off the main thread, so a dead mount can't hang the UI. `staleAfter` varies only in scripted checks.
+    func openExternal(_ urls: [URL], staleAfter: TimeInterval = ExternalOpen.staleAfter) {
+        let deadline = DispatchTime.now() + staleAfter
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let plan = Self.plan(for: urls)
+            DispatchQueue.main.async {
+                if DispatchTime.now() < deadline { self?.show(plan) } else { Self.reportLate() }
             }
         }
+    }
+
+    private static func plan(for urls: [URL]) -> ExternalOpen.Plan {
+        let found = ExternalOpen.items(for: urls)
+        return ExternalOpen.plan(found.items, skipped: found.skipped, ownLocation: LocationRegistry.locationForOpening)
+    }
+
+    private func show(_ plan: ExternalOpen.Plan) {
+        guard !plan.targets.isEmpty || plan.skipped > 0 else { return }
+        if !Self.isHeadless { NSApp.activate(ignoringOtherApps: true) }
+        for target in plan.targets {
+            if let front = BrowserWindowController.active {
+                front.openTab(target.location, select: target.select)
+                front.window?.makeKeyAndOrderFront(nil)
+            } else {
+                openWindow(at: target.location, select: target.select)
+            }
+        }
+        guard plan.skipped > 0 else { return }
+        // A status message would be cleared when the new tab loads. Later, so at launch it is a sheet on the first window.
+        DispatchQueue.main.async {
+            NSAlert.show(L10n.format("Arbor couldn't open %@.", StatusText.items(plan.skipped)),
+                         plan.skipped == 1
+                            ? L10n.tr("It may have been moved or deleted, be on a drive that isn't available, or be over the limit Arbor opens at once.")
+                            : L10n.tr("They may have been moved or deleted, be on a drive that isn't available, or be more than Arbor opens at once."),
+                         in: BrowserWindowController.active?.window)
+        }
+    }
+
+    /// The user has moved on: no activation and no alert, only a note in a window that is already open.
+    private static func reportLate() {
+        BrowserWindowController.active?.statusBar.setMessage(L10n.tr("A request to open items in Arbor took too long and was dropped."), isError: true)
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

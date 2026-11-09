@@ -1,12 +1,38 @@
 import AppKit
 import ArborCore
 
+/// A state of the view shown after the last crumb; it is not a place and never part of the path.
+struct AddressAnnotation {
+    let title: String
+    let tooltip: String
+    /// Built when clicked, so chrome updates stay cheap.
+    let menu: () -> NSMenu
+}
+
+/// What a feature attaches to typing in the address bar. Main thread only.
+protocol AddressEditingSession: AnyObject {
+    /// The user changed the text; programmatic changes don't call this.
+    func textDidChange()
+    /// A key command from the field, before the bar handles it; true = consumed.
+    func handle(_ command: Selector) -> Bool
+    /// Editing started over or ended: forget the old text.
+    func reset()
+    /// The window moved while the text stayed, so anything derived from the old place is stale.
+    func locationDidChange()
+}
+
 /// Explorer address bar (FE-003, FE-004, FE-005): breadcrumbs with subfolder chevrons and a "«" overflow menu.
-/// Click empty space or ⌘L to type a path; Return resolves, Escape restores.
+/// Click empty space or ⌘L to type a path; Return resolves, Escape restores. Segments take file drops (FE-107)
+/// and middle-clicks (FE-023); the bar handles both because it outlives the segment views during a drag.
 final class AddressBar: NSView, NSTextFieldDelegate {
     var onNavigate: ((Location) -> Void)?
     var onSubmit: ((String) -> Void)?
     var onRefresh: (() -> Void)?
+    var onOpenInNewTab: ((Location) -> Void)?
+    var onDrop: ((TransferKind, [URL], URL) -> Void)?
+    /// The focused annotation went away; focus must not stay on a hidden button.
+    var onAnnotationFocusLost: (() -> Void)?
+    var editingSession: AddressEditingSession?
 
     private let iconView = NSImageView()
     private let field = NSTextField()
@@ -16,6 +42,22 @@ final class AddressBar: NSView, NSTextFieldDelegate {
     static let recentLocations = Provided<(() -> [Location])?>(
         "AddressBar.recentLocations", "The address bar's recent locations (▾); hidden without a provider.",
         signature: "() -> [Location]", default: nil)
+    /// The annotation's menu button, right after the last crumb.
+    let annotationButton = ChromeButton()
+    static let annotationProviders = Handlers<TabState, AddressAnnotation>(
+        "AddressBar.annotationProviders", "A state of the view shown after the last crumb that is not a place (Filtered).",
+        signature: "(tab) -> annotation?")
+    var annotation: AddressAnnotation? {
+        didSet {
+            // Closures always differ; only what shows needs work (this runs on every selection change).
+            guard annotation?.title != oldValue?.title || annotation?.tooltip != oldValue?.tooltip else { return }
+            annotationButton.title = annotation?.title ?? ""
+            annotationButton.toolTip = annotation?.tooltip
+            annotationButton.setAccessibilityLabel(annotation?.tooltip)
+            needsLayout = true
+            if annotation == nil, window?.firstResponder === annotationButton { onAnnotationFocusLost?() }
+        }
+    }
     private let overflowButton = ChromeButton(symbol: "chevron.left.2", tooltip: "Show the rest of the path")
     private let rootChevron = ChromeButton(symbol: "chevron.right", tooltip: "Show places")
     private var segmentButtons: [ChromeButton] = []
@@ -23,6 +65,18 @@ final class AddressBar: NSView, NSTextFieldDelegate {
     private var crumbs: [Crumb] = []
     private var hiddenCount = 0
     private(set) var isEditingPath = false
+    /// The highlight and the destination in one value, so a drop can only go where the highlight is.
+    private var dropTarget: (button: ChromeButton, folder: URL)? {
+        didSet {
+            guard oldValue?.button !== dropTarget?.button else { return }
+            oldValue?.button.isDropTarget = false
+            dropTarget?.button.isDropTarget = true
+        }
+    }
+    /// A spring reflows a collapsed path under the resting pointer; one per visit stops it climbing on its own.
+    private var hasSprung = false
+    /// AppKit asks on every periodic update and the rules read every source, so the last answer is reused while its key holds.
+    private var hoverAnswer: (folder: URL, flags: NSEvent.ModifierFlags, mask: NSDragOperation, operation: NSDragOperation)?
 
     var location: Location = .home {
         didSet {
@@ -30,6 +84,7 @@ final class AddressBar: NSView, NSTextFieldDelegate {
             rebuildCrumbs()
             if !isEditingPath { field.stringValue = editText }
             setAccessibilityValue(editText)
+            editingSession?.locationDidChange()
         }
     }
 
@@ -66,9 +121,16 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         field.setAccessibilityLabel(L10n.tr("Address"))
         addSubview(field)
 
-        for button in [overflowButton, rootChevron, recentButton] {
+        for button in [overflowButton, rootChevron, recentButton, annotationButton] {
             button.translatesAutoresizingMaskIntoConstraints = true
             addSubview(button)
+        }
+        annotationButton.isHidden = true
+        annotationButton.fixedHeight = 24
+        annotationButton.horizontalPadding = 6
+        annotationButton.showsMenuIndicator = true
+        annotationButton.onPress = { [weak self] button in
+            if let menu = self?.annotation?.menu() { button.popUp(menu) }
         }
         recentButton.symbolSize = 9
         recentButton.fixedWidth = 26
@@ -84,6 +146,7 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         configureChevron(rootChevron)
         rootChevron.onPress = { [weak self] button in self?.showMenu(Breadcrumbs.rootChildren(), current: self?.crumbs.first?.location, from: button) }
         heightAnchor.constraint(equalToConstant: Theme.fieldHeight).isActive = true
+        registerForDraggedTypes([.fileURL] + ItemHooks.dropTypes)   // file promises, like the tree
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -102,6 +165,7 @@ final class AddressBar: NSView, NSTextFieldDelegate {
     // MARK: Crumbs
 
     private func rebuildCrumbs() {
+        dropTarget = nil   // a drop after this is refused, never redirected to whatever is now under the pointer
         segmentButtons.forEach { $0.removeFromSuperview() }
         chevronButtons.forEach { $0.removeFromSuperview() }
         crumbs = Breadcrumbs.crumbs(for: location)
@@ -140,7 +204,8 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         let end = showsRecent ? recentButton.frame.minX - 2 : bounds.width - 6
         field.frame = NSRect(x: 30, y: (h - 20) / 2, width: max(0, end - 30), height: 20)
         let hidden = isEditingPath
-        let right = end
+        let annotationWidth = annotation == nil ? 0 : annotationButton.intrinsicContentSize.width
+        let right = end - annotationWidth
         var x: CGFloat = 28
         // Decide how many leading segments collapse into «.
         let widths = segmentButtons.map { $0.intrinsicContentSize.width + 18 }
@@ -169,6 +234,8 @@ final class AddressBar: NSView, NSTextFieldDelegate {
             chevronButtons[i].frame = NSRect(x: x, y: (h - 24) / 2, width: 18, height: 24)
             x += 18
         }
+        annotationButton.isHidden = hidden || annotation == nil
+        annotationButton.frame = NSRect(x: min(x, right), y: (h - 24) / 2, width: annotationWidth, height: 24)
         RightToLeft.mirrorBreadcrumb(self, chevrons: chevronButtons + [rootChevron])   // FE-204
     }
 
@@ -183,6 +250,79 @@ final class AddressBar: NSView, NSTextFieldDelegate {
             Theme.accent.setFill()
             NSBezierPath(roundedRect: NSRect(x: 1, y: bounds.maxY - 2, width: bounds.width - 2, height: 2), xRadius: 1, yRadius: 1).fill()
         }
+    }
+
+    // MARK: Drop targets (FE-107) and middle-click (FE-023)
+
+    /// The visible segment under a window point. Collapsed segments and chevrons never match.
+    private func segment(at windowPoint: NSPoint) -> (crumb: Crumb, button: ChromeButton)? {
+        guard !isEditingPath else { return nil }
+        let point = convert(windowPoint, from: nil)
+        guard let index = segmentButtons.firstIndex(where: { !$0.isHidden && $0.frame.contains(point) }),
+              crumbs.indices.contains(index) else { return nil }
+        return (crumbs[index], segmentButtons[index])
+    }
+
+    override func otherMouseUp(with event: NSEvent) {
+        if event.buttonNumber == 2, let hit = segment(at: event.locationInWindow) {
+            onOpenInNewTab?(hit.crumb.location)
+        } else {
+            super.otherMouseUp(with: event)
+        }
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        resetDragVisit()
+        return draggingUpdated(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        let hit = segment(at: sender.draggingLocation)
+        let folder = hit?.crumb.location.folderURL   // real folders only: never Home, archives, search or servers
+        let operation = folder.map { dropOperation(sender, onto: $0) } ?? []
+        guard let hit, let folder, !operation.isEmpty else {
+            dropTarget = nil
+            InteractionHooks.dragHover.send((nil, nil))
+            return []
+        }
+        dropTarget = (hit.button, folder)
+        if hasSprung || hit.crumb.location == location {
+            InteractionHooks.dragHover.send((nil, nil))
+        } else {
+            InteractionHooks.dragHover.send(("crumb:" + folder.path, { [weak self] in
+                self?.hasSprung = true
+                self?.onNavigate?(hit.crumb.location)
+            }))
+        }
+        return operation
+    }
+
+    private func dropOperation(_ info: NSDraggingInfo, onto folder: URL) -> NSDragOperation {
+        let flags = NSEvent.modifierFlags, mask = info.draggingSourceOperationMask
+        if let answer = hoverAnswer, answer.folder == folder, answer.flags == flags, answer.mask == mask { return answer.operation }
+        let operation = DropPolicy.operation(info, onto: folder)
+        hoverAnswer = (folder, flags, mask, operation)
+        return operation
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) { resetDragVisit() }
+
+    override func draggingEnded(_ sender: NSDraggingInfo) { dropTarget = nil }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let folder = dropTarget?.folder
+        resetDragVisit()
+        guard let folder else { return false }
+        return DropPolicy.accept(sender, onto: folder, window: window) { kind, urls, destination in
+            onDrop?(kind, urls, destination)
+        }
+    }
+
+    private func resetDragVisit() {
+        dropTarget = nil
+        hasSprung = false
+        hoverAnswer = nil
+        InteractionHooks.dragHover.send((nil, nil))
     }
 
     // MARK: Menus
@@ -233,6 +373,8 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         layoutSubtreeIfNeeded()
         var lines = ["segments: " + crumbs.map(\.title).joined(separator: " > "),
                      "collapsed: \(hiddenCount)" + (hiddenCount > 0 ? " (" + crumbs.prefix(hiddenCount).map(\.title).joined(separator: ", ") + ")" : "")]
+        if let dropTarget { lines.append("drop target: " + dropTarget.button.title) }
+        if let annotation { lines.append("annotation: \(annotation.title)") }
         if includeMenus {
             lines.append("root menu: " + Breadcrumbs.rootChildren().map(\.title).joined(separator: ", "))
             for crumb in crumbs {
@@ -242,11 +384,30 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         return lines.joined(separator: "\n")
     }
 
+    /// Visible segment titles as they sit on screen, so a check can see whether the bar mirrored.
+    func debugTitlesLeftToRight() -> [String] {
+        layoutSubtreeIfNeeded()
+        return segmentButtons.filter { !$0.isHidden }.sorted { $0.frame.minX < $1.frame.minX }.map(\.title)
+    }
+
+    /// Window point of a segment, of "chevron:<title>", or of the location icon for anything else; for scripted checks.
+    func debugPoint(_ target: String) -> NSPoint {
+        layoutSubtreeIfNeeded()
+        let title = target.hasPrefix("chevron:") ? String(target.dropFirst("chevron:".count)) : target
+        let buttons = target.hasPrefix("chevron:") ? chevronButtons : segmentButtons
+        let frame = crumbs.firstIndex { $0.title == title }.map { buttons[$0].frame } ?? iconView.frame
+        return convert(NSPoint(x: frame.midX, y: frame.midY), to: nil)
+    }
+
     // MARK: Editing
 
     override func mouseDown(with event: NSEvent) { beginEditing() }
 
+    /// The field editor while a path is being typed. Nil once the shared editor may belong to another field.
+    var activeEditor: NSTextView? { isEditingPath ? field.currentEditor() as? NSTextView : nil }
+
     func beginEditing(text: String? = nil) {
+        editingSession?.reset()
         isEditingPath = true
         field.isHidden = false
         field.stringValue = text ?? editText
@@ -259,11 +420,20 @@ final class AddressBar: NSView, NSTextFieldDelegate {
 
     func endEditing() {
         guard isEditingPath else { return }
+        editingSession?.reset()
         isEditingPath = false
         field.isHidden = true
         field.stringValue = editText
         needsLayout = true
         needsDisplay = true
+    }
+
+    /// Leaves the path field and returns the annotation's button, laid out and visible, ready for focus.
+    func revealAnnotationButton() -> ChromeButton? {
+        guard annotation != nil else { return nil }
+        endEditing()
+        layoutSubtreeIfNeeded()
+        return annotationButton
     }
 
     /// Keeps the typed text editable and marks it invalid.
@@ -274,6 +444,7 @@ final class AddressBar: NSView, NSTextFieldDelegate {
     }
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+        if editingSession?.handle(selector) == true { return true }
         switch selector {
         case #selector(NSResponder.insertNewline(_:)):
             onSubmit?(field.stringValue)
@@ -287,7 +458,10 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         }
     }
 
-    func controlTextDidChange(_ obj: Notification) { field.textColor = Theme.primaryText }
+    func controlTextDidChange(_ obj: Notification) {
+        field.textColor = Theme.primaryText
+        editingSession?.textDidChange()
+    }
 
     func controlTextDidEndEditing(_ obj: Notification) {
         // Leaving the field without pressing Return abandons the edit.

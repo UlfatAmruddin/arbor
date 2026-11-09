@@ -124,18 +124,20 @@ public struct SpotlightPredicate: Equatable, Sendable {
         return "\(attribute) \(op) \(quoted(pattern))cd"
     }
 
-    /// Escapes MDQuery string syntax. `?` becomes `*` (a superset; re-checked locally).
+    /// Escapes MDQuery string syntax, including `$`, which would expand `$time.…` inside the quotes. `?` becomes `*` (a superset; re-checked locally).
+    /// Works on scalars: a quote joined to a combining mark is one Character, but still ends the string for MDQuery.
     static func escape(_ value: String, keepWildcards: Bool) -> String {
-        var out = ""
-        for ch in value {
-            switch ch {
-            case "\\", "\"": out += "\\" + String(ch)
-            case "*": out += keepWildcards ? "*" : "\\*"
-            case "?": out += keepWildcards ? "*" : "\\?"
-            default: out.append(ch)
+        var out = String.UnicodeScalarView()
+        for scalar in value.unicodeScalars {
+            switch scalar {
+            case "\\", "\"", "$": out.append("\\"); out.append(scalar)
+            case "*" where !keepWildcards: out.append("\\"); out.append("*")
+            case "?" where !keepWildcards: out.append("\\"); out.append("?")
+            case "?": out.append("*")
+            default: out.append(scalar)
             }
         }
-        return out
+        return String(out)
     }
 
     static func quoted(_ s: String) -> String { "\"\(s)\"" }

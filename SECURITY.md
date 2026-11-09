@@ -28,6 +28,7 @@ Examples of things to report privately:
 - Leaking file names, paths or contents off the Mac (Arbor has no telemetry and makes no network
   connections of its own, except to servers the user connects to).
 - Problems with the signed release itself (signature, notarization, the update or download path).
+- An imported settings file changing anything outside the list in docs/features/settings-transfer.md.
 
 Distribution builds (the downloadable releases) ignore the `ARBOR_*` test variables described in
 TESTING.md. A way to make a distribution build read them is worth reporting; problems that need them

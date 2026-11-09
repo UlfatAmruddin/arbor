@@ -59,7 +59,9 @@ enum FocusKeeper {
     static func isLost(_ window: NSWindow) -> Bool {
         if window.firstResponder === window || window.firstResponder == nil { return true }
         guard let view = FocusRegions.focusedView(in: window) else { return false }
-        return view.window !== window || view.isHiddenOrHasHiddenAncestor
+        // AppKit shares an attached popover's responder with its parent, so a control in a dropdown isn't lost focus.
+        guard let owner = view.window, owner === window || owner.parent === window else { return true }
+        return view.isHiddenOrHasHiddenAncestor
     }
 
     /// New windows start focused on the items, not a text field AppKit picked before they loaded.

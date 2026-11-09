@@ -27,7 +27,7 @@ extension BrowserWindowController: NSMenuItemValidation {
     private func performMenuAction(_ action: Selector, _ sender: Any?) {
         guard let command = CommandRegistry.shared.command(forMenuAction: action) else { return }
         let ctx = context(surface: .menuBar, sender: sender)
-        guard command.isAvailable(ctx), command.isEnabled(ctx) else { NSSound.beep(); return }
+        guard command.isAvailable(ctx), command.isEnabled(ctx) else { CommandDispatcher.shared.refuse(command, ctx); return }
         command.perform(ctx)
     }
 

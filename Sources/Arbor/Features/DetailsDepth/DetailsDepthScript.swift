@@ -9,7 +9,11 @@ import ArborCore
 ///     filter:size:Tiny (0 – 16 KB)                        toggle a header filter bucket by title
 ///     clearfilters                                        clear all filters
 ///     filtermenu:size:/path                               log a column's filter choices
-///     openfilter:size  /  snapshotpopover:/path.png       open the ▾ popover, draw it
+///     filterdates:dateModified:2026-03-03[:2026-03-09]    pick days in the dropdown's calendar
+///     filterfields:dateModified:2026-03-03:2026-03-09     type days into the dropdown's From and To
+///     removefilter:size                                   remove one column's filter
+///     addressfilters:/path                                log the address bar's Filtered menu
+///     openfilter:size  /  snapshotpopover:/path.png       open the ▾ popover, draw it (click:filter.size is the menu route)
 ///     headerhover:size                                    show the hover ▾ on a header (snapshots)
 ///     columns:name,dateModified,dimensions                set the Details columns
 ///     showcolumn:tags | hidecolumn:type                   header checklist toggles
@@ -56,11 +60,32 @@ extension DetailsDepth {
                 refresh(tab)
                 details(w)?.headerOverlay?.needsDisplay = true
             } else {
-                NSLog("DetailsDepth: no filter choice \(title) in \(choices.map(\.title))")
+                NSLog("DetailsDepth: no filter choice %@ in %@", title, choices.map(\.title).description)
             }
             return 1.0
         }
         DebugScript.registerStep("clearfilters") { _, w in clearFilters(w?.activeTab); return 0.8 }
+        DebugScript.registerStep("removefilter") { arg, w in clearFilters(w?.activeTab, column: ColumnID(arg)); return 0.8 }
+        DebugScript.registerStep("filterdates") { arg, w in
+            guard let (view, days) = dateFilterStep(arg, details(w)), let first = days.first, let last = days.last else { return 0.3 }
+            let count = Calendar.autoupdatingCurrent.dateComponents([.day], from: first, to: last).day ?? 0
+            view.scriptSelectInCalendar(from: first, days: count)
+            return 1.0
+        }
+        DebugScript.registerStep("filterfields") { arg, w in
+            guard let (view, days) = dateFilterStep(arg, details(w)), let first = days.first, let last = days.last else { return 0.3 }
+            view.scriptSetFields(from: first, to: last)
+            return 1.0
+        }
+        DebugScript.registerStep("addressfilters") { arg, w in
+            guard let annotation = w?.addressBar.annotation else {
+                append("address filters: none\n---\n", to: arg)
+                return 0.3
+            }
+            let rows = annotation.menu().items.map { $0.isSeparatorItem ? "---" : $0.title }
+            append("address filters: \(annotation.title)\ntooltip: \(annotation.tooltip)\n" + rows.joined(separator: "\n") + "\n---\n", to: arg)
+            return 0.3
+        }
         DebugScript.registerStep("filtermenu") { arg, w in
             guard let tab = w?.activeTab, let colon = arg.firstIndex(of: ":") else { return 0.3 }
             let column = ColumnID(String(arg[..<colon]))
@@ -78,7 +103,7 @@ extension DetailsDepth {
             return 1.0
         }
         DebugScript.registerStep("snapshotpopover") { arg, w in
-            if let view = details(w)?.activeFilterPopover?.contentViewController?.view { snapshot(view, to: arg) }
+            if let view = activeFilterPopover?.contentViewController?.view { snapshot(view, to: arg) }
             return 0.3
         }
         DebugScript.registerStep("headerhover") { arg, w in
@@ -135,9 +160,14 @@ extension DetailsDepth {
                          + (order.thenBy.isEmpty ? "" : " then " + order.thenBy.map { "\($0.column)\($0.ascending ? "↑" : "↓")" }.joined(separator: ","))
                          + "  group: \(o.groupBy?.rawValue ?? "none")\(o.groupAscending ? "↑" : "↓")")
             lines.append("filters: " + (o.filters.isEmpty ? "none"
-                         : o.filters.columns.map { "\($0)=\(o.filters.selected($0).sorted())" }.sorted().joined(separator: " ")))
+                         : o.filters.columns.map { column in
+                             let range = o.filters.dateRange(column).map { " range=\($0.title(calendar: .autoupdatingCurrent))" } ?? ""
+                             return "\(column)=\(o.filters.selected(column).sorted())\(range)"
+                         }.sorted().joined(separator: " ")))
             if let d = w.itemView as? DetailsViewController {
                 lines.append("columns: " + d.table.tableColumns.map { "\($0.identifier.rawValue)(\(Int($0.width)))" }.joined(separator: " "))
+                lines.append("filterable: " + d.table.tableColumns.indices.filter { d.headerOverlay?.isFilterable($0) == true }
+                    .compactMap { d.columnID(at: $0)?.rawValue }.joined(separator: " "))
                 if !d.groups.isEmpty {
                     lines.append("groups: " + d.groups.enumerated().map { i, g in
                         "\(g.bucket.title) (\(g.items.count))\(d.isCollapsed(i) ? " [collapsed]" : "")"
@@ -173,6 +203,9 @@ extension DetailsDepth {
                     }
                 }
             }
+            if activeFilterPopover?.isShown == true, let dropdown = activeFilterPopover?.contentViewController as? ColumnFilterViewController {
+                lines.append(dropdown.debugSummary)
+            }
             if let sheet = ChooseDetailsController.current, sheet.view.window?.isVisible == true || w.window?.attachedSheet != nil {
                 lines.append(sheet.debugText)
             }
@@ -180,6 +213,34 @@ extension DetailsDepth {
         }
     }
 
+
+    /// Parses `<date column>:<yyyy-MM-dd>[:<yyyy-MM-dd>]` and opens that column's dropdown; bad input only logs.
+    private static func dateFilterStep(_ arg: String, _ details: DetailsViewController?) -> (DateRangeFilterView, [Date])? {
+        let parts = arg.split(separator: ":").map(String.init)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = .autoupdatingCurrent
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.isLenient = false
+        guard let details, (2...3).contains(parts.count), ColumnCatalog.descriptor(ColumnID(parts[0]))?.groupStyle == .date,
+              let index = details.table.tableColumns.firstIndex(where: { $0.identifier.rawValue == parts[0] }) else {
+            NSLog("DetailsDepth: bad date filter step %@", arg)
+            return nil
+        }
+        let days = parts.dropFirst().compactMap(formatter.date(from:))
+        guard days.count == parts.count - 1 else {
+            NSLog("DetailsDepth: bad dates in %@", arg)
+            return nil
+        }
+        func open() -> ColumnFilterViewController? {
+            guard activeFilterPopover?.isShown == true else { return nil }
+            return (activeFilterPopover?.contentViewController as? ColumnFilterViewController).flatMap { $0.column.rawValue == parts[0] ? $0 : nil }
+        }
+        if open() == nil { details.showFilter(column: index) }
+        guard let view = open()?.loadedDateView else { return nil }
+        return (view, days)
+    }
 
     private static func snapshot(_ view: NSView, to path: String) {
         view.layoutSubtreeIfNeeded()

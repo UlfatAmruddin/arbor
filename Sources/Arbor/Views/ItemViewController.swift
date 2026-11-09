@@ -55,7 +55,8 @@ protocol ItemViewController: NSViewController {
     /// Takes keyboard focus (focus checks, Quick Look key forwarding).
     var focusView: NSView { get }
     var isEditingName: Bool { get }
-    func beginRename(named name: String, text: String?)
+    /// By URL: names repeat in libraries and search results.
+    func beginRename(_ item: FileItem, text: String?)
     func beginRenameSelection()
     /// Redraws rows in place (cut marks, extensions, compact view, check boxes).
     func reloadRows()

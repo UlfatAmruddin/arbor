@@ -53,6 +53,8 @@ enum NavigationPaneHooks {
         "NavigationPaneHooks.willReveal", "Before the pane marks the current location.", signature: "(pane, location)")
     static let decorateCell = Observers<(cell: NavCellView, node: NavNode)>(
         "NavigationPaneHooks.decorateCell", "Each tree cell after it is configured.", signature: "(cell, node)")
+    static let didExpand = Observers<(pane: NavigationPaneController, node: NavNode)>(
+        "NavigationPaneHooks.didExpand", "A tree node was expanded.", signature: "(pane, node)")
 
     static func roots(_ roots: [NavNode]) -> [NavNode] { adjustRoots.apply(roots) }
     static func children(_ items: [FileItem]) -> [FileItem] { filterChildren.apply(items) }

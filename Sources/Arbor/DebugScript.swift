@@ -289,7 +289,7 @@ enum DebugScript {
         append(text, to: path)
     }
 
-    private static func append(_ text: String, to path: String) {
+    static func append(_ text: String, to path: String) {
         if let handle = FileHandle(forWritingAtPath: path) {
             handle.seekToEndOfFile()
             handle.write(Data(text.utf8))

@@ -86,7 +86,7 @@ struct Shortcut {
     }
 }
 
-/// A key handled outside the menu bar (F2, Delete, ⌥←…). `itemView` fires only while the file list
+/// A key handled outside the menu bar (F2, ⌥←…). `itemView` fires only while the file list
 /// has focus; `window` fires anywhere except text fields.
 struct KeyBinding {
     enum Scope { case itemView, window }
@@ -243,6 +243,9 @@ final class ExplorerCommand {
         if extensions.perform.first(context, after: overrideID) == nil { ownPerform(context) }
     }
 
+    /// What this command asks of a location, if a location can refuse it.
+    var locationAction: LocationAction? { LocationAction(commandID: id) }
+
     /// "Cut (⌘X)" for tooltips.
     var tooltipText: String {
         let base = tooltip ?? title
@@ -252,12 +255,23 @@ final class ExplorerCommand {
 }
 
 extension Shortcut {
+    /// An upper-case key equivalent means Shift, as in AppKit.
+    private var impliesShift: Bool { key.count == 1 && key.uppercased() == key && key.lowercased() != key }
+
+    /// Compares as AppKit does a menu key equivalent; the Delete key reports 127 where shortcuts say 8.
+    func matches(_ event: NSEvent) -> Bool {
+        var expected = modifiers.intersection([.command, .option, .shift, .control])
+        if impliesShift { expected.insert(.shift) }
+        guard event.modifierFlags.intersection([.command, .option, .shift, .control]) == expected,
+              let typed = event.charactersIgnoringModifiers?.lowercased() else { return false }
+        return typed.replacingOccurrences(of: "\u{7F}", with: "\u{8}") == key.lowercased()
+    }
+
     var displayString: String {
         var s = ""
         if modifiers.contains(.control) { s += "⌃" }
         if modifiers.contains(.option) { s += "⌥" }
-        let impliedShift = key.count == 1 && key.uppercased() == key && key.lowercased() != key
-        if modifiers.contains(.shift) || impliedShift { s += "⇧" }
+        if modifiers.contains(.shift) || impliesShift { s += "⇧" }
         if modifiers.contains(.command) { s += "⌘" }
         switch key.unicodeScalars.first.map({ Int($0.value) }) {
         case NSF2FunctionKey: s += "F2"
@@ -483,6 +497,11 @@ final class CommandRegistry {
         all.first { $0.keyBindings.contains { $0.scope == scope && $0.matches(event) } }
     }
 
+    /// The location-bound command this event's shortcut would run.
+    func locationCommand(forShortcut event: NSEvent) -> ExplorerCommand? {
+        all.first { $0.locationAction != nil && $0.shortcut?.matches(event) == true }
+    }
+
     func command(forMenuAction action: Selector) -> ExplorerCommand? {
         all.first { $0.menuAction == action }
     }
@@ -521,6 +540,10 @@ final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
         "CommandDispatcher.menuTitleHook", "Adjusts a command's title in menus (sentence case in context menus).",
         signature: "(title, (command, context)) -> title")
 
+    /// A slot's menu is complete and about to be shown.
+    static let menuBuilt = Observers<(slot: CommandSlot, menu: NSMenu)>(
+        "CommandDispatcher.menuBuilt", "A slot's menu was built (per-slot AppKit settings).", signature: "((slot, menu)) -> Void")
+
     static func menuTitle(_ command: ExplorerCommand, context: CommandContext) -> String {
         menuTitleHook.apply(command.title(in: context), (command, context))
     }
@@ -547,6 +570,7 @@ final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
         let menu = NSMenu(title: title)
         menu.autoenablesItems = true
         items(for: slot, context: context).forEach(menu.addItem)
+        Self.menuBuilt.send((slot, menu))
         return menu
     }
 
@@ -582,8 +606,28 @@ final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
         guard let item = sender as? CommandMenuItem, let command = CommandRegistry.shared.command(item.commandID) else { return }
         var context = item.frozenContext ?? liveContext(surface: .menuBar, sender: sender)
         context.sender = context.sender ?? sender
-        guard command.isAvailable(context), command.isEnabled(context) else { NSSound.beep(); return }
+        guard command.isAvailable(context), command.isEnabled(context) else { refuse(command, context); return }
         command.perform(context)
+    }
+
+    /// Why the location can't run `action`; nil when it can, or when no location or action is involved.
+    func limitation(of action: LocationAction?, in context: CommandContext) -> String? {
+        guard let action, let location = context.location else { return nil }
+        return LocationRegistry.provider(for: location).limitation(of: action, in: location)
+    }
+
+    /// The one way a command says no: a beep, and the location's reason in the status bar when it has one.
+    func refuse(_ command: ExplorerCommand, _ context: CommandContext) {
+        NSSound.beep()
+        if let reason = limitation(of: command.locationAction, in: context) { context.window?.statusBar.setMessage(reason) }
+    }
+
+    /// Explains a shortcut the location blocks, since a disabled menu item never sends its action; false if it isn't blocked.
+    func refuseIfLocationBlocks(_ command: ExplorerCommand, _ context: CommandContext) -> Bool {
+        guard !(command.isAvailable(context) && command.isEnabled(context)),
+              limitation(of: command.locationAction, in: context) != nil else { return false }
+        refuse(command, context)
+        return true
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
@@ -596,8 +640,13 @@ final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
     func validate(_ command: ExplorerCommand, item: NSMenuItem, context: CommandContext) -> Bool {
         item.title = CommandDispatcher.menuTitle(command, context: context)
         item.state = command.state(context)
+        item.toolTip = nil
         if command.yieldsToTextInput, context.window?.isEditingText == true { return false }
-        return command.isAvailable(context) && command.isEnabled(context)
+        guard command.isAvailable(context), command.isEnabled(context) else {
+            item.toolTip = limitation(of: command.locationAction, in: context)
+            return false
+        }
+        return true
     }
 
     // Menu bar submenus fill when opened.

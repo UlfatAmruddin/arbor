@@ -15,6 +15,17 @@ public struct TransferScheduler: Sendable, Equatable {
         public var deferred: Bool
     }
 
+    /// The limits a person can choose, in menu order.
+    public static let concurrencyLimitChoices = [0, 1, 2, 3, 4]
+
+    public static func concurrencyLimitTitle(_ limit: Int) -> String {
+        switch limit {
+        case 0: return L10n.tr("No limit")
+        case 1: return L10n.tr("1 operation at a time")
+        default: return L10n.format("%d operations at a time", limit)
+        }
+    }
+
     public var queueSameDrive: Bool
     public var concurrencyLimit: Int
     public private(set) var entries: [Entry] = []

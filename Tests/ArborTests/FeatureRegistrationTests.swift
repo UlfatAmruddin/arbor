@@ -11,6 +11,8 @@ struct FeatureRegistrationTests {
     /// Registers once per test process (registration isn't repeatable: ids would be duplicates).
     static let problem: String? = {
         setenv("ARBOR_HEADLESS", "1", 1)   // a throwaway preferences domain; nothing opens
+        setenv("ARBOR_FAKE_NETWORK", "1", 1)   // a share can be connected and dropped
+        setenv("ARBOR_TEST_CLOUD_ROOT", "/Users/me/Test Cloud", 1)   // so the cloud root provider is registered
         _ = NSApplication.shared   // features observe the app; no window is created
         ExtensionRegistry.shared.assertsOnError = false   // collect every error, report them below
         return Features.registerFeatures()
@@ -57,7 +59,41 @@ struct FeatureRegistrationTests {
         #expect(Set(names).count == names.count)
         let listing = ExtensionCatalog.listing()
         #expect(listing.contains("errors: none"))
-        #expect(listing.contains("Handlers InteractionHooks.openFile: archives.open-file [early, archives], item-actions.shortcuts"))
+        #expect(listing.contains("Handlers InteractionHooks.openFile: windows-shortcuts.archive-member [first, windows-shortcuts], archives.open-file [early, archives], item-actions.shortcuts [normal, item-actions], windows-shortcuts.open [late, windows-shortcuts]"))
+    }
+
+    // MARK: File-list key presets (FE-066)
+
+    @Test func everyPresetCommandIsRegistered() {
+        _ = Self.problem
+        for command in FileListCommand.allCases {
+            #expect(CommandRegistry.shared.command(command.rawValue) != nil, "\(command.rawValue)")
+        }
+    }
+
+    /// A binding for one of these chords would fire whichever preset is chosen, in any scope.
+    @Test func thePresetTableIsTheOnlyPlaceForItsKeys() throws {
+        _ = Self.problem
+        let flags: [String: NSEvent.ModifierFlags] = ["command": .command, "option": .option, "shift": .shift, "control": .control]
+        for row in FileListKeyPreset.rows {
+            let key = try #require(KeyNames.parse(row.key))
+            let modifiers = key.modifiers.reduce(into: NSEvent.ModifierFlags()) { $0.insert(flags[$1] ?? []) }
+            for command in CommandRegistry.shared.all {
+                #expect(!command.keyBindings.contains { $0.keyCode == key.code && $0.modifiers == modifiers }, "\(command.id) binds \(row.key)")
+            }
+        }
+    }
+
+    @Test func parentAndTrashShortcutsWorkInBothPresetsAndYieldToTextFields() throws {
+        _ = Self.problem
+        let up = try #require(CommandRegistry.shared.command("nav.up"))
+        #expect(up.shortcut?.key == String(UnicodeScalar(NSUpArrowFunctionKey)!))
+        #expect(up.shortcut?.modifiers == .command)
+        #expect(up.yieldsToTextInput)
+        let trash = try #require(CommandRegistry.shared.command("file.trash"))
+        #expect(trash.shortcut?.key == String(UnicodeScalar(8)))
+        #expect(trash.shortcut?.modifiers == .command)
+        #expect(trash.yieldsToTextInput)
     }
 }
 

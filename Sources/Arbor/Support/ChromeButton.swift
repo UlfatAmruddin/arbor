@@ -13,6 +13,7 @@ final class ChromeButton: NSControl {
     var titleFont: NSFont = Theme.bodyFont { didSet { invalidate() } }
     var showsMenuIndicator = false { didSet { invalidate() } }
     var isToggled = false { didSet { needsDisplay = true; setAccessibilityValue(isToggled) } }
+    var isDropTarget = false { didSet { if isDropTarget != oldValue { needsDisplay = true } } }
     var horizontalPadding: CGFloat = 8 { didSet { invalidate() } }
     var fixedHeight: CGFloat = Theme.controlHeight { didSet { invalidate() } }
     var fixedWidth: CGFloat? { didSet { invalidate() } }
@@ -77,7 +78,9 @@ final class ChromeButton: NSControl {
 
     override func draw(_ dirtyRect: NSRect) {
         let rect = bounds
-        if isEnabled {
+        if isDropTarget {
+            drawDropHighlight(in: rect)
+        } else if isEnabled {
             if isPressed { fillRounded(rect, radius: cornerRadius, Theme.pressed) }
             else if isHovered { fillRounded(rect, radius: cornerRadius, Theme.hover) }
             else if isToggled { fillRounded(rect, radius: cornerRadius, Theme.toggled) }
@@ -116,6 +119,15 @@ final class ChromeButton: NSControl {
             }
         }
         if hasKeyboardFocus { FocusVisual.draw(in: rect, radius: cornerRadius) }
+    }
+
+    /// The border keeps the target distinct from the field background, also in increased contrast.
+    private func drawDropHighlight(in rect: NSRect) {
+        fillRounded(rect, radius: cornerRadius, Theme.selection)
+        Theme.accent.setStroke()
+        let border = NSBezierPath(roundedRect: rect.insetBy(dx: 0.75, dy: 0.75), xRadius: cornerRadius, yRadius: cornerRadius)
+        border.lineWidth = 1.5
+        border.stroke()
     }
 
     private var contentWidth: CGFloat {

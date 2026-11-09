@@ -184,8 +184,8 @@ final class IconViewController: NSViewController, ItemViewController, ItemGridHo
         beginRename(index: index, text: nil)
     }
 
-    func beginRename(named name: String, text: String?) {
-        guard let index = items.firstIndex(where: { $0.name == name }) else { return }
+    func beginRename(_ target: FileItem, text: String?) {
+        guard let index = items.firstIndex(where: { $0.url == target.url }) else { return }
         beginRename(index: index, text: text)
     }
 
@@ -282,7 +282,7 @@ final class IconViewController: NSViewController, ItemViewController, ItemGridHo
         endRenameField()
 
         if !(cancelled || typed == item.name), itemDelegate?.itemViewRename(item, to: typed) == false {
-            DispatchQueue.main.async { [weak self] in self?.beginRename(named: item.name, text: typed) }
+            DispatchQueue.main.async { [weak self] in self?.beginRename(item, text: typed) }
             return
         }
         if view.window?.firstResponder == nil || view.window?.firstResponder === view.window {
@@ -293,7 +293,7 @@ final class IconViewController: NSViewController, ItemViewController, ItemGridHo
             display(update)
         }
         if let nextItem {
-            DispatchQueue.main.async { [weak self] in self?.beginRename(named: nextItem.name, text: nil) }
+            DispatchQueue.main.async { [weak self] in self?.beginRename(nextItem, text: nil) }
         }
     }
 

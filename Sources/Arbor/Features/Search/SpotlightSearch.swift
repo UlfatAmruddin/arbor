@@ -8,6 +8,15 @@ final class SpotlightSearch: NSObject {
     struct Hit {
         let path: String
         let authors: [String]?
+        let tags: [String]?
+    }
+
+    enum Outcome {
+        /// Spotlight finished gathering, or refused to start.
+        case finished
+        case timedOut
+        /// Stopped at `limit`, so later matches were never seen.
+        case limitReached
     }
 
     private let query = NSMetadataQuery()
@@ -18,17 +27,19 @@ final class SpotlightSearch: NSObject {
         q.name = "Arbor Spotlight"
         return q
     }()
+    private static let tagsAttribute = "kMDItemUserTags"   // CoreServices has no constant for it
     private var processed = 0
     private var finished = false
     private var tokens: [NSObjectProtocol] = []
     private let onHits: ([Hit]) -> Void
-    private let onFinish: (_ timedOut: Bool) -> Void
+    private let onFinish: (Outcome) -> Void
     private let limit: Int
     private let timeout: TimeInterval
 
     /// `onHits` and `onFinish` are called on a background queue.
     init?(predicate: String, scope: URL?, limit: Int = 20_000, timeout: TimeInterval = 20,
-          onHits: @escaping ([Hit]) -> Void, onFinish: @escaping (Bool) -> Void) {
+          onHits: @escaping ([Hit]) -> Void, onFinish: @escaping (Outcome) -> Void) {
+        // A malformed string raises instead of returning nil, so callers must build it with SpotlightPredicate's escaping.
         guard let p = NSPredicate(fromMetadataQueryString: predicate) else { return nil }
         self.onHits = onHits
         self.onFinish = onFinish
@@ -45,17 +56,17 @@ final class SpotlightSearch: NSObject {
         })
         tokens.append(nc.addObserver(forName: .NSMetadataQueryDidFinishGathering, object: query, queue: queue) { [weak self] _ in
             self?.collect()
-            self?.finish(timedOut: false)
+            self?.finish(.finished)
         })
     }
 
     func start() {
         queue.addOperation { [self] in
             guard !finished else { return }
-            if !query.start() { finish(timedOut: false) }
+            if !query.start() { finish(.finished) }
         }
         DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { [weak self] in
-            self?.queue.addOperation { self?.finish(timedOut: true) }
+            self?.queue.addOperation { self?.finish(.timedOut) }
         }
     }
 
@@ -78,21 +89,23 @@ final class SpotlightSearch: NSObject {
             for i in processed..<count {
                 guard let item = query.result(at: i) as? NSMetadataItem,
                       let path = item.value(forAttribute: NSMetadataItemPathKey) as? String else { continue }
-                hits.append(Hit(path: path, authors: item.value(forAttribute: kMDItemAuthors as String) as? [String]))
+                let tags = (item.value(forAttribute: Self.tagsAttribute) as? [String])?.prefix(FinderMetadata.maxTagsPerFile)
+                hits.append(Hit(path: path, authors: item.value(forAttribute: kMDItemAuthors as String) as? [String],
+                                tags: tags.map(Array.init)))
             }
             processed = count
         }
         query.enableUpdates()
         if !hits.isEmpty { onHits(hits) }
-        if query.resultCount >= limit { finish(timedOut: false) }
+        if query.resultCount >= limit { finish(.limitReached) }
     }
 
-    private func finish(timedOut: Bool) {
+    private func finish(_ outcome: Outcome) {
         guard !finished else { return }
         finished = true
         query.stop()
         removeObservers()
-        onFinish(timedOut)
+        onFinish(outcome)
     }
 
     private func removeObservers() {

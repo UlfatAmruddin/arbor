@@ -53,8 +53,7 @@ enum SessionRestore {
         }
         return SessionState(windows: controllers.compactMap { c in
             guard let window = c.window, !c.tabs.isEmpty else { return nil }
-            let tabs = c.tabs.map { SessionTab(history: $0.history, viewMode: $0.viewMode.rawValue, sort: $0.sortOrder) }
-            return SessionWindow(frame: window.frame, tabs: tabs, activeTab: c.activeIndex)
+            return SessionWindow(frame: window.frame, tabs: c.tabs.map(\.sessionTab), activeTab: c.activeIndex)
         })
     }
 
@@ -80,13 +79,7 @@ enum SessionRestore {
               let state = SessionState.decode(data) else { return }
         let screens = NSScreen.screens.map(\.visibleFrame)
         for saved in state.windows {
-            let tabs: [TabState] = saved.tabs.compactMap { entry in
-                guard let history = entry.history() else { return nil }
-                let tab = TabState(location: history.current.location,
-                                   viewMode: ViewMode(rawValue: entry.viewMode) ?? .details, sortOrder: entry.sortOrder)
-                tab.history = history
-                return tab
-            }
+            let tabs = saved.tabs.compactMap(TabState.init(session:))
             guard !tabs.isEmpty else { continue }
             let active = min(saved.activeTab, tabs.count - 1)
             let controller = app.openWindow(tabs: tabs, activeIndex: active)

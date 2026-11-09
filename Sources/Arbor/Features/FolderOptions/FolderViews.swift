@@ -23,6 +23,19 @@ enum FolderOptionsStorage {
 final class FolderViews {
     static let shared = FolderViews()
 
+    /// A location that isn't a folder but keeps a view like one.
+    struct VirtualFolder {
+        let identity: FolderIdentity
+        let template: FolderTemplate
+        /// Added to the template's columns until the user saves their own.
+        let extraColumns: [ColumnID]
+    }
+
+    /// Lets a non-folder location use the saved-view system (libraries).
+    static let virtualFolders = Handlers<Location, VirtualFolder>(
+        "FolderViews.virtualFolders", "A non-folder location that keeps a saved view like a folder (libraries).",
+        signature: "(location) -> VirtualFolder?")
+
     let store = FolderViewStore(fileURL: FolderOptionsStorage.url("FolderViews.json"))
 
     final class Tracked {
@@ -30,12 +43,15 @@ final class FolderViews {
         let name: String
         let identity: FolderIdentity
         let type: FolderTemplateDetector.Resolution
+        let virtual: VirtualFolder?
         var resolved: ResolvedViewSettings
-        init(key: String, name: String, identity: FolderIdentity, type: FolderTemplateDetector.Resolution, resolved: ResolvedViewSettings) {
+        init(key: String, name: String, identity: FolderIdentity, type: FolderTemplateDetector.Resolution, virtual: VirtualFolder?,
+             resolved: ResolvedViewSettings) {
             self.key = key
             self.name = name
             self.identity = identity
             self.type = type
+            self.virtual = virtual
             self.resolved = resolved
         }
         var template: FolderTemplate { type.template }
@@ -46,6 +62,8 @@ final class FolderViews {
         let template: FolderTemplate
         let chosen: Bool
         let source: ViewSettingsSource
+        /// A virtual folder's extra columns would leak into every folder of the type.
+        let canApplyToFolders: Bool
     }
 
     private let tracked = NSMapTable<TabState, Tracked>.weakToStrongObjects()
@@ -55,8 +73,7 @@ final class FolderViews {
 
     func install() {
         ViewOptions.folderKindResolver.provide("folder-options.folder-type") { location, items in
-            guard let url = location.folderURL else { return ViewOptions.defaultKind(location, items) }
-            return Self.folderType(url, items).kind
+            Self.viewType(location, items)?.kind ?? ViewOptions.defaultKind(location, items)
         }
         ViewOptions.columnsEdited.register("folder-options.folder-columns") { [unowned self] options in
             self.columnsEdited(options) ? true : nil
@@ -81,17 +98,26 @@ final class FolderViews {
                                        chosen: FolderTemplateStore(defaults: Prefs.store).effectiveTemplate(for: url))
     }
 
+    /// A folder's or virtual folder's type; nil for places without a view of their own.
+    private static func viewType(_ location: Location, _ items: [FileItem]) -> FolderTemplateDetector.Resolution? {
+        if let virtual = virtualFolders.first(location) {
+            return FolderTemplateDetector.Resolution(template: virtual.template, kind: virtual.template.folderKind, chosen: false)
+        }
+        return location.folderURL.map { folderType($0, items) }
+    }
+
     // MARK: Resolving
 
     private func willDisplay(_ window: BrowserWindowController, _ tab: TabState, _ location: Location, _ changed: Bool) {
-        guard case .folder(let url) = location, let items = tab.items else {
+        let virtual = Self.virtualFolders.first(location)
+        guard let items = tab.items, virtual != nil || location.isFolder else {
             if changed { tracked.removeObject(forKey: tab) }
             return
         }
         if !changed, tracked.object(forKey: tab)?.key == location.key { return }
-        let identity = FolderIdentity.of(url)
-        let type = Self.folderType(url, items)
-        let entry = Tracked(key: location.key, name: location.displayName, identity: identity, type: type,
+        guard let type = Self.viewType(location, items),
+              let identity = virtual?.identity ?? location.folderURL.map(FolderIdentity.of) else { return }
+        let entry = Tracked(key: location.key, name: location.displayName, identity: identity, type: type, virtual: virtual,
                             resolved: resolve(type.template, identity))
         tracked.setObject(entry, forKey: tab)
         apply(entry, to: tab)
@@ -110,6 +136,8 @@ final class FolderViews {
         let options = ViewOptions.options(for: tab)     // starts from the folder kind's column set
         if let columns = settings.columns {
             options.columns = ColumnSet(columns, groupBy: options.columns.groupBy, groupAscending: options.columns.groupAscending)
+        } else {
+            entry.virtual?.extraColumns.forEach { options.columns.setVisible($0, true) }
         }
         if let group = settings.groupBy {
             options.groupBy = group.isEmpty ? nil : ColumnID(group)
@@ -156,7 +184,8 @@ final class FolderViews {
     func info(for window: BrowserWindowController) -> Info? {
         guard !window.tabs.isEmpty, let entry = tracked.object(forKey: window.activeTab),
               window.activeTab.displayedLocation?.key == entry.key else { return nil }
-        return Info(name: entry.name, template: entry.template, chosen: entry.type.chosen, source: entry.resolved.source)
+        return Info(name: entry.name, template: entry.template, chosen: entry.type.chosen, source: entry.resolved.source,
+                    canApplyToFolders: entry.virtual == nil)
     }
 
     var savedCount: Int { store.count }
@@ -165,7 +194,7 @@ final class FolderViews {
     /// "Apply to Folders": this view becomes its type's default; saved views of that type are dropped.
     func applyToFolders(from window: BrowserWindowController) {
         let tab = window.activeTab
-        guard let entry = tracked.object(forKey: tab) else { return }
+        guard let entry = tracked.object(forKey: tab), entry.virtual == nil else { return }
         let current = snapshot(tab)
         let options = ViewOptions.options(for: tab)
         store.applyToFolders(FolderViewSettings(viewMode: current.viewMode, sortKey: current.sortKey, ascending: current.ascending,
@@ -195,13 +224,32 @@ final class FolderViews {
         reresolveAll(redetect: false)
     }
 
-    /// Re-applies views to every open folder tab after the database, column sets or a folder's template changed.
-    private func reresolveAll(redetect: Bool) {
+    /// A virtual folder's type changed or it was deleted: its saved view no longer applies.
+    func forgetSavedView(_ identity: FolderIdentity, locationKey: String) {
+        store.setOverride(nil, for: identity)
+        ViewOptions.forgetGroupMemory(forKey: locationKey)
+        scheduleSave()
+    }
+
+    /// A renamed virtual folder keeps its saved view.
+    func moveSavedView(from old: FolderIdentity, to new: FolderIdentity, oldLocationKey: String) {
+        store.moveOverride(from: old, to: new)
+        ViewOptions.forgetGroupMemory(forKey: oldLocationKey)
+        scheduleSave()
+    }
+
+    /// Tabs showing this virtual folder pick up its new type; re-applying resets filters, so other tabs are left alone.
+    func reapplyOpenViews(locationKey: String) { reresolveAll(redetect: true, onlyKey: locationKey) }
+
+    /// Re-applies views to open folder tabs after the database, column sets or a folder's template changed.
+    private func reresolveAll(redetect: Bool, onlyKey: String? = nil) {
         for window in Self.windows {
             for tab in window.tabs {
-                guard let old = tracked.object(forKey: tab), let location = tab.displayedLocation, let url = location.folderURL else { continue }
-                let type = redetect ? Self.folderType(url, tab.items ?? []) : old.type
-                let entry = Tracked(key: old.key, name: old.name, identity: old.identity, type: type, resolved: resolve(type.template, old.identity))
+                guard let old = tracked.object(forKey: tab), onlyKey == nil || old.key == onlyKey, let location = tab.displayedLocation,
+                      let type = redetect ? Self.viewType(location, tab.items ?? []) : old.type else { continue }
+                let virtual = Self.virtualFolders.first(location)
+                let entry = Tracked(key: old.key, name: old.name, identity: old.identity, type: type, virtual: virtual,
+                                    resolved: resolve(type.template, old.identity))
                 tracked.setObject(entry, forKey: tab)
                 applyDepth += 1
                 ViewOptions.reset(tab)

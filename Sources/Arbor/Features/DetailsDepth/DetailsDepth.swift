@@ -8,9 +8,17 @@ enum DetailsDepth: ExplorerFeature {
     static func register() {
         FileSorter.columnValues.register("details-depth.metadata", order: .late) { item, column in .some(lookup(item, column)) }
         TabState.visibleItemsFilter.add("details-depth.column-filters") { items, tab in filter(tab, items) }
+        AddressBar.annotationProviders.register("details-depth.filtered") { tab in FilterAddressAnnotation.annotation(for: tab) }
         registerSortCommands()
         registerGroupCommands()
+        registerFilterCommands()
+        WindowHooks.willDisplay.observe("details-depth.close-stale-filter") { _, _, _, _ in closeStaleFilterDropdown() }
+        WindowHooks.didDisplay.observe("details-depth.close-stale-filter") { _, _ in closeStaleFilterDropdown() }
+        InteractionHooks.leftMouseDown.register("details-depth.marquee", handles: { table, event in
+            (table.delegate as? DetailsViewController)?.marqueePress(event) ?? false
+        })
         registerDebugSteps()
+        registerMarqueeDebugSteps()
     }
 
     /// Metadata cache lookup (nil = still loading).
@@ -55,11 +63,23 @@ enum DetailsDepth: ExplorerFeature {
         (NSApp.delegate as? AppDelegate)?.controllers.first { $0.tabs.contains { $0 === tab } }
     }
 
-    static func clearFilters(_ tab: TabState?) {
+    /// Clears one column's filter, or all; only this cancels whole-folder reads, as an open dropdown still needs them.
+    static func clearFilters(_ tab: TabState?, column: ColumnID? = nil) {
         guard let tab else { return }
-        ViewOptions.options(for: tab).filters.clear()
+        ViewOptions.options(for: tab).filters.clear(column)
+        ColumnValueStore.shared.cancel(owner: allValuesOwner(tab))
         refresh(tab)
         (window(of: tab)?.itemView as? DetailsViewController)?.headerOverlay?.needsDisplay = true
+    }
+
+    /// At most one dropdown is open, whichever window it belongs to.
+    static var activeFilterPopover: NSPopover?
+
+    /// A dropdown must not outlive the tab and folder it edits; keyboard navigation doesn't dismiss a transient popover.
+    private static func closeStaleFilterDropdown() {
+        guard let popover = activeFilterPopover, popover.isShown,
+              (popover.contentViewController as? ColumnFilterViewController)?.isCurrent() == false else { return }
+        popover.close()
     }
 
     private static var saveWork: DispatchWorkItem?
@@ -124,8 +144,8 @@ enum DetailsDepth: ExplorerFeature {
             perform: { details($0)?.presentChooseDetails() }))
         r.register(ExplorerCommand(
             id: "filters.clear", title: "Clear Filters", symbol: "line.3.horizontal.decrease.circle",
-            placements: [.backgroundContextMenu(.view, 27)],
-            isAvailable: { options($0)?.filters.isEmpty == false },
+            placements: [.backgroundContextMenu(.view, 27), .mainMenu("View", .view, 32)],
+            isAvailable: { ctx in ctx.tab.flatMap(ViewOptions.existingOptions)?.filters.isEmpty == false },
             perform: { clearFilters($0.tab) }))
     }
 
@@ -198,5 +218,35 @@ enum DetailsDepth: ExplorerFeature {
                             isAvailable: { $0.surface == .menuBar || options($0) != nil },
                             submenu: { groupMenuItems($0) }),
         ])
+    }
+
+    // MARK: Filter by (FE-039)
+
+    private static func filterTarget(_ ctx: CommandContext) -> DetailsViewController? {
+        ctx.tab?.showsPage == false ? details(ctx) : nil
+    }
+
+    /// The shown columns; the usual ones, greyed, where there is no Details list (like Group By).
+    static func filterMenuItems(_ ctx: CommandContext) -> [NSMenuItem] {
+        let columns = filterTarget(ctx)?.filterableColumns ?? coreColumns
+        return columns.compactMap { CommandRegistry.shared.command("filter.\($0.rawValue)") }
+            .map { CommandDispatcher.shared.menuItem($0, context: ctx) }
+    }
+
+    // The header's ▾ needs a hovering pointer, so the same dropdown opens from these menus (SPEC 16.2).
+    private static func registerFilterCommands() {
+        let r = CommandRegistry.shared
+        for d in ColumnCatalog.builtIn {
+            r.register(ExplorerCommand(
+                id: "filter.\(d.id.rawValue)", title: d.title,
+                isEnabled: { filterTarget($0)?.filterableColumns.contains(d.id) == true },
+                state: { filterTarget($0) != nil && options($0)?.filters.isFiltered(d.id) == true ? .on : .off },
+                perform: { filterTarget($0)?.showFilter(d.id) }))
+        }
+        r.register(ExplorerCommand(
+            id: "menu.filterBy", title: "Filter By", symbol: "line.3.horizontal.decrease",
+            placements: [.backgroundContextMenu(.view, 26), .mainMenu("View", .view, 31.5)],
+            isAvailable: { $0.surface == .menuBar || filterTarget($0) != nil },
+            submenu: { filterMenuItems($0) }))
     }
 }

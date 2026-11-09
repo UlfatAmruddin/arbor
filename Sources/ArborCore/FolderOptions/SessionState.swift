@@ -4,7 +4,7 @@ import Foundation
 // MARK: - Session restore (FE-024, FE-251)
 
 /// One tab for "Restore previous folder windows": keys and view settings, never listings (FE-251).
-public struct SessionTab: Codable, Equatable, Sendable {
+public struct SessionTab: Codable, Hashable, Sendable {
     public var location: String
     /// Oldest first; bounded by `SessionState.historyLimit`.
     public var back: [String]
@@ -24,6 +24,18 @@ public struct SessionTab: Codable, Equatable, Sendable {
         self.sortKey = sortKey
         self.ascending = ascending
         self.foldersFirst = foldersFirst
+    }
+
+    /// Only `location` is required: a missing or mistyped setting takes its default instead of losing the tab.
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        location = try values.decode(String.self, forKey: .location)
+        back = (try? values.decode([String].self, forKey: .back)) ?? []
+        forward = (try? values.decode([String].self, forKey: .forward)) ?? []
+        viewMode = (try? values.decode(String.self, forKey: .viewMode)) ?? "details"
+        sortKey = (try? values.decode(String.self, forKey: .sortKey)) ?? "name"
+        ascending = (try? values.decode(Bool.self, forKey: .ascending)) ?? true
+        foldersFirst = (try? values.decode(Bool.self, forKey: .foldersFirst)) ?? true
     }
 
     public init(history: NavigationHistory, viewMode: String, sort: FileSortOrder) {

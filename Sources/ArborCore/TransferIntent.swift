@@ -55,18 +55,23 @@ public enum StatusText {
         return text
     }
 
-    /// Explorer's status bar: "12 items  |  1 item selected  4.1 KB  |"; filtered: "3 of 120 items match “rep”  |".
-    /// Size only when every selected item has one (folders don't).
+    /// Explorer's status bar: "12 items  |  1 item selected  4.1 KB  |"; filtered: "3 of 120 items match “rep”  |". Size only when every selected item has one.
     public static func explorerSummary(visible: Int, total: Int, query: String, selected: [FileItem]) -> String {
+        let sizes = selected.compactMap(\.size)
+        return explorerSummary(visible: visible, total: total, query: query, selectedCount: selected.count,
+                               selectedBytes: sizes.count == selected.count ? sizes.saturatingSum() : nil)
+    }
+
+    /// The same for pages whose rows aren't files; nil `selectedBytes` shows no size.
+    public static func explorerSummary(visible: Int, total: Int, query: String, selectedCount: Int, selectedBytes: Int64?) -> String {
         let q = query.trimmingCharacters(in: .whitespaces)
         let shown = counts.string(from: NSNumber(value: visible)) ?? "\(visible)"
         var parts = [q.isEmpty ? (visible == total ? items(total) : "\(shown) of \(items(total))")   // column filters: "3 of 15 items"
                      : L10n.format("%@ of %@ match “%@”", shown, items(total), q)]
-        if !selected.isEmpty {
-            var text = selected.count == 1 ? L10n.tr("1 item selected")
-                : L10n.format("%@ items selected", counts.string(from: NSNumber(value: selected.count)) ?? "\(selected.count)")
-            let sizes = selected.compactMap(\.size)
-            if sizes.count == selected.count { text += "  \(bytes(sizes.saturatingSum()))" }
+        if selectedCount > 0 {
+            var text = selectedCount == 1 ? L10n.tr("1 item selected")
+                : L10n.format("%@ items selected", counts.string(from: NSNumber(value: selectedCount)) ?? "\(selectedCount)")
+            if let selectedBytes { text += "  \(bytes(selectedBytes))" }
             parts.append(text)
         }
         return parts.map { $0 + "  |" }.joined(separator: "  ")

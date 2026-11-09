@@ -30,6 +30,8 @@ extension DetailsViewController {
               let anchorIndex = items.firstIndex(where: { $0.url == ends.anchor }), let anchorRow = itemRows[anchorIndex],
               let leadIndex = items.firstIndex(where: { $0.url == ends.lead }), let leadRow = itemRows[leadIndex],
               selected.contains(anchorRow), selected.contains(leadRow), anchorRow != leadRow else { return }
+        isRestoringSelectionEnds = true
+        defer { isRestoringSelectionEnds = false }
         var middle = selected
         middle.remove(anchorRow)
         middle.remove(leadRow)

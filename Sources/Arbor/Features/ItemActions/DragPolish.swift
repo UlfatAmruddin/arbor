@@ -2,7 +2,7 @@ import AppKit
 import ArborCore
 
 /// Drag and drop polish (FE-106, FE-108, FE-109, FE-111): right-drag drop menu, ⌥⌘-drop for aliases,
-/// spring-loading (~0.7 s) on folders, tree nodes and tabs, drops to the shown folder (never a stale
+/// spring-loading (~0.7 s) on folders, tree nodes, breadcrumbs and tabs, drops to the shown folder (never a stale
 /// selection), and overlapping sources handled once.
 enum DragPolish {
     static let rightDragType = NSPasteboard.PasteboardType("io.github.arbor-files.right-drag")

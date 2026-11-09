@@ -60,6 +60,8 @@ if [ -z "$APP" ]; then
   else
     arbor_prepare_app bench.sh release
   fi
+  arbor_use_private_app
+  APP="${ARBOR_APP_BIN%/Contents/MacOS/Arbor}"
 else
   arbor_take_suite_lock
 fi

@@ -11,9 +11,14 @@ import ArborCore
 ///     galleryhover:x,y            hover the grid at a document point (shows the check box)
 ///     managecollection            open "Gallery Locations"
 ///     managelibrary:Documents     open "Documents Library Locations"
-///     dialog:add:/p | dialog:remove:/p | dialog:save:/p | dialog:restore | dialog:ok | dialog:cancel
+///     dialog:add:/p | dialog:remove:/p | dialog:save:/p | dialog:moveup:/p | dialog:movedown:/p
+///     dialog:optimize:music | dialog:restore | dialog:ok | dialog:cancel
 ///     showlibraries:1|0           navigation pane "Show libraries"
-///     librarydef:Documents=/a|/b  set a library's folders directly (first = save location)
+///     librarydef:Name=/a|/b       create a library if needed and set its folders (first = save location)
+///     libraryselect:Name          select a tile on the Libraries page
+///     librarytree:cmd:Name        run a tile/tree-menu command on a library, e.g. librarytree:library.delete:Name
+///     librarymenu:Name:/path      append a tile's context menu
+///     resetfolders                what Folder Options' Reset Folders does, without its prompt
 ///     sheettext:New name          type into the text field of the window's sheet (Rename in Gallery)
 ///     collectionmenu:/path        append the Collection ▾ menu
 extension GalleryLibrariesFeature {
@@ -85,6 +90,11 @@ extension GalleryLibrariesFeature {
             case "add": if let path { dialog.add(path) }
             case "remove": if let path { dialog.remove(path) }
             case "save": if let path { dialog.setSave(path) }
+            case "moveup": if let path { dialog.move(path, by: -1) }
+            case "movedown": if let path { dialog.move(path, by: 1) }
+            case "optimize":
+                let wanted = parts.count > 1 ? parts[1] : ""
+                if let value = FolderTemplate.allCases.first(where: { $0.rawValue.lowercased().hasPrefix(wanted.lowercased()) }) { dialog.setTemplate(value) }
             case "restore": dialog.restore()
             case "ok": dialog.confirm(nil)
             case "cancel": dialog.dismiss(nil)
@@ -100,14 +110,46 @@ extension GalleryLibrariesFeature {
             let parts = arg.split(separator: "=", maxSplits: 1).map(String.init)
             guard let name = parts.first else { return 0.3 }
             let folders = parts.count > 1 ? parts[1].split(separator: "|").map { URL(fileURLWithPath: String($0)) } : []
-            LibraryStore.update(LibraryDefinition(name: name, folders: folders))
+            if LibraryStore.definition(name) == nil { try? LibraryStore.edit { try $0.create(named: name) } }
+            guard let library = LibraryStore.definition(name) else { NSLog("DebugScript: can't create that library"); return 0.3 }
+            try? LibraryActions.commit(LibraryDefinition(name: name, folders: folders, template: library.template))
             return 0.8
+        }
+        DebugScript.registerStep("resetfolders") { _, _ in
+            FolderViews.shared.resetFolders()
+            return 0.8
+        }
+        DebugScript.registerStep("libraryselect") { arg, window in
+            guard let page = window?.activeTab.page as? LibrariesPageController else { NSLog("DebugScript: not on the Libraries page"); return 0.3 }
+            page.select(names: arg.isEmpty ? [] : arg.components(separatedBy: "|"))
+            page.view.window?.makeFirstResponder(page.grid)
+            return 0.4
+        }
+        DebugScript.registerStep("librarytree") { arg, window in
+            let parts = arg.split(separator: ":", maxSplits: 1).map(String.init)
+            guard parts.count == 2, let window else { return 0.3 }
+            var ctx = window.context(surface: .treeContextMenu, sender: nil)
+            ctx.selection = []
+            ctx.targetFolder = nil
+            ctx.treeLocation = .library(parts[1])
+            if !CommandRegistry.shared.perform(parts[0], context: ctx) { NSLog("DebugScript: library command unavailable") }
+            return 0.8
+        }
+        DebugScript.registerStep("librarymenu") { arg, window in
+            guard let colon = arg.range(of: ":", options: .backwards),
+                  let page = window?.activeTab.page as? LibrariesPageController,
+                  let menu = page.tileMenu(for: String(arg[..<colon.lowerBound])) else { return 0.3 }
+            menu.update()
+            let lines = menu.items.map { $0.isSeparatorItem ? "---" : $0.title + ($0.isEnabled ? "" : " (disabled)") }
+            appendLine("tile menu:\n" + lines.joined(separator: "\n") + "\n---\n", to: String(arg[colon.upperBound...]))
+            return 0.3
         }
         DebugScript.registerStep("sheettext") { arg, window in
             let sheet = window?.window?.attachedSheet
             if let field = findField(in: sheet?.contentView) {
                 field.stringValue = arg
                 sheet?.makeFirstResponder(field)
+                field.delegate?.controlTextDidChange?(Notification(name: NSControl.textDidChangeNotification, object: field))
             }
             return 0.5
         }
@@ -135,9 +177,15 @@ extension GalleryLibrariesFeature {
             lines.append("libraries: show=\(Prefs.showLibraries) " + LibraryStore.all.map { lib in
                 "\(lib.name)=[" + lib.folders.map { ($0 == lib.saveLocation ? "*" : "") + $0 }.joined(separator: ", ") + "]"
             }.joined(separator: " "))
+            lines.append("library types: " + LibraryStore.all.map { "\($0.name)=\($0.template.rawValue)" }.joined(separator: " "))
+            if let page = window.activeTab.page as? LibrariesPageController {
+                lines.append("library tiles: \(page.shown.map(\.name).joined(separator: " | "))  selected: \(page.selectedNames.joined(separator: " | "))")
+            }
             if let name = libraryName(window.activeTab.displayedLocation) {
                 let target = LibraryProvider().targetFolder(for: .library(name))
                 lines.append("library target: \(target?.path ?? "none")")
+                let view = (window.itemView as? DetailsViewController)?.folder ?? (window.itemView as? IconViewController)?.folder
+                lines.append("library drop target: \(view?.path ?? "none")")
                 let folders = window.visibleItems.map { "\($0.name)@\(LibraryMerge.folderColumnText(for: $0.url))" }
                 lines.append("library rows: \(folders.joined(separator: " | "))")
             }

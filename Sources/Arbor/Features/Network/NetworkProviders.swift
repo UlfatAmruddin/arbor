@@ -13,6 +13,7 @@ final class NetworkPageProvider: LocationProvider {
 
     func allowsItemEditing(in location: Location) -> Bool { false }
     func targetFolder(for location: Location) -> URL? { nil }
+    func limitation(of action: LocationAction, in location: Location) -> String? { action.notAFolderLimitation() }
 }
 
 /// `.server(address)`: a server lists its shares; a share is mounted, then shown. Its entry never enters history.
@@ -49,6 +50,7 @@ final class ServerProvider: LocationProvider {
 
     func allowsItemEditing(in location: Location) -> Bool { false }
     func targetFolder(for location: Location) -> URL? { nil }
+    func limitation(of action: LocationAction, in location: Location) -> String? { action.notAFolderLimitation() }
 }
 
 /// Share folders (FE-179), listed off main with a deadline: hung shares get "not responding" + Retry,
@@ -151,6 +153,11 @@ final class NetworkFolderProvider: LocationProvider {
     }
 
     func allowsItemEditing(in location: Location) -> Bool { targetFolder(for: location) != nil }
+
+    func limitation(of action: LocationAction, in location: Location) -> String? {
+        guard action != .copy, targetFolder(for: location) == nil else { return nil }
+        return L10n.tr("This network share is disconnected. Reconnect it first.")
+    }
 
     private func notRespondingPage(_ url: URL, host: LocationHost?) -> NetworkMessagePage {
         let share = NetworkCenter.shared.share(containing: url)

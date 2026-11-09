@@ -156,6 +156,12 @@ public enum FolderTemplateDetector {
         public var kind: FolderKind
         /// Set in Properties › Customize, directly or inherited from an ancestor.
         public var chosen: Bool
+
+        public init(template: FolderTemplate, kind: FolderKind, chosen: Bool) {
+            self.template = template
+            self.kind = kind
+            self.chosen = chosen
+        }
     }
 
     /// Precedence: Customize choice → Downloads → known folder (or inside one) → content → General items.

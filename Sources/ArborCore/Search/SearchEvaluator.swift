@@ -33,7 +33,9 @@ public struct SearchCandidate {
         self.modified = modified
         self.created = created
         self.typeIdentifier = typeIdentifier
-        self.typeDescription = typeDescription
+        // The Type column's wording, so `type:` finds what the column shows.
+        let windowsShortcut = isSymbolicLink ? nil : WindowsShortcutKind(itemName: name, isFolder: isFolder, isPackage: isPackage)
+        self.typeDescription = windowsShortcut?.typeName ?? typeDescription
         self.tags = tags
         self.authors = authors
         self.contentContains = contentContains

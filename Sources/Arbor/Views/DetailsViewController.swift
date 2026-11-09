@@ -9,6 +9,8 @@ final class FileTableView: NSTableView {
     var rowMouseDown: ((Int, NSEvent) -> Bool)?
     /// Group header context menu; nil for item rows.
     var rowMenuProvider: ((Int) -> NSMenu?)?
+    /// Outlives the press: the single-click open runs after tracking and must see that this press was a band.
+    var pressBecameMarquee = false
 
     /// Type-to-select through the input method (FE-068).
     var typeSelect: ListTypeSelect?
@@ -34,15 +36,20 @@ final class FileTableView: NSTableView {
 
     override func mouseDown(with event: NSEvent) {
         focusRow = nil
+        pressBecameMarquee = false
         let row = row(at: convert(event.locationInWindow, from: nil))
         if row >= 0, rowMouseDown?(row, event) == true { return }
+        if InteractionHooks.leftMouseDown.handle((self, event)) { return }
         super.mouseDown(with: event)
     }
 
     /// Right-clicking an unselected item selects it first (spec §7.1).
     override func menu(for event: NSEvent) -> NSMenu? {
+        takeFocusForContextMenu()
         let row = row(at: convert(event.locationInWindow, from: nil))
         if row >= 0, let menu = rowMenuProvider?(row) { return menu }
+        // Changing the selection would end the rename and leave the menu on the wrong item.
+        if isEditingTextInside, row < 0 || !selectedRowIndexes.contains(row) { return nil }
         if row >= 0 {
             if !selectedRowIndexes.contains(row) { selectRowIndexes([row], byExtendingSelection: false) }
         } else {
@@ -117,14 +124,14 @@ final class NameCellView: NSTableCellView {
         addSubview(nameField)
         imageView = icon
         textField = nameField
-        iconLeading = icon.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6)
+        iconLeading = icon.leadingAnchor.constraint(equalTo: leadingAnchor, constant: DetailsNameShape.iconLeading)
         NSLayoutConstraint.activate([
             iconLeading,
             icon.centerYAnchor.constraint(equalTo: centerYAnchor),
-            icon.widthAnchor.constraint(equalToConstant: 16),
-            icon.heightAnchor.constraint(equalToConstant: 16),
-            nameField.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 8),
-            nameField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -2),
+            icon.widthAnchor.constraint(equalToConstant: DetailsNameShape.iconSize),
+            icon.heightAnchor.constraint(equalToConstant: DetailsNameShape.iconSize),
+            nameField.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: DetailsNameShape.iconTextGap),
+            nameField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -DetailsNameShape.textTrailing),
             nameField.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
     }
@@ -133,7 +140,7 @@ final class NameCellView: NSTableCellView {
 
     func setCheckboxVisible(_ visible: Bool) {
         if visible || hasCheckbox { checkbox.isHidden = !visible }
-        iconLeading.constant = visible ? 26 : 6
+        iconLeading.constant = visible ? DetailsNameShape.iconLeadingWithCheckbox : DetailsNameShape.iconLeading
     }
 }
 
@@ -182,6 +189,10 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
     /// Tab (+1) / Shift-Tab (-1) ended the rename: continue with the next/previous item (FE-064).
     private var renameStep = 0
     private var deferredUpdate: ItemViewUpdate?
+    /// A band is being dragged: row indexes must stay valid until mouse-up (FE-058).
+    var isTrackingMarquee = false
+    /// `restoreSelectionEnds` is re-applying an unchanged selection one step at a time.
+    var isRestoringSelectionEnds = false
 
     // Grouping (FE-038) and columns (FE-035, FE-036) live in DetailsViewController+Depth.swift.
     enum Row: Equatable { case header(Int), item(Int) }
@@ -196,7 +207,6 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
     var visibleLoadScheduled = false
     var arrivedNames = Set<String>()
     var headerOverlay: HeaderOverlayView?
-    var activeFilterPopover: NSPopover?
     lazy var visibleOwner = "visible-\(UUID().uuidString)"
 
     var sortOrder = FileSortOrder() {
@@ -320,6 +330,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
 
     private func columnMenu() -> NSMenu {
         let menu = NSMenu(title: "Columns")
+        menu.allowsContextMenuPlugIns = false
         menu.delegate = self
         return menu
     }
@@ -352,11 +363,13 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
 
     // MARK: Showing items
 
-    /// Replaces the rows, keeping selection and scroll on refresh; waits during a rename (spec §8.1).
+    private var holdsUpdates: Bool { renamingItem != nil || isTrackingMarquee }
+
+    /// Replaces the rows, keeping selection and scroll on refresh; waits during a rename (spec §8.1) or a band.
     func display(_ update: ItemViewUpdate) {
         _ = view
-        if renamingItem != nil {
-            deferredUpdate = update
+        if holdsUpdates {
+            holdUpdate(update)
             return
         }
         let keepSelection = update.locationChanged ? [] : selectedNames
@@ -398,6 +411,23 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         emptyLabel.isHidden = !items.isEmpty
     }
 
+    /// Keeps the newest listing, but a pending folder change and where it wanted to land survive a later refresh.
+    private func holdUpdate(_ update: ItemViewUpdate) {
+        var newest = update
+        if let held = deferredUpdate, held.locationChanged, !update.locationChanged {
+            newest.locationChanged = true
+            newest.select = newest.select ?? held.select
+            newest.scrollTo = newest.scrollTo ?? held.scrollTo
+        }
+        deferredUpdate = newest
+    }
+
+    func applyDeferredUpdate() {
+        guard let update = deferredUpdate else { return }
+        deferredUpdate = nil
+        display(update)
+    }
+
     func reloadRows() {
         guard isViewLoaded else { return }
         table.rowHeight = Theme.rowHeight(compact: Prefs.compactView)
@@ -419,14 +449,21 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         table.selectedRowIndexes.compactMap { item(atRow: $0) }
     }
 
-    /// The first row whose top half is below the column header.
-    var topVisibleName: String? {
-        var y = table.visibleRect.minY
+    /// The part of the table on screen below the column header.
+    var rowsViewport: CGRect {
+        var rect = table.visibleRect
         if let header = table.headerView, header.window != nil {
             let bottom = header.convert(NSPoint(x: 1, y: header.isFlipped ? header.bounds.maxY : header.bounds.minY), to: table)
-            y = max(y, bottom.y)
+            let hidden = min(max(bottom.y - rect.minY, 0), rect.height)
+            rect.origin.y += hidden
+            rect.size.height -= hidden
         }
-        let row = table.row(at: NSPoint(x: 1, y: y + table.rowHeight / 2))
+        return rect
+    }
+
+    /// The first row whose top half is below the column header.
+    var topVisibleName: String? {
+        let row = table.row(at: NSPoint(x: 1, y: rowsViewport.minY + table.rowHeight / 2))
         guard row >= 0, row < rows.count else { return items.first?.name }
         // A group header at the top: the first item below it.
         return (row..<rows.count).lazy.compactMap { self.item(atRow: $0) }.first?.name
@@ -507,7 +544,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         if table.isRowSelected(row) { table.deselectRow(row) } else { table.selectRowIndexes([row], byExtendingSelection: true) }
     }
 
-    private func shownName(_ item: FileItem) -> String {
+    func shownName(_ item: FileItem) -> String {
         guard !Prefs.showExtensions, !item.isFolder else { return item.name }
         let base = NameRules.splitExtension(item.name, treatAsFolder: false).base
         return base.isEmpty ? item.name : base
@@ -536,6 +573,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
+        guard !isRestoringSelectionEnds else { return }
         if Prefs.itemCheckBoxes, let column = table.tableColumns.firstIndex(where: { $0.identifier.rawValue == "name" }) {
             let visible = table.rows(in: table.visibleRect)
             for row in visible.location..<(visible.location + visible.length) {
@@ -557,7 +595,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         let mods = event.modifierFlags.intersection([.command, .option, .shift, .control])
         if handleGroupHeaderKey(event) { return true }
         switch event.keyCode {
-        case 36, 76:   // Return / Enter opens, like Explorer (Finder uses Return for rename)
+        case 36, 76:   // Return / Enter opens, like Explorer; the Mac preset takes them first (FileListKeys)
             guard !selectedItems.isEmpty, mods.isEmpty || mods == .command else { return false }
             itemDelegate?.itemViewOpen(selectedItems, inNewTab: mods == .command)
             return true
@@ -574,9 +612,9 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         beginRename(row: row, text: nil)
     }
 
-    func beginRename(named name: String, text: String? = nil) {
-        expandGroupsIfHidden([name])
-        guard let index = items.firstIndex(where: { $0.name == name }), let row = itemRows[index] else { return }
+    func beginRename(_ target: FileItem, text: String? = nil) {
+        expandGroupsIfHidden([target.name])
+        guard let index = items.firstIndex(where: { $0.url == target.url }), let row = itemRows[index] else { return }
         beginRename(row: row, text: text)
     }
 
@@ -638,18 +676,15 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
             field.stringValue = shownName(item)
         } else if itemDelegate?.itemViewRename(item, to: typed) == false {
             field.stringValue = shownName(item)
-            DispatchQueue.main.async { [weak self] in self?.beginRename(named: item.name, text: typed) }
+            DispatchQueue.main.async { [weak self] in self?.beginRename(item, text: typed) }
             return
         }
         if view.window?.firstResponder == nil || view.window?.firstResponder === view.window {
             view.window?.makeFirstResponder(table)
         }
-        if let update = deferredUpdate {
-            deferredUpdate = nil
-            display(update)
-        }
+        applyDeferredUpdate()
         if let nextItem {
-            DispatchQueue.main.async { [weak self] in self?.beginRename(named: nextItem.name) }
+            DispatchQueue.main.async { [weak self] in self?.beginRename(nextItem) }
         }
     }
 

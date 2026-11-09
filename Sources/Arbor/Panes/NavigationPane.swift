@@ -180,6 +180,20 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
         suppressNavigation = false
     }
 
+    /// Keeps expansion, unlike `rebuild()`; the guard stops a selection moved by the reload from navigating the tab.
+    func replaceChildren(ofRootAt location: Location, with children: [NavNode]) {
+        guard let root = roots.first(where: { $0.location == location }) else { return }
+        root.children = children
+        suppressNavigation = true
+        outline.reloadItem(root, reloadChildren: true)
+        suppressNavigation = false
+    }
+
+    /// The first visible row's node that `predicate` accepts.
+    func visibleNode(where predicate: (NavNode) -> Bool) -> NavNode? {
+        (0..<outline.numberOfRows).lazy.compactMap { self.outline.item(atRow: $0) as? NavNode }.first(where: predicate)
+    }
+
     private func loadChildren(_ node: NavNode) -> [NavNode] {
         if let children = node.children { return children }
         guard let url = node.url else { node.children = []; return [] }
@@ -192,10 +206,7 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
     /// Marks the current location's node if visible. The marker is the selection; focus is separate (spec §5.1).
     func reveal(_ location: Location) {
         NavigationPaneHooks.willReveal.send((self, location))
-        var row = -1
-        for r in 0..<outline.numberOfRows {
-            if let node = outline.item(atRow: r) as? NavNode, node.location == location { row = r; break }
-        }
+        let row = visibleNode { $0.location == location }.map { outline.row(forItem: $0) } ?? -1
         suppressNavigation = true
         if row >= 0 {
             outline.selectRowIndexes([row], byExtendingSelection: false)
@@ -275,6 +286,11 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
         return cell
     }
 
+    func outlineViewItemDidExpand(_ notification: Notification) {
+        guard let node = notification.userInfo?["NSObject"] as? NavNode else { return }
+        NavigationPaneHooks.didExpand.send((self, node))
+    }
+
     func outlineViewSelectionDidChange(_ notification: Notification) {
         guard !suppressNavigation, let node = outline.item(atRow: outline.selectedRow) as? NavNode,
               let location = node.location else { return }
@@ -289,22 +305,16 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
         InteractionHooks.dragHover.send((node?.url.map { "tree:" + $0.path }, node.map { node in
             { [weak outlineView] in outlineView?.expandItem(node) }
         }))
-        if index == NSOutlineViewDropOnItemIndex, let url = (item as? NavNode)?.url,
-           let op = ItemHooks.dropOperation(info, destination: url) { return op }
-        guard index == NSOutlineViewDropOnItemIndex, let url = (item as? NavNode)?.url,
-              let kind = DropPolicy.kind(sources: DropPolicy.fileURLs(from: info), destination: url,
-                                         mask: info.draggingSourceOperationMask) else { return [] }
-        return kind == .move ? .move : .copy
+        guard let url = node?.url else { return [] }
+        return DropPolicy.operation(info, onto: url)
     }
 
     func outlineView(_ outlineView: NSOutlineView, acceptDrop info: NSDraggingInfo, item: Any?, childIndex index: Int) -> Bool {
         InteractionHooks.dragHover.send((nil, nil))
-        if ItemHooks.acceptDrop(info, destination: (item as? NavNode)?.url, window: outlineView.window) { return true }
-        let urls = DropPolicy.fileURLs(from: info)
-        guard let url = (item as? NavNode)?.url,
-              let kind = DropPolicy.kind(sources: urls, destination: url, mask: info.draggingSourceOperationMask) else { return false }
-        delegate?.navigationPaneTransfer(kind, urls, to: url)
-        return true
+        guard let url = (item as? NavNode)?.url else { return false }
+        return DropPolicy.accept(info, onto: url, window: outlineView.window) { kind, urls, folder in
+            delegate?.navigationPaneTransfer(kind, urls, to: folder)
+        }
     }
 }
 

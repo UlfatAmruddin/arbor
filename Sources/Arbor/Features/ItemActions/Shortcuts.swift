@@ -89,7 +89,7 @@ enum Shortcuts {
     /// Resolves an alias or .webloc without showing UI or mounting volumes.
     static func resolve(_ url: URL) -> Resolution? {
         if url.pathExtension.lowercased() == "webloc" {
-            return (try? Data(contentsOf: url)).flatMap(WebLocation.url(from:)).map { .web($0) }
+            return WebLocation.url(contentsOf: url).map { .web($0) }
         }
         guard isAlias(url) else { return nil }
         do {
@@ -129,12 +129,18 @@ enum Shortcuts {
         return .folder(target)
     }
 
+    /// Who opens an alias's resolved target instead of the system. Called once, with the target already resolved.
+    static let openTarget = Handlers<(BrowserWindowController, URL), Void>(
+        "Shortcuts.openTarget", "An alias is being opened; true = its resolved target was handled.",
+        signature: "(window, target) -> handled")
+
     /// Opening a file shortcut opens its target, which Home ▸ Recent then lists (as Explorer does);
     /// a broken one shows "Problem with Shortcut".
     static func openFile(_ window: BrowserWindowController, _ item: FileItem) -> Bool {
         guard isAlias(item.url) else { return false }
         switch resolve(item.url) {
         case .target(let target, _)?:
+            if openTarget.handle((window, target)) { return true }
             SystemOpen.open(target)
             NotificationCenter.default.post(name: LocationEvents.didOpenFiles, object: window, userInfo: ["urls": [target]])
             return true
@@ -191,7 +197,11 @@ enum Shortcuts {
         } else {
             base = icon
         }
-        return NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
+        return withArrowBadge(base, size: size)
+    }
+
+    static func withArrowBadge(_ base: NSImage, size: CGFloat) -> NSImage {
+        NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
             base.draw(in: rect)
             // Half the icon at list sizes; a smaller corner badge on large icons, as in Explorer.
             let side = size <= 24 ? max(7, size * 0.5) : min(64, max(12, round(size * 0.3)))

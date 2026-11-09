@@ -23,6 +23,8 @@ struct FolderOptionsCatalogTests {
             "Show status bar", "Show sync provider notifications", "Use check boxes to select items",
             "Use Sharing Wizard (Recommended)", "When typing into list view",
             "Navigation pane", "Always show availability status", "Expand to open folder", "Show all folders", "Show libraries",
+            "Show tags",
+            "Keyboard", "Keys in the file list",   // Arbor's own, after Windows' list
         ]
         #expect(titles == expected)
     }

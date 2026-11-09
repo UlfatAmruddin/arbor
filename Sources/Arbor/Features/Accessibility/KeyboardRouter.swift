@@ -14,6 +14,7 @@ import ArborCore
 /// | ⌥⌘ arrows | Icon layouts: move the focus without changing the selection (Explorer's Ctrl+arrows) |
 /// | ⌥Space | Icon layouts: select or deselect the focused item (Explorer's Ctrl+Space) |
 /// | * + − | Navigation pane: expand everything under the node / expand / collapse |
+/// | Return ⌘↓ ⌫ ⌦ ⇧⌦ | File list: whatever the chosen preset says (`FileListKeyPreset`) |
 ///
 /// While an input method has marked text, every key without ⌘ goes to it (FE-068).
 enum KeyboardRouter {
@@ -66,6 +67,7 @@ enum KeyboardRouter {
 
         if let tab = focused as? TabItemView { return tabStripKey(event, tab: tab, c: c, mods: mods) }
         if let button = focused as? ChromeButton { return buttonKey(event, button: button, c: c, mods: mods) }
+        if FileListKeys.handle(event, in: c) { return true }
         if let grid = focused as? ItemGridView { return gridKey(event, grid: grid, mods: mods) }
         if let table = focused as? FileTableView { return DetailsFocusKeys.handle(event, table: table, mods: mods) }
         if let outline = focused as? NavOutlineView { return TreeKeys.handle(event, outline: outline, c: c, mods: mods) }

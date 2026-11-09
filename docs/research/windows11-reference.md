@@ -9,6 +9,7 @@ Version 0.1 · Compiled November 7, 2026 · Companion to `SPEC.md` (evidence rul
 | Label | Meaning | How to use it |
 |---|---|---|
 | **DOC** | Found in current Microsoft support, Learn, or Windows blog material. The source ID in brackets points to §17. | Treat as reference behavior, subject to the stated conditions. |
+| **SDK** | Windows API reference on Microsoft Learn (spec §2.1). It documents an API, which doesn't prove an Explorer surface uses it. | Evidence for what the API does; audit before claiming Explorer behaves that way. |
 | **ROLLOUT** | Insider, Release Preview, or "gradually rolling out" text. | Conditional. Verify on the pinned reference build before you build it as default. |
 | **RECALL** | Widely known Windows 11 behavior that I'm confident about but didn't find documented. **Unverified.** The suffix shows confidence: `RECALL-h` high, `RECALL-m` medium, `RECALL-l` low. | Candidate only. Each one needs a spec §2.3 observation record before anyone can claim parity. |
 
@@ -142,6 +143,20 @@ Additions on **This PC**: Map network drive · Disconnect network drive · Add a
 
 Right side, two toggle buttons: **Details** ("Displays information about each item in the window.") and **Large icons** ("Display items by using large thumbnails."). Status bar visibility follows Folder Options "Show status bar". Buttons: RECALL-h. Tooltips: RECALL-m.
 
+### 1.9 Address completion and shell names
+
+These describe the Windows API and the Run dialog. None of them says what the File Explorer address bar itself does.
+
+| Fact | Label |
+|---|---|
+| The system AutoComplete can show possible completions as a drop-down list below the edit box (AutoSuggest), and can separately append the completed text with the added characters highlighted (AutoAppend) | SDK [W29][W30] |
+| Unless `SHACF_USETAB` is set, Tab moves focus to the next control and closes the list | SDK [W29] |
+| `ACO_UPDOWNKEYDROPSLIST` makes the Up and Down arrows display the list | SDK [W30] |
+| Microsoft Support tells users to type `shell:startup`, `shell:common startup` and `shell:appsfolder` in the **Run** dialog | DOC [W31] |
+| Known folders have a non-localized canonical name, and the known folder IDs are listed by the SDK | SDK [W32][W33] |
+
+**Audit task (spec §2.3, open question 5).** Not found in any source, so nothing here claims it: whether the current address bar uses these flags, its row order, what the arrows, Return and Tab do there, and which `shell:` names the address bar accepts.
+
 ---
 
 ## 2. Navigation pane and tabs
@@ -247,6 +262,19 @@ Show more options from the navigation pane exists. A fixed bug confirmed this: *
 | Android phone deletes | Go to "Recycle bin – Connected device" on the phone and stay 30 days | DOC [W07] |
 
 ---
+
+### 3.5 Libraries
+
+Libraries are hidden in the navigation pane by default (§2.1). A library is a view into its folders; users act on the real files. **DOC [R23 in docs/SPEC.md]**: users can create libraries and choose their folders; name, locations, location order and the default save location are editable; default libraries can be hidden or deleted, but the Libraries node cannot; a save or copy to a library goes to its default save location; removing that location selects the next one; with no location that can be saved to, the save fails. **Library Description Schema (SDK)**: a library is one small XML file whose `folderType` "determines the columns and details" shown by default.
+
+| Item | Behavior | Evidence |
+|---|---|---|
+| New ▾ › Library on the Libraries page, proposed name "New Library" | Creates an empty library | RECALL-m |
+| Library Properties: "Optimize this library for" | General items, Documents, Pictures, Music, Videos (mirrors §10 Customize) | RECALL-m |
+| Libraries context menu: "Restore default libraries" | Re-creates missing defaults | RECALL-m |
+| Default columns and view per template | As §5.1 | RECALL (§5.1) |
+
+Windows refuses some locations because of indexing; Arbor reads folders directly and has no such refusal. An offline folder is reported as partial coverage.
 
 ## 4. Context menus (Windows 11 modern menu, 24H2/25H2)
 
@@ -884,6 +912,11 @@ All Microsoft first-party sources were retrieved November 7, 2026 unless marked 
 | W26 | [Insider build 22610](https://blogs.windows.com/windows-insider/2022/04/29/announcing-windows-11-insider-preview-build-22610/) | excerpt (HIST) | "Add to Favorites" on file menu |
 | W27 | [Insider build 22631.2048](https://blogs.windows.com/windows-insider/2023/07/13/announcing-windows-11-insider-preview-build-22621-2048-and-22631-2048/) | excerpt (HIST) | Gallery "Add Phone Photos" |
 | W28 | [Restore deleted files or folders in OneDrive](https://support.microsoft.com/en-us/office/restore-deleted-files-or-folders-in-onedrive-949ada80-0026-4db3-a953-c99083e6a84f) | excerpt (DOC) | Recycle Bin "Restore" returns item to original folder |
+| W29 | [SHAutoComplete function](https://learn.microsoft.com/en-us/windows/win32/api/shlwapi/nf-shlwapi-shautocomplete) (retrieved November 9, 2026) | SDK | §1.9 AutoSuggest, AutoAppend, Tab |
+| W30 | [AUTOCOMPLETEOPTIONS](https://learn.microsoft.com/en-us/windows/win32/api/shldisp/ne-shldisp-autocompleteoptions) (retrieved November 9, 2026) | SDK | §1.9 options |
+| W31 | [Configure startup applications in Windows](https://support.microsoft.com/en-us/windows/experience/startup-boot/configure-startup-applications-in-windows) (retrieved November 9, 2026) | DOC | §1.9 `shell:` names in the Run dialog |
+| W32 | [KNOWNFOLDER_DEFINITION](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/ns-shobjidl_core-knownfolder_definition) (retrieved November 9, 2026) | SDK | §1.9 canonical names |
+| W33 | [KNOWNFOLDERID](https://learn.microsoft.com/en-us/windows/win32/shell/knownfolderid) (retrieved November 9, 2026) | SDK | §1.9 folder IDs |
 
 Not found in current Microsoft documentation, so it stays RECALL:
 - Exact Sort/View/"…" menu order.

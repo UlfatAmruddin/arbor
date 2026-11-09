@@ -31,10 +31,11 @@ final class BrowserWindowController: NSWindowController, TabStripDelegate {
     var quickLookActive = false
     var navPaneRebuild: DispatchWorkItem?
 
-    /// The frontmost browser window (key, then main, then any).
+    /// The frontmost browser window: key, then main, then front-to-back, since an inactive app has neither.
     static var active: BrowserWindowController? {
         (NSApp.keyWindow?.windowController as? BrowserWindowController)
             ?? (NSApp.mainWindow?.windowController as? BrowserWindowController)
+            ?? NSApp.orderedWindows.lazy.compactMap { $0.windowController as? BrowserWindowController }.first
             ?? (NSApp.delegate as? AppDelegate)?.controllers.last
     }
 
@@ -158,6 +159,18 @@ final class BrowserWindowController: NSWindowController, TabStripDelegate {
         tabs.filter { $0 !== keep }.forEach { $0.pendingLoad?.cancel() }
         tabs = [keep]
         activeIndex = 0
+        reloadTabStrip()
+        updateChrome()
+    }
+
+    /// Swaps every tab at once (FE-027). Only the active one loads now; the others load when shown (FE-251).
+    func replaceTabs(with replacement: [TabState], activeIndex index: Int) {
+        guard !replacement.isEmpty else { return }
+        deactivate(activeTab)
+        tabs.forEach { $0.pendingLoad?.cancel() }
+        tabs = replacement
+        activeIndex = min(max(index, 0), tabs.count - 1)
+        activate(activeTab)
         reloadTabStrip()
         updateChrome()
     }

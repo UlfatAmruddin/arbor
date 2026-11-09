@@ -282,6 +282,7 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
         }
         func node(_ title: String, level: Int) -> NSView {
             let icon = NSImageView(image: IconProvider.shared.folderIcon(size: 16))
+            icon.hideFromAccessibility()   // the row's title says it
             icon.widthAnchor.constraint(equalToConstant: 16).isActive = true
             icon.heightAnchor.constraint(equalToConstant: 16).isActive = true
             let text = label(title)
@@ -394,7 +395,7 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
     /// The "this folder" line on the View page and whether Apply to Folders can run.
     func refreshFolderViewsInfo() {
         let info = origin.flatMap { FolderViews.shared.info(for: $0) }
-        applyToFoldersButton.isEnabled = info != nil
+        applyToFoldersButton.isEnabled = info?.canApplyToFolders == true
         resetFoldersButton.isEnabled = FolderViews.shared.hasSavedViews
         if let info {
             let type = info.chosen ? L10n.format("%@ (set in Properties)", "\(info.template.title)") : L10n.format("%@ folder type", "\(info.template.title)")
@@ -527,6 +528,7 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
             return
         }
         guard let list = buttons[key] else { NSLog("Folder Options: no control \(key)"); return }
+        if let last = list.last { last.scrollToVisible(last.bounds) }   // so `fosnapshot:` shows the control that was set
         switch value {
         case .bool(let on):
             if let b = list.first, (b.state == .on) != on, b.isEnabled { b.performClick(nil) }

@@ -52,7 +52,7 @@ public final class TextContent {
         var st = stat()
         guard lstat(url.path, &st) == 0 else { return .unreadable }
         guard st.st_mode & S_IFMT == S_IFREG else { return .notText }   // FIFOs, devices, sockets, symlinks
-        if st.st_flags & 0x4000_0000 != 0 { return .notDownloaded }   // SF_DATALESS: a cloud placeholder
+        if st.isDataless { return .notDownloaded }
         let byteCount = size ?? Int64(st.st_size)
         guard byteCount <= Int64(maxBytes) else { return .tooLarge }
         guard let handle = FileHandle.openRegularFile(atPath: url.path) else { return .unreadable }
@@ -69,6 +69,11 @@ public final class TextContent {
     }
 }
 
+extension stat {
+    /// SF_DATALESS: a cloud placeholder, which reading would download.
+    var isDataless: Bool { st_flags & 0x4000_0000 != 0 }
+}
+
 extension FileHandle {
     /// Opens only a regular file: never follows a symlink, and a FIFO or device can't block the open.
     static func openRegularFile(atPath path: String) -> FileHandle? {
@@ -79,5 +84,13 @@ extension FileHandle {
         // Re-check the opened item: it may have been swapped since lstat.
         guard fstat(fd, &st) == 0, st.st_mode & S_IFMT == S_IFREG else { Darwin.close(fd); return nil }
         return FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+    }
+
+    /// Reads a small file named by the user or another app. Follows a symlink; nil unless it ends at a regular file within `maxBytes`.
+    static func readRegularFile(at url: URL, maxBytes: Int) throws -> Data? {
+        guard let handle = openRegularFile(atPath: url.resolvingSymlinksInPath().path) else { return nil }
+        defer { try? handle.close() }
+        guard let data = try handle.read(upToCount: maxBytes + 1), data.count <= maxBytes else { return nil }
+        return data
     }
 }

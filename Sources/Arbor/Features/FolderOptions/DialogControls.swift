@@ -205,6 +205,7 @@ final class GroupBoxView: NSView {
             icon.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
                 .withSymbolConfiguration(.init(pointSize: 22, weight: .light))
             icon.contentTintColor = Theme.accent
+            icon.hideFromAccessibility()   // the group box's caption says it
             icon.translatesAutoresizingMaskIntoConstraints = false
             addSubview(icon)
             NSLayoutConstraint.activate([

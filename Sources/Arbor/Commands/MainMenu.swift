@@ -14,6 +14,10 @@ enum MainMenu {
         let appCommands = CommandRegistry.shared.entries(in: .mainMenu(appName))
         appCommands.forEach { app.addItem(CommandDispatcher.shared.menuItem($0.command, context: nil)) }
         if !appCommands.isEmpty { app.addItem(.separator()) }
+        let services = NSMenu(title: L10n.tr("Services"))
+        NSApp.servicesMenu = services   // AppKit fills it
+        app.addItem(parent(L10n.tr("Services"), services))
+        app.addItem(.separator())
         app.addItem(plain(L10n.format("Hide %@", appName), #selector(NSApplication.hide(_:)), "h"))
         app.addItem(plain(L10n.tr("Hide Others"), #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]))
         app.addItem(plain(L10n.tr("Show All"), #selector(NSApplication.unhideAllApplications(_:))))

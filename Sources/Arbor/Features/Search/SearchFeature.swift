@@ -128,12 +128,7 @@ enum SearchFeature: ExplorerFeature {
 
         // dropdownsnap:/out.png — renders the recent-searches dropdown.
         DebugScript.registerStep("dropdownsnap") { path, window in
-            guard let view = ExplorerSearchController.controller(for: window)?.dropdownView else { return nil }
-            view.layoutSubtreeIfNeeded()
-            guard view.bounds.width > 0, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }
-            view.cacheDisplay(in: view.bounds, to: rep)
-            try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
-            return 0.3
+            ExplorerSearchController.controller(for: window)?.dropdownPanel.writeSnapshot(to: path) == true ? 0.3 : nil
         }
     }
 
