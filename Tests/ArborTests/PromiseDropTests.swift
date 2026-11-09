@@ -5,7 +5,8 @@ import Testing
 @testable import ArborCore
 
 /// The drop rules with a real AppKit promise on a private pasteboard (a real drag can't run in a test).
-@Suite("File promise drops")
+// One at a time: pasteboard names are reused once released, and the pasteboard server is slow on shared machines.
+@Suite("File promise drops", .serialized)
 struct PromiseDropTests {
     private final class Provider: NSObject, NSFilePromiseProviderDelegate {
         func filePromiseProvider(_ provider: NSFilePromiseProvider, fileNameForType fileType: String) -> String { "../promised.txt" }
