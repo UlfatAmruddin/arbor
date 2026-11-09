@@ -93,7 +93,10 @@ EOF
 fi
 
 # --- Developer ID path -------------------------------------------------------------------------
-if ! security find-identity -v -p codesigning | grep -qF "\"$IDENTITY\""; then
+# A rehearsal identity is self-signed and named by its hash, so the system never calls it valid.
+if [ "$REHEARSAL" = 1 ]; then
+  security find-identity -p codesigning | grep -qF "$IDENTITY" || { echo "sign-and-notarize.sh: rehearsal identity not found" >&2; exit 1; }
+elif ! security find-identity -v -p codesigning | grep -qF "\"$IDENTITY\""; then
   echo "sign-and-notarize.sh: signing identity not found in the keychain: $IDENTITY" >&2
   echo "  (security find-identity -v -p codesigning lists the available ones)" >&2
   exit 1

@@ -642,7 +642,7 @@ if want addresshandoff; then
   check "the answer closes the question" "$R/a2.txt" "sheet: false"
   contains "the choice is recorded" "$R/a2.txt" "| accepted"
   contains "accepting opens the app" "$R/a2.txt" "system open: launch Font Book"
-  contains "Terminal's question names the folder" "$R/a3.txt" "Arbor will open Terminal in “$K”"
+  contains "Terminal's question names the folder" "$R/a3.txt" "Arbor will open Terminal in “${K}”"
   contains "Terminal opens at the current folder" "$R/a4.txt" "Terminal at $K"
   contains "control opens System Settings" "$R/a5.txt" "launch System Settings"
   contains "taskmgr opens Activity Monitor, whatever its case" "$R/a5.txt" "launch Activity Monitor"

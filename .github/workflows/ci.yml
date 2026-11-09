@@ -84,12 +84,9 @@ jobs:
           rm -f "$work/key.pem"
           scripts/ci-import-certificate.sh "$work/identity.p12"
 
-          # A real Developer ID chains to Apple; this certificate is valid only once the runner is told to trust it.
-          sudo security authorizationdb write com.apple.trust-settings.admin allow
-          sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$work/certificate.pem"
-          sudo security authorizationdb remove com.apple.trust-settings.admin
-
-          DEVELOPER_ID_APPLICATION="$REHEARSAL_IDENTITY" scripts/sign-and-notarize.sh --rehearsal
+          # Named by hash: macOS denies trusting this certificate, and codesign finds an untrusted identity only that way.
+          hash="$(/usr/bin/openssl x509 -noout -fingerprint -sha1 -in "$work/certificate.pem" | cut -d= -f2 | tr -d :)"
+          DEVELOPER_ID_APPLICATION="$hash" scripts/sign-and-notarize.sh --rehearsal
 
           dmg="build/Arbor-$(tr -d '[:space:]' < VERSION).dmg"
           codesign --verify --strict --verbose=2 build/Arbor.app

@@ -35,13 +35,12 @@ Files: `VERSION`, `scripts/build-app.sh`, `scripts/make-dmg.sh`, `scripts/dmg-la
 - **DEC-distribution-8** The release workflow creates a **draft** release, so a maintainer checks the download before publishing.
 - **DEC-distribution-9** Vulnerabilities are reported through GitHub's private vulnerability reporting (no email address is published); it has to be turned on in the repository settings.
 - **DEC-distribution-10** CI uses the `macos-26` runner so it compiles with the same Swift version (6.2+) the project is developed with.
-- **DEC-distribution-11** The signing rehearsal uses a certificate generated in the job, trusted on that runner only, and `--rehearsal` skips everything of Apple's (secure timestamp, notarization). No secret is involved, so it also runs for pull requests, and nothing outside GitHub can make it fail. It refuses to run without an identity, because the ad-hoc fallback would pass while proving nothing.
+- **DEC-distribution-11** The signing rehearsal uses a certificate generated in the job and named by its hash (macOS refuses to trust it, even on a runner), and `--rehearsal` skips everything of Apple's (secure timestamp, notarization). No secret is involved, so it also runs for pull requests, and nothing outside GitHub can make it fail. It refuses to run without an identity, because the ad-hoc fallback would pass while proving nothing.
 - **DEC-distribution-12** Both workflows import their identity through `scripts/ci-import-certificate.sh`, so the rehearsal runs the release's own import. The script refuses to run outside a GitHub-hosted runner, because it replaces the keychain search list.
 
 ## Known gaps
 
 - Finder's rendering of the disk image window (background, icon positions, window size) has not been seen; check it once by opening the image (RELEASING.md, step 3).
 - Real Developer ID signing, Apple's timestamp, notarization, stapling and Gatekeeper's verdict have never run: they need an Apple Developer account. The release workflow has never run either.
-- The rehearsal's trust step relies on `sudo` and `security authorizationdb` behaving on the runner as they are commonly reported to. It can't be tried on a developer Mac; if it fails, the first CI run will show it in that step.
 - The release notes say "Signed with a Developer ID and notarized" whenever `DEVELOPER_ID_CERTIFICATE_P12` is set, even if the other secrets are missing. RELEASING.md requires all six.
 - No in-app update mechanism (none planned; Homebrew or a new download updates the app).
