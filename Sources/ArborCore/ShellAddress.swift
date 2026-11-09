@@ -1,13 +1,19 @@
 import Foundation
 
-/// Windows `shell:` folder names mapped to Mac places (FE-213); a constant table, so typed text never starts anything.
+/// Windows `shell:` folder names mapped to Mac places (FE-213); constant tables, so typed text never starts anything.
 public enum ShellAddress {
     public enum Outcome: Equatable {
         case place(Location)
         /// Home's Recent list is the real counterpart.
         case recentFiles
+        case handoff(AddressHandoffTarget)
         case noCounterpart(String)
         case unknown(String)
+    }
+
+    public enum CommandOutcome: Equatable {
+        case handoff(AddressHandoffTarget)
+        case refused(String)
     }
 
     private enum Target: Sendable {
@@ -40,12 +46,7 @@ public enum ShellAddress {
         (["mycomputerfolder"], .place(.thisMac)),
         (["networkplacesfolder"], .place(.network)),
         (["libraries"], .place(.library(LibraryLogic.rootName))),
-        (["controlpanelfolder"], .noCounterpart { L10n.tr("Macs have no Control Panel. Use System Settings instead.") }),
-        (["printersfolder"], .noCounterpart { L10n.tr("Printers are in System Settings ▸ Printers & Scanners.") }),
-        (["connectionsfolder"], .noCounterpart { L10n.tr("Network connections are in System Settings ▸ Network.") }),
-        (["startup", "common startup"], .noCounterpart { L10n.tr("Startup items are in System Settings ▸ General ▸ Login Items.") }),
         (["start menu", "programs", "common programs"], .noCounterpart { L10n.tr("Macs have no Start menu. Apps are in the Applications folder.") }),
-        (["fonts"], .noCounterpart { L10n.tr("Fonts are managed in Font Book.") }),
         (["sendto"], .noCounterpart { L10n.tr("Macs have no Send to folder.") }),
         (["windows", "system", "programfiles"], .noCounterpart { L10n.tr("This Windows system folder has no Mac counterpart.") }),
     ]
@@ -60,6 +61,7 @@ public enum ShellAddress {
         if name.isEmpty { return .noCounterpart(L10n.tr("Type a name after “shell:”, for example shell:downloads.")) }
         if name.hasPrefix("::") { return .noCounterpart(L10n.tr("Windows folder IDs aren't supported. Try a name such as shell:downloads.")) }
         let key = name.lowercased()
+        if let handoff = AddressHandoffTarget.forShellName(key) { return .handoff(handoff) }
         guard let target = table.first(where: { $0.names.contains(key) })?.target else { return .unknown(echoed(name)) }
         switch target {
         case .homeFolder: return .place(.folder(homeDirectory))
@@ -71,20 +73,32 @@ public enum ShellAddress {
         }
     }
 
-    private static let commandWords: Set<String> = [
-        "cmd", "powershell", "pwsh", "wt", "notepad", "calc", "mspaint", "regedit", "control", "taskmgr", "explorer",
-    ]
+    /// Words with no sensible Mac tool; the ones that have one are in `AddressHandoffTarget.table`.
+    private static let commandWords: Set<String> = ["notepad", "calc", "mspaint", "regedit", "explorer"]
     private static let commandSuffixes = [".exe", ".bat", ".cmd", ".ps1", ".msi"]
 
     /// Whether a bare first word looks like a Windows program; path-shaped text keeps the resolver's own error.
-    public static func isWindowsCommand(_ text: String) -> Bool {
+    static func isWindowsCommand(_ text: String) -> Bool {
         guard let word = PathResolver.unquoted(text).split(whereSeparator: \.isWhitespace).first?.lowercased(),
               !word.contains("/"), !word.contains("\\"), !word.hasPrefix("~") else { return false }
-        return commandWords.contains(word) || commandSuffixes.contains(where: word.hasSuffix)
+        return commandWords.contains(word) || AddressHandoffTarget.forWord(word) != nil || commandSuffixes.contains(where: word.hasSuffix)
+    }
+
+    /// nil unless the text starts with a Windows command word. A hand-off needs the word alone: extra text is refused, never passed on.
+    public static func commandOutcome(for text: String) -> CommandOutcome? {
+        guard isWindowsCommand(text) else { return nil }
+        let words = PathResolver.unquoted(text).split(whereSeparator: \.isWhitespace)
+        guard let word = words.first?.lowercased(), let target = AddressHandoffTarget.forWord(word) else {
+            return .refused(commandMessage(for: text))
+        }
+        guard words.count == 1 else {
+            return .refused(L10n.format("Arbor doesn't pass typed text to other apps. Type “%@” on its own to open %@.", word, target.appName))
+        }
+        return .handoff(target)
     }
 
     /// Stays true when the user meant a folder called `control`.
-    public static func commandMessage(for text: String) -> String {
+    static func commandMessage(for text: String) -> String {
         L10n.format("Can't find “%@”. Arbor doesn't run commands from the address bar.", echoed(PathResolver.unquoted(text)))
     }
 

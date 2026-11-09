@@ -439,7 +439,33 @@ PY
   contains "archives are read-only: Rename/Delete/Paste off inside" "$R/b.txt" "file.rename(off)"
   fact "a member with ../ was not written outside" test ! -e "$R/escaped.txt" -a ! -e "$R/out/../escaped.txt" -a ! -e /abs.txt
   fact "the safe member was extracted" sh -c "find '$R/out' -name ok.txt | grep -q ."
-  finish "RAR extraction untested (no fixture can be made with built-in tools)"
+  # A stored RAR5 written byte by byte: the rar tool isn't available, so compressed members can't be made.
+  /usr/bin/python3 -I - "$R/fx/set.rar" <<'PY'
+import struct, sys, zlib
+def vint(v):
+    out = bytearray()
+    while True:
+        low, v = v & 0x7F, v >> 7
+        out.append(low | 0x80 if v else low)
+        if not v:
+            return bytes(out)
+def header(kind, body, data=None):
+    inner = vint(kind) + vint(0 if data is None else 2) + (b"" if data is None else vint(len(data))) + body
+    sized = vint(len(inner)) + inner
+    return struct.pack("<I", zlib.crc32(sized)) + sized + (data or b"")
+def member(name, data):
+    fields = vint(6) + vint(len(data)) + vint(0o100644) + struct.pack("<II", 1741350620, zlib.crc32(data))
+    return header(2, fields + vint(0) + vint(1) + vint(len(name)) + name, data)
+with open(sys.argv[1], "wb") as out:
+    out.write(b"Rar!\x1a\x07\x01\x00" + header(1, vint(0)) + member(b"inner.txt", b"from rar\n")
+              + member(b"../rar-escaped.txt", b"outside") + header(5, vint(0)))
+PY
+  run "$R/fx" "wait:1;location:archive?file=$K/fx/set.rar&inner=;wait:1.5;log:$R/d.txt;location:$R/fx;wait:1;select:set.rar;click:archive.extractAll;wait:1;sheetpath:$R/rarout;sheetshow:off;button:Extract;wait:3;log:$R/e.txt;quit"
+  check "a RAR opens as a folder" "$R/d.txt" "rows: inner.txt"
+  contains "and is read-only: Rename off inside" "$R/d.txt" "file.rename(off)"
+  fact "the RAR's safe member was extracted with the right bytes" sh -c "[ \"\$(cat '$R/rarout/inner.txt' 2>/dev/null)\" = 'from rar' ]"
+  fact "its ../ member was not written outside" test ! -e "$R/rar-escaped.txt" -a ! -e "$R/fx/rar-escaped.txt"
+  finish "compressed RAR members rely on the system libarchive: stored RAR4/RAR5 only, as compressed ones need the rar tool"
 fi
 
 if want T26; then

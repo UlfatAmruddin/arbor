@@ -614,10 +614,10 @@ if want address; then
   lacks "a late result opens no list" "$R/k.txt" "completions: shown"
   contains "the next keystroke uses the late result" "$R/k2.txt" "$S highlight=- footer=no listings=1 text=$P/Alp"
 
-  run "$R" "$P" "wait:1;address:shell:downloads;wait:1;log:$R/l.txt;address:shell:controlpanelfolder;wait:0.5;log:$R/l.txt;addresscompletions:$R/l2.txt;address:shell:cmd-nope;wait:0.3;log:$R/l.txt;location:$P;wait:1;address:cmd;wait:1;log:$R/l3.txt;address:notepad;wait:0.5;log:$R/l3.txt;quit" CFFIXED_USER_HOME="$R/home"
+  run "$R" "$P" "wait:1;address:shell:downloads;wait:1;log:$R/l.txt;address:shell:sendto;wait:0.5;log:$R/l.txt;addresscompletions:$R/l2.txt;address:shell:cmd-nope;wait:0.3;log:$R/l.txt;location:$P;wait:1;address:cmd;wait:1;log:$R/l3.txt;address:notepad;wait:0.5;log:$R/l3.txt;quit" CFFIXED_USER_HOME="$R/home"
   contains "shell:downloads opens the Mac folder" "$R/l.txt" "$R/home/Downloads  view: details"
-  contains "no counterpart: says where to look" "$R/l.txt" "Macs have no Control Panel"
-  contains "no counterpart: the text stays editable" "$R/l2.txt" "text=shell:controlpanelfolder"
+  contains "no counterpart: says so" "$R/l.txt" "Macs have no Send to folder"
+  contains "no counterpart: the text stays editable" "$R/l2.txt" "text=shell:sendto"
   contains "an unknown name is named" "$R/l.txt" "doesn't know the shell name “cmd-nope”"
   contains "a real folder wins over a command word" "$R/l3.txt" "/F/cmd  view: details"
   contains "a command word is refused, not run" "$R/l3.txt" "doesn't run commands from the address bar"
@@ -626,6 +626,63 @@ if want address; then
   lacks "a missing path is not called a command" "$R/l4.txt" "doesn't run commands from the address bar"
   check "typed text is never run" "$R/l3.txt" "system open: none"
   discard address "$R"
+fi
+
+# address-entry.md: a typed word opens another app only after a visible yes, and nothing typed is passed on.
+if want addresshandoff; then
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/W/taskmgr"
+  echo 1 > "$R/F/a.txt"; (cd "$R/F" && /usr/bin/zip -q kit.zip a.txt)
+  P=$(cd "$R/F" && pwd -P); K=${P#/private}
+  SETTINGS="Open System Settings"
+
+  run "$R" "$P" "wait:1;address:shell:fonts;wait:0.5;log:$R/a1.txt;button:Open Font Book;wait:0.5;log:$R/a2.txt;address:cmd;wait:0.5;log:$R/a3.txt;button:Open Terminal;wait:0.5;log:$R/a4.txt;address:control;wait:0.5;button:$SETTINGS;wait:0.5;address:TaskMgr.EXE;wait:0.5;button:Open Activity Monitor;wait:0.5;address:shell:printersfolder;wait:0.5;button:$SETTINGS;wait:0.5;log:$R/a5.txt;quit"
+  check "the question is up" "$R/a1.txt" "sheet: true"
+  check "nothing starts before the answer" "$R/a1.txt" "system open: none"
+  contains "the question names the app" "$R/a1.txt" "asked Open Font Book? Arbor will open Font Book."
+  check "the answer closes the question" "$R/a2.txt" "sheet: false"
+  contains "the choice is recorded" "$R/a2.txt" "| accepted"
+  contains "accepting opens the app" "$R/a2.txt" "system open: launch Font Book"
+  contains "Terminal's question names the folder" "$R/a3.txt" "Arbor will open Terminal in “$K”"
+  contains "Terminal opens at the current folder" "$R/a4.txt" "Terminal at $K"
+  contains "control opens System Settings" "$R/a5.txt" "launch System Settings"
+  contains "taskmgr opens Activity Monitor, whatever its case" "$R/a5.txt" "launch Activity Monitor"
+  contains "a shell name can open one settings pane" "$R/a5.txt" "open x-apple.systempreferences:com.apple.Print-Scan-Settings.extension"
+
+  run "$R" "$P" "wait:1;address:shell:fonts;wait:0.5;button:Cancel;wait:0.5;log:$R/b1.txt;addresscompletions:$R/b2.txt;address:cmd;wait:0.5;sheetkey:return;wait:0.5;log:$R/b3.txt;sheetkey:escape;wait:0.5;log:$R/b4.txt;address:taskmgr;wait:0.5;log:$R/b5.txt;quit"
+  check "Cancel closes the question" "$R/b1.txt" "sheet: false"
+  check "Cancel starts nothing" "$R/b1.txt" "system open: none"
+  contains "Cancel is recorded" "$R/b1.txt" "| declined"
+  contains "Cancel leaves the text to edit" "$R/b2.txt" "text=shell:fonts"
+  check "Return can't answer the question" "$R/b3.txt" "sheet: true"
+  check "Return starts nothing" "$R/b3.txt" "system open: none"
+  check "Escape answers Cancel" "$R/b4.txt" "sheet: false"
+  check "Escape starts nothing" "$R/b4.txt" "system open: none"
+  check "the next word asks again" "$R/b5.txt" "sheet: true"
+
+  run "$R" "$P" "wait:1;address:cmd /c x;wait:0.3;log:$R/c1.txt;address:control foo;wait:0.3;log:$R/c2.txt;address:powershell -File evil.ps1;wait:0.3;log:$R/c3.txt;address:shell:fonts extra;wait:0.3;log:$R/c4.txt;address:notepad;wait:0.3;log:$R/c5.txt;quit"
+  for f in c1 c2 c3 c4 c5; do
+    check "refused: no question ($f)" "$R/$f.txt" "sheet: false"
+    check "refused: nothing starts ($f)" "$R/$f.txt" "system open: none"
+    check "refused: nothing is asked ($f)" "$R/$f.txt" "address handoff: none"
+  done
+  contains "extra text is refused and says why" "$R/c1.txt" "Arbor doesn't pass typed text to other apps. Type “cmd” on its own to open Terminal."
+  contains "the same for control" "$R/c2.txt" "Type “control” on its own to open System Settings."
+  contains "extra text after a shell name is not that name" "$R/c4.txt" "doesn't know the shell name “fonts extra”"
+  contains "a word with no Mac tool keeps its message" "$R/c5.txt" "doesn't run commands from the address bar"
+
+  run "$R" "$P" "wait:1;location:trash;wait:1;address:cmd;wait:0.5;log:$R/v1.txt;location:network;wait:1;address:wt;wait:0.5;log:$R/v2.txt;location:home;wait:1;address:pwsh;wait:0.5;log:$R/v3.txt;location:archive?file=$P/kit.zip&inner=;wait:1.5;address:powershell;wait:0.5;log:$R/v4.txt;location:trash;wait:1;address:shell:fonts;wait:0.5;log:$R/v5.txt;quit"
+  contains "the Trash says why not" "$R/v1.txt" "Terminal can't open in the Trash"
+  contains "Network says why not" "$R/v2.txt" "this network place isn't a folder"
+  contains "Home says why not" "$R/v3.txt" "Terminal needs a real folder"
+  contains "an archive says why not" "$R/v4.txt" "Terminal can't open inside an archive"
+  for f in v1 v2 v3 v4; do check "virtual place: no question ($f)" "$R/$f.txt" "sheet: false"; check "virtual place: nothing starts ($f)" "$R/$f.txt" "system open: none"; done
+  check "a tool that needs no folder still asks from a virtual place" "$R/v5.txt" "sheet: true"
+
+  W=$(cd "$R/W" && pwd -P)
+  run "$R" "$W" "wait:1;address:taskmgr;wait:1;log:$R/w.txt;quit"
+  contains "a real folder wins over a hand-off word" "$R/w.txt" "/W/taskmgr  view: details"
+  check "the folder asked nothing" "$R/w.txt" "address handoff: none"
+  discard addresshandoff "$R"
 fi
 
 # address-entry.md: addresses survive a relaunch, a bad file is harmless, Clear history erases them, and no run sees the real file.

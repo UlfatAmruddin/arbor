@@ -30,6 +30,10 @@ enum AddressEntryScriptSteps {
             pressStatusBar(of: c)
             return 0.2
         }
+        DebugScript.registerLogger("address-entry.handoff") { _ in
+            let record = AddressHandoffConfirmation.headlessRecord
+            return "address handoff: \(record.isEmpty ? "none" : record.joined(separator: " | "))"
+        }
     }
 
     private static func session(_ c: BrowserWindowController?) -> AddressCompletionController? {

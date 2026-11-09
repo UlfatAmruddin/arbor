@@ -63,6 +63,13 @@ enum SystemOpen {
         NSWorkspace.shared.openApplication(at: app, configuration: configuration, completionHandler: completion)
     }
 
+    /// Launches a Mac tool by its identifier. Returns false if it isn't installed.
+    static func openApplication(bundleIdentifier: String) -> Bool {
+        guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else { return false }
+        openApplication(at: app)
+        return true
+    }
+
     /// A Finder window with these items selected (Show in Finder).
     static func reveal(_ urls: [URL]) {
         if suppressed("reveal \(urls.map(\.path).joined(separator: ", "))") { return }

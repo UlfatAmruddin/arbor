@@ -11,9 +11,9 @@ Code: `Sources/ArborCore/Archives/` (logic, unit-tested in `Tests/ArborCoreTests
 | FE-163 | ZIP browsing and extraction | **Implemented.** `.zip` opens as a folder (`.archive(file, inner)`); subfolders, breadcrumb `Archive.zip > folder` with chevrons listing folders inside the archive, Up leaves to the containing folder with the archive selected. Explorer's ZIP columns appear only inside ZIPs: Compressed size, Password protected, Ratio. "Extract all" in the command bar (archive selected or inside one), "Extract All…" in the item and background menus and File menu. Wizard: "Select a Destination and Extract Files", "Files will be extracted to this folder:", Browse…, "Show extracted files when complete" (opens the folder in a new tab). Individual members: Open (read-only temporary copy, status bar says so), Open With ▸, Copy (extracts to a temporary folder and puts the files on the clipboard, so Paste anywhere uses the normal conflict rules), drag out (file promise, extracted only when dropped) | Unit tests; headless runs: browse, wizard, extract, copy + paste, promise write, open member, nested ZIP; snapshots light and dark |
 | FE-164 | ZIP creation | **Implemented.** Compress to ▸ ZIP File, Send to ▸ Compressed (zipped) folder, New ▸ Compressed (zipped) Folder (22-byte empty ZIP). Named after the first selected item (`report.docx` → `report.zip`, then `report (2).zip`), created next to it, then inline rename. Cancellable from the status bar. Undo moves the new archive to the Trash only if it hasn't changed | Unit tests (naming, round trip); headless runs (zip, 7z, tar, rename field, undo) |
 | FE-166 | 7z, TAR and compressed TAR | **Implemented.** Browse and extract: 7z, tar, tar.gz/tgz, tar.bz2/tbz2, tar.xz/txz, tar.zst/tzst, cpio. Create: 7z and TAR (Compress to ▸) | Unit tests (create + list + extract 7z/tar); headless runs |
-| FE-167 | RAR extraction | **Partial.** RAR (v4/v5) is read through the system libarchive like the other formats; never created. Not tested: no RAR fixture can be produced with built-in tools | — |
+| FE-167 | RAR extraction | **Implemented, read-only.** RAR4 and RAR5 are browsed and extracted through the system libarchive like the other formats and are never created. What that covers, what can't be checked here and what is refused: see "RAR variants" below | Unit tests (`RarArchiveTests`, real stored RAR4 and RAR5 archives built byte by byte by `TestRar`); acceptance T25 (a stored RAR5 opened and extracted in the app) |
 | FE-168 | Compression options | **Implemented.** Compress to ▸ Additional options opens "Create archive": Destination (Browse…), Archive name, Archive format (ZIP, 7z, TAR, TAR + gzip/BZip2/xz, single-file gzip/BZip2/xz), Compression method (ZIP: Deflate/Store; 7z: LZMA2/LZMA/BZip2/Deflate/Store), Compression level (Fastest/Normal/Maximum), "Include hidden files and folders". Written by bsdtar with `--options`; never overwrites (free name). No Zstandard (the system libarchive lacks it). Code: `ArborCore/Archives/ArchiveCreateOptions.swift`, `Features/FileOperations/CompressOptionsDialog.swift` | Unit tests (arguments, round trip per format with and without hidden items, store vs maximum, single-file gzip); headless runs, snapshots light + dark |
-| FE-169 | Encrypted archives | **Boundary, like Windows.** Encrypted ZIP members are detected (central directory flag) and shown with Password protected = Yes; opening or extracting them is refused with an explanation. Other formats report bsdtar's passphrase error | Unit test (flag) |
+| FE-169 | Encrypted archives | **Boundary, like Windows.** Encrypted ZIP members are detected (central directory flag) and shown with Password protected = Yes; opening or extracting them is refused with an explanation. RAR is read from its own headers (`RarHeaders`), because bsdtar lists encrypted RAR members as ordinary files. Other formats report bsdtar's passphrase error | Unit tests (flags, RAR headers) |
 | FE-170 | Archive safety | **Implemented.** See "Safety" below | Unit tests (sanitizer, planner, verifier, hostile ZIP end to end); headless hostile ZIP and zip-bomb runs |
 | FE-171 | Mount and eject ISO | **Implemented.** "Mount" for .iso/.dmg/.img/.cdr/.sparseimage/.sparsebundle/.toast (`hdiutil attach -plist`, argument array) then opens the volume; errors are shown. Double-clicking an ISO mounts it like Explorer; if macOS can't mount it, its contents are browsed read-only instead. DMG/IMG double-click goes to macOS (DiskImageMounter handles licenses and passwords). Eject is the core command | Headless run: ISO mounted and opened, broken DMG error; volume detached afterwards |
 | FE-173 | Metadata portability | **Implemented as documented behavior.** One item → ZIP via `ditto --sequesterRsrc`, which keeps Mac metadata (resource forks, extended attributes, Finder tags) in `__MACOSX` like Finder's Compress; extraction folds it back (libarchive's mac-ext). Several items, 7z and TAR are written by bsdtar without AppleDouble `._` members, so tags, resource forks and extended attributes are **not** kept; Unix permissions are. Extraction does not restore owners, file flags or ACLs; set-ID bits are cleared; folders stay owner-writable. A downloaded archive's quarantine attribute is copied to every extracted item | Unit tests (verifier, quarantine); listing checks |
@@ -26,6 +26,27 @@ Code: `Sources/ArborCore/Archives/` (logic, unit-tested in `Tests/ArborCoreTests
 4. **Staging**: extraction goes into a temporary folder on the destination's volume (`itemReplacementDirectory`), is verified there (a walk with `lstat` removes escaping links and special files), then moved in with `FileTransfer` and the app's conflict prompt (Keep Both default, Replace = Trash). Nothing is overwritten without a decision.
 5. **Expansion**: before writing, declared size vs free space (minus 256 MB) and a hard 1 TiB cap; ≥ 512 MB at ≥ 200× its size asks "Extract Anyway" (default Cancel). While extracting, a watchdog stops the tool if it writes 10% (min 64 MB) more than declared or the disk nearly fills, and the verifier rejects the result if actual bytes exceed that limit.
 6. Every tool runs through `Process` with an argument array and stdin from `/dev/null`; never a shell string.
+
+## RAR variants (FE-167)
+
+Checked against the system `bsdtar` (libarchive 3.7.4). No `rar` tool is available and no archive was taken from elsewhere: `Tests/ArborCoreTests/TestRar.swift` writes each archive byte by byte from the published formats, with real header CRCs.
+
+| Variant | Status | What happens |
+|---|---|---|
+| RAR4 and RAR5, stored (method 0), one file | **Verified** | Listing, nested and implied folders, sizes, dates (listing and restored on disk), exact bytes, selecting one folder |
+| Names: RAR4 Unicode field, RAR4 Windows `\` separators, RAR5 UTF-8 | **Verified** | Read and extracted under the right names. In RAR5 `\` is an ordinary character, so `..\x` is one harmless name |
+| Symbolic links; RAR5 hard links | **Verified** | Follow the normal link rules. libarchive lists RAR5 hard links as regular files, so `RarHeaders` tells the listing parser to read them as links. A regular file whose own name contains " link to " stays a file, because the headers name it |
+| Hostile names: `..`, absolute, `C:\`, links leading outside, FIFOs | **Verified** | Rejected by the planner like any other archive; nothing is written outside the destination |
+| Truncated file, corrupt header | **Verified** | The normal damage message: "may be damaged" with what could be listed, or an error when nothing could. RAR5 can stop quietly at the cut, so `RarHeaders` reports it; extraction refuses any damaged RAR |
+| Comment and other service blocks | **Verified** | Skipped |
+| Compressed members (methods 1–5, solid, RAR 2.9 filters), recovery records | **Relies on libarchive, unverified here** | Compressed data can't be produced without the `rar` tool, so correct unpacking isn't tested. Only that garbage in a compressed member fails with bsdtar's message and writes nothing to the destination |
+| Password-protected members | **Unsupported, listed and refused** | bsdtar lists them as ordinary files and would write the ciphertext. Any encrypted member marks the whole archive, because rows can't be matched reliably to headers |
+| Encrypted headers | **Unsupported, refused** | libarchive can't read past the header: "password-protected" message |
+| Multi-volume sets (the volume flag, or a member split across files) | **Unsupported, refused on open** | Clear message. libarchive reads one file only: split members came out cut short (RAR4 tail), zero-padded (RAR5) or missing |
+| RAR5 file copies and junctions | **Unsupported, refused on open** | libarchive writes them as empty files |
+| Names in a legacy code page, not valid UTF-8 | **Unsupported** | Listed with a replacement character; extraction fails with bsdtar's message |
+| RAR 1.4 and earlier (`RE~^` signature) | **Unsupported** | libarchive doesn't recognize the format |
+| Creating RAR | **Never offered** | Not in `ArchiveCreateFormat` or `ArchiveOutputFormat` |
 
 ## Decisions
 
@@ -42,6 +63,7 @@ Code: `Sources/ArborCore/Archives/` (logic, unit-tested in `Tests/ArborCoreTests
 | DEC-archives-9 | Zip-bomb thresholds: confirm at ≥ 512 MB and ≥ 200×; refuse > 1 TiB, or when space is short; stop when actual writes exceed declared + max(10%, 64 MB) | Legitimate archives rarely exceed 200× at that size; lying headers are always hostile |
 | DEC-archives-10 | Progress shows in the status bar (entries extracted / files compressed), cancellable with its ✕ | Uses the app's existing job surface; no fabricated byte ETA |
 | DEC-archives-11 | Type column inside archives comes from the extension (UTType) and is capitalized | The member isn't on disk, so the Finder "kind" isn't available (".txt" shows "Text", not "Plain Text Document") |
+| DEC-archives-12 | `RarHeaders` walks RAR headers (seeking over data, unpacking nothing) for encryption, volumes, hard links, references and early ends; encryption and refusals apply to the whole archive | bsdtar's listing can't report them and libarchive would otherwise write wrong files without an error. Matching rows to headers by name isn't reliable (legacy name encodings), and the mixed cases are rare. The one exception is RAR5 (always UTF-8): a "-" row reading "a link to b" counts as a hard link unless its whole text is a regular member's name, so a row that can't be matched still goes through the link checks |
 
 ## Shared-file changes (all additive)
 
@@ -62,7 +84,8 @@ zip-bomb confirmation takes the safe answer (Cancel).
 
 ## Known gaps
 
-- RAR untested (no fixture). Non-ZIP dates are minute-precise (bsdtar's listing).
+- Non-ZIP dates are minute-precise (bsdtar's listing).
+- RAR: libarchive checks header CRCs but not a stored member's data CRC, so a flipped byte in stored data extracts without an error. A file cut exactly between two blocks looks complete.
 - Promise drops are described in [promised-files.md](promised-files.md); the tab strip does not accept them. Right-button drags (ItemActions' DragPolish) skip archive members.
 - Properties on an archive member shows what the Properties feature can find for a path that isn't on disk. Drag-out to Finder was verified through the promise code path, not an interactive drag.
 - Quick Look and the Preview/Details panes don't show archive members (they have no file on disk).

@@ -202,15 +202,20 @@ public enum ArchiveTool {
 
     /// bsdtar's view of the names, which is what extraction patterns must match.
     public static func listWithBsdtar(_ url: URL, process: ToolProcess = ToolProcess()) throws -> Listing {
+        let rar = ArchiveFormat.detect(url) == .rar ? RarHeaders.traits(of: url) : RarHeaders.Traits()
+        if let refusal = rar.refusal { throw ArchiveError.unreadable(refusal) }
         let output = try process.run(bsdtar, ["-t", "-v", "--numeric-owner", "-f", url.path], stdoutLimit: listingByteLimit)
-        return try listing(from: output)
+        var result = try listing(from: output, unmarkedLinksExcept: rar.hasHardLinks ? rar.regularNamesLikeHardLinks : nil)
+        try rar.apply(to: &result)
+        return result
     }
 
     /// Turns bsdtar's output into a listing, enforcing the size and entry bounds.
-    static func listing(from output: ToolProcess.Output, maxLines: Int = ZipDirectory.maxEntries, maxPaths: Int = maxPaths) throws -> Listing {
+    static func listing(from output: ToolProcess.Output, maxLines: Int = ZipDirectory.maxEntries, maxPaths: Int = maxPaths,
+                        unmarkedLinksExcept: Set<String>? = nil) throws -> Listing {
         if output.wasCancelled { throw ArchiveError.cancelled }
         if output.stdoutOverflowed { throw ArchiveError.tooManyEntries }
-        var parsed = BsdtarListing.parse(String(decoding: output.stdout, as: UTF8.self), maxLines: maxLines)
+        var parsed = BsdtarListing.parse(String(decoding: output.stdout, as: UTF8.self), maxLines: maxLines, unmarkedLinksExcept: unmarkedLinksExcept)
         if parsed.exceededLimit { throw ArchiveError.tooManyEntries }
         let nothingReadable = parsed.entries.isEmpty
         // A row that can't be read still exists: an unsafe stand-in keeps it out of whole-folder extraction.
@@ -230,7 +235,10 @@ public enum ArchiveTool {
     /// Names for extraction plans: bsdtar's, renamed for Windows ZIPs (`ZipNames`), and whether "\" must be rewritten.
     public static func extractionListing(_ url: URL, process: ToolProcess = ToolProcess()) throws -> (listing: Listing, rewritesBackslashes: Bool) {
         var listing = try listWithBsdtar(url, process: process)
-        guard ArchiveFormat.detect(url) == .zip, (try? ZipDirectory.usesWindowsSeparators(url)) == true else { return (listing, false) }
+        let format = ArchiveFormat.detect(url)
+        // RAR reading can stop quietly at damage, which would write only part of the archive.
+        if format == .rar, let warning = listing.warning { throw ArchiveError.toolFailed(warning) }
+        guard format == .zip, (try? ZipDirectory.usesWindowsSeparators(url)) == true else { return (listing, false) }
         listing.entries = ZipNames.rewritten(listing.entries)
         return (listing, true)
     }

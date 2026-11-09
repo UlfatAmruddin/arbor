@@ -27,7 +27,7 @@ No Windows machine was used: "expected" behavior comes from the specification an
 | fail | 0 (T06, T08 and T10 first failed on app bugs, fixed below) |
 | not testable headless | 0 |
 
-166 individual checks passed in the final run of `scripts/acceptance.sh`.
+170 individual checks passed in the final run of `scripts/acceptance.sh`.
 
 ## Other suites run for this record
 
@@ -67,7 +67,7 @@ No Windows machine was used: "expected" behavior comes from the specification an
 | T22 | Remove a collection source/recent entry | pass | Remove from Recent removes the Home entry and the file stays; removing a folder from a library removes its items from the library view and leaves the files on disk | — |
 | T23 | Delete on nonrecycling provider | pass | With a Trash that can't take items, Move to Trash opens "Delete File": "This file can't be moved to the Trash. Do you want to permanently delete it?" with No as the default (snapshot read); No keeps the file; only Yes deletes it | — |
 | T24 | Same-name network shares | partial | `\\NAS-01\Public` and `smb://OFFICE-PC/Public/` open different folders, each breadcrumb names its own server, Back returns to the first server's share | Simulated servers; no real SMB server was available |
-| T25 | Extract/create each archive | partial | Compress to ZIP, 7z and TAR create the archives next to the items; the new ZIP opens as a folder; inside it Rename/Delete/Paste are off (archives are read-only); a ZIP with `../escaped.txt` and `/abs.txt` members extracts only the safe member and writes nothing outside the destination | RAR untested (no fixture can be made with built-in tools) |
+| T25 | Extract/create each archive | partial | Compress to ZIP, 7z and TAR create the archives next to the items; the new ZIP opens as a folder; inside it Rename/Delete/Paste are off (archives are read-only); a ZIP with `../escaped.txt` and `/abs.txt` members extracts only the safe member and writes nothing outside the destination; a hand-built stored RAR5 opens as a read-only folder, its safe member extracts with the right bytes and its `../` member is not written | Compressed RAR members rely on the system libarchive: only stored RAR4/RAR5 are exercised, as compressed ones need the `rar` tool |
 | T26 | Offline device/cloud disconnect | partial | A server that never answers shows "Loading “Data”…" while another tab browses a local folder normally; after the deadline an explicit "didn't respond in time" sheet with Retry; a disk image detached under an open tab moves the tab to This Mac instead of hanging | Simulated servers; real network loss and File Provider disconnects weren't run |
 | T27 | Keyboard and VoiceOver task sequence | partial | Keyboard only: type-to-select finds budget.txt, ⌘X, type "d" + Return opens Dest, ⌘V moves the file in, ⌘Z undoes the move, Delete goes Back: the file is back in its folder only; `axaudit:` reports 0 unnamed controls and 0 empty rows | VoiceOver itself wasn't run; the accessibility tree it reads was audited. Menu shortcuts are delivered with the `menukey:` step (headless windows are never key) |
 | T28 | Large directory and event churn | pass | A 20,000-file folder with one item selected; 2,000 files created and 1,000 deleted from outside while it is shown: status goes from "20,000 items" to "21,000 items", the selection survives, no main-thread stall during the churn (longest stall 57 ms while opening) | Larger folders (100,000 entries) are measured by `bench.sh` |

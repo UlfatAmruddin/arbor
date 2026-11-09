@@ -28,12 +28,15 @@ their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
   re-encoding. The picture itself isn't touched, the original goes to the Trash for Undo, and photos holding data a
   rewrite would lose stay read-only.
 - Clipboard: files copied in other apps paste as a copy, and Option-Command-V moves them here.
+- Address bar: Windows words such as `control`, `cmd` and `shell:Fonts` offer to open the matching Mac tool, after one
+  question. Anything typed after the word is refused, and typed text is never passed on.
 
 ### Removed
 - Properties no longer offers Unblock on downloaded files. It still says a file came from another computer, and
   macOS keeps checking the file before it opens.
 
 ### Files and reliability
+- RAR: encrypted, split and damaged archives now say so instead of extracting wrong or incomplete files.
 - Permanent delete stops at a volume mounted inside the folder instead of erasing it.
 - Items past the system's path limit are listed, and actions on them explain why they can't run.
 - Actions a location doesn't support say why instead of doing nothing.

@@ -147,6 +147,7 @@
 "Access-list entry · %@" = "Access-list entry · %@";
 "Access:" = "Access:";
 "Accessed:" = "Accessed:";
+"Activity Monitor" = "Activity Monitor";
 "Ad hoc (no certificate)" = "Ad hoc (no certificate)";
 "Add" = "Add";
 "Add a folder to Gallery" = "Add a folder to Gallery";
@@ -221,6 +222,7 @@
 "Arbor doesn't connect to Microsoft accounts or Office.com." = "Arbor doesn't connect to Microsoft accounts or Office.com.";
 "Arbor doesn't know the shell name “%@”." = "Arbor doesn't know the shell name “%@”.";
 "Arbor doesn't know what kind of item it is." = "Arbor doesn't know what kind of item it is.";
+"Arbor doesn't pass typed text to other apps. Type “%@” on its own to open %@." = "Arbor doesn't pass typed text to other apps. Type “%@” on its own to open %@.";
 "Arbor extras (File Explorer runs every transfer at once)" = "Arbor extras (File Explorer runs every transfer at once)";
 "Arbor isn't allowed to look for computers on your network." = "Arbor isn't allowed to look for computers on your network.";
 "Arbor keeps up to %d workspaces. Delete one to save another." = "Arbor keeps up to %d workspaces. Delete one to save another.";
@@ -230,6 +232,9 @@
 "Arbor runs every window in one process to keep memory use low." = "Arbor runs every window in one process to keep memory use low.";
 "Arbor shows “%@” read-only: copy or drag items out, or use Extract all." = "Arbor shows “%@” read-only: copy or drag items out, or use Extract all.";
 "Arbor uses this to choose columns and sorting for the folder. Finder doesn't use it." = "Arbor uses this to choose columns and sorting for the folder. Finder doesn't use it.";
+"Arbor will open %@ at %@. Nothing you typed is passed to it." = "Arbor will open %@ at %@. Nothing you typed is passed to it.";
+"Arbor will open %@ in “%@”. Nothing you typed is passed to it." = "Arbor will open %@ in “%@”. Nothing you typed is passed to it.";
+"Arbor will open %@. Nothing you typed is passed to it." = "Arbor will open %@. Nothing you typed is passed to it.";
 "Arbor's thumbnails don't carry a file-type badge yet." = "Arbor's thumbnails don't carry a file-type badge yet.";
 "Archive" = "Archive";
 "Archive format" = "Archive format";
@@ -632,7 +637,7 @@
 "Folders, pins, network drives and passwords aren't included." = "Folders, pins, network drives and passwords aren't included.";
 "Folders, pins, network drives, privacy and confirmation settings stay as they are." = "Folders, pins, network drives, privacy and confirmation settings stay as they are.";
 "Font" = "Font";
-"Fonts are managed in Font Book." = "Fonts are managed in Font Book.";
+"Font Book" = "Font Book";
 "Forward" = "Forward";
 "Forward (⌘])" = "Forward (⌘])";
 "Forward to “%@” (⌘])" = "Forward to “%@” (⌘])";
@@ -773,6 +778,7 @@
 "Location or name" = "Location or name";
 "Location:" = "Location:";
 "Location: %@" = "Location: %@";
+"Login Items" = "Login Items";
 "Longitude" = "Longitude";
 "Look for another app on this Mac…" = "Look for another app on this Mac…";
 "Looking for computers and devices on this network…" = "Looking for computers and devices on this network…";
@@ -785,7 +791,6 @@
 "Mac volumes have names, not drive letters." = "Mac volumes have names, not drive letters.";
 "Mac volumes have no NTFS compression or encryption attributes." = "Mac volumes have no NTFS compression or encryption attributes.";
 "Macs don't use drive letters. The drive appears under This Mac by its name, such as “Media (\\\\server)”." = "Macs don't use drive letters. The drive appears under This Mac by its name, such as “Media (\\\\server)”.";
-"Macs have no Control Panel. Use System Settings instead." = "Macs have no Control Panel. Use System Settings instead.";
 "Macs have no Send to folder." = "Macs have no Send to folder.";
 "Macs have no Start menu. Apps are in the Applications folder." = "Macs have no Start menu. Apps are in the Applications folder.";
 "Mail recipient" = "Mail recipient";
@@ -842,7 +847,6 @@
 "Network" = "Network";
 "Network Drive" = "Network Drive";
 "Network File and Folder Sharing" = "Network File and Folder Sharing";
-"Network connections are in System Settings ▸ Network." = "Network connections are in System Settings ▸ Network.";
 "Network device" = "Network device";
 "Network discovery is turned off." = "Network discovery is turned off.";
 "Network drive" = "Network drive";
@@ -932,6 +936,8 @@
 "Only the owner of this item or an administrator can change its permissions." = "Only the owner of this item or an administrator can change its permissions.";
 "Only the saved list of tabs is removed. No files or folders are affected." = "Only the saved list of tabs is removed. No files or folders are affected.";
 "Open" = "Open";
+"Open %@" = "Open %@";
+"Open %@?" = "Open %@?";
 "Open Arbor to:" = "Open Arbor to:";
 "Open Folder Options from a folder window to apply its view to similar folders." = "Open Folder Options from a folder window to apply its view to similar folders.";
 "Open Full Disk Access Settings" = "Open Full Disk Access Settings";
@@ -1006,7 +1012,7 @@
 "Preview pane" = "Preview pane";
 "Previewing it downloads the file from %@ to this Mac." = "Previewing it downloads the file from %@ to this Mac.";
 "Previous Versions" = "Previous Versions";
-"Printers are in System Settings ▸ Printers & Scanners." = "Printers are in System Settings ▸ Printers & Scanners.";
+"Printers & Scanners" = "Printers & Scanners";
 "Privacy" = "Privacy";
 "Privacy Settings…" = "Privacy Settings…";
 "Problem with Shortcut" = "Problem with Shortcut";
@@ -1276,7 +1282,6 @@
 "Start in:" = "Start in:";
 "Start now" = "Start now";
 "Startup disk" = "Startup disk";
-"Startup items are in System Settings ▸ General ▸ Login Items." = "Startup items are in System Settings ▸ General ▸ Login Items.";
 "Status" = "Status";
 "Status bar" = "Status bar";
 "Status unknown" = "Status unknown";
@@ -1298,6 +1303,7 @@
 "Syncing" = "Syncing";
 "Syncing (downloading)" = "Syncing (downloading)";
 "Syncing (uploading)" = "Syncing (uploading)";
+"System Settings" = "System Settings";
 "System files" = "System files";
 "System files and the contents of apps and other packages may be left out." = "System files and the contents of apps and other packages may be left out.";
 "TAR" = "TAR";
@@ -1313,6 +1319,11 @@
 "Target size:" = "Target size:";
 "Target:" = "Target:";
 "Team ID:" = "Team ID:";
+"Terminal" = "Terminal";
+"Terminal can't open here, because this network place isn't a folder on this Mac. Open a connected share first." = "Terminal can't open here, because this network place isn't a folder on this Mac. Open a connected share first.";
+"Terminal can't open in the Trash, which isn't one folder on this Mac." = "Terminal can't open in the Trash, which isn't one folder on this Mac.";
+"Terminal can't open inside an archive. Extract it to a folder first." = "Terminal can't open inside an archive. Extract it to a folder first.";
+"Terminal needs a real folder. Go to one first, then try again." = "Terminal needs a real folder. Go to one first, then try again.";
 "Text" = "Text";
 "Text Document" = "Text Document";
 "Text Size" = "Text Size";
@@ -1360,12 +1371,14 @@
 "The existing files go to the Trash." = "The existing files go to the Trash.";
 "The file being %@ will be named “%@”." = "The file being %@ will be named “%@”.";
 "The file changed after these properties were read, so nothing was written. They have been read again; make your changes again if you still want them." = "The file changed after these properties were read, so nothing was written. They have been read again; make your changes again if you still want them.";
+"The file ends before the archive does." = "The file ends before the archive does.";
 "The file is locked. Unlock it, then try again." = "The file is locked. Unlock it, then try again.";
 "The file is too large for the destination." = "The file is too large for the destination.";
 "The file isn't a valid ZIP archive." = "The file isn't a valid ZIP archive.";
 "The file or its folder can't be written to." = "The file or its folder can't be written to.";
 "The file or its previous version changed since the edit." = "The file or its previous version changed since the edit.";
 "The folder being %@ will be named “%@”." = "The folder being %@ will be named “%@”.";
+"The folder changed while Arbor was asking, so Terminal wasn't opened." = "The folder changed while Arbor was asking, so Terminal wasn't opened.";
 "The folder “%@” is locked." = "The folder “%@” is locked.";
 "The folder “%@” is locked. Unlock it in Get Info, then try again." = "The folder “%@” is locked. Unlock it in Get Info, then try again.";
 "The folder “%@” is no longer at the destination." = "The folder “%@” is no longer at the destination.";
@@ -1433,6 +1446,7 @@
 "They were moved, changed or removed." = "They were moved, changed or removed.";
 "This Internet shortcut doesn't contain an address." = "This Internet shortcut doesn't contain an address.";
 "This Mac" = "This Mac";
+"This RAR archive stores some files as references to other files, which Arbor can't extract." = "This RAR archive stores some files as references to other files, which Arbor can't extract.";
 "This Windows shortcut is damaged, so Arbor won't use it." = "This Windows shortcut is damaged, so Arbor won't use it.";
 "This Windows system folder has no Mac counterpart." = "This Windows system folder has no Mac counterpart.";
 "This address contains a user name or password, which can disguise where it really goes, so Arbor won't open it." = "This address contains a user name or password, which can disguise where it really goes, so Arbor won't open it.";
@@ -1468,6 +1482,7 @@
 "This folder: “%@” · %@ · %@" = "This folder: “%@” · %@ · %@";
 "This image has too many pixels to verify a change safely." = "This image has too many pixels to verify a change safely.";
 "This is a symbolic link to a Windows shortcut. Open the shortcut itself instead." = "This is a symbolic link to a Windows shortcut. Open the shortcut itself instead.";
+"This is one part of a multi-volume RAR archive. Arbor can only read RAR archives that are a single file." = "This is one part of a multi-volume RAR archive. Arbor can only read RAR archives that are a single file.";
 "This isn't a valid web address." = "This isn't a valid web address.";
 "This isn't an Arbor settings file." = "This isn't an Arbor settings file.";
 "This item isn't signed." = "This item isn't signed.";

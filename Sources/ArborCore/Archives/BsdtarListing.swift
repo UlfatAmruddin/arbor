@@ -11,7 +11,14 @@ public enum BsdtarListing {
         public var exceededLimit = false
     }
 
-    public static func parse(_ text: String, now: Date = Date(), timeZone: TimeZone = .current, maxLines: Int = .max) -> Result {
+    /// How bsdtar joins a hard link's name and target.
+    static let hardLinkSeparator = " link to "
+
+    static func readsLikeHardLink<S: StringProtocol>(_ row: S) -> Bool { row.range(of: hardLinkSeparator) != nil }
+
+    /// `unmarkedLinksExcept`: set when bsdtar lists the archive's hard links as regular files (RAR5); holds the real files that read like one.
+    public static func parse(_ text: String, now: Date = Date(), timeZone: TimeZone = .current, maxLines: Int = .max,
+                             unmarkedLinksExcept: Set<String>? = nil) -> Result {
         var result = Result(entries: [], malformedLines: 0)
         var lines = 0
         var rest = text[...]
@@ -23,12 +30,13 @@ public enum BsdtarListing {
             if line.isEmpty { continue }
             lines += 1
             if lines > maxLines { result.exceededLimit = true; break }
-            if let entry = parseLine(line, now: now, timeZone: timeZone) { result.entries.append(entry) } else { result.malformedLines += 1 }
+            if let entry = parseLine(line, now: now, timeZone: timeZone, unmarkedLinksExcept: unmarkedLinksExcept) { result.entries.append(entry) } else { result.malformedLines += 1 }
         }
         return result
     }
 
-    public static func parseLine(_ line: Substring, now: Date = Date(), timeZone: TimeZone = .current) -> ArchiveEntry? {
+    public static func parseLine(_ line: Substring, now: Date = Date(), timeZone: TimeZone = .current,
+                                 unmarkedLinksExcept: Set<String>? = nil) -> ArchiveEntry? {
         var rest = line[...]
         var fields: [Substring] = []
         // Eight fields, one space, then the escaped name.
@@ -54,10 +62,11 @@ public enum BsdtarListing {
         // "?" (unknown type) and anything else: libarchive still extracts it, so it must be listed and rejected.
         default: kind = .unknown
         }
+        if let unmarkedLinksExcept, kind == .file, readsLikeHardLink(rest), !unmarkedLinksExcept.contains(unescape(rest)) { kind = .hardlink }
 
         var namePart = rest
         var target: Substring?
-        if let separator = kind == .symlink ? " -> " : kind == .hardlink ? " link to " : nil,
+        if let separator = kind == .symlink ? " -> " : kind == .hardlink ? hardLinkSeparator : nil,
            let r = namePart.range(of: separator) {
             target = namePart[r.upperBound...]
             namePart = namePart[..<r.lowerBound]

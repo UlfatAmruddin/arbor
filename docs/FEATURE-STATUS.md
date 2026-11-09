@@ -17,8 +17,8 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 
 | Status | Requirements |
 |---|---|
-| implemented | 225 |
-| partial | 9 |
+| implemented | 227 |
+| partial | 7 |
 | macOS boundary | 3 |
 | not done | 7 |
 | **total** | **244** |
@@ -35,11 +35,11 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | Operations, progress, conflicts and recovery | 17 | 0 | 0 | 0 |
 | Search and filtering | 15 | 0 | 0 | 0 |
 | Preview, metadata and properties | 15 | 1 | 0 | 0 |
-| Archives and disk images | 8 | 1 | 0 | 0 |
+| Archives and disk images | 9 | 0 | 0 | 0 |
 | Drives, devices, network and sharing | 9 | 0 | 2 | 2 |
 | Cloud and account integrations | 4 | 3 | 0 | 0 |
 | Accessibility, localization and preferences | 9 | 1 | 0 | 0 |
-| System integration and expansion boundary | 7 | 2 | 0 | 2 |
+| System integration and expansion boundary | 8 | 1 | 0 | 2 |
 | Reliability and acceptance coverage | 10 | 0 | 0 | 2 |
 | Additional research requirements (§21) | 22 | 1 | 0 | 1 |
 
@@ -157,7 +157,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-076 | Libraries | implemented | unit; acceptance T21, T22 | [gallery-libraries](features/gallery-libraries.md) | No `.library-ms` import: its Windows paths don't resolve on a Mac (DEC-GL-16) |
 | FE-077 | Recycle Bin → Trash | implemented | unit; headless | [trash](features/trash.md) | Original location known only for items Arbor trashed |
 | FE-078 | Network root | implemented | headless (simulated servers) | [network](features/network.md) | Bonjour discovery not run against real servers |
-| FE-079 | Special shell locations | macOS boundary | unit (address keywords) | [qa-core](features/qa-core.md) | Home, This Mac/This PC, Gallery, Network, Trash/Recycle Bin accepted; Control Panel, printers and device nodes have no Mac counterpart |
+| FE-079 | Special shell locations | macOS boundary | unit (address keywords) | [qa-core](features/qa-core.md) | Home, This Mac/This PC, Gallery, Network, Trash/Recycle Bin accepted; Control Panel and printers hand off to System Settings after a question; device nodes have no Mac counterpart |
 | FE-080 | Mac known folders | implemented | snapshots | [home-and-this-mac](features/home-and-this-mac.md) |  |
 | FE-081 | Finder tags and smart collections | implemented | unit; headless | [finder-tags](features/finder-tags.md) |  |
 | FE-082 | Control Home clutter | implemented | headless toggles | [home-and-this-mac](features/home-and-this-mac.md) | Sections collapse; Recent/frequent can be turned off; "Open Arbor to" in Folder Options |
@@ -271,7 +271,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-163 | ZIP browsing and extraction | implemented | unit; acceptance T12, T25 | [archives](features/archives.md) |  |
 | FE-164 | ZIP creation | implemented | unit; acceptance T25 | [archives](features/archives.md) |  |
 | FE-166 | 7z, TAR and compressed TAR | implemented | unit; acceptance T25 | [archives](features/archives.md) |  |
-| FE-167 | RAR extraction | partial | — | [archives](features/archives.md) | Read through the system libarchive; untested (no fixture can be built) |
+| FE-167 | RAR extraction | implemented | unit; acceptance T25 | [archives](features/archives.md) | Variants recorded: stored RAR4 and RAR5 verified with hand-built files; compressed members read by the system libarchive and not verifiable here; encrypted, split and reference members refused; never created |
 | FE-168 | Archive compression options | implemented | unit; snapshots | [archives](features/archives.md) | No Zstandard writer |
 | FE-169 | Encrypted archive behavior | implemented | unit | [archives](features/archives.md) | Detected and refused with an explanation, like Windows |
 | FE-170 | Archive safety | implemented | unit; acceptance T25 | [archives](features/archives.md) |  |
@@ -331,7 +331,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-210 | Third-party columns and property pages | not done | — | — |  |
 | FE-211 | Namespace providers | implemented | unit; every location kind | [qa-core](features/qa-core.md) | `LocationProvider` registry (docs/ARCHITECTURE.md) |
 | FE-212 | Preview and icon handlers | implemented | unit; headless | [icon-views](features/icon-views.md) | Quick Look; Windows-only handlers have no equivalent |
-| FE-213 | Address commands and shell names | partial | unit; headless `address` | [address-entry](features/address-entry.md) | `shell:` names go to a Mac place or say why not; nothing launches, so hand-offs to System Settings, Font Book or Terminal are left out |
+| FE-213 | Address commands and shell names | implemented | unit; behavior-checks `addresshandoff`, `address` | [address-entry](features/address-entry.md) | Fixed list of words opens System Settings, Font Book, Terminal or Activity Monitor after one question; words with anything after them are refused and typed text is never passed on |
 | FE-215 | Windows shortcut file compatibility | implemented | unit; `windows-shortcut-checks.sh` | [windows-shortcuts](features/windows-shortcuts.md) | Read-only; Windows programs are never launched |
 | FE-218 | Reveal in Finder and Services | implemented | unit; behavior-checks `services` | [qa-core](features/qa-core.md) |  |
 | FE-219 | Launch URLs and CLI entry | implemented | headless (path argument) | [qa-core](features/qa-core.md) | `Arbor <path>`; documents opened from Finder |

@@ -50,10 +50,8 @@ struct ShellAddressTests {
     }
 
     @Test(arguments: [
-        ("controlpanelfolder", "System Settings"), ("printersfolder", "Printers & Scanners"), ("connectionsfolder", "Network"),
-        ("startup", "Login Items"), ("common startup", "Login Items"), ("start menu", "Start menu"), ("programs", "Applications"),
-        ("common programs", "Applications"), ("fonts", "Font Book"), ("sendto", "Send to"), ("windows", "no Mac counterpart"),
-        ("system", "no Mac counterpart"), ("programfiles", "no Mac counterpart"),
+        ("start menu", "Start menu"), ("programs", "Applications"), ("common programs", "Applications"), ("sendto", "Send to"),
+        ("windows", "no Mac counterpart"), ("system", "no Mac counterpart"), ("programfiles", "no Mac counterpart"),
     ]) func namesWithoutACounterpartExplainWhy(_ name: String, _ reason: String) {
         guard case .noCounterpart(let message)? = outcome("shell:" + name) else {
             Issue.record("\(name) should have no counterpart")

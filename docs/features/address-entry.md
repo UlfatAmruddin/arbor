@@ -1,9 +1,9 @@
 # Address entry (FE-006, FE-213)
 
 Code: `Sources/Arbor/Features/AddressEntry/`, core logic in `Sources/ArborCore/PathCompletion.swift`, `PathListingQueue.swift`,
-`ShellAddress.swift`, `DirectoryLister.boundedEntries`, `MountPoints.volumeClass`, `PathResolver.localPath`, `RecentLocations.swift`, `AddressHistoryFile.swift`, `AddressHistoryStore.swift`, `PathCompletionHistory.swift`
-(tests: `Tests/ArborCoreTests/PathCompletionTests.swift`, `AddressHistoryTests.swift`, `ShellAddressTests.swift`, `Tests/ArborTests/AddressEntryAuditTests.swift`;
-headless: `scripts/behavior-checks.sh address addresshistory`).
+`ShellAddress.swift`, `AddressHandoff.swift`, `DirectoryLister.boundedEntries`, `MountPoints.volumeClass`, `PathResolver.localPath`, `RecentLocations.swift`, `AddressHistoryFile.swift`, `AddressHistoryStore.swift`, `PathCompletionHistory.swift`
+(tests: `Tests/ArborCoreTests/PathCompletionTests.swift`, `AddressHistoryTests.swift`, `ShellAddressTests.swift`, `AddressHandoffTests.swift`, `Tests/ArborTests/AddressEntryAuditTests.swift`;
+headless: `scripts/behavior-checks.sh address addresshistory addresshandoff`).
 
 ## Status
 
@@ -13,9 +13,9 @@ built follows the published API behavior in `docs/research/windows11-reference.m
 | FE | Requirement | Status | How verified |
 |---|---|---|---|
 | FE-006 | Path completion and history | **Partial.** Completion is built: a dropdown of up to 12 rows under the field, only for plain local path forms, never changing the text unless a row is picked. History is built: typed and visited places are remembered across launches and feed the ▾ list and the dropdown. No parity claim until the Windows audit | Unit tests; headless `address` and `addresshistory` groups; list snapshots and `axdump` in light and dark; `l10naudit` and `axaudit` with pseudo-localization |
-| FE-213 | Address commands and shell names | **Partial (macOS boundary).** `shell:` names go to a Mac place or get a specific message; Windows command words are refused with a message. Nothing launches: hand-offs to System Settings, Font Book or Terminal are left out because SPEC §5.2 needs a separately reviewed command interaction | Unit tests of every table row; audit test forbidding `Process`, `NSWorkspace` and `SystemOpen` in these files; headless `address` group |
+| FE-213 | Address commands and shell names | **Built (macOS boundary).** `shell:` names and Windows command words go to a Mac place, get a specific message, or, for the fixed table below, open a Mac tool after a visible question. Typed text is never passed to anything | Unit tests of every table row, the argument refusal and the routes; audit test forbidding `Process`, `NSWorkspace` and `SystemOpen` in the parsing files and text in the launcher; headless `address` and `addresshandoff` groups |
 
-FE-079 keeps its boundary: Control Panel, printers and device nodes still have no Mac counterpart. They now also answer as `shell:` names.
+FE-079 keeps its boundary: device nodes have no Mac counterpart, and Control Panel and printers are hand-offs to System Settings, not Arbor pages.
 
 ## How completion stays safe
 
@@ -70,9 +70,35 @@ Names Arbor accepts (`ShellAddress.table`, one row per entry), not a claim about
 | `appdata` | `~/Library/Application Support` |
 | `recent` | Home, whose Recent list is the counterpart (a message if that list is turned off) |
 | `recyclebinfolder`, `mycomputerfolder`, `networkplacesfolder`, `libraries` | Trash, This Mac, Network, Libraries |
-| `controlpanelfolder`, `printersfolder`, `connectionsfolder`, `startup`, `common startup`, `start menu`, `programs`, `common programs`, `fonts`, `sendto`, `windows`, `system`, `programfiles` | A message naming the Mac place, or saying there is none |
+| `controlpanelfolder`, `printersfolder`, `connectionsfolder`, `startup`, `common startup`, `fonts` | A hand-off, below |
+| `start menu`, `programs`, `common programs`, `sendto`, `windows`, `system`, `programfiles` | A message saying where to look, or that there is no counterpart |
 
-`shell:::{…}` folder IDs and unknown names get their own message. Command words (`cmd`, `powershell`, `notepad`, `control`, a bare name ending `.exe` and so on) are consulted only when nothing by that name exists, and are never run. Text that is shaped like a path keeps the resolver's own message.
+`shell:::{…}` folder IDs and unknown names get their own message. Text that is shaped like a path keeps the resolver's own message.
+
+## Hand-offs and command words
+
+The whole inventory (`AddressHandoffTarget.table` and `ShellAddress`, exact matches, any letter case). Command words are consulted only when nothing by that name exists.
+
+| Typed | Opens, after the question |
+|---|---|
+| `control`, `control.exe`, `shell:controlpanelfolder` | System Settings |
+| `shell:printersfolder` | System Settings at Printers & Scanners |
+| `shell:connectionsfolder` | System Settings at Network |
+| `shell:startup`, `shell:common startup` | System Settings at Login Items |
+| `shell:fonts` | Font Book |
+| `cmd`, `cmd.exe`, `powershell`, `powershell.exe`, `pwsh`, `pwsh.exe`, `wt`, `wt.exe` | Terminal, at the window's current folder |
+| `taskmgr`, `taskmgr.exe` | Activity Monitor |
+
+| Typed | Answer |
+|---|---|
+| `notepad`, `calc`, `mspaint`, `regedit`, `explorer`, or any bare name ending `.exe`, `.bat`, `.cmd`, `.ps1`, `.msi` | Refused with the message that Arbor doesn't run commands |
+| A hand-off word followed by anything (`cmd /c x`, `control foo`) | Refused: Arbor doesn't pass typed text to other apps. Starts nothing, asks nothing |
+| A `shell:` name followed by anything (`shell:fonts x`) | Unknown name, so it is refused like any other |
+
+- **Nothing typed gets through.** `AddressHandoffTarget` is a closed enum with no text in it; every bundle identifier and settings address is a constant in `AddressHandoff.swift`. The parsing files can't launch (audit test). `AddressHandoffLauncher`, in `Handoff/`, takes only the target and the window.
+- **One question, every time.** A sheet names the app, and for Terminal the folder. Cancel is first and answers Escape. No button takes Return, the key that just sent the address. Nothing launches until Open is clicked. Cancel leaves the text in the field to edit.
+- **Terminal needs a real folder.** It uses the path behind Open in Terminal, with the folder passed as a document. In an archive, the Trash, Network or a server, Home, This Mac, Gallery, Libraries or search results, it says why it can't run and doesn't ask. The folder comes from the window and is checked again after the answer, so a window that has moved on opens nothing.
+- **Headless runs** ask and answer as usual (`button:`, `sheetkey:`). The `address handoff:` line in `log:` holds each question and answer, and `SystemOpen` only records the launch.
 
 ## Decisions
 
@@ -83,7 +109,7 @@ Names Arbor accepts (`ShellAddress.table`, one row per entry), not a claim about
 | DEC-address-3 | Return with no highlight submits the typed text, never the first row | Accept the top row | The user's text is what they asked for |
 | DEC-address-4 | The first Escape closes the list and keeps the text; the next restores the location | One Escape does both | Dismissing suggestions shouldn't lose a long typed path. Proposed, not observed |
 | DEC-address-5 | Listing never connects, mounts or downloads: no UNC, `smb://` or `file://` completion, no automount paths, no cloud materialization | Complete servers and shares | Typing must not cause network or download side effects |
-| DEC-address-6 | One table of proposed names, answered with honest messages where a Mac has no counterpart | Mapping names to the nearest folder; launching System Settings | DEC-019 and SPEC §5.2: no fake features, typed text starts nothing |
+| DEC-address-6 | One fixed table maps exact Windows words and `shell:` names to a closed set of Mac tools; each opens only after one question, words with arguments are refused, and the rest keep a specific message | Passing arguments on; launching without asking; only messages, which left the Mac tool one step further away; mapping names to the nearest folder | SPEC §5.2 asks for an explicit command interaction, and DEC-019 for the closest Mac equivalent. Typed text starts nothing and reaches nothing. Proposed, not observed |
 | DEC-address-7 | `shell:` names and command words are checked only after the resolver fails | Check first | A real file or folder with that name always wins |
 | DEC-address-8 | The session attaches through `WindowHooks.didCreate` rather than a new `Provided` point | A `Provided` factory like the search box | Nothing in core asks for a session, so a new point would add nothing |
 | DEC-address-9 | No preference to turn suggestions off yet | Add a Folder Options toggle | Keeps the first version small; easy to add if wanted |
@@ -91,6 +117,7 @@ Names Arbor accepts (`ShellAddress.table`, one row per entry), not a claim about
 | DEC-address-11 | Its own JSON file, not a preference | `Prefs` like recent searches | Reads off the main thread, and Clear history can remove it outright |
 | DEC-address-12 | A folder that can't be found is hidden, not removed | Pruning on sight | An unplugged drive's places return with it; the 100-entry bound ages out the rest |
 | DEC-address-13 | History rows appear with the folder's listing, not before | Showing them while the scan runs | One render path; a list that changes shape under the arrow keys is worse than a short wait |
+| DEC-address-14 | No button in the hand-off question takes Return; Escape answers Cancel | Return answers Open; Return answers Cancel, which would leave Escape with no button | Return just sent the address, so a held key mustn't answer unread text. Same rule as a Windows shortcut's question |
 
 ## Known gaps
 

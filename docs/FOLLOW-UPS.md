@@ -73,3 +73,4 @@ else lands here and is worked through when convenient. Delete a line when it is 
 - metadata-editing: `Sources/ArborCore/Properties/EmbeddedMetadata.swift`: The length limit is measured two ways.
 - metadata-editing: `Sources/ArborCore/Properties/EmbeddedMetadataEditor.swift`: Undo's 'changed since' check misses changes to tags, comments, permissions and ACLs.
 - clipboard-interop: `Sources/Arbor/Features/ItemActions/ItemActionsFeature.swift`: Paste Shortcut goes through readURLs(), which turns every refusal into an empty list, so the user gets only a beep.
+- address-handoffs: `docs/FEATURE-STATUS.md`: The FE-079 row still says Control Panel and printers have no Mac counterpart.
