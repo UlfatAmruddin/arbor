@@ -61,7 +61,7 @@ struct PromiseDropTests {
         #expect(PromiseDrop.operation(FakeDraggingInfo(pasteboard: pasteboard, window: nil, mask: .every), onto: folder) == nil)
     }
 
-    /// AppKit's receiver only delivers within a real drag, which is what a provider that has gone away looks like.
+    /// AppKit's receiver delivers only on the drag pasteboard, so here it never answers, which is what a provider that has gone away looks like.
     @MainActor @Test func aRealReceiverWithNoProviderIsReportedUnavailable() async throws {
         let folder = try temporaryFolder()
         defer { try? FileManager.default.removeItem(at: folder) }

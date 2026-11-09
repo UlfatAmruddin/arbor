@@ -22,7 +22,8 @@ and Intel, macOS 14+) and a link to `/Applications`. See DEC-003, DEC-004 and DE
 |---|---|
 | `scripts/build-app.sh release --universal` | `build/Arbor.app` for arm64 + x86_64 (each built separately, joined with `lipo`; no Xcode needed) |
 | `scripts/make-dmg.sh [--universal] [--skip-build]` | `build/Arbor-<version>.dmg` (LZFSE-compressed, `--format UDZO` for zlib), with a drawn background and a fixed window layout. Mounts the result privately and checks its contents |
-| `scripts/sign-and-notarize.sh` | Marks the app for distribution (`ArborDistribution` in Info.plist, which turns off the `ARBOR_*` test hooks), signs it with the hardened runtime and `Resources/Arbor.entitlements` (Developer ID, or ad-hoc with a warning when no identity is set), makes the disk image, signs it, notarizes it with `xcrun notarytool` and staples the ticket |
+| `scripts/sign-and-notarize.sh` | Marks the app for distribution (`ArborDistribution` in Info.plist, which turns off the `ARBOR_*` test hooks), signs it with the hardened runtime and `Resources/Arbor.entitlements` (Developer ID, or ad-hoc with a warning when no identity is set), makes the disk image, signs it, notarizes it with `xcrun notarytool` and staples the ticket. `--rehearsal` stops short of Apple's services (CI only needs it) |
+| `scripts/ci-import-certificate.sh` | Workflows only: puts a `.p12` in a new keychain. Refuses to run outside a GitHub-hosted runner |
 
 ## One-time setup
 
@@ -30,30 +31,57 @@ and Intel, macOS 14+) and a link to `/Applications`. See DEC-003, DEC-004 and DE
 Nothing to set up. Releases are ad-hoc signed; the release notes and the README tell people how to
 open an ad-hoc signed app the first time.
 
-### With an Apple Developer account (signed and notarized releases)
-1. Join the Apple Developer Program and create a **Developer ID Application** certificate
-   (developer.apple.com ▸ Certificates). Install it in your login keychain.
-2. Create an app-specific password for your Apple Account (account.apple.com ▸ Sign-In and Security).
-3. For local releases, store notarization credentials once:
+### Once you have a Developer ID (signed and notarized releases)
+Do these once, in order. No file in the repository has to change: the Release workflow reads the six
+secrets in step 7.
+
+1. Join the Apple Developer Program. Your ten-character **Team ID** is on developer.apple.com ▸
+   Account ▸ Membership details.
+2. On developer.apple.com ▸ Certificates, create a **Developer ID Application** certificate. Download
+   it and double-click it to install it in your login keychain.
+3. Copy the identity's exact name, e.g. `Developer ID Application: Jane Doe (TEAMID1234)`. It must be
+   listed here:
+   ```bash
+   security find-identity -v -p codesigning
+   ```
+4. In Keychain Access ▸ login ▸ My Certificates, select that certificate with its private key, choose
+   File ▸ Export Items, save as `cert.p12` and set a strong password.
+5. Create an app-specific password at account.apple.com ▸ Sign-In and Security ▸ App-Specific
+   Passwords.
+6. Optional, to release from your own Mac: store notarization credentials once.
    ```bash
    xcrun notarytool store-credentials arbor-notary \
      --apple-id you@example.com --team-id TEAMID1234 --password <app-specific password>
    ```
-4. For releases built by GitHub Actions, add these repository secrets (Settings ▸ Secrets and
-   variables ▸ Actions):
+7. Add all six repository secrets under Settings ▸ Secrets and variables ▸ Actions. Names must match
+   exactly.
 
    | Secret | Value |
    |---|---|
-   | `DEVELOPER_ID_CERTIFICATE_P12` | the certificate and its private key exported from Keychain Access as .p12, then `base64 -i cert.p12` |
-   | `DEVELOPER_ID_CERTIFICATE_PASSWORD` | the password chosen when exporting the .p12 |
-   | `DEVELOPER_ID_APPLICATION` | the identity name, e.g. `Developer ID Application: Jane Doe (TEAMID1234)` (`security find-identity -v -p codesigning`) |
-   | `APPLE_ID` | the Apple Account email |
-   | `APPLE_TEAM_ID` | the ten-character team ID |
-   | `APPLE_APP_PASSWORD` | the app-specific password |
+   | `DEVELOPER_ID_CERTIFICATE_P12` | the output of `base64 -i cert.p12` |
+   | `DEVELOPER_ID_CERTIFICATE_PASSWORD` | the password from step 4 |
+   | `DEVELOPER_ID_APPLICATION` | the identity name from step 3 |
+   | `APPLE_ID` | your Apple Account email |
+   | `APPLE_TEAM_ID` | the Team ID from step 1 |
+   | `APPLE_APP_PASSWORD` | the app-specific password from step 5 |
 
-   Without these secrets the release workflow still runs and publishes an ad-hoc signed image.
-5. In the repository settings, turn on **Private vulnerability reporting** (Security ▸ Settings)
-   so the process in [SECURITY.md](../SECURITY.md) works.
+   With the GitHub command line, `base64 -i cert.p12 | gh secret set DEVELOPER_ID_CERTIFICATE_P12`
+   sets the first, and `gh secret set <NAME>` asks for each of the others.
+
+   Set all six or none. With none, the workflow still runs and makes an ad-hoc signed image labeled
+   as such. With only some, the release notes can wrongly say the image is signed and notarized.
+8. Delete `cert.p12`. The private key stays in your keychain; back it up somewhere safe.
+9. Make the first signed release with the checklist below and watch the **Release** workflow. It has
+   never run, so read its log: "Sign, package and notarize" must end with "is signed, notarized and
+   stapled."
+
+CI's signing rehearsal covers the certificate import, hardened-runtime signing, the disk image and
+the signature checks with a throwaway identity. It can't cover Apple's timestamp, notarization,
+stapling or Gatekeeper, so step 9 and step 5 of the checklist are the first test of those.
+
+### Repository settings
+In the repository settings, turn on **Private vulnerability reporting** (Security ▸ Settings) so the
+process in [SECURITY.md](../SECURITY.md) works.
 
 ## Checklist for each release
 

@@ -1,4 +1,5 @@
 import AppKit
+import ArborCore
 import Quartz
 import UniformTypeIdentifiers
 
@@ -63,8 +64,20 @@ enum SystemOpen {
         NSWorkspace.shared.openApplication(at: app, configuration: configuration, completionHandler: completion)
     }
 
+    /// In a headless run, `ARBOR_TEST_INSTALLED_APPS` is the whole list of installed apps, so a check needs no real one.
+    private static let scriptedApplications: Set<String>? = Automation.environment["ARBOR_TEST_INSTALLED_APPS"]
+        .map { Set($0.split(separator: ",").map(String.init)) }
+
+    static func isInstalled(bundleIdentifier: String) -> Bool {
+        if isSuppressed, let scriptedApplications { return scriptedApplications.contains(bundleIdentifier) }
+        return NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) != nil
+    }
+
     /// Launches a Mac tool by its identifier. Returns false if it isn't installed.
     static func openApplication(bundleIdentifier: String) -> Bool {
+        if isSuppressed, let scriptedApplications {
+            return scriptedApplications.contains(bundleIdentifier) && suppressed("launch \(bundleIdentifier)")
+        }
         guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else { return false }
         openApplication(at: app)
         return true

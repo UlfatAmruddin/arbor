@@ -1274,6 +1274,90 @@ if want libraries; then
   discard libraries "$R"
 fi
 
+# cloud.md (FE-192, FE-195, FE-198): account labels, a provider's failure text, the hand-off and the capability probe, on simulated providers only.
+if want cloudproviders; then
+  R=$(arbor_mktemp_dir); S="$R/storage"; mkdir -p "$R/trash"
+  ODD=$(printf 'GoogleDrive-odd\xe2\x80\xaename')
+  for name in "OneDrive-Personal" "OneDrive-Contoso Ltd" "GoogleDrive-jane@example.com" "$ODD" "Dropbox" "Dropbox (Business)" "Box-Box" "AcmeSync-x"; do
+    mkdir -p "$S/$name"; for f in a.txt b.txt c.txt d.txt; do echo 1 > "$S/$name/$f"; done
+  done
+  rm "$S/Box-Box/c.txt" "$S/Box-Box/d.txt"
+  P=$(cd "$S" && pwd -P); C="$P/OneDrive-Contoso Ltd"; O="$P/OneDrive-Personal"; ONEDRIVE=com.microsoft.OneDrive
+  BIDI=$(printf '\xe2\x80\xae'); HOSTILE="Quota${BIDI}full$(printf '\n')again"
+  # Every run names its installed apps and storage folder, so nothing depends on this Mac.
+  cloudrun() { local script="$1"; shift; run "$R" "$P" "$script" ARBOR_TEST_CLOUD_STORAGE="$P" ARBOR_TEST_INSTALLED_APPS=$ONEDRIVE "$@"; }
+
+  cloudrun "wait:1;location:$C;wait:1;select:a.txt;wait:0.4;log:$R/a1.txt;menu:item:$R/a2.txt;click:cloud.openProvider;wait:0.2;log:$R/a3.txt;select:b.txt;wait:0.3;menu:item:$R/a4.txt;select:c.txt;wait:0.4;menu:item:$R/a5.txt;location:$P/Dropbox;wait:1;select:a.txt;wait:0.3;menu:item:$R/a6.txt;location:$P/AcmeSync-x;wait:1;select:a.txt;wait:0.3;menu:item:$R/a7.txt;quit" \
+    "ARBOR_TEST_CLOUD_STATUS=a.txt=error:$HOSTILE,b.txt=conflict"
+  contains "a personal account says so once" "$R/a1.txt" "cloud node: OneDrive – Personal | tooltip: OneDrive – Personal / Personal account"
+  contains "an organization's folder is Work/School" "$R/a1.txt" "cloud node: OneDrive – Contoso Ltd (Work/School) | tooltip: OneDrive – Contoso Ltd / Work/School account"
+  contains "a Google account the name can't settle is unknown" "$R/a1.txt" "cloud node: Google Drive – jane@example.com (Account unknown) | tooltip: Google Drive – jane@example.com / Account unknown"
+  contains "a bare Dropbox folder is unknown" "$R/a1.txt" "cloud node: Dropbox (Account unknown)"
+  contains "the Dropbox (Business) form is Work/School" "$R/a1.txt" "cloud node: Dropbox – Business (Work/School)"
+  contains "Box repeats its name and stays unknown" "$R/a1.txt" "cloud node: Box (Account unknown)"
+  contains "a provider not in the table is unknown" "$R/a1.txt" "cloud node: AcmeSync – x (Account unknown)"
+  contains "a hostile folder name is plain text" "$R/a1.txt" "cloud node: Google Drive – oddname (Account unknown)"
+  lacks "no bidi control reaches the labels or the failure text" "$R/a1.txt" "$BIDI"
+  contains "the provider's failure text is in the status" "$R/a1.txt" "a.txt=Sync error: Quotafullagain"
+  contains "a listing that worked is recorded" "$R/a1.txt" "cloud capability: OneDrive – Contoso Ltd | listing=ok"
+  contains "an unvisited provider isn't described" "$R/a1.txt" "What Dropbox reports hasn't been checked yet."
+  contains "an item in error offers the provider's app" "$R/a2.txt" "Open OneDrive"
+  contains "the hand-off launches only the table's identifier" "$R/a3.txt" "system open: launch $ONEDRIVE"
+  lacks "no path reaches the launcher" "$R/a3.txt" "system open: launch /"
+  contains "an item in conflict offers it too" "$R/a4.txt" "Open OneDrive"
+  lacks "a healthy item doesn't" "$R/a5.txt" "Open OneDrive"
+  lacks "an app that isn't installed isn't offered" "$R/a6.txt" "Open Dropbox"
+  lacks "a provider not in the table is never launched" "$R/a7.txt" "Open AcmeSync"
+
+  ROW=$(grep '^tree: ' "$R/a1.txt" | sed 's/^tree: //' | awk -F' [|] ' '{ for (i = 1; i <= NF; i++) if (index($i, "OneDrive – Personal")) { print i - 1; exit } }')
+  fact "the provider's node is in the tree" test -n "$ROW"
+  cloudrun "wait:1;location:$O;wait:1.2;select:a.txt;wait:0.4;log:$R/b1.txt;menu:item:$R/b2.txt;menu:tree:$ROW:$R/b3.txt;click:cloud.openProvider;wait:0.2;log:$R/b4.txt;quit" ARBOR_TEST_CLOUD_KEYS=signin
+  contains "a not-signed-in code is shown as sign-in" "$R/b1.txt" "a.txt=Sign in required: The operation couldn't be completed. Not signed in."
+  contains "the probe records it" "$R/b1.txt" "cloud capability: OneDrive – Personal | listing=ok sampled=4 ubiquitous=4 reports=ubiquitous,downloadError signin=yes"
+  contains "the node's tooltip says to sign in" "$R/b1.txt" "Personal account / Sign in to OneDrive"
+  contains "Download explains itself until then" "$R/b1.txt" "cloud.download=Sign in to OneDrive first."
+  contains "the item offers the sign-in" "$R/b2.txt" "Sign in to OneDrive"
+  contains "the tree node offers it too" "$R/b3.txt" "Sign in to OneDrive"
+  contains "signing in hands off to the app" "$R/b4.txt" "system open: launch $ONEDRIVE"
+
+  cloudrun "wait:1;location:$O;wait:1;log:$R/c1.txt;button:OK;wait:0.3;menu:tree:$ROW:$R/c2.txt;quit" ARBOR_TEST_CLOUD_ROOT_ERROR=signin
+  contains "a root that needs sign-in says so" "$R/c1.txt" "Sign in to OneDrive to see this folder. It reported: The operation couldn't be completed. Not signed in."
+  contains "a wrapped not-signed-in code still counts" "$R/c1.txt" "cloud capability: OneDrive – Personal | listing=signin"
+  contains "the tree node offers the sign-in" "$R/c2.txt" "Sign in to OneDrive"
+
+  cloudrun "wait:1;location:$O;wait:1;log:$R/d1.txt;button:OK;wait:0.3;quit" ARBOR_TEST_CLOUD_ROOT_ERROR=failed
+  contains "any other listing failure keeps its text" "$R/d1.txt" "Listing failed: The server is unreachable."
+  contains "and isn't called a sign-in" "$R/d1.txt" "cloud capability: OneDrive – Personal | listing=failed sampled=0 ubiquitous=0 reports=- signin=no"
+
+  PROBE="wait:1;location:$O;wait:1.2;select:a.txt;wait:0.4;log:$R/%s.txt;quit"
+  cloudrun "$(printf "$PROBE" e1)" ARBOR_TEST_CLOUD_KEYS=none
+  contains "nothing reported: the probe says so" "$R/e1.txt" "cloud capability: OneDrive – Personal | listing=ok sampled=4 ubiquitous=0 reports=- signin=no"
+  contains "and the tooltip too" "$R/e1.txt" "Listing works. Reports no status."
+  contains "commands explain why they can't run" "$R/e1.txt" "cloud.download=OneDrive doesn't report these items to macOS as cloud items"
+  contains "for both commands" "$R/e1.txt" "cloud.freeUpSpace=OneDrive doesn't report these items to macOS as cloud items"
+
+  cloudrun "$(printf "$PROBE" e2)" ARBOR_TEST_CLOUD_KEYS=ubiquitous,uploaded
+  contains "a missing download state is reported" "$R/e2.txt" "Reports cloud item, uploaded. Doesn't report download state, downloading, uploading, conflicts."
+  contains "and blocks what it can't confirm" "$R/e2.txt" "cloud.download=OneDrive doesn't report whether items are on this Mac"
+
+  cloudrun "$(printf "$PROBE" e3)" ARBOR_TEST_CLOUD_KEYS=ubiquitous,download,downloading,uploading,uploaded,conflicts
+  contains "a full report blocks nothing" "$R/e3.txt" "cloud.freeUpSpace=runs"
+  lacks "and lists nothing as missing" "$R/e3.txt" "Doesn't report"
+
+  cloudrun "wait:1;location:$P/Box-Box;wait:1.2;select:a.txt;wait:0.4;log:$R/f.txt;quit" ARBOR_TEST_CLOUD_KEYS=none
+  contains "two rows are too few to decide" "$R/f.txt" "cloud.download=disabled"
+
+  # Browsing a provider changes its probe, which must redraw its node and leave the tree around it alone.
+  mkdir "$O/inner"
+  cloudrun "wait:1;treeexpand:OneDrive – Personal;log:$R/g1.txt;location:$O;wait:1.5;log:$R/g2.txt;quit" ARBOR_TEST_CLOUD_KEYS=signin
+  contains "the node shows its folder before browsing" "$R/g1.txt" "|   inner"
+  contains "browsing the provider keeps it expanded" "$R/g2.txt" "|   inner"
+  contains "and keeps the current folder marked" "$R/g2.txt" "cloud marked: OneDrive – Personal"
+  contains "the tooltip still follows the probe" "$R/g2.txt" "Personal account / Sign in to OneDrive"
+  contains "and so does the icon" "$R/g2.txt" "cloud icon: OneDrive – Personal | current"
+  discard cloudproviders "$R"
+fi
+
 # cloud.md (FE-231): a blocked command says why, by key binding or menu shortcut and on its button; its own tooltip returns elsewhere.
 # qa-core.md (FE-225): opening a file past the path limit is explained, not silently dropped.
 if want capabilities; then
@@ -1345,6 +1429,82 @@ if want promises; then
   contains "cancel removes what arrived" "$R/cancel.txt" "promised: staging=gone report=none job=none"
   if [ -e "$R/F/big.bin" ]; then echo "FAIL  a cancelled promise left output"; FAILED=1; GROUP_FAILED=1; else echo "pass  a cancelled promise leaves no output"; fi
   discard promises "$R"
+fi
+
+# promised-files.md (FE-240): a real promise from a separate process, on the system's drag pasteboard, in both directions.
+if want promisesinterop; then
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/src" "$R/out"
+  K=$(cd "$R" && pwd -P)
+  PEER="$R/promise-peer"
+  # peer_offer <log> <mode> <name…>: starts the other process and waits until its promise is on the pasteboard.
+  peer_offer() {
+    local log="$1" tries=0; shift
+    "$PEER" offer "$@" > "$log" 2>&1 &
+    PEER_PID=$!
+    until grep -qx ready "$log" 2>/dev/null; do
+      tries=$((tries + 1)); [ "$tries" -lt 100 ] || return 1
+      sleep 0.1
+    done
+  }
+  peer_stop() { kill "$PEER_PID" 2>/dev/null; wait "$PEER_PID" 2>/dev/null; }
+
+  if swiftc -swift-version 5 -o "$PEER" scripts/promise-peer.swift > "$R/peer-build.txt" 2>&1; then
+    echo "pass  the other process builds"
+
+    peer_offer "$R/peer-ok.txt" write first.bin second.bin
+    run "$R" "$R/F" "wait:1;promisesystemhover;wait:0.5;log:$R/hover.txt;quit"
+    check "another process's promise is offered as a copy" "$R/hover.txt" "promise interop: hover=1"
+    lacks "hovering asks the other process for nothing" "$R/peer-ok.txt" "asked"
+    run "$R" "$R/F" "wait:1;promisesystemdrop;promisewait;wait:0.5;log:$R/ok.txt;quit"
+    check "the system took the drop to its end" "$R/ok.txt" "promise interop: accepted=true end=true"
+    peer_stop
+    contains "the other process wrote its file" "$R/peer-ok.txt" "finished first.bin"
+    lacks "into staging, not the destination" "$R/peer-ok.txt" "writing first.bin to $K/F"
+    contains "both promises were written" "$R/peer-ok.txt" "finished second.bin"
+    SIZE=$((20 + ${#PEER_PID} + 64 * 65536))
+    check "the content came from the other process" "$R/F/first.bin" "written by process $PEER_PID"
+    fact "the first file is whole" test "$(wc -c < "$R/F/first.bin" 2>/dev/null | tr -d ' ')" = "$SIZE"
+    fact "the second file is whole" test "$(wc -c < "$R/F/second.bin" 2>/dev/null | tr -d ' ')" = "$SIZE"
+    contains "staging is removed afterwards" "$R/ok.txt" "promised: staging=gone report=none"
+
+    peer_offer "$R/peer-fail.txt" fail broken.bin
+    run "$R" "$R/F" "wait:1;promisesystemdrop;promisewait;wait:0.3;log:$R/fail.txt;button:OK;wait:0.3;quit"
+    peer_stop
+    contains "the other process's error is shown" "$R/fail.txt" "The attachment could not be fetched."
+    fact "a failed promise leaves no output" test ! -e "$R/F/broken.bin"
+    contains "its partial file is removed" "$R/fail.txt" "promised: staging=gone"
+
+    peer_offer "$R/peer-die.txt" die gone.bin
+    run "$R" "$R/F" "wait:1;promisesystemdrop;promisewait;wait:0.3;log:$R/die.txt;button:OK;wait:0.3;quit" ARBOR_PROMISE_STALL=3
+    peer_stop
+    contains "the other process died while writing" "$R/peer-die.txt" "dying"
+    contains "its disappearance is reported" "$R/die.txt" "promised: staging=gone report="
+    lacks "as a failure" "$R/die.txt" "report=none"
+    fact "a dead provider leaves no output" test ! -e "$R/F/gone.bin"
+
+    peer_offer "$R/peer-hostile.txt" write ../evil.txt
+    run "$R" "$R/F" "wait:1;promisesystemdrop;promisewait;wait:0.3;log:$R/hostile.txt;button:OK;wait:0.3;quit"
+    peer_stop
+    contains "a name with a path is reported" "$R/hostile.txt" "couldn't be received"
+    lacks "and nothing is written for it" "$R/peer-hostile.txt" "writing"
+    fact "nothing lands in the destination or beside it" test ! -e "$R/F/evil.txt" -a ! -e "$R/evil.txt"
+
+    (cd "$R/src" && head -c 300000 /dev/urandom > member.bin && /usr/bin/zip -q "$K/F/pack.zip" member.bin)
+    run "$R" "$R/F" "wait:1;location:archive?file=$K/F/pack.zip&inner=;wait:1.5;promisesystemoffer:member.bin;wait:0.3;log:$R/offered.txt;promiseholduntil:$R/taken;wait:0.3;quit" &
+    APP_RUN=$!
+    TRIES=0; until [ -f "$R/offered.txt" ] || [ "$TRIES" -ge 200 ]; do TRIES=$((TRIES + 1)); sleep 0.1; done
+    "$PEER" take "$R/out" > "$R/take.txt" 2>&1; TAKE_STATUS=$?
+    touch "$R/taken"
+    wait "$APP_RUN"
+    check "Arbor offered its archive member" "$R/offered.txt" "promise interop: offered=true"
+    fact "the other process received it" test "$TAKE_STATUS" = 0
+    contains "and was told it arrived" "$R/take.txt" "delivered member.bin"
+    fact "the member arrived byte for byte" cmp -s "$R/src/member.bin" "$R/out/member.bin"
+  else
+    sed 's/^/        /' "$R/peer-build.txt"
+    echo "FAIL  the other process builds"; FAILED=1; GROUP_FAILED=1
+  fi
+  discard promisesinterop "$R"
 fi
 
 # FE-152: embedded properties in the Details tab: written, refused when the file changed, undone. docs/features/properties.md.

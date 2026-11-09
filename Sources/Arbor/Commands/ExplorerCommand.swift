@@ -171,6 +171,8 @@ final class ExplorerCommand {
     private let ownState: (CommandContext) -> NSControl.StateValue
     private let ownSubmenu: ((CommandContext) -> [NSMenuItem])?
     private let ownPerform: (CommandContext) -> Void
+    /// Why it can't run right now, for a refusal that isn't the location's own.
+    let limitation: ((CommandContext) -> String?)?
     /// Other features' contributions; the registry may hold them before the command exists.
     fileprivate(set) var extensions: CommandExtensions
 
@@ -182,6 +184,7 @@ final class ExplorerCommand {
          isEnabled: @escaping (CommandContext) -> Bool = { _ in true },
          state: @escaping (CommandContext) -> NSControl.StateValue = { _ in .off },
          submenu: ((CommandContext) -> [NSMenuItem])? = nil,
+         limitation: ((CommandContext) -> String?)? = nil,
          perform: @escaping (CommandContext) -> Void = { _ in }) {
         self.id = id
         self.title = L10n.tr(title)   // string table (FE-204)
@@ -199,6 +202,7 @@ final class ExplorerCommand {
         self.ownState = state
         self.ownSubmenu = submenu
         self.ownPerform = perform
+        self.limitation = limitation
         self.extensions = CommandExtensions(commandID: id)
     }
 
@@ -616,10 +620,15 @@ final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
         return LocationRegistry.provider(for: location).limitation(of: action, in: location)
     }
 
-    /// The one way a command says no: a beep, and the location's reason in the status bar when it has one.
+    /// The command's own reason, else its location's.
+    private func reason(_ command: ExplorerCommand, in context: CommandContext) -> String? {
+        command.limitation?(context) ?? limitation(of: command.locationAction, in: context)
+    }
+
+    /// The one way a command says no: a beep, and the reason in the status bar when there is one.
     func refuse(_ command: ExplorerCommand, _ context: CommandContext) {
         NSSound.beep()
-        if let reason = limitation(of: command.locationAction, in: context) { context.window?.statusBar.setMessage(reason) }
+        if let reason = reason(command, in: context) { context.window?.statusBar.setMessage(reason) }
     }
 
     /// Explains a shortcut the location blocks, since a disabled menu item never sends its action; false if it isn't blocked.
@@ -643,7 +652,7 @@ final class CommandDispatcher: NSObject, NSMenuItemValidation, NSMenuDelegate {
         item.toolTip = nil
         if command.yieldsToTextInput, context.window?.isEditingText == true { return false }
         guard command.isAvailable(context), command.isEnabled(context) else {
-            item.toolTip = limitation(of: command.locationAction, in: context)
+            item.toolTip = reason(command, in: context)
             return false
         }
         return true

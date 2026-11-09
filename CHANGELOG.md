@@ -30,6 +30,8 @@ their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 - Clipboard: files copied in other apps paste as a copy, and Option-Command-V moves them here.
 - Address bar: Windows words such as `control`, `cmd` and `shell:Fonts` offer to open the matching Mac tool, after one
   question. Anything typed after the word is refused, and typed text is never passed on.
+- Cloud folders: sync failures show the provider's own message and offer to open its app; accounts are labelled Personal or
+  Work/School where the folder name says so; a signed-out provider says so; commands a provider doesn't support explain why.
 
 ### Removed
 - Properties no longer offers Unblock on downloaded files. It still says a file came from another computer, and

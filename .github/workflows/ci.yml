@@ -1,4 +1,4 @@
-# Every push and pull request: builds and unit-tests Arbor and keeps the unsigned disk image, runs the
+# Every push and pull request: builds and unit-tests Arbor, keeps the unsigned disk image and rehearses signing, runs the
 # scripted checks against the real app (headless), and checks the performance budgets. The three jobs run
 # in parallel; each builds what it needs. How to run a job locally: TESTING.md, "Continuous integration".
 name: CI
@@ -52,6 +52,55 @@ jobs:
           path: build/Arbor-*.dmg
           if-no-files-found: error
           retention-days: 14
+
+      # A Developer ID release minus Apple's own services, with an identity made here and thrown away (docs/features/distribution.md).
+      # After the upload, because it re-signs the app and replaces the image. Disposable runners only: it changes keychains and trust.
+      - name: Signing rehearsal with a throwaway identity
+        if: ${{ runner.environment == 'github-hosted' }}
+        env:
+          REHEARSAL_IDENTITY: Arbor Signing Rehearsal
+        run: |
+          [ "${RUNNER_ENVIRONMENT:-}" = github-hosted ] || exit 1
+          work="$(mktemp -d "$RUNNER_TEMP/rehearsal.XXXXXX")"
+          trap 'security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true; rm -rf "$work"' EXIT
+
+          cat > "$work/openssl.cnf" <<EOF
+          [req]
+          distinguished_name = name
+          prompt = no
+          [name]
+          CN = $REHEARSAL_IDENTITY
+          [codesign]
+          keyUsage = critical,digitalSignature
+          extendedKeyUsage = critical,codeSigning
+          EOF
+          # macOS's own openssl: Homebrew's OpenSSL 3 writes a .p12 that the security tool can't read.
+          /usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -days 1 -config "$work/openssl.cnf" -extensions codesign \
+            -keyout "$work/key.pem" -out "$work/certificate.pem" 2>/dev/null
+          CERTIFICATE_PASSWORD="$(uuidgen)"
+          export CERTIFICATE_PASSWORD
+          /usr/bin/openssl pkcs12 -export -inkey "$work/key.pem" -in "$work/certificate.pem" -out "$work/identity.p12" \
+            -passout env:CERTIFICATE_PASSWORD
+          rm -f "$work/key.pem"
+          scripts/ci-import-certificate.sh "$work/identity.p12"
+
+          # A real Developer ID chains to Apple; this certificate is valid only once the runner is told to trust it.
+          sudo security authorizationdb write com.apple.trust-settings.admin allow
+          sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$work/certificate.pem"
+          sudo security authorizationdb remove com.apple.trust-settings.admin
+
+          DEVELOPER_ID_APPLICATION="$REHEARSAL_IDENTITY" scripts/sign-and-notarize.sh --rehearsal
+
+          dmg="build/Arbor-$(tr -d '[:space:]' < VERSION).dmg"
+          codesign --verify --strict --verbose=2 build/Arbor.app
+          codesign --verify --verbose=2 "$dmg"
+          app_details="$(codesign -dv --verbose=2 build/Arbor.app 2>&1)"
+          dmg_details="$(codesign -dv --verbose=2 "$dmg" 2>&1)"
+          printf '%s\n' "$app_details"
+          grep -Eq '^CodeDirectory .*flags=.*runtime' <<< "$app_details"
+          grep -qxF "Authority=$REHEARSAL_IDENTITY" <<< "$app_details"
+          grep -qxF "Authority=$REHEARSAL_IDENTITY" <<< "$dmg_details"
+          [ "$(plutil -extract ArborDistribution raw build/Arbor.app/Contents/Info.plist)" = true ]
 
   # The headless suites drive build/Arbor.app (ARBOR_HEADLESS=1). The debug app is built here rather than
   # passed from build-and-test: a clean debug build takes under a minute on a developer Mac (a few on a runner),

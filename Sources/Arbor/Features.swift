@@ -44,6 +44,8 @@ enum Features {
 
         CloudFeature.self,
 
+        CloudProvidersFeature.self,
+
         GalleryLibrariesFeature.self,   // Gallery and Libraries
 
         FinderTagsFeature.self,   // Tags section of the navigation pane

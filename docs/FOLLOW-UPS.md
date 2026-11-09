@@ -74,3 +74,6 @@ else lands here and is worked through when convenient. Delete a line when it is 
 - metadata-editing: `Sources/ArborCore/Properties/EmbeddedMetadataEditor.swift`: Undo's 'changed since' check misses changes to tags, comments, permissions and ACLs.
 - clipboard-interop: `Sources/Arbor/Features/ItemActions/ItemActionsFeature.swift`: Paste Shortcut goes through readURLs(), which turns every refusal into an empty list, so the user gets only a beep.
 - address-handoffs: `docs/FEATURE-STATUS.md`: The FE-079 row still says Control Panel and printers have no Mac counterpart.
+- cloud-status: `Sources/ArborCore/CloudProviders.swift`: The Google account rule doesn't require an @.
+- promise-and-release: `docs/features/promised-files.md`: The doc says that if macOS renames either private name the check fails with end=false.
+- promise-and-release: `TESTING.md`: The 'What CI runs' table row for build-and-test still lists only the debug build, unit tests and make-dmg.

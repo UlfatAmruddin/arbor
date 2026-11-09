@@ -5,6 +5,8 @@ public enum ListingError: Error, Equatable, LocalizedError {
     case permissionDenied(path: String)
     case notAFolder(path: String)
     case pathTooLong(path: String)
+    /// A cloud provider refused because the user isn't signed in (FE-195).
+    case signInRequired(path: String, message: String)
     case other(path: String, message: String)
 
     public var errorDescription: String? {
@@ -17,7 +19,7 @@ public enum ListingError: Error, Equatable, LocalizedError {
             return L10n.format("“%@” is not a folder.", "\(path)")
         case .pathTooLong(let path):
             return L10n.format("The path to “%@” is too long for macOS to open. Move the folder nearer the top of the disk, or shorten its parent folders' names.", (path as NSString).lastPathComponent)
-        case .other(_, let message):
+        case .signInRequired(_, let message), .other(_, let message):
             return message
         }
     }
@@ -186,6 +188,7 @@ public enum DirectoryLister {
     }
 
     static func map(_ error: NSError, path: String) -> ListingError {
+        if CloudProviderError.requiresSignIn(error) { return .signInRequired(path: path, message: CloudProviderError.message(error)) }
         switch FileOps.posixCode(of: error) {
         case EACCES?, EPERM?: return .permissionDenied(path: path)
         case ENOENT?: return .notFound(path: path)

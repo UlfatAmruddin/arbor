@@ -86,7 +86,7 @@ enum ConsistentSorting {
         case .downloading: return 3
         case .onlineOnly: return 4
         case .conflict: return 5
-        case .error: return 6
+        case .error, .signInRequired: return 6
         case .unknown: return nil
         }
     }

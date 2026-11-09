@@ -9,6 +9,7 @@ enum PromisedFilesFeature: ExplorerFeature {
     static func register() {
         PromiseDrop.register()
         PromiseDropScripts.register()
+        PromiseInteropScripts.register()
     }
 }
 

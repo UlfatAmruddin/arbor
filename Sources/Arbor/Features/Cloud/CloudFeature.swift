@@ -9,7 +9,7 @@ enum CloudFeature: ExplorerFeature {
     static func register() {
         NavigationPaneExtras.register(.afterGallery, "cloud.roots") {
             CloudEnvironment.roots.map { root in
-                let node = NavNode(kind: .folder, title: root.displayName, location: .folder(root.url))
+                let node = NavNode(kind: .folder, title: root.navigationTitle, location: .folder(root.url))
                 node.icon = CloudGlyph.rootIcon(root, size: 16)
                 return node
             }
@@ -119,6 +119,12 @@ enum CloudFeature: ExplorerFeature {
         cloudItems(ctx).filter { CloudStatusStore.shared.entry(for: $0.url)?.ubiquitous == true }
     }
 
+    /// What the provider has been seen not to support, for Download and Free up space (FE-198).
+    static func providerLimitation(_ ctx: CommandContext) -> String? {
+        guard let first = cloudItems(ctx).first, let root = CloudEnvironment.root(containing: first.url) else { return nil }
+        return CloudCapabilityStore.shared.probe(for: root)?.commandLimitation(provider: root.provider)
+    }
+
     private static func registerCommands() {
         CommandRegistry.shared.register([
             ExplorerCommand(
@@ -126,14 +132,16 @@ enum CloudFeature: ExplorerFeature {
                 tooltip: "Download the selected items' content to this Mac",
                 placements: [.itemContextMenu(section, 10), .mainMenu("File", section, 10)],
                 isAvailable: { ctx in ctx.surface == .menuBar ? !cloudItems(ctx).isEmpty : !providerItems(ctx).isEmpty },
-                isEnabled: { ctx in providerItems(ctx).contains { $0.isFolder || CloudStatusStore.shared.status(for: $0.url)?.isLocal != true } },
+                isEnabled: { ctx in providerLimitation(ctx) == nil && providerItems(ctx).contains { $0.isFolder || CloudStatusStore.shared.status(for: $0.url)?.isLocal != true } },
+                limitation: providerLimitation,
                 perform: { ctx in run(.download, providerItems(ctx), window: ctx.window) }),
             ExplorerCommand(
                 id: "cloud.freeUpSpace", title: "Free up space", symbol: "icloud.and.arrow.up",
                 tooltip: "Remove the downloaded copies; the items stay available when online",
                 placements: [.itemContextMenu(section, 20), .mainMenu("File", section, 20)],
                 isAvailable: { ctx in ctx.surface == .menuBar ? !cloudItems(ctx).isEmpty : !providerItems(ctx).isEmpty },
-                isEnabled: { ctx in providerItems(ctx).contains { $0.isFolder || CloudStatusStore.shared.status(for: $0.url) != .onlineOnly } },
+                isEnabled: { ctx in providerLimitation(ctx) == nil && providerItems(ctx).contains { $0.isFolder || CloudStatusStore.shared.status(for: $0.url) != .onlineOnly } },
+                limitation: providerLimitation,
                 perform: { ctx in run(.evict, providerItems(ctx), window: ctx.window) }),
             ExplorerCommand(
                 id: "go.iCloudDrive", title: "iCloud Drive", shortcut: Shortcut("i", [.command, .shift]),
@@ -188,7 +196,7 @@ enum CloudFeature: ExplorerFeature {
         CloudStatusStore.shared.read(urls) { [weak window] statuses in
             CloudStatusStore.shared.invalidate(urls)
             let done = statuses.filter { action == .download ? $0.isLocal == true : $0 == .onlineOnly }.count
-            let errors = statuses.filter { if case .error = $0 { return true }; return false }.count
+            let errors = statuses.filter(\.isFailure).count
             if done == urls.count {
                 window?.statusBar.setMessage(action == .download
                     ? "\(StatusText.items(done)) now available on this device."
@@ -245,7 +253,28 @@ final class CloudRootProvider: LocationProvider {
     func handles(_ location: Location) -> Bool { root(location) != nil }
     func load(_ location: Location, context: LocationLoadContext,
               completion: @escaping (Result<LocationContent, Error>) -> Void) -> LoadHandle? {
-        base.load(location, context: context, completion: completion)
+        guard let root = root(location) else { return base.load(location, context: context, completion: completion) }
+        if let failure = CloudEnvironment.simulatedListingFailure(of: root) {
+            let handle = LoadHandle()
+            DispatchQueue.main.async { if !handle.isCancelled { self.finish(.failure(failure), root, completion) } }
+            return handle
+        }
+        return base.load(location, context: context) { [self] in finish($0, root, completion) }
+    }
+
+    /// The listing the window asked for doubles as the enumeration check, so the provider is never asked twice.
+    private func finish(_ result: Result<LocationContent, Error>, _ root: CloudRoot, _ completion: (Result<LocationContent, Error>) -> Void) {
+        guard case .failure(let error) = result else {
+            CloudCapabilityStore.shared.recordListing(.succeeded, of: root)
+            return completion(result)
+        }
+        let outcome = CloudEnumeration(listingError: error)
+        CloudCapabilityStore.shared.recordListing(outcome, of: root)
+        if case .signInRequired(let detail) = outcome {
+            completion(.failure(CloudSignInNeeded(provider: root.provider, detail: detail)))
+        } else {
+            completion(result)
+        }
     }
     func watch(_ location: Location, onChange: @escaping () -> Void) -> AnyObject? { base.watch(location, onChange: onChange) }
     func title(for location: Location) -> String { root(location)?.displayName ?? base.title(for: location) }

@@ -18,6 +18,7 @@ enum CloudEnvironment {
     static func refresh() -> Bool {
         let fresh = detect()
         defer { roots = fresh }
+        if fresh != roots { CloudCapabilityStore.shared.invalidateAll() }
         return fresh != roots
     }
 
@@ -26,6 +27,19 @@ enum CloudEnvironment {
     static func root(for location: Location?) -> CloudRoot? { location?.folderURL.flatMap(root(containing:)) }
 
     static var iCloudRoot: CloudRoot? { roots.first { $0.kind == .iCloud } }
+
+    private static let simulatedInfo = CloudRoots.simulatedInfo(reporting: Automation.environment["ARBOR_TEST_CLOUD_KEYS"])
+
+    /// What a simulated provider answers for this item; nil for anything real, which must be read.
+    static func simulatedInfo(for url: URL) -> UbiquityInfo? {
+        root(containing: url)?.kind == .test ? simulatedInfo : nil
+    }
+
+    /// The failure a simulated provider's root listing is set up to have.
+    static func simulatedListingFailure(of root: CloudRoot) -> Error? {
+        guard root.kind == .test else { return nil }
+        return Automation.environment["ARBOR_TEST_CLOUD_ROOT_ERROR"].flatMap(CloudProviderError.simulatedListingFailure)
+    }
 }
 
 /// Bounded main-thread cache of item statuses, read in background batches for displayed rows.
@@ -101,16 +115,19 @@ final class CloudStatusStore {
         let batch = queued
         queued = []
         guard !batch.isEmpty else { return }
+        let simulated = batch.map(CloudEnvironment.simulatedInfo(for:))
         queue.async {
-            let results = batch.map { url -> (String, UbiquityInfo?) in (url.standardizedFileURL.path, UbiquityInfo.read(url)) }
+            let results = zip(batch, simulated).map { url, simulated in (url: url, info: simulated ?? UbiquityInfo.read(url)) }
             DispatchQueue.main.async { self.store(results) }
         }
     }
 
-    private func store(_ results: [(String, UbiquityInfo?)]) {
+    private func store(_ results: [(url: URL, info: UbiquityInfo?)]) {
         var changedAny = false
         let now = Date()
-        for (key, info) in results {
+        CloudCapabilityStore.shared.observe(results)
+        for (url, info) in results {
+            let key = url.standardizedFileURL.path
             pending.remove(key)
             let entry = Entry(status: info.map(CloudStatusMapper.status) ?? .unknown, ubiquitous: info?.isUbiquitous == true, time: now)
             if cache[key]?.status != entry.status || cache[key]?.ubiquitous != entry.ubiquitous { changedAny = true }
@@ -144,6 +161,7 @@ enum CloudGlyph {
             case .syncPending: return ("arrow.triangle.2.circlepath", 0x8A8A8A)
             case .conflict: return ("exclamationmark.triangle.fill", 0xC77700)
             case .error: return ("xmark.circle", 0xC42B1C)
+            case .signInRequired: return ("person.crop.circle.badge.exclamationmark", 0xC42B1C)
             case .unknown: return ("questionmark.circle", 0x8A8A8A)
             }
         }()
@@ -151,7 +169,10 @@ enum CloudGlyph {
     }
 
     static func rootIcon(_ root: CloudRoot, size: CGFloat) -> NSImage {
-        root.kind == .iCloud ? IconProvider.shared.symbolIcon("icloud.fill", color: 0x3D8BE0, size: size)
+        if CloudCapabilityStore.shared.probe(for: root)?.needsSignIn == true {
+            return IconProvider.shared.symbolIcon("exclamationmark.icloud.fill", color: 0xC42B1C, size: size)
+        }
+        return root.kind == .iCloud ? IconProvider.shared.symbolIcon("icloud.fill", color: 0x3D8BE0, size: size)
                              : IconProvider.shared.symbolIcon("cloud.fill", color: 0x1F6FC5, size: size)
     }
 }

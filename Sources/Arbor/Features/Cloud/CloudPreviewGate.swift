@@ -174,7 +174,7 @@ final class CloudPreviewGateView: ThemeBackgroundView {
                 self.reset()
                 CloudStatusStore.shared.invalidate([url])
                 self.onReady?()
-            case .error(let message):
+            case .error(let message), .signInRequired(let message):
                 self.reset()
                 self.title.stringValue = L10n.format("“%@” couldn't be downloaded", "\(url.lastPathComponent)")
                 self.detail.stringValue = message

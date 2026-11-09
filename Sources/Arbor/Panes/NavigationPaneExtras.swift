@@ -38,6 +38,13 @@ enum NavigationPaneExtras {
         }
     }
 
+    /// Changes how one top-level node looks in every window, without disturbing the tree around it.
+    static func updateRoot(at location: Location, _ change: (NavNode) -> Void) {
+        for controller in (NSApp.delegate as? AppDelegate)?.controllers ?? [] {
+            controller.navPane.updateRoot(at: location, change)
+        }
+    }
+
     private static func refreshAllNow() {
         for controller in (NSApp.delegate as? AppDelegate)?.controllers ?? [] {
             controller.navPane.rebuild()

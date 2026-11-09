@@ -11,6 +11,8 @@ public enum CloudStatus: Equatable, Hashable, Sendable {
     case syncPending
     case conflict
     case error(String)
+    /// The provider says the user must sign in; the text is its own.
+    case signInRequired(String)
     case unknown
 
     /// Windows wording where one exists.
@@ -23,6 +25,7 @@ public enum CloudStatus: Equatable, Hashable, Sendable {
         case .syncPending: return L10n.tr("Sync pending")
         case .conflict: return L10n.tr("Sync conflict")
         case .error(let message): return message.isEmpty ? L10n.tr("Sync error") : L10n.format("Sync error: %@", "\(message)")
+        case .signInRequired(let message): return message.isEmpty ? L10n.tr("Sign in required") : L10n.format("Sign in required: %@", "\(message)")
         case .unknown: return L10n.tr("Status unknown")
         }
     }
@@ -35,9 +38,20 @@ public enum CloudStatus: Equatable, Hashable, Sendable {
         case .syncPending: return L10n.tr("Sync pending")
         case .conflict: return L10n.tr("Conflict")
         case .error: return L10n.tr("Error")
+        case .signInRequired: return L10n.tr("Sign in")
         case .unknown: return L10n.tr("Unknown")
         }
     }
+
+    public var isFailure: Bool {
+        switch self {
+        case .error, .signInRequired: return true
+        default: return false
+        }
+    }
+
+    /// The provider's own app is where this gets fixed (FE-192).
+    public var needsProviderHandoff: Bool { isFailure || self == .conflict }
 
     /// nil when not known.
     public var isLocal: Bool? {
@@ -61,9 +75,12 @@ public struct UbiquityInfo: Equatable, Sendable {
     public var downloadError: String?
     public var uploadError: String?
     public var hasConflicts: Bool?
+    /// A real not-signed-in code in either error key (FE-195).
+    public var authenticationRequired: Bool
 
     public init(isUbiquitous: Bool? = nil, download: Download? = nil, isDownloading: Bool? = nil, isUploading: Bool? = nil,
-                isUploaded: Bool? = nil, downloadError: String? = nil, uploadError: String? = nil, hasConflicts: Bool? = nil) {
+                isUploaded: Bool? = nil, downloadError: String? = nil, uploadError: String? = nil, hasConflicts: Bool? = nil,
+                authenticationRequired: Bool = false) {
         self.isUbiquitous = isUbiquitous
         self.download = download
         self.isDownloading = isDownloading
@@ -72,6 +89,7 @@ public struct UbiquityInfo: Equatable, Sendable {
         self.downloadError = downloadError
         self.uploadError = uploadError
         self.hasConflicts = hasConflicts
+        self.authenticationRequired = authenticationRequired
     }
 
     public static let resourceKeys: Set<URLResourceKey> = [
@@ -95,6 +113,8 @@ public struct UbiquityInfo: Equatable, Sendable {
         downloadError = v.ubiquitousItemDownloadingError?.localizedDescription
         uploadError = v.ubiquitousItemUploadingError?.localizedDescription
         hasConflicts = v.ubiquitousItemHasUnresolvedConflicts
+        authenticationRequired = [v.ubiquitousItemDownloadingError, v.ubiquitousItemUploadingError]
+            .contains { $0.map(CloudProviderError.requiresSignIn) == true }
     }
 
     /// Can block on slow volumes: call off the main thread.
@@ -107,7 +127,7 @@ public enum CloudStatusMapper {
     /// Priority: errors, conflicts, transfers, then download state.
     public static func status(_ info: UbiquityInfo) -> CloudStatus {
         guard info.isUbiquitous == true else { return .unknown }
-        if let error = info.downloadError ?? info.uploadError { return .error(error) }
+        if let failure = failureText(info) { return info.authenticationRequired ? .signInRequired(failure) : .error(failure) }
         if info.hasConflicts == true { return .conflict }
         if info.isDownloading == true { return .downloading }
         if info.isUploading == true { return .uploading }
@@ -119,6 +139,16 @@ public enum CloudStatusMapper {
         case .other?, nil:
             return info.isUploaded == false ? .syncPending : .unknown
         }
+    }
+
+    /// The provider's text from both keys, once each and safe to show; nil without a failure.
+    private static func failureText(_ info: UbiquityInfo) -> String? {
+        guard info.downloadError != nil || info.uploadError != nil else { return nil }
+        var texts: [String] = []
+        for text in [info.downloadError, info.uploadError].compactMap({ $0 }).map(CloudProviderError.message) where !text.isEmpty && !texts.contains(text) {
+            texts.append(text)
+        }
+        return texts.joined(separator: " · ")
     }
 }
 
@@ -132,16 +162,28 @@ public struct CloudRoot: Equatable, Hashable, Sendable {
     /// Account or domain label, if the folder has one.
     public let account: String?
     public let kind: Kind
+    /// nil where there's no folder name to read (iCloud Drive, the plain test root).
+    public let accountKind: CloudAccountKind?
+    /// The table row; a provider that isn't in the table gets no hand-off.
+    public let entry: CloudProviderEntry?
 
-    public init(url: URL, provider: String, account: String?, kind: Kind) {
+    public init(url: URL, provider: String, account: String?, kind: Kind, accountKind: CloudAccountKind? = nil, entry: CloudProviderEntry? = nil) {
         self.url = url.standardizedFileURL
         self.provider = provider
         self.account = account
         self.kind = kind
+        self.accountKind = accountKind
+        self.entry = entry
     }
 
     /// "OneDrive – Personal", "iCloud Drive".
     public var displayName: String { account.map { "\(provider) – \($0)" } ?? provider }
+
+    /// The name, then what kind of account it is, unless the name just said so.
+    public var navigationTitle: String {
+        guard let accountKind, account?.lowercased() != accountKind.title.lowercased() else { return displayName }
+        return L10n.format("%@ (%@)", displayName, accountKind.title)
+    }
 
     public func contains(_ url: URL) -> Bool {
         let root = CloudRoots.normalized(self.url)
@@ -151,42 +193,27 @@ public struct CloudRoot: Equatable, Hashable, Sendable {
 }
 
 public enum CloudRoots {
-    /// Display names for CloudStorage folder prefixes.
-    static let knownProviders: [String: String] = [
-        "onedrive": "OneDrive", "googledrive": "Google Drive", "dropbox": "Dropbox", "box": "Box",
-        "protondrive": "Proton Drive", "synologydrive": "Synology Drive", "pclouddrive": "pCloud Drive",
-        "nextcloud": "Nextcloud", "megasync": "MEGA", "icedrive": "Icedrive", "sharepoint": "SharePoint",
-    ]
-
-    /// "OneDrive-Personal" → ("OneDrive", "Personal"); "Box-Box" → ("Box", nil); unknown prefixes kept.
-    public static func providerAndAccount(forCloudStorageFolder name: String) -> (provider: String, account: String?) {
-        let parts = name.split(separator: "-", maxSplits: 1).map(String.init)
-        let rawProvider = parts.first ?? name
-        let provider = knownProviders[rawProvider.lowercased()] ?? rawProvider
-        var account = parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespaces) : nil
-        if let a = account, a.isEmpty || a.lowercased() == rawProvider.lowercased() || a.lowercased() == provider.lowercased() {
-            account = nil
-        }
-        return (provider, account)
-    }
-
     /// Never lists cloud content.
     public static func detect(home: URL, fileManager: FileManager = .default) -> [CloudRoot] {
         var roots: [CloudRoot] = []
         let iCloud = home.appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs")
         var isDir: ObjCBool = false
         if fileManager.fileExists(atPath: iCloud.path, isDirectory: &isDir), isDir.boolValue {
-            roots.append(CloudRoot(url: iCloud, provider: "iCloud Drive", account: nil, kind: .iCloud))
+            roots.append(CloudRoot(url: iCloud, provider: CloudProviderCatalog.iCloud.displayName, account: nil, kind: .iCloud, entry: CloudProviderCatalog.iCloud))
         }
-        let storage = home.appendingPathComponent("Library/CloudStorage")
+        return roots + storageRoots(in: home.appendingPathComponent("Library/CloudStorage"), kind: .fileProvider, fileManager: fileManager)
+    }
+
+    private static func storageRoots(in storage: URL, kind: CloudRoot.Kind, fileManager: FileManager) -> [CloudRoot] {
         let names = ((try? fileManager.contentsOfDirectory(atPath: storage.path)) ?? []).filter { !$0.hasPrefix(".") }.sorted()
-        for name in names {
+        return names.compactMap { name in
             let url = storage.appendingPathComponent(name)
-            guard fileManager.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { continue }
-            let (provider, account) = providerAndAccount(forCloudStorageFolder: name)
-            roots.append(CloudRoot(url: url, provider: provider, account: account, kind: .fileProvider))
+            var isDir: ObjCBool = false
+            guard fileManager.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { return nil }
+            let identity = CloudFolderName.parse(name)
+            return CloudRoot(url: url, provider: identity.provider, account: identity.account, kind: kind,
+                             accountKind: identity.accountKind, entry: identity.entry)
         }
-        return roots
     }
 
     public static func root(containing url: URL, in roots: [CloudRoot]) -> CloudRoot? {
@@ -201,10 +228,37 @@ public enum CloudRoots {
 
     // MARK: Test overrides (headless scripted runs only)
 
-    /// `ARBOR_TEST_CLOUD_ROOT` makes a fixture folder a cloud root, so tests never touch real ones.
-    public static func testRoots(environment: [String: String]) -> [CloudRoot] {
-        guard let path = environment["ARBOR_TEST_CLOUD_ROOT"], !path.isEmpty else { return [] }
-        return [CloudRoot(url: URL(fileURLWithPath: path), provider: "Test Cloud", account: environment["ARBOR_TEST_CLOUD_ACCOUNT"], kind: .test)]
+    /// `ARBOR_TEST_CLOUD_ROOT` makes a fixture folder a cloud root, and each folder in `ARBOR_TEST_CLOUD_STORAGE`
+    /// stands in for one under ~/Library/CloudStorage, so tests never touch real ones.
+    public static func testRoots(environment: [String: String], fileManager: FileManager = .default) -> [CloudRoot] {
+        var roots: [CloudRoot] = []
+        if let path = environment["ARBOR_TEST_CLOUD_ROOT"], !path.isEmpty {
+            roots.append(CloudRoot(url: URL(fileURLWithPath: path), provider: "Test Cloud", account: environment["ARBOR_TEST_CLOUD_ACCOUNT"], kind: .test))
+        }
+        if let path = environment["ARBOR_TEST_CLOUD_STORAGE"], !path.isEmpty {
+            roots += storageRoots(in: URL(fileURLWithPath: path), kind: .test, fileManager: fileManager)
+        }
+        return roots
+    }
+
+    /// `ARBOR_TEST_CLOUD_KEYS="ubiquitous,download"`: what a simulated provider answers; `none` answers nothing,
+    /// `signin` adds a not-signed-in failure. nil when the variable isn't set.
+    public static func simulatedInfo(reporting text: String?) -> UbiquityInfo? {
+        guard let text, !text.isEmpty else { return nil }
+        let keys = Set(text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
+        var info = UbiquityInfo()
+        if keys.contains(CloudStatusKey.ubiquitous.rawValue) { info.isUbiquitous = true }
+        if keys.contains(CloudStatusKey.download.rawValue) { info.download = .current }
+        if keys.contains(CloudStatusKey.downloading.rawValue) { info.isDownloading = false }
+        if keys.contains(CloudStatusKey.uploading.rawValue) { info.isUploading = false }
+        if keys.contains(CloudStatusKey.uploaded.rawValue) { info.isUploaded = true }
+        if keys.contains(CloudStatusKey.conflicts.rawValue) { info.hasConflicts = false }
+        if keys.contains("signin") {
+            info.isUbiquitous = true
+            info.downloadError = "The operation couldn't be completed. Not signed in."
+            info.authenticationRequired = true
+        }
+        return info
     }
 
     /// `ARBOR_TEST_CLOUD_STATUS="a.txt=online,b.txt=available"`: fake statuses for the test root.
@@ -213,6 +267,11 @@ public enum CloudRoots {
         for pair in text.split(separator: ",") {
             let parts = pair.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
             guard parts.count == 2, !parts[0].isEmpty else { continue }
+            // "error:<text>" takes the same route as a real provider's failure text.
+            if parts[1].hasPrefix("error:") {
+                result[parts[0]] = CloudStatusMapper.status(UbiquityInfo(isUbiquitous: true, downloadError: String(parts[1].dropFirst("error:".count))))
+                continue
+            }
             let status: CloudStatus?
             switch parts[1].lowercased() {
             case "available", "local": status = .availableOnDevice

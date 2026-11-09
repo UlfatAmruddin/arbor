@@ -63,9 +63,8 @@ project owner confirmed them.
 | DEC-archives | [archives.md](features/archives.md) | 1–11 | — |
 | DEC-tags | [finder-tags.md](features/finder-tags.md) | 1–7 | — |
 | DEC-network | [network.md](features/network.md) | 1–8 | — |
-| DEC-cloud | [cloud.md](features/cloud.md) | 1–8 | — |
 | DEC-accessibility | [accessibility.md](features/accessibility.md) | 1–13 | DEC-accessibility-13 amends DEC-009: a second, opt-in keyboard preset |
-| DEC-cloud | [cloud.md](features/cloud.md) | 1–9 | — |
+| DEC-cloud | [cloud.md](features/cloud.md) | 1–14 | — |
 | DEC-accessibility | [accessibility.md](features/accessibility.md) | 1–12 | — |
 | DEC-performance | [performance.md](features/performance.md) | 1–7 | — |
 | DEC-distribution | [distribution.md](features/distribution.md) | 1–10 | — |

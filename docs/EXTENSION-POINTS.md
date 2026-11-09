@@ -25,6 +25,7 @@ Registered in this order (each after what it requires; "core" is required by all
 | `network` | `this-mac` |
 | `trash` | `file-operations` |
 | `cloud` | — |
+| `cloud-providers` | `cloud` |
 | `finder-tags` | `search` |
 | `folder-options` | `details-depth`, `home`, `properties` |
 | `gallery-libraries` | `folder-options` |
@@ -99,7 +100,7 @@ Registered in this order (each after what it requires; "core" is required by all
 | `NavigationPaneHooks.adjustRoots` | Pipeline | Adjusts the navigation pane's root nodes. `(roots) -> roots` | `folder-options.navigation-roots` |
 | `NavigationPaneHooks.filterChildren` | Pipeline | Filters a tree folder's children when it expands. `(items) -> items` | `folder-options.hide-protected` |
 | `NavigationPaneHooks.willReveal` | Observers | Before the pane marks the current location. `(pane, location)` | `finder-tags.expand-to-open-collection`, `folder-options.expand-to-open-folder` |
-| `NavigationPaneHooks.decorateCell` | Observers | Each tree cell after it is configured. `(cell, node)` | `finder-tags.cell-label`, `folder-options.tree-cells` |
+| `NavigationPaneHooks.decorateCell` | Observers | Each tree cell after it is configured. `(cell, node)` | `cloud-providers.root-details`, `finder-tags.cell-label`, `folder-options.tree-cells` |
 | `NavigationPaneHooks.didExpand` | Observers | A tree node was expanded. `(pane, node)` | `finder-tags.refresh-on-expand` |
 | `NavigationPaneExtras.builders` | Pipeline | Extra top-level tree nodes after Gallery or after Network. `(nodes, position) -> nodes` | `trash.navigation-node`, `cloud.roots`, `gallery-libraries.libraries-node` (late), `finder-tags.section` (last) |
 | `NavigationPaneController.volumeNodes` | Provided | The drives listed under This Mac in the tree. `() -> [NavNode]` | `this-mac.drives` |
@@ -147,7 +148,7 @@ Registered in this order (each after what it requires; "core" is required by all
 |---|---|---|---|
 | `FolderOptionsHistory.clearers` | Pipeline | Clears a feature's history for "Clear Arbor history"; adds the count removed. `(removed) -> removed` | `folder-options.home-history` |
 | `PerformanceDebug.extraMemoryFields` | Pipeline | More key=value fields for the memlog script step. `(line) -> line` | — |
-| `DebugScript.loggers` | Pipeline | Lines the log: script step appends. `(text, window) -> text` | `icon-views.log`, `details-depth.log`, `details-depth.marquee-log`, `home.log`, `this-mac.log`, `search.log`, `file-operations.log`, `properties.log`, `archives.log`, `network.log`, `trash.log`, `trash.log-2`, `cloud.log`, `finder-tags.log`, `folder-options.log`, `gallery-libraries.log`, `item-actions.log`, `item-actions.log-2`, `accessibility.log`, `visual-parity.log`, `visual-parity.log-2`, `consistency.log`, `consistency.log-2`, `file-operations-extras.log`, `file-operations-extras.log-2`, `performance.log`, `address-entry.handoff`, `services.log`, `promised-files.log`, `clipboard-interop.log`, `reliability.log`, `reliability.command-bar-tooltips`, `workspaces.log`, `acceptance-steps.log`, `settings-transfer.log`, `windows-shortcuts.log` |
+| `DebugScript.loggers` | Pipeline | Lines the log: script step appends. `(text, window) -> text` | `icon-views.log`, `details-depth.log`, `details-depth.marquee-log`, `home.log`, `this-mac.log`, `search.log`, `file-operations.log`, `properties.log`, `archives.log`, `network.log`, `trash.log`, `trash.log-2`, `cloud.log`, `cloud-providers.log`, `finder-tags.log`, `folder-options.log`, `gallery-libraries.log`, `item-actions.log`, `item-actions.log-2`, `accessibility.log`, `visual-parity.log`, `visual-parity.log-2`, `consistency.log`, `consistency.log-2`, `file-operations-extras.log`, `file-operations-extras.log-2`, `performance.log`, `address-entry.handoff`, `services.log`, `promised-files.log`, `promised-files.interop-log`, `clipboard-interop.log`, `reliability.log`, `reliability.command-bar-tooltips`, `workspaces.log`, `acceptance-steps.log`, `settings-transfer.log`, `windows-shortcuts.log` |
 
 ## Per-command overrides
 

@@ -240,12 +240,13 @@ struct CloudStatusTests {
     }
 
     @Test func providerNames() {
-        #expect(CloudRoots.providerAndAccount(forCloudStorageFolder: "OneDrive-Personal") == ("OneDrive", "Personal"))
-        #expect(CloudRoots.providerAndAccount(forCloudStorageFolder: "GoogleDrive-jane@example.com") == ("Google Drive", "jane@example.com"))
-        #expect(CloudRoots.providerAndAccount(forCloudStorageFolder: "Box-Box") == ("Box", nil))
-        #expect(CloudRoots.providerAndAccount(forCloudStorageFolder: "Dropbox") == ("Dropbox", nil))
-        #expect(CloudRoots.providerAndAccount(forCloudStorageFolder: "OneDrive-Contoso Ltd") == ("OneDrive", "Contoso Ltd"))
-        #expect(CloudRoots.providerAndAccount(forCloudStorageFolder: "AcmeSync-work") == ("AcmeSync", "work"))
+        func names(_ folder: String) -> (String, String?) { let id = CloudFolderName.parse(folder); return (id.provider, id.account) }
+        #expect(names("OneDrive-Personal") == ("OneDrive", "Personal"))
+        #expect(names("GoogleDrive-jane@example.com") == ("Google Drive", "jane@example.com"))
+        #expect(names("Box-Box") == ("Box", nil))
+        #expect(names("Dropbox") == ("Dropbox", nil))
+        #expect(names("OneDrive-Contoso Ltd") == ("OneDrive", "Contoso Ltd"))
+        #expect(names("AcmeSync-work") == ("AcmeSync", "work"))
     }
 
     @Test func detectsRootsInAFixtureHome() throws {

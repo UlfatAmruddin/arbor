@@ -189,6 +189,13 @@ final class NavigationPaneController: NSViewController, NSOutlineViewDataSource,
         suppressNavigation = false
     }
 
+    /// Redraws one top-level row after `change`; its children, expansion and the selection stay.
+    func updateRoot(at location: Location, _ change: (NavNode) -> Void) {
+        guard let root = roots.first(where: { $0.location == location }) else { return }
+        change(root)
+        outline.reloadItem(root, reloadChildren: false)
+    }
+
     /// The first visible row's node that `predicate` accepts.
     func visibleNode(where predicate: (NavNode) -> Bool) -> NavNode? {
         (0..<outline.numberOfRows).lazy.compactMap { self.outline.item(atRow: $0) as? NavNode }.first(where: predicate)

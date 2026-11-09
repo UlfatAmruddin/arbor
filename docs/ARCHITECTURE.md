@@ -193,7 +193,7 @@ CommandRegistry.shared.register(ExplorerCommand(
 ```
 `CommandContext` is frozen when the menu opens or the button is pressed: `window`, `location`, `selection` (FileItems),
 `targetFolder`, `surface`, `sender` (anchor view), `tabIndex` (tab menu), `treeLocation` (tree menu), `allowsEditing`.
-Also: `dynamicTitle`, `state` (checkmarks/toggles), `submenu`, `menuAction` (responder selector so text fields win, e.g.
+Also: `dynamicTitle`, `state` (checkmarks/toggles), `limitation` (why it can't run, when the location isn't the reason), `submenu`, `menuAction` (responder selector so text fields win, e.g.
 `cut:`), `yieldsToTextInput`. Each id is registered once; another feature changes it with `CommandRegistry.shared.override`
 (per location) or upgrades it with `replace` (see Writing a feature). Keys inside the file list (F2, Space) use
 `KeyBinding(code)` with the default `.itemView` scope, except keys whose meaning differs between the keyboard presets

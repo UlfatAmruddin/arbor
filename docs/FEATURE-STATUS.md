@@ -17,8 +17,8 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 
 | Status | Requirements |
 |---|---|
-| implemented | 227 |
-| partial | 7 |
+| implemented | 229 |
+| partial | 5 |
 | macOS boundary | 3 |
 | not done | 7 |
 | **total** | **244** |
@@ -37,7 +37,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | Preview, metadata and properties | 15 | 1 | 0 | 0 |
 | Archives and disk images | 9 | 0 | 0 | 0 |
 | Drives, devices, network and sharing | 9 | 0 | 2 | 2 |
-| Cloud and account integrations | 4 | 3 | 0 | 0 |
+| Cloud and account integrations | 6 | 1 | 0 | 0 |
 | Accessibility, localization and preferences | 9 | 1 | 0 | 0 |
 | System integration and expansion boundary | 8 | 1 | 0 | 2 |
 | Reliability and acceptance coverage | 10 | 0 | 0 | 2 |
@@ -303,10 +303,10 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-189 | Cloud locations in navigation | implemented | unit; headless (test root) | [cloud](features/cloud.md) |  |
 | FE-190 | Online-only, available, pinned states | implemented | unit; acceptance T20 | [cloud](features/cloud.md) | No pin state (no public API) |
 | FE-191 | Download and free-space actions | implemented | headless | [cloud](features/cloud.md) |  |
-| FE-192 | Sync errors and conflicts | partial | unit | [cloud](features/cloud.md) | Shown in the Status column; no provider handoff |
-| FE-195 | Multiple accounts | partial | unit | [cloud](features/cloud.md) | One node per account folder; no sign-in state |
+| FE-192 | Sync errors and conflicts | implemented | unit; behavior-checks `cloudproviders` | [cloud](features/cloud.md) | Shows the provider's own failure text and offers its app or iCloud settings; checked on simulated providers |
+| FE-195 | Multiple accounts | implemented | unit; behavior-checks `cloudproviders` | [cloud](features/cloud.md) | Personal, Work/School or Account unknown from the folder name; sign-in need from error codes only; checked on simulated providers |
 | FE-197 | iCloud Drive | implemented | unit | [cloud](features/cloud.md) | Not checked against a signed-in account in tests |
-| FE-198 | File Provider integration | partial | — | [cloud](features/cloud.md) | Uses the generic keys; unverified on real OneDrive/Dropbox/Google Drive |
+| FE-198 | File Provider integration | partial | unit; behavior-checks `cloudproviders` | [cloud](features/cloud.md) | What each provider reports is observed at run time, without downloading; not yet seen on a real OneDrive, Dropbox or Google Drive (manual list in the area document) |
 
 ## Accessibility, localization and preferences
 
@@ -335,7 +335,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-215 | Windows shortcut file compatibility | implemented | unit; `windows-shortcut-checks.sh` | [windows-shortcuts](features/windows-shortcuts.md) | Read-only; Windows programs are never launched |
 | FE-218 | Reveal in Finder and Services | implemented | unit; behavior-checks `services` | [qa-core](features/qa-core.md) |  |
 | FE-219 | Launch URLs and CLI entry | implemented | headless (path argument) | [qa-core](features/qa-core.md) | `Arbor <path>`; documents opened from Finder |
-| FE-220 | Signed, notarized universal releases | partial | build checks | [distribution](features/distribution.md) | Universal build and DMG done; signing/notarization pipeline not run (no Developer ID yet) |
+| FE-220 | Signed, notarized universal releases | partial | build checks; CI signing rehearsal | [distribution](features/distribution.md) | Universal build, DMG and a signing rehearsal on GitHub with a throwaway identity; real Developer ID signing and notarization need an Apple Developer account (docs/RELEASING.md) |
 | FE-221 | Public open-source governance | implemented | — | [distribution](features/distribution.md) | MIT license, README, CONTRIBUTING, SECURITY, templates; this file is the roadmap |
 | FE-222 | Privacy by default | implemented | code review (no telemetry, no own network calls) | — | No crash reporter |
 
@@ -365,7 +365,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-237 | Localized vs canonical query properties | implemented | unit; acceptance T19 | [search](features/search.md) |  |
 | FE-238 | Virtual collection write destination | implemented | unit; acceptance T21 | [gallery-libraries](features/gallery-libraries.md) |  |
 | FE-239 | Projection removal vs physical deletion | implemented | unit; acceptance T22 | [home-and-this-mac](features/home-and-this-mac.md) |  |
-| FE-240 | Streamed and promised transfer negotiation | partial | unit; behavior-checks `promises` | [promised-files](features/promised-files.md) | Streams to private staging without buffering; Finder and Mail interoperability not checked |
+| FE-240 | Streamed and promised transfer negotiation | partial | unit; behavior-checks `promises`, `promisesinterop` | [promised-files](features/promised-files.md) | Real AppKit promises against a separate process, with the end of the drop simulated; real Mail, Finder and Safari drags not yet seen (manual list in the area document) |
 | FE-241 | Execution success vs aborted/partial result | implemented | unit; acceptance T13 | [file-operations](features/file-operations.md) |  |
 | FE-242 | Handler lifecycle and stale completion | implemented | unit | [icon-views](features/icon-views.md) |  |
 | FE-243 | Decoded-image memory cost | implemented | unit; `bench.sh` media workload | [icon-views](features/icon-views.md) |  |
