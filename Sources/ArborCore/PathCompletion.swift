@@ -44,7 +44,7 @@ public struct PathCompletionQuery: Equatable, Sendable {
         return "/" + parts.joined(separator: "/")
     }
 
-    fileprivate var namedPath: String { Self.path(of: typedName, in: folder) }
+    var namedPath: String { Self.path(of: typedName, in: folder) }
 
     fileprivate static func path(of name: String, in folder: URL) -> String {
         guard !name.isEmpty else { return folder.path }
@@ -84,6 +84,8 @@ public struct PathCompletionCandidate: Equatable, Sendable {
     public let text: String
     public let name: String
     public let isFolder: Bool
+    /// Came from the address history rather than a listing.
+    public var isFromHistory = false
 }
 
 /// What a list leaves out; each case needs different advice.
@@ -130,21 +132,25 @@ public enum PathCompletion {
         return hasMore ? .moreMatches : nil
     }
 
-    private static func matches(_ name: String, _ typedName: String) -> Bool {
+    static func matches(_ name: String, _ typedName: String) -> Bool {
         typedName.isEmpty || TypeSelect.matches(name, typedName)
     }
 
-    /// A row must lead to the entry it names: `submitAddress` tests place keywords first, then the resolver parses and trims the text.
     private static func candidate(for entry: PathCompletionEntry, query: PathCompletionQuery) -> PathCompletionCandidate? {
         guard isDisplayable(entry.name) else { return nil }
         let text = query.literalPrefix + entry.name + (entry.isFolder ? "/" : "")
-        guard Location.keyword(text) == nil, text == text.trimmingCharacters(in: .whitespacesAndNewlines),
-              let parsed = PathCompletionQuery.parse(text, base: query.base, homeDirectory: query.homeDirectory),
-              parsed.namedPath == PathCompletionQuery.path(of: entry.name, in: query.folder) else { return nil }
+        guard leads(text, to: PathCompletionQuery.path(of: entry.name, in: query.folder), query: query) else { return nil }
         return PathCompletionCandidate(text: text, name: entry.name, isFolder: entry.isFolder)
     }
 
-    private static func isDisplayable(_ name: String) -> Bool {
+    /// A row must lead to the item it names: `submitAddress` tests place keywords first, then the resolver parses and trims the text.
+    static func leads(_ text: String, to path: String, query: PathCompletionQuery) -> Bool {
+        guard Location.keyword(text) == nil, text == text.trimmingCharacters(in: .whitespacesAndNewlines),
+              let parsed = PathCompletionQuery.parse(text, base: query.base, homeDirectory: query.homeDirectory) else { return false }
+        return parsed.namedPath == path
+    }
+
+    static func isDisplayable(_ name: String) -> Bool {
         !name.isEmpty && !name.contains("/") && !name.unicodeScalars.contains { isControl($0) || isBidiOverride($0) }
     }
 

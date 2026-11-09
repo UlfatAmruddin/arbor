@@ -34,7 +34,7 @@ extension BrowserWindowController {
             rebuildNavPane()
             tabs.filter { $0 !== activeTab }.forEach { $0.items = nil }
             reload()
-        case "showExtensions", "compactView", "itemCheckBoxes":
+        case "showExtensions", "compactView", "itemCheckBoxes", "wrapLongNames":
             itemView?.reloadRows()
         case "sidePane":
             showSidePane(Prefs.sidePane)

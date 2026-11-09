@@ -43,7 +43,7 @@ project owner confirmed them.
 | DEC-qa-core | [qa-core.md](features/qa-core.md) | 1–10 | — |
 | DEC-qa-core | [qa-core.md](features/qa-core.md) | 1–9 | — |
 | DEC-qa | [qa-places.md](features/qa-places.md) | 1–6 | — |
-| DEC-parity | [visual-parity.md](features/visual-parity.md) | 1–9 | — |
+| DEC-parity | [visual-parity.md](features/visual-parity.md) | 1–10 | — |
 | DEC-consistency | [consistency.md](features/consistency.md) | 1–8 | — |
 | DEC-iconviews | [icon-views.md](features/icon-views.md) | 1–9 | DEC-iconviews-7: the focus-only keys became ⌥⌘ arrows and ⌥Space (DEC-accessibility-3) |
 | DEC-grouping | [grouping.md](features/grouping.md) | 1–25 | DEC-grouping-13: column edits now belong to the folder (DEC-FO-7); kind-wide sets change only through Apply to Folders |
@@ -71,7 +71,7 @@ project owner confirmed them.
 | DEC-settings | [settings-transfer.md](features/settings-transfer.md) | 1–11 | — |
 | DEC-workspaces | [workspaces.md](features/workspaces.md) | 1–9 | — |
 | DEC-winlink | [windows-shortcuts.md](features/windows-shortcuts.md) | 1–15 | — |
-| DEC-address | [address-entry.md](features/address-entry.md) | 1–9 | — |
+| DEC-address | [address-entry.md](features/address-entry.md) | 1–13 | — |
 
 Other changes since the first log: the size format in Details (whole KB) and elsewhere (1024-based) is set by
 DEC-parity-2, replacing the adaptive Finder-style sizes mentioned in grouping.md's gaps; the Type column says "Shortcut"

@@ -107,6 +107,7 @@ public enum FolderOptionsCatalog {
     public static let files = L10n.tr("Files and Folders")
     public static let navigation = L10n.tr("Navigation pane")
     public static let keyboard = L10n.tr("Keyboard")
+    public static let detailsView = L10n.tr("Details view")
 
     public static let general: [FolderOptionItem] = [
         FolderOptionItem("openTo", L10n.tr("Open Arbor to:"), kind: .popup([OptionChoice("home", L10n.tr("Home")), OptionChoice("thismac", L10n.tr("This Mac"))]),
@@ -178,6 +179,8 @@ public enum FolderOptionsCatalog {
         FolderOptionItem(FileListKeyPreset.preferenceKey, L10n.tr("Keys in the file list"),
                          kind: .radio(FileListKeyPreset.allCases.map { OptionChoice($0.rawValue, $0.title) }),
                          default: .string(FileListKeyPreset.standard.rawValue), tab: .view, section: keyboard),
+        FolderOptionItem("group.detailsView", detailsView, kind: .group, default: nil, tab: .view, section: detailsView),
+        FolderOptionItem("wrapLongNames", L10n.tr("Wrap long file names"), default: .bool(false), tab: .view, section: detailsView),
     ]
 
     public static let search: [FolderOptionItem] = [

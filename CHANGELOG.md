@@ -19,6 +19,8 @@ their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 - Details view: full drag-to-select from empty space.
 - Libraries: create your own, rename and delete them without touching their folders, and "Optimize library for".
 - Keyboard: a Mac-style set of file list keys in Folder Options, alongside the Windows-style default.
+- Address bar history is remembered between launches and appears in suggestions; Clear history erases it.
+- Details: "Wrap long file names" in Folder Options shows up to three lines and keeps the extension readable.
 
 ### Files and reliability
 - Permanent delete stops at a volume mounted inside the folder instead of erasing it.

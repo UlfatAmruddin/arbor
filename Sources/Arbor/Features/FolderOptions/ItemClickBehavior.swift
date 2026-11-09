@@ -85,7 +85,7 @@ final class ItemClickBehavior: NSObject {
             return
         }
         let paragraph = NSMutableParagraphStyle()
-        paragraph.lineBreakMode = .byTruncatingMiddle
+        paragraph.lineBreakMode = field.lineBreakMode
         field.attributedStringValue = NSAttributedString(string: text, attributes: [
             .font: field.font ?? Theme.bodyFont, .foregroundColor: field.textColor ?? Theme.primaryText,
             .underlineStyle: NSUnderlineStyle.single.rawValue, .paragraphStyle: paragraph,

@@ -25,6 +25,7 @@ struct FolderOptionsCatalogTests {
             "Navigation pane", "Always show availability status", "Expand to open folder", "Show all folders", "Show libraries",
             "Show tags",
             "Keyboard", "Keys in the file list",   // Arbor's own, after Windows' list
+            "Details view", "Wrap long file names",
         ]
         #expect(titles == expected)
     }

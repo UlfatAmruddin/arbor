@@ -128,11 +128,12 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
         }
     }
 
+    /// Every URL states whether it is a folder: otherwise Foundation asks the disk, and a saved key can name a dead share.
     public init?(key: String) {
         if key.hasPrefix("folder:") {
             let path = String(key.dropFirst("folder:".count))
             guard path.hasPrefix("/") else { return nil }
-            self = .folder(URL(fileURLWithPath: path))
+            self = .folder(URL(fileURLWithPath: path, isDirectory: true))
             return
         }
         switch key {
@@ -149,14 +150,14 @@ public enum Location: Hashable, Sendable, CustomStringConvertible {
         case "search":
             guard let q = values["q"] else { return nil }
             let extras = (components.queryItems ?? []).filter { $0.name == "also" }.compactMap(\.value)
-                .filter { $0.hasPrefix("/") }.map { URL(fileURLWithPath: $0) }
-            self = .search(SearchRequest(query: q, scope: values["scope"].map { URL(fileURLWithPath: $0) },
+                .filter { $0.hasPrefix("/") }.map { URL(fileURLWithPath: $0, isDirectory: true) }
+            self = .search(SearchRequest(query: q, scope: values["scope"].map { URL(fileURLWithPath: $0, isDirectory: true) },
                                          recursive: values["recursive"] != "0",
                                          options: SearchOptions(code: values["opts"] ?? ""),
                                          extraScopes: extras, originKey: values["from"].flatMap { $0.isEmpty ? nil : $0 }))
         case "archive":
             guard let file = values["file"], file.hasPrefix("/") else { return nil }
-            self = .archive(URL(fileURLWithPath: file), innerPath: values["inner"] ?? "")
+            self = .archive(URL(fileURLWithPath: file, isDirectory: false), innerPath: values["inner"] ?? "")
         case "library":
             guard let name = values["name"], !name.isEmpty else { return nil }
             self = .library(name)

@@ -174,7 +174,8 @@ final class AddressCompletionController: AddressEditingSession {
     // MARK: The list
 
     private func render(_ listing: BoundedListing, for query: PathCompletionQuery) {
-        let result = PathCompletion.candidates(in: listing.entries, for: query, includeHidden: Prefs.showHidden)
+        let listed = PathCompletion.candidates(in: listing.entries, for: query, includeHidden: Prefs.showHidden)
+        let result = PathCompletion.addingHistory(AddressHistoryFeature.store.folderPaths, to: listed, for: query, includeHidden: Prefs.showHidden)
         guard !result.rows.isEmpty, let window else {
             hideList()
             return

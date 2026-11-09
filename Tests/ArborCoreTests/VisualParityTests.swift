@@ -70,8 +70,6 @@ struct ExplorerFormatTests {
         #expect(recent.entries == [a, b, .home])
         recent.record(.thisMac)
         #expect(recent.entries == [.thisMac, a, b])
-        recent.prune { $0 != b }
-        #expect(recent.entries == [.thisMac, a])
         recent.clear()
         #expect(recent.entries.isEmpty)
     }

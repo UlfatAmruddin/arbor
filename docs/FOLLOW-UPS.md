@@ -16,6 +16,8 @@ else lands here and is worked through when convenient. Delete a line when it is 
 - Workspaces: `WorkspacePrompts.inform` repeats `NSAlert.show` (`Sources/Arbor/Features/Workspaces/WorkspacePrompts.swift`).
 - Tests that can't fail: two checks in `scripts/windows-shortcut-checks.sh` (the opened PDF and `.url` rows) and the
   "Return during composition doesn't rename" check in `scripts/behavior-checks.sh`.
+- address-history: `Sources/Arbor/Views/IconProvider.swift`: Opening the address bar's recent list can still touch the disk or a share on the main thread, now for entries restored from a previous launch.
+- long-names: `Sources/Arbor/Features/VisualParity/DetailsViewController+NameWrap.swift`: A Name column or window resize while scrolled down a long folder moves the list to different rows.
 
 ## Small tidy-ups
 
@@ -51,3 +53,6 @@ else lands here and is worked through when convenient. Delete a line when it is 
 - keyboard-preset: `Sources/Arbor/Features/Accessibility/FileListKeys.swift`: ItemSurface(c)?.prepareToOpen() is an indirect and misnamed way to cancel the grid's slow-click rename.
 - keyboard-preset: `Sources/Arbor/Features/FolderOptions/FolderOptionsPrefs.swift`: The new choices check looks the item up again with FolderOptionsCatalog.item(key), which rebuilds and scans the whole catalog.
 - keyboard-preset: `Sources/Arbor/Features/Accessibility/AccessibilityDebug.swift`: keyEvent's new isRepeat:
+- address-history: `Sources/ArborCore/PathCompletionHistory.swift`: History rows filter hidden items by a leading dot only, while the listing treats `isHidden` as true for flagged items too (`.isHiddenKey`, for example `~/Library`).
+- long-names: `scripts/behavior-checks.sh`: The check "every row keeps the full-name tooltip" can never fail.
+- long-names: `Sources/Arbor/Views/DetailsViewController.swift`: topVisibleName probes `rowsViewport.minY + table.rowHeight / 2`, which assumes one-line rows.

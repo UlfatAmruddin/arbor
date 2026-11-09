@@ -17,17 +17,17 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 
 | Status | Requirements |
 |---|---|
-| implemented | 217 |
-| partial | 17 |
+| implemented | 219 |
+| partial | 15 |
 | macOS boundary | 13 |
 | not done | 11 |
 | **total** | **258** |
 
 | Area | Implemented | Partial | macOS boundary | Not done |
 |---|---|---|---|---|
-| Navigation and location | 15 | 1 | 0 | 0 |
+| Navigation and location | 16 | 0 | 0 | 0 |
 | Tabs, windows and session | 11 | 0 | 0 | 0 |
-| Views, density and readability | 27 | 1 | 0 | 0 |
+| Views, density and readability | 28 | 0 | 0 | 0 |
 | Selection, focus and input | 13 | 0 | 0 | 0 |
 | Home, special locations and collections | 12 | 0 | 2 | 0 |
 | File actions, clipboard and menus | 16 | 3 | 2 | 0 |
@@ -66,7 +66,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-003 | Breadcrumb path | implemented | headless `crumbs:`; snapshots | [visual-parity](features/visual-parity.md) | Collapses leading segments into «; recent-locations ▾ at the right end |
 | FE-004 | Breadcrumb sibling menus | implemented | headless `crumbs:` | [visual-parity](features/visual-parity.md) | Each › lists that folder's subfolders; not compared item by item with Explorer |
 | FE-005 | Editable address bar | implemented | acceptance T03 | [qa-core](features/qa-core.md) | ⌘L / ⌥D / click; Escape cancels |
-| FE-006 | Path completion and history | partial | unit; headless `address` | [address-entry](features/address-entry.md) | Completion while typing is built; history is still the session list |
+| FE-006 | Path completion and history | implemented | unit; behavior-checks `address`, `addresshistory` | [address-entry](features/address-entry.md) | History survives relaunch and Clear history erases it; not compared with Windows |
 | FE-007 | Folder tree | implemented | acceptance T01 | [qa-core](features/qa-core.md) | Expanding never navigates; lazy, one level per expansion |
 | FE-008 | Expand tree to current folder | implemented | headless Folder Options run | [folder-options](features/folder-options.md) | "Expand to open folder" (off by default, as in Windows) |
 | FE-009 | Navigation pane visibility | implemented | headless `log` (frames) | [visual-parity](features/visual-parity.md) | View ▸ Show ▸ Navigation pane |
@@ -125,7 +125,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-052 | Stable global view defaults | implemented | unit; acceptance T07 | [folder-options](features/folder-options.md) | App default → folder type → this folder, source shown in View ▾ |
 | FE-053 | Folders first with every sort | implemented | unit; acceptance T06 | [qa-core](features/qa-core.md) |  |
 | FE-054 | Predictable icon arrangement | implemented | unit (flow layout) | [icon-views](features/icon-views.md) | Always auto-arranged |
-| FE-055 | Long-name alternatives | partial | acceptance T05 | [visual-parity](features/visual-parity.md) | Middle truncation + full-name tooltip; names wrap in icon views only, not in Details |
+| FE-055 | Long-name alternatives | implemented | unit; behavior-checks `namewrap` | [visual-parity](features/visual-parity.md) | Optional wrapping in Details, up to three lines |
 
 ## Selection, focus and input
 

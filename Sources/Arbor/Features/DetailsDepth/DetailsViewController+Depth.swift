@@ -81,6 +81,7 @@ extension DetailsViewController {
     func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool { headerIndex(atRow: row) != nil }
 
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+        if let wrapped = wrappedRowHeight(row) { return wrapped }
         if headerIndex(atRow: row) != nil { return Theme.listRowHeight(Prefs.compactView ? 30 : 36) }
         return Theme.rowHeight(compact: Prefs.compactView)
     }
@@ -261,6 +262,7 @@ extension DetailsViewController {
 
     func tableViewColumnDidMove(_ notification: Notification) { columnsEditedByUser() }
     func tableViewColumnDidResize(_ notification: Notification) {
+        scheduleNameWrapRefit()
         // Only the user's own drags count; the Name column also resizes with the window.
         guard (table.headerView?.resizedColumn ?? -1) >= 0 else { headerOverlay?.needsDisplay = true; return }
         columnsEditedByUser()

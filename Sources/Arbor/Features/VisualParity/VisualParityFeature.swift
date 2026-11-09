@@ -7,23 +7,6 @@ enum VisualParityFeature: ExplorerFeature {
     static func register() {
         registerScriptSteps()
         registerMenuWording()
-        registerRecentLocations()
-    }
-
-    /// Places visited this session for the address bar's ▾, shared by all windows.
-    private static var recent = RecentLocations()
-
-    private static func registerRecentLocations() {
-        NotificationCenter.default.addObserver(forName: LocationEvents.didVisit, object: nil, queue: .main) { note in
-            guard let location = note.userInfo?["location"] as? Location else { return }
-            recent.record(location)
-        }
-        NotificationCenter.default.addObserver(forName: HomeStore.historyCleared, object: nil, queue: .main) { _ in recent.clear() }
-        AddressBar.recentLocations.provide("visual-parity.recent-locations") {
-            // Drop folders that went away (quick existence check).
-            recent.prune { place in place.folderURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? true }
-            return recent.entries
-        }
     }
 
     /// Windows 11 menu wording and order inside the window (reference §1.5–§1.7, §2.3, §4).

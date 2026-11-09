@@ -90,7 +90,7 @@ public enum PortableSettingsCatalog {
     static let portableFolderOptions = [
         "openTo", "browseFolders", "compactView", "fullPathInTitleBar", "hiddenFiles",
         "hideEmptyDrives", "showPopupDescriptions", "showStatusBar", "showSyncProviderNotifications", "itemCheckBoxes",
-        "typingMode", "navShowAvailabilityStatus", "navExpandToOpenFolder", "navShowAllFolders", "showLibraries", "navShowTags", FileListKeyPreset.preferenceKey,
+        "typingMode", "navShowAvailabilityStatus", "navExpandToOpenFolder", "navShowAllFolders", "showLibraries", "navShowTags", FileListKeyPreset.preferenceKey, "wrapLongNames",
     ]
 
     /// Folder Options that stay on this Mac. A unit test requires every option to be here or in `portableFolderOptions`.

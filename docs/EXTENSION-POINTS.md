@@ -31,10 +31,12 @@ Registered in this order (each after what it requires; "core" is required by all
 | `item-actions` | `archives` |
 | `accessibility` | — |
 | `visual-parity` | — |
+| `name-wrap` | — |
 | `consistency` | `search`, `archives`, `trash`, `cloud`, `gallery-libraries`, `folder-options`, `item-actions`, `home`, `network`, `properties` |
 | `file-operations-extras` | `file-operations`, `archives`, `properties` |
 | `performance` | — |
 | `address-entry` | `home`, `trash`, `this-mac`, `network`, `gallery-libraries` |
+| `address-history` | — |
 | `services` | — |
 | `reliability` | — |
 | `workspaces` | — |
@@ -78,7 +80,7 @@ Registered in this order (each after what it requires; "core" is required by all
 | `BrowserWindowController.networkAddressHandler` | Handlers | A network address typed in the address bar; true = handled. `(window, url) -> handled` | `network.typed-address` |
 | `BrowserWindowController.unresolvedAddress` | Handlers | Address text the resolver could not place; true = handled. `(window, text, error) -> handled` | `address-entry.shell-names` |
 | `BrowserWindowController.volumeUnmountHandler` | Handlers | A tab's volume was unmounted; true = handled (tab stays). `(window, tab, volume) -> handled` | `network.keep-disconnected-tabs` |
-| `AddressBar.recentLocations` | Provided | The address bar's recent locations (▾); hidden without a provider. `() -> [Location]` | `visual-parity.recent-locations` |
+| `AddressBar.recentLocations` | Provided | The address bar's recent locations (▾); hidden without a provider. `() -> [Location]` | `address-history.recent-locations` |
 | `AddressBar.editTextProviders` | Handlers | The text the address field edits for a location; nil = path or title. `(location) -> text?` | `network.unc-path` |
 | `AddressBar.annotationProviders` | Handlers | A state of the view shown after the last crumb that is not a place (Filtered). `(tab) -> annotation?` | `details-depth.filtered` |
 | `Breadcrumbs.builders` | Handlers | Breadcrumbs for location kinds the core doesn't build. `(location) -> [Crumb]?` | `cloud.crumbs` (early), `archives.crumbs`, `network.crumbs`, `gallery-libraries.crumbs` |

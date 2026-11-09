@@ -147,7 +147,7 @@ public enum WorkspaceFile {
     }
 
     /// One bad element is skipped and counted; its siblings survive.
-    private struct Lossy<Value: Decodable>: Decodable {
+    struct Lossy<Value: Decodable>: Decodable {
         let value: Value?
         init(from decoder: Decoder) throws { value = try? decoder.singleValueContainer().decode(Value.self) }
     }

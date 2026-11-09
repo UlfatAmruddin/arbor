@@ -628,6 +628,53 @@ if want address; then
   discard address "$R"
 fi
 
+# address-entry.md: addresses survive a relaunch, a bad file is harmless, Clear history erases them, and no run sees the real file.
+if want addresshistory; then
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/state" "$R/F/Alpha/Deep" "$R/F/Beta" "$R/home/Library/Application Support/Arbor"
+  P=$(cd "$R/F" && pwd -P); K=${P#/private}
+  FILE="$R/state/AddressHistory.json"
+
+  run "$R" "$P" "wait:1;address:$P/Alpha/Deep;wait:1;location:$P/Beta;wait:1;quit" ARBOR_STATE_DIR="$R/state"
+  fact "the history is saved at quit" test -f "$FILE"
+  contains "a typed address is remembered" "$FILE" "folder:$K/Alpha/Deep"
+  contains "a visited place is remembered" "$FILE" "folder:$K/Beta"
+  contains "the file has a version" "$FILE" '"version":1'
+
+  run "$R" "$P" "wait:1.5;log:$R/a.txt;addresstype:$K/Al;addresscompletionready;addresscompletions:$R/a2.txt;key:down;key:return;wait:1;log:$R/a3.txt;quit" ARBOR_STATE_DIR="$R/state"
+  check "the ▾ list comes back after a relaunch, newest first" "$R/a.txt" "recent: $K | $K/Beta | $K/Alpha/Deep"
+  contains "completion offers the remembered folder first" "$R/a2.txt" "shown rows=[Alpha/Deep/|Alpha/]"
+  contains "a remembered row opens its folder" "$R/a3.txt" "/F/Alpha/Deep  view: details"
+
+  printf '{"version":1,"entries":["folder:%s/Gone","folder:%s/Beta","folder:/Volumes/Arbor No Such Volume/x",3,"folder:/a/../b"]}' "$K" "$K" > "$FILE"
+  run "$R" "$P" "wait:2.5;location:$P/Beta;wait:0.5;log:$R/b.txt;quit" ARBOR_STATE_DIR="$R/state"
+  contains "a remembered place that exists is listed" "$R/b.txt" "$K/Beta"
+  lacks "a folder that went away is not offered" "$R/b.txt" "$K/Gone"
+  lacks "a folder on an unplugged drive is not offered" "$R/b.txt" "Arbor No Such Volume"
+  contains "hidden entries stay remembered" "$FILE" "Arbor No Such Volume"
+
+  echo "not json" > "$FILE"
+  run "$R" "$P" "wait:1;log:$R/c.txt;quit" ARBOR_STATE_DIR="$R/state"
+  check "a damaged file starts an empty list" "$R/c.txt" "recent: $K"
+  contains "the next save replaces a damaged file" "$FILE" "folder:$K"
+
+  printf '{"version":99,"entries":["trash"],"later":true}' > "$FILE"
+  run "$R" "$P" "wait:1;log:$R/d.txt;quit" ARBOR_STATE_DIR="$R/state"
+  contains "a newer file is read" "$R/d.txt" "Trash"
+  contains "a newer file is not rewritten" "$FILE" '"later":true'
+
+  run "$R" "$P" "wait:1;location:$P/Beta;wait:1;homeclear;wait:0.5;log:$R/e.txt;quit" ARBOR_STATE_DIR="$R/state"
+  fact "Clear history erases the file" test ! -e "$FILE"
+  check "Clear history empties the ▾ list" "$R/e.txt" "recent: "
+
+  REAL="$R/home/Library/Application Support/Arbor/AddressHistory.json"
+  printf '{"version":1,"entries":["folder:%s/Beta"]}' "$K" > "$REAL"
+  before=$(cksum < "$REAL")
+  run "$R" "$P" "wait:1;location:$P/Alpha;wait:2;log:$R/f.txt;homeclear;wait:0.5;quit" CFFIXED_USER_HOME="$R/home"
+  lacks "a headless run does not read the real history" "$R/f.txt" "$K/Beta"
+  fact "a headless run does not write or erase the real history" test "$before" = "$(cksum < "$REAL")"
+  discard addresshistory "$R"
+fi
+
 # FE-218: the Open in Arbor service, and what the selection offers to other apps' services. Real Services need a GUI session.
 if want services; then
   R=$(arbor_mktemp_dir); F="$R/F"; mkdir -p "$R/trash" "$F/sub" "$F/App.app/Contents"
@@ -912,7 +959,7 @@ if want detailsmarquee; then
 
   # Back then another folder during a hold: the last folder must not inherit Back's scroll position.
   S="wait:1;view:details;wait:0.5;detailsmarquee:200,10,50,2000::1.2;wait:0.5;location:folder:$R/S;wait:1.5"
-  S+=";detailsmarquee:200,10,50,70::4:queued;wait:0.5;back;wait:0.5;location:folder:$R/F2;wait:0.5;log:$R/n1.txt;wait:6;log:$R/n2.txt;quit"
+  S+=";detailsmarquee:200,10,50,70::10:queued;wait:0.5;back;wait:0.5;location:folder:$R/F2;wait:0.5;log:$R/n1.txt;wait:12;log:$R/n2.txt;quit"
   run "$R" "$R/F" "$S"
   contains "both folder changes wait for mouse-up" "$R/n1.txt" "tracking=true"
   contains "the last folder shows afterwards" "$R/n2.txt" "tableRows=50 "
@@ -926,6 +973,80 @@ if want detailsmarquee; then
   lacks "a band out and back opens nothing" "$R/sc1.txt" "/b.txt"
   contains "control: a row-space click opens" "$R/sc2.txt" "/a.txt"
   discard detailsmarquee "$R"
+fi
+
+# FE-055: long names wrap in Details when the Folder Options choice is on. The window width sets the Name column.
+if want namewrap; then
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/L"
+  TWO="Quarterly planning notes for the whole team with far too many words to fit on one line of the name column.pdf"
+  CAPPED="$(printf 'x%.0s' $(seq 1 120))_$(printf 'y%.0s' $(seq 1 100)).tar.gz"
+  touch "$R/F/$TWO" "$R/F/$CAPPED" "$R/F/b.txt" "$R/F/c.md" "$R/F/$(printf 'evil\nname.pdf')"
+  mkdir "$R/F/Long folder name with a dot in it so that nothing marks a false extension somewhere over the end.of.it"
+  # All 5,000 names wrap: what is measured must stay near what is on screen.
+  perl -e 'for (1..5000) { open(my $f, ">", sprintf("%s/%05d %s.txt", $ARGV[0], $_, "long name " x 12)) or die }' "$R/L"
+
+  # Row height + 12 = field height + 28: a cell whose field kept an old height would show here.
+  fits() { awk 'index($0, "namewrap row:") { h=$0; sub(/.* height=/, "", h); sub(/ .*/, "", h); f=$0; sub(/.* field=[0-9]+x/, "", f); sub(/ .*/, "", f); if (h - f != base) bad=1 } END { exit bad }' base="$2" "$1"; }
+
+  OPT="folderoptions:view;foset:wrapLongNames=1;fobutton:OK;wait:0.8"
+  S="wait:1;view:details;windowsize:1100,700;wait:0.5;namewrap:$R/off.txt"
+  S+=";$OPT;namewrap:$R/on.txt;snapshot:$R/on.png"
+  S+=";detailsmarquee:600,10,30,130;log:$R/band.txt;detailsmarquee:600,10,300,130;log:$R/band2.txt"
+  S+=";select:b.txt;key:down;log:$R/down.txt;key:shift+down;log:$R/shift.txt"
+  S+=";click:view.compact;wait:0.5;namewrap:$R/compact.txt;click:view.compact;wait:0.5"
+  S+=";select:$TWO;click:file.rename;wait:0.4;namewrap:$R/renaming.txt;escape;wait:0.4;namewrap:$R/escaped.txt"
+  S+=";select:b.txt;click:file.rename;event;type:$TWO b.txt;enter;event;wait:1.2;namewrap:$R/renamed.txt;log:$R/renamed-log.txt"
+  S+=";windowsize:760,700;wait:0.8;namewrap:$R/narrow.txt"
+  S+=";folderoptions:view;foset:wrapLongNames=0;fobutton:OK;wait:0.8;namewrap:$R/off2.txt;quit"
+  run "$R" "$R/F" "$S"
+  contains "off by default" "$R/off.txt" "namewrap: on=false"
+  contains "off: a long name stays on one line" "$R/off.txt" "$TWO height=28 "
+  lacks "off: no cell is a wrapped one" "$R/off.txt" "wrapped=true"
+  contains "on from Folder Options" "$R/on.txt" "namewrap: on=true"
+  contains "a long name takes two lines" "$R/on.txt" "$TWO height=44 "
+  contains "a short name keeps the ordinary height" "$R/on.txt" "c.md height=28 "
+  contains "at most three lines" "$R/on.txt" "$CAPPED height=60 "
+  fact "fields match their rows" fits "$R/on.txt" 12
+  fact "every row keeps the full-name tooltip" grep -qvE 'tip=false' "$R/on.txt"
+  contains "the name is shortened in the middle" "$R/on.txt" "…"
+  fact "the shortened name keeps its extension" grep -qE '^namewrap row: x+_y+\.tar\.gz .*shown=.*….*\.tar\|\.gz$' "$R/on.txt"
+  contains "the extension can't split" "$R/on.txt" "shown=c|.md"
+  contains "a line break in a name stays out of the layout" "$R/on.txt" 'shown=evil name|.pdf'
+  lacks "a folder gets no extension break" "$R/on.txt" "of|.it"
+  contains "a band selects across tall rows" "$R/band.txt" "press=rowSpace hits=5 "
+  contains "a band over the text takes only the long names" "$R/band2.txt" "press=rowSpace hits=2 "
+  contains "the keyboard moves through tall rows" "$R/down.txt" "selected: c.md"
+  contains "shift extends through tall rows" "$R/shift.txt" "selected: c.md | evil"
+  contains "compact rows stay smaller" "$R/compact.txt" "c.md height=24 "
+  fact "compact: fields match their rows" fits "$R/compact.txt" 8
+  contains "a narrower column means more lines" "$R/narrow.txt" "$TWO height=60 "
+  fact "narrow: fields match their rows" fits "$R/narrow.txt" 12
+  contains "rename edits the full name" "$R/renaming.txt" "shown=$TWO"
+  contains "Escape restores the shown text" "$R/escaped.txt" "shown=${TWO%.pdf}|.pdf"
+  # A reload puts the Name column back at its saved width, so this name can take a different number of lines.
+  fact "a renamed row takes its new height" grep -qE "^namewrap row: $TWO b\.txt height=(44|60) " "$R/renamed.txt"
+  fact "renamed: fields match their rows" fits "$R/renamed.txt" 12
+  contains "and is selected" "$R/renamed-log.txt" "$TWO b.txt"
+  lacks "off again: nothing stays wrapped" "$R/off2.txt" "wrapped=true"
+  contains "off again: back to one line" "$R/off2.txt" "$TWO height=28 "
+
+  S="wait:1;view:details;windowsize:1100,700;wait:0.5;$OPT;namewrap:$R/tall.txt;quit"
+  run "$R" "$R/F" "$S" ARBOR_TEXT_SIZE=150
+  fact "bigger text gives taller rows" test "$(sed -n "s/^namewrap row: $TWO height=\([0-9]*\) .*/\1/p" "$R/tall.txt")" -gt 44
+
+  S="wait:1;view:details;windowsize:1100,700;wait:0.5;$OPT;namewrap:$R/rtl.txt;detailspress:$TWO:$R/rtl-press.txt;quit"
+  run "$R" "$R/F" "$S" ARBOR_RTL=1
+  contains "right to left: a long name wraps" "$R/rtl.txt" "$TWO height=44 "
+  contains "right to left: the shape still matches the cell" "$R/rtl-press.txt" "layout icon=true field=true"
+
+  S="wait:1;view:details;windowsize:1100,700;wait:0.5;$OPT;namewrap:$R/top.txt;key:end;wait:0.8;namewrap:$R/end.txt;key:home;wait:0.8;namewrap:$R/home.txt;quit"
+  run "$R" "$R/L" "$S"
+  measured() { sed -n 's/^namewrap: .*measured=\([0-9]*\) .*/\1/p' "$1"; }
+  fact "only rows near the screen are measured" test "$(measured "$R/top.txt")" -lt 1000
+  contains "the last row is reached" "$R/end.txt" "05000 "
+  contains "and the first again" "$R/home.txt" "00001 "
+  fact "still only a fraction of the folder" test "$(measured "$R/end.txt")" -lt 2500
+  discard namewrap "$R"
 fi
 
 # gallery-libraries.md: custom libraries (FE-076), their write destination (FE-238) and removal vs deletion (FE-239).

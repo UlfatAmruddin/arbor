@@ -76,6 +76,7 @@
 "%@, %@, pinned" = "%@, %@, pinned";
 "%@, modified %@" = "%@, modified %@";
 "%@, pinned" = "%@, pinned";
+"%@, recent location" = "%@, recent location";
 "%@, tag" = "%@, tag";
 "%@: %@" = "%@: %@";
 "%@:today or %@:1/1/2026..1/31/2026" = "%@:today or %@:1/1/2026..1/31/2026";
@@ -473,6 +474,7 @@
 "Details" = "Details";
 "Details Pane" = "Details Pane";
 "Details pane" = "Details pane";
+"Details view" = "Details view";
 "Details:" = "Details:";
 "Devices and drives" = "Devices and drives";
 "Digital Signature Information" = "Digital Signature Information";
@@ -1540,6 +1542,7 @@
 "Workspaces" = "Workspaces";
 "Workspaces can't be changed right now." = "Workspaces can't be changed right now.";
 "Would become hidden" = "Would become hidden";
+"Wrap long file names" = "Wrap long file names";
 "Write" = "Write";
 "Write only" = "Write only";
 "Write only (Drop Box)" = "Write only (Drop Box)";

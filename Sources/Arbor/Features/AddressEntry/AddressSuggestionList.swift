@@ -40,7 +40,7 @@ final class AddressSuggestionList {
     }
 
     private func makeButton(_ row: PathCompletionCandidate, index: Int, width: CGFloat) -> ChromeButton {
-        let button = ChromeButton(symbol: row.isFolder ? "folder" : "doc", title: row.name)
+        let button = ChromeButton(symbol: row.isFromHistory ? "clock" : row.isFolder ? "folder" : "doc", title: row.name)
         button.symbolSize = 12
         button.symbolTint = Theme.secondaryText
         button.fixedHeight = 26
@@ -48,7 +48,7 @@ final class AddressSuggestionList {
         button.toolTip = row.text
         button.clipsToBounds = true   // a very long name stays inside its row
         button.onClick = { [weak self] _ in self?.onPick?(index) }
-        button.setAccessibilityLabel(row.name)
+        button.setAccessibilityLabel(row.isFromHistory ? L10n.format("%@, recent location", row.name) : row.name)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.widthAnchor.constraint(equalToConstant: width).isActive = true
         return button

@@ -104,6 +104,8 @@ final class NameCellView: NSTableCellView {
     }()
     private var hasCheckbox = false
     private var iconLeading: NSLayoutConstraint!
+    /// Height of a wrapped field (FE-055); nil on a single-line cell.
+    var wrapHeight: NSLayoutConstraint?
 
     init() {
         super.init(frame: .zero)
@@ -205,6 +207,8 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
     var groupStarts: [Int] = []
     var applyingColumns = false
     var visibleLoadScheduled = false
+    /// Nil while names are on one line (FE-055).
+    var nameWrap: NameWrapRows?
     var arrivedNames = Set<String>()
     var headerOverlay: HeaderOverlayView?
     lazy var visibleOwner = "visible-\(UUID().uuidString)"
@@ -355,7 +359,8 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         for row in visible.location..<(visible.location + visible.length) where item(atRow: row) != nil {
             if let cell = table.view(atColumn: index, row: row, makeIfNecessary: false) as? NSTableCellView,
                let field = cell.textField {
-                width = max(width, field.intrinsicContentSize.width + (cell is NameCellView ? 40 : 20))
+                let wrapped = cell is NameCellView ? wrappedOneLineWidth(row: row) : nil   // a wrapped field has no one-line width
+                width = max(width, (wrapped ?? field.intrinsicContentSize.width) + (cell is NameCellView ? 40 : 20))
             }
         }
         column.width = min(max(width, column.minWidth), 800)
@@ -387,8 +392,10 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         items = regroup(update.items)
         rebuildRows()
         table.rowHeight = Theme.rowHeight(compact: Prefs.compactView)
+        prepareNameWrap(locationChanged: update.locationChanged)
         // Without group rows, keep cell views; reloadData() discards them (spec §15.3).
         if hadGroups || !groups.isEmpty { table.reloadData() } else { table.reloadKeepingViews() }
+        noteAllRowHeights()
         headerOverlay?.needsDisplay = true
         if update.select == nil, !keepURLs.isEmpty {
             // Names can repeat in search results: keep the selection by URL.
@@ -423,6 +430,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
     }
 
     func applyDeferredUpdate() {
+        refitNameWrap()
         guard let update = deferredUpdate else { return }
         deferredUpdate = nil
         display(update)
@@ -431,6 +439,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
     func reloadRows() {
         guard isViewLoaded else { return }
         table.rowHeight = Theme.rowHeight(compact: Prefs.compactView)
+        syncNameWrap()
         let indexes = IndexSet(integersIn: 0..<rows.count)
         table.reloadData(forRowIndexes: indexes, columnIndexes: IndexSet(integersIn: 0..<table.numberOfColumns))
         table.noteHeightOfRows(withIndexesChanged: indexes)
@@ -505,8 +514,10 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
         let dimmed = item.isHidden || FileClipboard.shared.isCut(item.url)
         if let extra = DetailsColumns.cell(for: tableView, columnID: id, item: item) { extra.alphaValue = dimmed ? 0.5 : 1; return extra }
         if id == "name" {
-            let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier("NameCell"), owner: nil) as? NameCellView ?? NameCellView()
-            cell.nameField.stringValue = shownName(item)
+            let cell = nameWrap != nil ? wrappedNameCell(in: tableView)
+                : tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier("NameCell"), owner: nil) as? NameCellView ?? NameCellView()
+            cell.wrapHeight?.constant = wrappedTextHeight(item)
+            cell.nameField.stringValue = cellText(item)
             cell.nameField.font = Theme.listFont
             cell.nameField.toolTip = item.name
             cell.nameField.delegate = self
@@ -661,7 +672,9 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
 
     func controlTextDidEndEditing(_ obj: Notification) {
         guard let field = obj.object as? RenameField, let item = renamingItem else { return }
-        let typed = field.stringValue
+        let entered = field.stringValue
+        // A wrapped field can take a line break, which a one-line field can't; an untouched name stays as it is.
+        let typed = nameWrap == nil || entered == item.name ? entered : NameWrapText(entered, keepsExtension: false).name
         field.isEditable = false
         renamingItem = nil
         pendingRenameText = nil
@@ -673,9 +686,9 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
             .flatMap { items.indices.contains($0) ? items[$0] : nil }
 
         if cancelled || typed == item.name {
-            field.stringValue = shownName(item)
+            field.stringValue = cellText(item)
         } else if itemDelegate?.itemViewRename(item, to: typed) == false {
-            field.stringValue = shownName(item)
+            field.stringValue = cellText(item)
             DispatchQueue.main.async { [weak self] in self?.beginRename(item, text: typed) }
             return
         }

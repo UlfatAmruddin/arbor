@@ -14,6 +14,7 @@ extension Prefs {
     static var showPopupDescriptions: Bool { bool("showPopupDescriptions", default: true) }
     static var showPreviewHandlers: Bool { bool("showPreviewHandlers", default: true) }
     static var showStatusBar: Bool { bool("showStatusBar", default: true) }
+    static var wrapLongNames: Bool { bool("wrapLongNames", default: false) }
     static var showSyncProviderNotifications: Bool { bool("showSyncProviderNotifications", default: true) }
     static var typeIntoSearchBox: Bool { string("typingMode", default: "select") == "search" }
     static var fileListKeyPreset: FileListKeyPreset {

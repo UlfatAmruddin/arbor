@@ -14,7 +14,7 @@ under "Shared files touched".
 | FE-011 | Navigation row order Back · Forward · Up · **Refresh** · address bar · search box (Refresh moved out of the address box) | Implemented | Headless `log` (`nav row:` line), light/dark snapshots |
 | FE-011 | Back/Forward/Up/Refresh tooltips name their target: "Back to “Documents” (⌘[ or Delete)", "Up to “Users” (⌘↑)", "Refresh “Projects” (⌘R or F5)" | Implemented | Headless `log` (`tooltips:`) |
 | FE-062 | Keyboard: Back · Forward · Up · Refresh are one toolbar stop of the address region (⇧Tab from the path field enters it, ←/→/Home/End move, Tab returns to the field); Tab from the field reaches the ▾, then the search box. F6 order is unchanged (tabs, address, search, command bar, navigation pane, items, side pane). In right-to-left layouts the tab overflow arrows keep pointing at the side they scroll toward and merge slots are mirrored | Implemented | Headless `key:`/`focus:` steps (focus log), `axdump`, snapshot of the focus ring |
-| FE-003 | Recent-locations ▾ at the right end of the address bar (session list shared by all windows, most recent first, no duplicates, search results left out, vanished folders pruned) | Implemented | Unit test `recentLocationsAreMostRecentFirstWithoutDuplicates`; headless `log` (`recent:`) |
+| FE-003 | Recent-locations ▾ at the right end of the address bar (shared by all windows, most recent first, no duplicates, search results left out, vanished folders hidden; remembered across launches, see address-entry.md) | Implemented | Unit test `recentLocationsAreMostRecentFirstWithoutDuplicates`; headless `log` (`recent:`) |
 | FE-020 | Drag a tab out of the tab row: it floats under the pointer; released over another window's tab row it is inserted at the marked slot (accent insertion bar), elsewhere it opens a new window under the pointer. History, selection, view mode and sort travel with the tab | Implemented | Headless steps `tearoff:`, `mergetab:`, `droppreview:` + `log` (`window tabs:`) and snapshots; pointer dragging itself is manual (scripts can't move the mouse) |
 | FE-020 | A window's only tab drags the whole window; dropping it on another window's tab row merges it (a click without movement never merges) | Implemented | Code path (`tabStripDragWindow`); manual |
 | FE-017 | Tabs are equal width between 100 and 240 pt; past the minimum the strip scrolls with ‹ › overflow buttons (enabled only when there is more to see) and the mouse wheel; the active tab is scrolled into view | Implemented | Headless with 12 tabs: `tab strip: overflow=true tabWidth=100 visible=3-12 of 12 back=true forward=false`, after `tabscroll:-20` `visible=1-10 … back=false forward=true`; snapshots light/dark |
@@ -31,6 +31,7 @@ under "Shared files touched".
 | Search | "Advanced options ▸ Zipped (compressed) folders" (was "files") | Implemented | `searchmenu:` dump |
 | Audit | Every screen in light and dark (list below) | Done | Headless snapshots read one by one |
 | Selection | One rule for every list (Details, icon layouts, navigation pane, Home / This Mac / Gallery / Network tiles): accent tint while the list has keyboard focus in the active window, neutral grey otherwise; the navigation pane's current-location pill and accent bar turn grey in an inactive window | Implemented | Headless `windowactive:0` / `windowactive:1` + `log` (`selection emphasis:` line), snapshots light/dark of Details and Large icons in both states |
+| FE-055 | Long names in Details: one line shortened in the middle by default; Folder Options › View › Details view › **Wrap long file names** (off by default, an Arbor addition with no Explorer counterpart claimed) lets each name take up to 3 lines. The extension is never split across lines and survives shortening; the full name stays in the tooltip, rename edits the whole name, and rows, the band, the keyboard, right-to-left layouts, compact view and text size follow the taller rows | Implemented | Unit tests `NameWrapTests`; `scripts/behavior-checks.sh namewrap`; snapshot |
 | FE-204 | Right-to-left tabs: icon and title start at the right, ✕ and separator on the left; a tab dragged along the row lands in the slot counted from the right edge | Implemented | `ARBOR_RTL=1` snapshots light/dark (also pseudo-localized), `dragtab:1:-260` + `log` (`window tabs:`), unit tests `TabStripGeometryTests` |
 
 ## Audit: screens checked (light and dark)
@@ -105,8 +106,17 @@ status bar `N items | n item selected size |` with Details / Large icons toggles
   runs count as the active window so snapshots show the focused look; `windowactive:0` checks the other.
 - **DEC-parity-9** Right-to-left tabs mirror their contents and count reorder slots from the right edge
   (`TabStripGeometry`); merge slots between windows already did.
-- **DEC-parity-7** The recent-locations list is per session and shared by all windows; it is not persisted
-  (Explorer's list comes from typed paths and history; persisting would add another history store to clear).
+- **DEC-parity-7** ~~The recent-locations list is per session and shared by all windows; it is not persisted.~~
+  Superseded by DEC-address-10: the list is still shared by all windows and now survives a relaunch.
+
+- **DEC-parity-10** Wrapped names (FE-055). A cell may hold at most `NameWrapMetrics.maxLines` (3) lines; beyond that the
+  name is shortened in the middle with the icon views' `MiddleTruncation`, because AppKit clips a multi-line field without
+  an ellipsis. A zero-width break goes before the extension so it can only move to the next line whole. Line breaks in a
+  file name are shown as spaces: left in, `a.pdf` plus newlines could hide the real extension. Heights are measured with
+  the same cell settings that draw, inside `tableView(_:heightOfRow:)`, and kept per name: `NSTableView` asks only near
+  the viewport (301 of 100,000 rows when a folder opens, macOS 26), so measuring is lazy without a second estimate.
+  `NameWrapHeights.measurementsPerTurn` caps the work if a table ever asks for every row. A table with the option off
+  only tests `nameWrap` for nil.
 
 ## Shared files touched (small, additive)
 
@@ -122,6 +132,10 @@ metrics), `Views/DetailsColumns.swift` (left-aligned layout headers), `Views/Det
 `ArborCore/DetailsColumns.swift` (size formats), `ArborCore/Archives/ZipDirectory.swift` (bounded read),
 `ArborCore/Search/ContentReaders.swift` and `DirectSearch.swift` (second reader removed), one-line edits in the
 Archives (column widths, KB), Properties (type name), Item actions (overlay size) and Search (option wording) files.
+Name wrapping (FE-055): `Views/DetailsViewController.swift` (one property each on the cell and the controller, five call
+sites), `DetailsViewController+Depth.swift` (row height, column resize), `FolderOptionsCatalog.swift`,
+`FolderOptionsPrefs.swift`, `PortableSettingsCatalog.swift`, `BrowserWindowController+Observation.swift`,
+`ItemClickBehavior.swift` (the underline keeps the field's line break mode).
 
 ## Script steps
 
@@ -129,9 +143,14 @@ Archives (column widths, KB), Properties (type name), Item actions (overlay size
 (all 1-based), `dragtab:N:DX` (drop tab N after dragging it DX points), `windowactive:0|1` (draw as if the window
 were inactive / active; headless windows are never key). The `log:` output gains `window tabs:`, `tab strip:`,
 `nav row:` (with tooltips), `recent:` and `selection emphasis:` lines.
+`namewrap:/path` appends, for wrapped names (FE-055): whether wrapping is on, how many names were measured, and each
+row on screen with its height, field size, full-name tooltip and shown text (`|` marks the extension break).
 
 ## Known gaps
 
+- Wrapped names: while renaming, the field keeps the row's height and longer text scrolls inside it. The laziness of
+  `NSTableView` was measured on macOS 26 only; on another version `measurementsPerTurn` limits the cost, and rows beyond
+  it are corrected only for what is on screen.
 - Pointer-driven tab dragging (the floating tab, drop marker while hovering, single-tab window drag) can't be
   driven by headless scripts; the underlying moves are covered by the script steps above.
 - Hover colors in an inactive window are unchanged (tracking areas only fire in the key window anyway).

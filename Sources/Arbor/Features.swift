@@ -55,6 +55,7 @@ enum Features {
         AccessibilityFeature.self,
 
         VisualParityFeature.self,   // visual parity and window chrome
+        NameWrapFeature.self,   // long names on several lines in Details
 
         ConsistencyFeature.self,   // consistency across features
 
@@ -63,6 +64,9 @@ enum Features {
         PerformanceFeature.self,   // memory and responsiveness
 
         AddressEntryFeature.self,   // path suggestions and shell: names
+
+        AddressHistoryFeature.self,   // addresses remembered across launches
+
         ServicesFeature.self,   // macOS Services
 
         ReliabilityFeature.self,   // behavior and safety checks (undo names, headless safety, alert queue)
