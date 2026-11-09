@@ -85,8 +85,8 @@ final class OperationCenter {
 
     // MARK: - Other long-running work (extracting, compressing, mounting…)
 
-    /// Non-transfer work shown in the status bar; stops on Cancel or quit.
-    final class Activity {
+    /// Non-transfer work shown in the status bar; stops on Cancel or quit. Touched only on the main queue, like `Job`.
+    final class Activity: @unchecked Sendable {
         var text: String
         var fraction: Double = 0
         let cancel: () -> Void
@@ -126,9 +126,10 @@ final class OperationCenter {
             $0.transfer.retainsJournalWhenCancelled = true
             $0.transfer.cancel()
         }
+        activities.forEach { $0.cancel() }   // what they staged is removed, not left for the next launch
         let deadline = Date().addingTimeInterval(5)
         func wait() {
-            if jobs.isEmpty || Date() > deadline { return done() }
+            if (jobs.isEmpty && activities.isEmpty) || Date() > deadline { return done() }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: wait)
         }
         wait()

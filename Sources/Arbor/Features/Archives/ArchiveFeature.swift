@@ -28,7 +28,6 @@ enum ArchiveFeature: ExplorerFeature {
             guard let ref = ArchiveCatalog.ref(for: item.url) else { return nil }
             return ArchiveMemberPromise(ref: ref, isFolder: item.isFolder)
         }
-        PromiseDrop.register()
         registerDebugSteps()
     }
 

@@ -27,7 +27,7 @@ it; reopening a stopped search reruns it. Refresh (F5 or the address bar) reruns
 | FE | What | Status | How verified |
 |---|---|---|---|
 | FE-131 | Current folder search: subfolders by default; Search options ▸ Current folder / All subfolders; scope shown in the address bar ("Search Results in X") and the coverage dialog | Implemented | Fixture runs: nested results, Current folder narrowed them, Back restored the folder selection |
-| FE-132 | Whole-computer search | Partial | From This Mac: Spotlight index only, labeled "Search incomplete: only places in the Spotlight index were searched". Not run headless (it would touch real user files) |
+| FE-132 | Whole-computer search | Implemented | From This Mac: Spotlight index plus a direct scan of other local drives. The status names what was left out, and Search options ▸ Why might results be missing? (also Edit ▸ Why Might Results Be Missing?) lists every volume as Included, Partly included or Left out, with the reason. Scripted group `wholemac` runs on injected volumes and index status; a headless run never searches real files. Live Spotlight answers weren't observed headless |
 | FE-133 | Name vs content modes | Implemented | Free text = name. Advanced options ▸ File contents adds contents; `content:` targets contents only. The Match column says Name / Contents. Unit tests + fixture run |
 | FE-134 | AQS subset (see the compatibility table below) | Implemented | 120+ parser/evaluator assertions |
 | FE-135 | Search history dropdown (recent searches, filtered as you type, remove one, Clear search history) | Implemented | Fixture runs (`log`, light and dark `dropdownsnap`); unit tests for refine/dedupe/cap |
@@ -89,6 +89,7 @@ it; reopening a stopped search reruns it. Refresh (F5 or the address bar) reruns
   The Folder path uses the scope's spelling (`/tmp/…`, not `/private/tmp/…`).
 - **DEC-search-11** The address bar shows a green progress fill while searching (Explorer behavior). There's no total, so it eases
   toward 92% and completes when the search finishes.
+- **DEC-search-12** A This Mac search reports per volume (FE-132): the list comes from the mount table, so opening it never waits on a disk or a server; `mdutil -s` and volume labels are read off the main thread, and never for a network volume. Network volumes are always left out. The startup disk is index-only, so with indexing off it's left out rather than scanned; other local volumes are scanned folder by folder. A search stopped early or denied a folder marks that volume "Partly included", and "Search complete" is never claimed because Spotlight's exclusions can't be read.
 
 ## Hooks and shared-file changes (for maintainers)
 
@@ -105,8 +106,13 @@ it; reopening a stopped search reruns it. Refresh (F5 or the address bar) reruns
   (Trash's, search's) leaked into folders' saved column sets and showed up as raw-id columns elsewhere. Behavior change: a cloud folder
   shows the cloud layout's columns rather than the tab's custom column set.
 - The `nav.refresh` command and the address bar's Refresh button are wrapped so searches rerun.
+- `MountPoints.browsableVolumes()` is the mount-table volume list; `SpotlightSearch.readIndexState(volumePath:)` is the uncached `mdutil -s`.
 
-Scripted steps (`DebugScript`): `searchopt:Date modified/Today`, `searchmenu:/out`, `searchrows:/out`, `searchdetails:/out`,
+`ARBOR_TEST_SEARCH_VOLUMES` replaces the volumes and index status of a This Mac search: `name|kind|enabled, disabled or unknown|fixture folder`, entries separated by `;`, no
+folder meaning nothing is read for that volume. A folder stands in for the volume's contents and an indexed startup disk's folder for its Spotlight answers. With `ARBOR_HEADLESS` and no injected
+volumes, a This Mac search runs no Spotlight query and scans nothing.
+
+Scripted steps (`DebugScript`): `searchopt:Date modified/Today`, `searchmenu:/out`, `searchrows:/out`, `searchdetails:/out`, `searchcoverageax:/out`,
 `searchsave:/x.arborsearch`, `searchopenfile:/x.arborsearch`, `searchclose`, `searchfocus`, `dropdownsnap:/out.png`. The logger
 prints the box text, session status, dropdown, progress, history, back stack and Details columns.
 
@@ -115,7 +121,8 @@ prints the box text, session status, dropdown, progress, history, back stack and
 - The history dropdown is mouse-only: ↓ in the box submits (core `SearchBox` behavior). Selection restore after Back uses names, so
   duplicate-named results can both be selected when restored from history.
 - Tiles and icon modes show the folder only in the infotip; Content shows it inline.
-- Live Spotlight results and This Mac searches weren't observed headless (temp fixtures aren't indexed; real folders were never touched).
+- Live Spotlight results weren't observed headless (temp fixtures aren't indexed; real folders were never touched). This Mac's explanation was checked on injected volumes.
+- A saved This Mac search keeps no drive list, so when reopened, drives with indexing off show as left out instead of being scanned.
 - Double-clicking a `.arborsearch` in Finder isn't handled: no document type is registered in Info.plist, and `AppDelegate` opens files
   as their folder. Opening it from inside Arbor works.
 - Index exclusions (System Settings ▸ Spotlight privacy) can't be read, so contents from the index are labeled "via the Spotlight

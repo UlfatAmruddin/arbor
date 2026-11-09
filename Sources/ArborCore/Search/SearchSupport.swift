@@ -196,6 +196,10 @@ public struct SearchCoverage: Equatable, Sendable {
     public var resultLimit: Int?
     /// Change notifications were lost; results may be out of date until Refresh.
     public var mayBeStale = false
+    /// This Mac searches: one row per volume, set when the search ends (FE-132).
+    public var locations: [SearchLocationCoverage] = []
+    /// What every This Mac search leaves out, whichever volumes are mounted.
+    public var locationNotes: [String] = []
 
     public init() {}
 
@@ -205,11 +209,12 @@ public struct SearchCoverage: Equatable, Sendable {
         if let scope = scopeUnavailable { out.append("“\(scope)” isn't available (moved, deleted or disconnected)") }
         if phase == .stopped { out.append("the search was stopped before it finished") }
         if let limit = resultLimit { out.append("only the first \(limit.formatted()) results are shown") }
+        if let leftOut = leftOutSummary { out.append(leftOut) }
         if deniedCount > 0 { out.append(deniedCount == 1 ? "1 folder couldn't be opened (access denied)" : "\(deniedCount.formatted()) folders couldn't be opened (access denied)") }
         if unreadableCount > 0 { out.append(unreadableCount == 1 ? "1 folder couldn't be read" : "\(unreadableCount.formatted()) folders couldn't be read") }
         if indexUnavailable { out.append("this location isn't indexed, so contents of documents and authors weren't searched") }
         if indexTimedOut { out.append("the Spotlight index didn't respond in time") }
-        if indexOnly { out.append("only places in the Spotlight index were searched") }
+        if indexOnly { out.append(locations.isEmpty ? "only places in the Spotlight index were searched" : L10n.tr("the Spotlight index may not cover every folder")) }
         if contentUnchecked > 0, !contentFromIndex {
             out.append(contentUnchecked == 1 ? "1 file's contents couldn't be checked" : "\(contentUnchecked.formatted()) files' contents couldn't be checked")
         }
@@ -241,7 +246,8 @@ public struct SearchCoverage: Equatable, Sendable {
 
     /// Full explanation for the "Why might results be missing?" dialog.
     public var details: [String] {
-        var lines = gaps.map { "• " + $0.prefix(1).uppercased() + $0.dropFirst() + "." }
+        var lines = locationLines
+        lines += gaps.map { "• " + $0.prefix(1).uppercased() + $0.dropFirst() + "." }
         if !deniedFolders.isEmpty {
             lines.append("Folders that couldn't be opened:")
             lines += deniedFolders.map { "    " + $0 }
@@ -250,8 +256,26 @@ public struct SearchCoverage: Equatable, Sendable {
         if contentFromIndex {
             lines.append("• Contents of documents Arbor can't read as plain text (PDF, Office, Pages…) come from the Spotlight index. Folders excluded in System Settings ▸ Spotlight aren't covered.")
         }
+        lines += locationNotes.map { "• " + $0 }
         if lines.isEmpty { lines.append("Every folder in the search location was searched.") }
         return lines
+    }
+
+    private var leftOutSummary: String? {
+        let names = locations.filter { $0.status == .excluded }.map(\.name)
+        guard let first = names.first else { return nil }
+        if names.count == 1 { return L10n.format("“%@” wasn't searched", first) }
+        let shown = names.prefix(3).joined(separator: ", ") + (names.count > 3 ? ", …" : "")
+        return L10n.format("%@ volumes weren't searched (%@)", names.count.formatted(), shown)
+    }
+
+    private var locationLines: [String] {
+        let sections: [(String, SearchLocationCoverage.Status)] = [(L10n.tr("Included:"), .included), (L10n.tr("Partly included:"), .partial),
+                                                                   (L10n.tr("Left out:"), .excluded)]
+        return sections.flatMap { heading, status -> [String] in
+            let rows = locations.filter { $0.status == status }
+            return rows.isEmpty ? [] : [heading] + rows.map { "    \($0.name): \($0.reason)" } + [""]
+        }
     }
 
     public mutating func addDenied(_ path: String) {

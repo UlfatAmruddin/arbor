@@ -18,6 +18,10 @@ else lands here and is worked through when convenient. Delete a line when it is 
   "Return during composition doesn't rename" check in `scripts/behavior-checks.sh`.
 - address-history: `Sources/Arbor/Views/IconProvider.swift`: Opening the address bar's recent list can still touch the disk or a share on the main thread, now for entries restored from a previous launch.
 - long-names: `Sources/Arbor/Features/VisualParity/DetailsViewController+NameWrap.swift`: A Name column or window resize while scrolled down a long folder moves the list to different rows.
+- file-promises: `Sources/ArborCore/PromiseReception.swift`: Arbor's own archive-member promises are wrongly ended as 'provider unavailable' after 120 seconds.
+- whole-mac-search: `Sources/ArborCore/Performance/MountPoints.swift`: browsableVolumes() is documented as mount-table only and safe on the main thread, but it calls URL(fileURLWithPath:
+- whole-mac-search: `Sources/Arbor/Features/Search/SearchSession.swift`: startExtras still does disk work on the main thread for every This Mac scan root:
+- whole-mac-search: `Sources/Arbor/Features/Search/SearchSession.swift`: When merge reaches the 10,000-result limit it calls stopEngines, which calls spotlight.cancel().
 
 ## Small tidy-ups
 
@@ -56,3 +60,9 @@ else lands here and is worked through when convenient. Delete a line when it is 
 - address-history: `Sources/ArborCore/PathCompletionHistory.swift`: History rows filter hidden items by a leading dot only, while the listing treats `isHidden` as true for flagged items too (`.isHiddenKey`, for example `~/Library`).
 - long-names: `scripts/behavior-checks.sh`: The check "every row keeps the full-name tooltip" can never fail.
 - long-names: `Sources/Arbor/Views/DetailsViewController.swift`: topVisibleName probes `rowsViewport.minY + table.rowHeight / 2`, which assumes one-line rows.
+- file-promises: `Sources/ArborCore/PromiseReception.swift`: Cancel can't take effect while the private queue is stuck on a hung destination.
+- file-promises: `Sources/ArborCore/PromiseReception.swift`: Main-thread disk work is larger than documented.
+- file-promises: `Sources/Arbor/Features/PromisedFiles/PromisedFilesFeature.swift`: Staging is not removed after every outcome, as promised-files.md ('Quitting cancels and removes it') and the builder's summary claim.
+- whole-mac-search: `Sources/Arbor/Features/Search/SearchSession.swift`: The per-volume wording overclaims Spotlight coverage in two cases.
+- whole-mac-search: `Sources/ArborCore/Search/WholeMacCoverage.swift`: oneLine exists to stop outside text forging lines of the explanation, but it misses U+2028 and U+2029, whose categories are lineSeparator and paragraphSeparator rather than control (verified).
+- whole-mac-search: `Sources/ArborCore/Search/SpotlightPredicate.swift`: parse searches the whole mdutil output, which begins with the volume path.

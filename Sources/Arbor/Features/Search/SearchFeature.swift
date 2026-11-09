@@ -103,6 +103,13 @@ enum SearchFeature: ExplorerFeature {
             return 0.3
         }
 
+        // searchcoverageax:/out.txt — the open coverage dialog as VoiceOver sees it (FE-132).
+        DebugScript.registerStep("searchcoverageax") { path, window in
+            guard let sheet = window?.window?.attachedSheet else { return nil }
+            append(AXDump.dump(sheet) + "---\n", to: path)
+            return 0.3
+        }
+
         DebugScript.registerStep("searchsave") { path, window in
             guard let window, case .search(let request) = window.activeTab.displayedLocation ?? window.location else { return nil }
             do { try SearchCommands.write(request, to: URL(fileURLWithPath: path)) } catch { NSLog("DebugScript: save failed \(error)") }

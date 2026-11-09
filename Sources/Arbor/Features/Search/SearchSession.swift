@@ -37,6 +37,8 @@ final class SearchSession {
     private var notifyScheduled = false
     private var lastNotify = Date.distantPast
     private let filter: ScopeFilter?
+    /// Only for searches of the whole Mac (no scope).
+    private let wholeMac: WholeMacTracker?
     /// Direct scans of `request.extraScopes` (library folders, pinned folders, other drives).
     private var extraSearches: [DirectSearch] = []
     private var extraPending = 0
@@ -51,6 +53,7 @@ final class SearchSession {
                         includeHidden: showHidden || request.options.contains(.systemFiles),
                         enterPackages: request.options.contains(.systemFiles))
         }
+        wholeMac = request.scope == nil ? WholeMacTracker() : nil
     }
 
     static func key(_ request: SearchRequest, showHidden: Bool) -> String {
@@ -145,8 +148,12 @@ final class SearchSession {
         }
         startExtras(evaluator: evaluator)
         startSpotlight(expression: expression, evaluator: evaluator)
-        let needsIndex = request.scope == nil || evaluator.needsContents || evaluator.needsIndexOnlyMetadata
-        if needsIndex {
+        if let wholeMac {
+            wholeMac.inspectVolumes { [weak self] state in
+                self?.indexState = state
+                self?.finishIfDone()
+            }
+        } else if evaluator.needsContents || evaluator.needsIndexOnlyMetadata {
             let scope = request.scope
             DispatchQueue.global(qos: .utility).async { [weak self] in
                 let state = SpotlightSearch.indexState(for: scope)
@@ -183,7 +190,8 @@ final class SearchSession {
     /// Extra folders are scanned like the scope; extra files are matched by themselves.
     private func startExtras(evaluator: SearchEvaluator) {
         let primary = request.scope?.path
-        let extras = request.extraScopes.filter { url in
+        let requested = wholeMac?.roots(from: request.extraScopes) ?? request.extraScopes
+        let extras = requested.filter { url in
             guard let primary else { return true }
             return url.path != primary && !url.path.hasPrefix(primary == "/" ? "/" : primary + "/")
         }
@@ -217,14 +225,17 @@ final class SearchSession {
             }, completion: { [weak self] report in
                 DispatchQueue.main.async {
                     guard let self, self.extraSearches.contains(where: { $0 === search }) else { return }
-                    self.extraFinished(report)
+                    self.extraFinished(report, root: root)
                 }
             })
         }
     }
 
-    private func extraFinished(_ report: DirectSearchReport?) {
-        if let report { extraReports.append(report) }
+    private func extraFinished(_ report: DirectSearchReport?, root: URL? = nil) {
+        if let report {
+            extraReports.append(report)
+            if let root { wholeMac?.scanFinished(root: root, report: report) }
+        }
         extraPending = max(0, extraPending - 1)
         finishIfDone()
     }
@@ -234,19 +245,27 @@ final class SearchSession {
             if request.scope == nil { coverage.phase = .failed("this search can't be answered from the Spotlight index. Search a folder instead.") }
             return
         }
+        if let wholeMac, !wholeMac.runsSpotlight { return }
         spotlightExact = predicate.isExact
         let filter = self.filter
         let exact = predicate.isExact
+        let notesDenied = wholeMac != nil
         let verifyQueue = DispatchQueue(label: "Arbor search verify", qos: .userInitiated)
         let search = SpotlightSearch(predicate: predicate.query, scope: request.scope, onHits: { [weak self] hits in
             verifyQueue.async {
+                var denied: [String] = []
                 let verified = hits.compactMap { hit -> SearchHit? in
                     if let filter, !filter.accepts(hit.path) { return nil }
-                    return SearchCandidates.hit(path: hit.path, evaluator: evaluator, authors: hit.authors ?? [],
-                                                acceptUnknown: exact, readContents: false)
+                    let checked = SearchCandidates.hit(path: hit.path, evaluator: evaluator, authors: hit.authors ?? [],
+                                                       acceptUnknown: exact, readContents: false)
+                    if checked == nil, notesDenied, let folder = SearchCandidates.deniedFolder(of: hit.path) { denied.append(folder) }
+                    return checked
                 }
-                guard !verified.isEmpty else { return }
-                DispatchQueue.main.async { self?.merge(verified) }
+                guard !verified.isEmpty || !denied.isEmpty else { return }
+                DispatchQueue.main.async {
+                    self?.wholeMac?.noteDenied(denied)
+                    self?.merge(verified)
+                }
             }
         }, onFinish: { [weak self] outcome in
             verifyQueue.async {   // after the last verification batch
@@ -310,7 +329,14 @@ final class SearchSession {
             let indexNeeded = evaluator.needsContents || evaluator.needsIndexOnlyMetadata || request.scope == nil
             if spotlightTimedOut, indexNeeded { coverage.indexTimedOut = true }
         }
+        recordWholeMacCoverage()
+        if wholeMac != nil { Announcer.announce(L10n.format("%@. Search options explains what was searched.", coverage.statusLine), in: nil, priority: .medium) }
         changed(immediate: true)
+    }
+
+    private func recordWholeMacCoverage() {
+        wholeMac?.fill(&coverage, spotlightAnswered: coverage.phase == .finished && spotlightRan && !spotlightTimedOut,
+                       searchedContents: evaluator?.needsContents == true)
     }
 
     private var needsIndexState: Bool {
@@ -340,6 +366,7 @@ final class SearchSession {
         extraPending = 0
         extraSearches = []
         if let report = directReport { report.apply(to: &coverage) }
+        recordWholeMacCoverage()
         finishedAt = Date()
         changed(immediate: true)
     }
@@ -420,6 +447,13 @@ final class SearchSession {
 
 /// Builds hits for single paths (Spotlight results, file events).
 enum SearchCandidates {
+    /// The folder macOS refused for a path the index reported, or nil if the path wasn't refused.
+    static func deniedFolder(of path: String) -> String? {
+        var info = stat()
+        guard lstat(path, &info) != 0, errno == EACCES || errno == EPERM else { return nil }
+        return (path as NSString).deletingLastPathComponent
+    }
+
     static func hit(path: String, evaluator: SearchEvaluator, authors: [String]?, acceptUnknown: Bool, readContents: Bool) -> SearchHit? {
         let url = URL(fileURLWithPath: path)
         let keys: Set<URLResourceKey> = [.nameKey, .isDirectoryKey, .isPackageKey, .isSymbolicLinkKey, .fileSizeKey,

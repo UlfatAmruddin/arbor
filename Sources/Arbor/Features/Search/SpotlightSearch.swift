@@ -124,24 +124,27 @@ final class SpotlightSearch: NSObject {
         stateLock.lock()
         if let cached = stateCache[volume] { stateLock.unlock(); return cached }
         stateLock.unlock()
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/mdutil")
-        process.arguments = ["-s", volume]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-        var state = SpotlightIndexState.unknown
-        if (try? process.run()) != nil {
-            let deadline = Date().addingTimeInterval(3)
-            while process.isRunning, Date() < deadline { usleep(20_000) }
-            if process.isRunning { process.terminate() }
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            state = SpotlightIndexState.parse(mdutilOutput: String(decoding: data, as: UTF8.self))
-        }
+        let state = readIndexState(volumePath: volume)
         stateLock.lock()
         stateCache[volume] = state
         stateLock.unlock()
         return state
+    }
+
+    /// Asks `mdutil -s`, uncached so Refresh sees a change made in System Settings. Blocking: call off main.
+    static func readIndexState(volumePath: String) -> SpotlightIndexState {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/mdutil")
+        process.arguments = ["-s", volumePath]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        guard (try? process.run()) != nil else { return .unknown }
+        let deadline = Date().addingTimeInterval(3)
+        while process.isRunning, Date() < deadline { usleep(20_000) }
+        if process.isRunning { process.terminate() }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        return SpotlightIndexState.parse(mdutilOutput: String(decoding: data, as: UTF8.self))
     }
 }
 

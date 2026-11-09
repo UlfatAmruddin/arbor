@@ -17,8 +17,8 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 
 | Status | Requirements |
 |---|---|
-| implemented | 219 |
-| partial | 15 |
+| implemented | 222 |
+| partial | 12 |
 | macOS boundary | 13 |
 | not done | 11 |
 | **total** | **258** |
@@ -30,10 +30,10 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | Views, density and readability | 28 | 0 | 0 | 0 |
 | Selection, focus and input | 13 | 0 | 0 | 0 |
 | Home, special locations and collections | 12 | 0 | 2 | 0 |
-| File actions, clipboard and menus | 16 | 3 | 2 | 0 |
+| File actions, clipboard and menus | 17 | 2 | 2 | 0 |
 | Drag and drop | 10 | 0 | 0 | 0 |
 | Operations, progress, conflicts and recovery | 17 | 0 | 0 | 0 |
-| Search and filtering | 14 | 1 | 1 | 0 |
+| Search and filtering | 15 | 0 | 1 | 0 |
 | Preview, metadata and properties | 14 | 2 | 0 | 0 |
 | Archives and disk images | 8 | 1 | 0 | 2 |
 | Drives, devices, network and sharing | 9 | 0 | 4 | 2 |
@@ -41,7 +41,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | Accessibility, localization and preferences | 9 | 1 | 0 | 0 |
 | System integration and expansion boundary | 7 | 2 | 3 | 2 |
 | Reliability and acceptance coverage | 10 | 0 | 0 | 2 |
-| Additional research requirements (§21) | 21 | 2 | 0 | 1 |
+| Additional research requirements (§21) | 22 | 1 | 0 | 1 |
 
 ## Known limitations
 
@@ -187,7 +187,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-099 | Properties | implemented | headless; snapshots | [properties](features/properties.md) |  |
 | FE-100 | Pin to Start or taskbar | macOS boundary | — | [item-actions](features/item-actions.md) | No Mac counterpart without editing Dock preferences |
 | FE-101 | Clipboard interoperability with Mac apps | partial | code review | [qa-core](features/qa-core.md) | File URLs to and from Finder; move intent only for Arbor's own cut |
-| FE-102 | File promises and dropped attachments | partial | headless `promise:`; acceptance T12 | [archives](features/archives.md) | Promises received and sent (archive members); no per-promise progress or cancel |
+| FE-102 | File promises and dropped attachments | implemented | unit; behavior-checks `promises` | [promised-files](features/promised-files.md) | Progress, Cancel and unavailable-provider errors; checked with stand-in providers, not a real Mail drag |
 | FE-103 | Advanced batch rename | implemented | unit; headless | [item-actions](features/item-actions.md) |  |
 
 ## Drag and drop
@@ -232,7 +232,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | ID | Capability | Status | How verified | Area | Notes |
 |---|---|---|---|---|---|
 | FE-131 | Current-folder search | implemented | acceptance T04, T18 | [search](features/search.md) |  |
-| FE-132 | Whole-computer search | partial | code review | [search](features/search.md) | This Mac searches the Spotlight index (+ other local drives); not run headless to avoid real files |
+| FE-132 | Whole-computer search | implemented | unit; behavior-checks `wholemac` | [search](features/search.md) | Names what was included and left out, and why; checked with injected volumes |
 | FE-133 | Name and content modes | implemented | unit | [search](features/search.md) |  |
 | FE-134 | AQS property queries | implemented | unit (120+ assertions); acceptance T19 | [search](features/search.md) | Documented subset (compatibility table) |
 | FE-135 | Search suggestions and history | implemented | unit; headless | [search](features/search.md) | History dropdown is pointer-only |
@@ -380,7 +380,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-237 | Localized vs canonical query properties | implemented | unit; acceptance T19 | [search](features/search.md) |  |
 | FE-238 | Virtual collection write destination | implemented | unit; acceptance T21 | [gallery-libraries](features/gallery-libraries.md) |  |
 | FE-239 | Projection removal vs physical deletion | implemented | unit; acceptance T22 | [home-and-this-mac](features/home-and-this-mac.md) |  |
-| FE-240 | Streamed and promised transfer negotiation | partial | acceptance T12 | [archives](features/archives.md) | Promises stream to disk; Finder-side interoperability not checked interactively |
+| FE-240 | Streamed and promised transfer negotiation | partial | unit; behavior-checks `promises` | [promised-files](features/promised-files.md) | Streams to private staging without buffering; Finder and Mail interoperability not checked |
 | FE-241 | Execution success vs aborted/partial result | implemented | unit; acceptance T13 | [file-operations](features/file-operations.md) |  |
 | FE-242 | Handler lifecycle and stale completion | implemented | unit | [icon-views](features/icon-views.md) |  |
 | FE-243 | Decoded-image memory cost | implemented | unit; `bench.sh` media workload | [icon-views](features/icon-views.md) |  |
@@ -396,6 +396,6 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-253 | Documentation-first reference procedure | implemented | — | — | Building authorized by DEC-000; all checks use disposable fixtures (TESTING.md) |
 | FE-254 | Conditional namespace applicability | implemented | headless | [home-and-this-mac](features/home-and-this-mac.md) | Drives, shares and cloud nodes are listed only when present |
 | FE-255 | Actual committed destination identity | implemented | unit | [file-operations](features/file-operations.md) |  |
-| FE-256 | Promise completion vs partial output | partial | code review | [archives](features/archives.md) | Receiver errors are reported and nothing is copied from a failed promise; partial-file checks are bsdtar's |
+| FE-256 | Promise completion vs partial output | implemented | unit (`PromiseReceptionTests`) | [promised-files](features/promised-files.md) |  |
 | FE-257 | Progress callbacks vs pause capability | implemented | unit | [file-operations](features/file-operations.md) |  |
 | FE-258 | Incomplete file-promise preflight metadata | implemented | code review | [archives](features/archives.md) | Drops accept promises without names; nothing is received before the drop |

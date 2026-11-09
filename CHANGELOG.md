@@ -21,6 +21,9 @@ their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 - Keyboard: a Mac-style set of file list keys in Folder Options, alongside the Windows-style default.
 - Address bar history is remembered between launches and appears in suggestions; Clear history erases it.
 - Details: "Wrap long file names" in Folder Options shows up to three lines and keeps the extension readable.
+- Files promised by other apps show progress, can be cancelled, say so when the app stops responding, and go through
+  the normal copy rules. Nothing counts as received until the app reports it delivered.
+- Searching This Mac says which drives and folders were included, which were left out, and why.
 
 ### Files and reliability
 - Permanent delete stops at a volume mounted inside the folder instead of erasing it.

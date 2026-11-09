@@ -69,6 +69,8 @@ enum Features {
 
         ServicesFeature.self,   // macOS Services
 
+        PromisedFilesFeature.self,   // files promised by other apps
+
         ReliabilityFeature.self,   // behavior and safety checks (undo names, headless safety, alert queue)
 
         WorkspacesFeature.self,   // named tab sets, an Arbor addition

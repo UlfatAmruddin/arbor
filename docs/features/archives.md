@@ -66,7 +66,7 @@ zip-bomb confirmation takes the safe answer (Cancel).
 
 - Modifying archives (FE-165), burning (FE-172).
 - RAR untested (no fixture). Non-ZIP dates are minute-precise (bsdtar's listing).
-- Promise drops are accepted by the Details view and icon layouts, not by the navigation pane or tab strip. Right-button drags (ItemActions' DragPolish) skip archive members.
+- Promise drops are described in [promised-files.md](promised-files.md); the tab strip does not accept them. Right-button drags (ItemActions' DragPolish) skip archive members.
 - Properties on an archive member shows what the Properties feature can find for a path that isn't on disk. Drag-out to Finder was verified through the promise code path, not an interactive drag.
 - Quick Look and the Preview/Details panes don't show archive members (they have no file on disk).
 - Conflict prompts from extraction are the core sheet; in headless runs they would appear on screen, so the scripted runs avoid conflicts.

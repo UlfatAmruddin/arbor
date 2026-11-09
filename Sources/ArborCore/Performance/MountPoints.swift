@@ -14,6 +14,8 @@ struct MountEntry: Equatable, Sendable {
     var path: String
     var isLocal: Bool
     var fileSystemType: String
+    /// False for mounts the Finder hides (`nobrowse`), such as the system's own volumes.
+    var isBrowsable = true
 }
 
 /// Cached kernel mount table (`getmntinfo` + `MNT_NOWAIT`, no disk access), refreshed every 2 s or on
@@ -49,6 +51,16 @@ public final class MountPoints: @unchecked Sendable {
     /// Mount table only, so it is safe on the main thread.
     public func volumeClass(containing path: String) -> VolumeClass {
         Self.classify(path, mounts: Array(current().values))
+    }
+
+    /// The volumes a person would see, from the mount table only, so safe on the main thread.
+    /// Names come from the mount point; only a read of the volume itself knows its label.
+    public func browsableVolumes() -> [VolumeSummary] {
+        current().values.filter { $0.isBrowsable && !["devfs", "autofs"].contains($0.fileSystemType) }.map { entry in
+            let kind: VolumeSummary.Kind = entry.path == "/" ? .startup : (entry.isLocal ? .external : .network)
+            let url = URL(fileURLWithPath: entry.path)
+            return VolumeSummary(url: url, name: kind == .startup ? kind.typeName : url.lastPathComponent, kind: kind)
+        }
     }
 
     /// Call when volumes mount or unmount.
@@ -92,7 +104,8 @@ public final class MountPoints: @unchecked Sendable {
                 let type = withUnsafePointer(to: &entry.f_fstypename) {
                     $0.withMemoryRebound(to: CChar.self, capacity: Int(MFSTYPENAMELEN)) { String(cString: $0) }
                 }
-                result[path] = MountEntry(path: path, isLocal: entry.f_flags & UInt32(MNT_LOCAL) != 0, fileSystemType: type)
+                result[path] = MountEntry(path: path, isLocal: entry.f_flags & UInt32(MNT_LOCAL) != 0, fileSystemType: type,
+                                          isBrowsable: entry.f_flags & UInt32(MNT_DONTBROWSE) == 0)
             }
         }
         return result

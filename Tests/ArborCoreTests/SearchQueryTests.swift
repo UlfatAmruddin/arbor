@@ -407,6 +407,7 @@ struct SpotlightPredicateTests {
 
     @Test func indexStateParsing() {
         #expect(SpotlightIndexState.parse(mdutilOutput: "/:\n\tIndexing enabled. ") == .enabled)
+        #expect(SpotlightIndexState.parse(mdutilOutput: "/:\n\tIndex is read-only.") == .enabled)
         #expect(SpotlightIndexState.parse(mdutilOutput: "/Volumes/USB:\n\tIndexing disabled.") == .disabled)
         #expect(SpotlightIndexState.parse(mdutilOutput: "Error: unknown indexing state.") == .unknown)
     }

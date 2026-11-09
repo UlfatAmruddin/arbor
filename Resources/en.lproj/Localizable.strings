@@ -38,6 +38,7 @@
 "%@ failed" = "%@ failed";
 "%@ files added to Favorites." = "%@ files added to Favorites.";
 "%@ folder type" = "%@ folder type";
+"%@ folders couldn't be read." = "%@ folders couldn't be read.";
 "%@ free of %@" = "%@ free of %@";
 "%@ has no shared folders you can open." = "%@ has no shared folders you can open.";
 "%@ has no shared folders you can see." = "%@ has no shared folders you can see.";
@@ -69,6 +70,7 @@
 "%@ skipped" = "%@ skipped";
 "%@ suggestions" = "%@ suggestions";
 "%@ that this shortcut refers to has been changed or moved, so this shortcut will no longer work properly.\n\nDo you want to delete this shortcut?" = "%@ that this shortcut refers to has been changed or moved, so this shortcut will no longer work properly.\n\nDo you want to delete this shortcut?";
+"%@ volumes weren't searched (%@)" = "%@ volumes weren't searched (%@)";
 "%@ | last archive: %@\n" = "%@ | last archive: %@\n";
 "%@%% complete" = "%@%% complete";
 "%@%% used" = "%@%% used";
@@ -78,10 +80,12 @@
 "%@, pinned" = "%@, pinned";
 "%@, recent location" = "%@, recent location";
 "%@, tag" = "%@, tag";
+"%@. Search options explains what was searched." = "%@. Search options explains what was searched.";
 "%@: %@" = "%@: %@";
 "%@:today or %@:1/1/2026..1/31/2026" = "%@:today or %@:1/1/2026..1/31/2026";
 "%@; and %d more" = "%@; and %d more";
 "%@\n\nClose any files or apps using it, then try again." = "%@\n\nClose any files or apps using it, then try again.";
+"%d items couldn't be received." = "%d items couldn't be received.";
 "%d items weren't extracted." = "%d items weren't extracted.";
 "%d more" = "%d more";
 "%d operations at a time" = "%d operations at a time";
@@ -92,6 +96,7 @@
 "(None)" = "(None)";
 "(an item Arbor couldn't read)" = "(an item Arbor couldn't read)";
 "/Users/you/Documents/Report.pdf" = "/Users/you/Documents/Report.pdf";
+"1 folder couldn't be read." = "1 folder couldn't be read.";
 "1 item" = "1 item";
 "1 item selected" = "1 item selected";
 "1 item wasn't extracted." = "1 item wasn't extracted.";
@@ -191,6 +196,7 @@
 "Apply to Folders" = "Apply to Folders";
 "Arbor Settings" = "Arbor Settings";
 "Arbor addition, not part of File Explorer" = "Arbor addition, not part of File Explorer";
+"Arbor can receive at most %d promised items in one drop." = "Arbor can receive at most %d promised items in one drop.";
 "Arbor can't access %@" = "Arbor can't access %@";
 "Arbor can't access %@." = "Arbor can't access %@.";
 "Arbor can't empty the Trash without Full Disk Access." = "Arbor can't empty the Trash without Full Disk Access.";
@@ -205,6 +211,7 @@
 "Arbor couldn't read its line in the archive's listing." = "Arbor couldn't read its line in the archive's listing.";
 "Arbor couldn't read this file. It may have moved, or its location may not be responding." = "Arbor couldn't read this file. It may have moved, or its location may not be responding.";
 "Arbor couldn't save your workspaces" = "Arbor couldn't save your workspaces";
+"Arbor couldn't tell whether Spotlight indexes this volume, so some of its files may be missing." = "Arbor couldn't tell whether Spotlight indexes this volume, so some of its files may be missing.";
 "Arbor didn't move this item to the Trash, so its original location isn't known." = "Arbor didn't move this item to the Trash, so its original location isn't known.";
 "Arbor doesn't connect to Microsoft accounts or Office.com." = "Arbor doesn't connect to Microsoft accounts or Office.com.";
 "Arbor doesn't know the shell name “%@”." = "Arbor doesn't know the shell name “%@”.";
@@ -518,6 +525,7 @@
 "Drive %@" = "Drive %@";
 "Drive:" = "Drive:";
 "Drop" = "Drop";
+"Dropped items" = "Dropped items";
 "Duplicate Tab" = "Duplicate Tab";
 "Duplicate name" = "Duplicate name";
 "Duplicate tab" = "Duplicate tab";
@@ -581,6 +589,7 @@
 "Files and Folders" = "Files and Folders";
 "Files are still being copied or moved." = "Files are still being copied or moved.";
 "Files from %@" = "Files from %@";
+"Files inside compressed archives aren't searched from This Mac." = "Files inside compressed archives aren't searched from This Mac.";
 "Files will be extracted to this folder" = "Files will be extracted to this folder";
 "Files will be extracted to this folder:" = "Files will be extracted to this folder:";
 "Filter By" = "Filter By";
@@ -610,6 +619,7 @@
 "Folder views" = "Folder views";
 "Folder:" = "Folder:";
 "Folders First" = "Folders First";
+"Folders excluded in System Settings ▸ Spotlight aren't searched, and macOS doesn't tell apps which ones they are." = "Folders excluded in System Settings ▸ Spotlight aren't searched, and macOS doesn't tell apps which ones they are.";
 "Folders first" = "Folders first";
 "Folders in %@" = "Folders in %@";
 "Folders, pins, network drives and passwords aren't included." = "Folders, pins, network drives and passwords aren't included.";
@@ -690,6 +700,7 @@
 "Include folder" = "Include folder";
 "Include hidden files and folders (names starting with “.”)" = "Include hidden files and folders (names starting with “.”)";
 "Include system directories" = "Include system directories";
+"Included:" = "Included:";
 "Insert text:" = "Insert text:";
 "Intel" = "Intel";
 "Internet shortcut" = "Internet shortcut";
@@ -735,6 +746,7 @@
 "Latitude" = "Latitude";
 "Launch folder windows in a separate process" = "Launch folder windows in a separate process";
 "Layout and view options" = "Layout and view options";
+"Left out:" = "Left out:";
 "Length" = "Length";
 "Lens model" = "Lens model";
 "Let me decide for each file" = "Let me decide for each file";
@@ -826,6 +838,7 @@
 "Network discovery is turned off." = "Network discovery is turned off.";
 "Network drive" = "Network drive";
 "Network locations" = "Network locations";
+"Network volumes aren't searched from This Mac, so a slow server can't stall the search. Open the volume and search there." = "Network volumes aren't searched from This Mac, so a slow server can't stall the search. Open the volume and search there.";
 "New" = "New";
 "New %@" = "New %@";
 "New Bitmap image" = "New Bitmap image";
@@ -902,6 +915,7 @@
 "On a network drive" = "On a network drive";
 "On this Mac:" = "On this Mac:";
 "Online-only" = "Online-only";
+"Only names were searched. To search inside files, turn on Search options ▸ Advanced options ▸ File contents." = "Only names were searched. To search inside files, turn on Search options ▸ Advanced options ▸ File contents.";
 "Only part of this folder could be read." = "Only part of this folder could be read.";
 "Only the library goes away. Its folders and files stay where they are, and nothing moves to the Trash." = "Only the library goes away. Its folders and files stay where they are, and nothing moves to the Trash.";
 "Only the owner of this item or an administrator can change its permissions, so this list is read-only." = "Only the owner of this item or an administrator can change its permissions, so this list is read-only.";
@@ -952,6 +966,7 @@
 "Page width" = "Page width";
 "Pages" = "Pages";
 "Partly done" = "Partly done";
+"Partly included:" = "Partly included:";
 "Password protected" = "Password protected";
 "Paste" = "Paste";
 "Paste Shortcut" = "Paste Shortcut";
@@ -1013,6 +1028,7 @@
 "Reading the drive's capabilities…" = "Reading the drive's capabilities…";
 "Reading the shortcut took too long. The drive it's on may not be responding." = "Reading the shortcut took too long. The drive it's on may not be responding.";
 "Reading the shortcut…" = "Reading the shortcut…";
+"Receiving %@" = "Receiving %@";
 "Recent" = "Recent";
 "Recent copy and move operations, newest first. Arbor keeps the last %@. Expand one to see what happened to each item." = "Recent copy and move operations, newest first. Arbor keeps the last %@. Expand one to see what happened to each item.";
 "Recent files" = "Recent files";
@@ -1104,6 +1120,9 @@
 "Saved “%@”." = "Saved “%@”.";
 "Saved “%@”. %d tabs were left out: workspaces hold up to %d tabs and can't store very long addresses." = "Saved “%@”. %d tabs were left out: workspaces hold up to %d tabs and can't store very long addresses.";
 "Saved “%@”. 1 tab was left out: workspaces hold up to %d tabs and can't store very long addresses." = "Saved “%@”. 1 tab was left out: workspaces hold up to %d tabs and can't store very long addresses.";
+"Scanned folder by folder, plus the Spotlight index." = "Scanned folder by folder, plus the Spotlight index.";
+"Scanned folder by folder." = "Scanned folder by folder.";
+"Scanned only in part: the search stopped before it finished this volume." = "Scanned only in part: the search stopped before it finished this volume.";
 "Scroll tab list backward" = "Scroll tab list backward";
 "Scroll tab list forward" = "Scroll tab list forward";
 "Search" = "Search";
@@ -1120,6 +1139,8 @@
 "Search saved as “%@”." = "Search saved as “%@”.";
 "Search stopped" = "Search stopped";
 "Search “%@” and every folder inside it" = "Search “%@” and every folder inside it";
+"Searched through the Spotlight index." = "Searched through the Spotlight index.";
+"Searched: This Mac." = "Searched: This Mac.";
 "Searching This Mac uses the Spotlight index; choose a folder to limit the scope." = "Searching This Mac uses the Spotlight index; choose a folder to limit the scope.";
 "Searching…" = "Searching…";
 "Security" = "Security";
@@ -1236,7 +1257,9 @@
 "Speed graph" = "Speed graph";
 "Speed: %@" = "Speed: %@";
 "Spotlight Settings…" = "Spotlight Settings…";
+"Spotlight didn't finish answering for this volume." = "Spotlight didn't finish answering for this volume.";
 "Spotlight indexes files automatically. To exclude a folder, add it under Spotlight › Search Privacy in System Settings." = "Spotlight indexes files automatically. To exclude a folder, add it under Spotlight › Search Privacy in System Settings.";
+"Spotlight indexing is off on this volume. Open a folder on it and search there to scan it directly." = "Spotlight indexing is off on this volume. Open a folder on it and search there to scan it directly.";
 "Start" = "Start";
 "Start in:" = "Start in:";
 "Start now" = "Start now";
@@ -1263,6 +1286,7 @@
 "Syncing (downloading)" = "Syncing (downloading)";
 "Syncing (uploading)" = "Syncing (uploading)";
 "System files" = "System files";
+"System files and the contents of apps and other packages may be left out." = "System files and the contents of apps and other packages may be left out.";
 "TAR" = "TAR";
 "TAR + BZip2 (.tar.bz2)" = "TAR + BZip2 (.tar.bz2)";
 "TAR + gzip (.tar.gz)" = "TAR + gzip (.tar.gz)";
@@ -1292,6 +1316,10 @@
 "The Trash on %@ couldn't be read." = "The Trash on %@ couldn't be read.";
 "The ZIP archive is damaged or incomplete." = "The ZIP archive is damaged or incomplete.";
 "The ZIP archive lists more entries than Arbor can show." = "The ZIP archive lists more entries than Arbor can show.";
+"The app didn't offer any files." = "The app didn't offer any files.";
+"The app gave a name or location that isn't safe, so the file was left out." = "The app gave a name or location that isn't safe, so the file was left out.";
+"The app offering it stopped responding or has quit." = "The app offering it stopped responding or has quit.";
+"The app said it had finished, but the file isn't there." = "The app said it had finished, but the file isn't there.";
 "The archive lists more items than Arbor can show." = "The archive lists more items than Arbor can show.";
 "The change is kept until you quit, and Arbor will try again with your next change." = "The change is kept until you quit, and Arbor will try again with your next change.";
 "The connection was cancelled." = "The connection was cancelled.";
@@ -1322,6 +1350,7 @@
 "The folder “%@” is no longer at the destination." = "The folder “%@” is no longer at the destination.";
 "The folders and files in this library keep their names." = "The folders and files in this library keep their names.";
 "The image couldn't be read." = "The image couldn't be read.";
+"The item couldn't be received." = "The item couldn't be received.";
 "The item is locked. Unlock it in Get Info, then try again." = "The item is locked. Unlock it in Get Info, then try again.";
 "The item no longer exists." = "The item no longer exists.";
 "The item or something inside it is locked or protected by macOS." = "The item or something inside it is locked or protected by macOS.";
@@ -1521,6 +1550,7 @@
 "What kind of folder do you want?" = "What kind of folder do you want?";
 "What network folder would you like to map?" = "What network folder would you like to map?";
 "What this drive's format supports:" = "What this drive's format supports:";
+"What this search covered" = "What this search covered";
 "What would you like to name the shortcut?" = "What would you like to name the shortcut?";
 "When searching non-indexed locations" = "When searching non-indexed locations";
 "When typing into list view" = "When typing into list view";
@@ -1578,6 +1608,8 @@
 "iCloud Drive" = "iCloud Drive";
 "lowercase" = "lowercase";
 "macOS asks for a user name and password. You can save them in your Keychain." = "macOS asks for a user name and password. You can save them in your Keychain.";
+"macOS denied access to %@ folders." = "macOS denied access to %@ folders.";
+"macOS denied access to 1 folder." = "macOS denied access to 1 folder.";
 "macOS has no archive bit. Time Machine backs up changed files automatically" = "macOS has no archive bit. Time Machine backs up changed files automatically";
 "macOS has no archive bit. Time Machine backs up changed files automatically." = "macOS has no archive bit. Time Machine backs up changed files automatically.";
 "macOS protects the Trash folder. To see, restore and empty items here, turn on Arbor in System Settings → Privacy & Security → Full Disk Access, then come back and select Try Again." = "macOS protects the Trash folder. To see, restore and empty items here, turn on Arbor in System Settings → Privacy & Security → Full Disk Access, then come back and select Try Again.";
@@ -1586,6 +1618,7 @@
 "none in this folder" = "none in this folder";
 "not selected" = "not selected";
 "selected" = "selected";
+"the Spotlight index may not cover every folder" = "the Spotlight index may not cover every folder";
 "to" = "to";
 "xz (.xz, one file)" = "xz (.xz, one file)";
 "“%@” Properties" = "“%@” Properties";
@@ -1601,6 +1634,7 @@
 "“%@” couldn't be mounted." = "“%@” couldn't be mounted.";
 "“%@” couldn't be opened." = "“%@” couldn't be opened.";
 "“%@” couldn't be read." = "“%@” couldn't be read.";
+"“%@” couldn't be received." = "“%@” couldn't be received.";
 "“%@” doesn't exist or is no longer available." = "“%@” doesn't exist or is no longer available.";
 "“%@” doesn't exist or isn't connected." = "“%@” doesn't exist or isn't connected.";
 "“%@” doesn't share folders." = "“%@” doesn't share folders.";
@@ -1627,7 +1661,9 @@
 "“%@” was changed by another app while this window was open." = "“%@” was changed by another app while this window was open.";
 "“%@” was changed by another app." = "“%@” was changed by another app.";
 "“%@” was disconnected." = "“%@” was disconnected.";
+"“%@” wasn't searched" = "“%@” wasn't searched";
 "“%@” would expand to %@." = "“%@” would expand to %@.";
 "“The index” is Spotlight on the Mac. Choose which folders Spotlight indexes in System Settings › Spotlight." = "“The index” is Spotlight on the Mac. Choose which folders Spotlight indexes in System Settings › Spotlight.";
+"• %@: %@" = "• %@: %@";
 "…and %@ more" = "…and %@ more";
 "…and %d more." = "…and %d more.";

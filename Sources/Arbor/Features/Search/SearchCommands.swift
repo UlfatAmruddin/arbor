@@ -184,15 +184,21 @@ enum SearchCommands {
         guard let location = ctx.location, let session = SearchProvider.session(for: location) else { return }
         let alert = NSAlert()
         alert.alertStyle = .informational
-        alert.messageText = session.coverage.isComplete ? "This search covered everything in its location."
-                                                        : "Why might some results be missing?"
+        if session.request.scope == nil {
+            alert.messageText = L10n.tr("What this search covered")
+        } else {
+            alert.messageText = session.coverage.isComplete ? "This search covered everything in its location."
+                                                            : "Why might some results be missing?"
+        }
         alert.informativeText = coverageText(session)
         alert.addButton(withTitle: L10n.tr("OK"))
         AlertSheets.present(alert, in: ctx.window?.window)
     }
 
     static func coverageText(_ session: SearchSession) -> String {
-        var lines = ["Searched: “\(scopeName(session.request))”" + (session.request.recursive ? " and its subfolders." : " only (not subfolders).")]
+        let searched = session.request.scope == nil ? L10n.tr("Searched: This Mac.")
+            : "Searched: “\(scopeName(session.request))”" + (session.request.recursive ? " and its subfolders." : " only (not subfolders).")
+        var lines = [searched]
         lines.append("Status: \(session.coverage.statusLine).")
         lines.append("")
         lines += session.coverage.details

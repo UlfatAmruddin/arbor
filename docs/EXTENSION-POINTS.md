@@ -38,6 +38,7 @@ Registered in this order (each after what it requires; "core" is required by all
 | `address-entry` | `home`, `trash`, `this-mac`, `network`, `gallery-libraries` |
 | `address-history` | — |
 | `services` | — |
+| `promised-files` | `file-operations` |
 | `reliability` | — |
 | `workspaces` | — |
 | `acceptance-steps` | — |
@@ -145,7 +146,7 @@ Registered in this order (each after what it requires; "core" is required by all
 |---|---|---|---|
 | `FolderOptionsHistory.clearers` | Pipeline | Clears a feature's history for "Clear Arbor history"; adds the count removed. `(removed) -> removed` | `folder-options.home-history` |
 | `PerformanceDebug.extraMemoryFields` | Pipeline | More key=value fields for the memlog script step. `(line) -> line` | — |
-| `DebugScript.loggers` | Pipeline | Lines the log: script step appends. `(text, window) -> text` | `icon-views.log`, `details-depth.log`, `details-depth.marquee-log`, `home.log`, `this-mac.log`, `search.log`, `file-operations.log`, `properties.log`, `archives.log`, `network.log`, `trash.log`, `trash.log-2`, `cloud.log`, `finder-tags.log`, `folder-options.log`, `gallery-libraries.log`, `item-actions.log`, `item-actions.log-2`, `accessibility.log`, `visual-parity.log`, `visual-parity.log-2`, `consistency.log`, `consistency.log-2`, `file-operations-extras.log`, `file-operations-extras.log-2`, `performance.log`, `services.log`, `reliability.log`, `reliability.command-bar-tooltips`, `workspaces.log`, `acceptance-steps.log`, `settings-transfer.log`, `windows-shortcuts.log` |
+| `DebugScript.loggers` | Pipeline | Lines the log: script step appends. `(text, window) -> text` | `icon-views.log`, `details-depth.log`, `details-depth.marquee-log`, `home.log`, `this-mac.log`, `search.log`, `file-operations.log`, `properties.log`, `archives.log`, `network.log`, `trash.log`, `trash.log-2`, `cloud.log`, `finder-tags.log`, `folder-options.log`, `gallery-libraries.log`, `item-actions.log`, `item-actions.log-2`, `accessibility.log`, `visual-parity.log`, `visual-parity.log-2`, `consistency.log`, `consistency.log-2`, `file-operations-extras.log`, `file-operations-extras.log-2`, `performance.log`, `services.log`, `promised-files.log`, `reliability.log`, `reliability.command-bar-tooltips`, `workspaces.log`, `acceptance-steps.log`, `settings-transfer.log`, `windows-shortcuts.log` |
 
 ## Per-command overrides
 

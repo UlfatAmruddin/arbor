@@ -975,6 +975,53 @@ if want detailsmarquee; then
   discard detailsmarquee "$R"
 fi
 
+# FE-132: a This Mac search says what it covered, volume by volume, from injected volumes only.
+if want wholemac; then
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/hd" "$R/usb/open" "$R/usb/locked" "$R/nas" "$R/off"
+  echo 1 > "$R/hd/report-hd.txt"; echo 2 > "$R/usb/open/report-usb.txt"; echo 3 > "$R/usb/locked/report-locked.txt"; echo 4 > "$R/nas/report-nas.txt"; echo 5 > "$R/off/report-off.txt"
+  chmod 000 "$R/usb/locked"
+  VOLS="Macintosh HD|startup|enabled|$R/hd;USB Stick|external|disabled|$R/usb;Old Disk|external|disabled|;Work Share|network|unknown|$R/nas"
+  S="wait:1;windowsize:1100,700;location:thismac;wait:1;search:report;event;wait:3;log:$R/a.txt;searchdetails:$R/d.txt;announcements:$R/spoken.txt"
+  S+=";menu:main:Edit:$R/menu.txt;click:search.coverage;wait:0.6;log:$R/sheet.txt;searchcoverageax:$R/ax.txt;button:OK;wait:0.4;log:$R/closed.txt"
+  S+=";searchmenu:$R/options.txt;searchopt:Why might results be missing?;wait:0.6;log:$R/sheet2.txt;button:OK;wait:0.4;quit"
+  run "$R" "$R/F" "$S" ARBOR_TEST_SEARCH_VOLUMES="$VOLS"
+  chmod 755 "$R/usb/locked"
+  contains "an indexed startup disk gives results" "$R/a.txt" "report-hd.txt"
+  contains "a scanned volume gives results" "$R/a.txt" "report-usb.txt"
+  lacks "a network volume is never read" "$R/a.txt" "report-nas.txt"
+  contains "the status names what was left out" "$R/a.txt" "Search incomplete: 2 volumes weren't searched (Old Disk, Work Share)"
+  contains "details: included" "$R/d.txt" "    Macintosh HD: Searched through the Spotlight index."
+  contains "details: denied folders make a volume partial" "$R/d.txt" "    USB Stick: Scanned folder by folder. macOS denied access to 1 folder."
+  contains "details: indexing off" "$R/d.txt" "    Old Disk: Spotlight indexing is off on this volume."
+  contains "details: network" "$R/d.txt" "    Work Share: Network volumes aren't searched from This Mac"
+  contains "details: the denied folder is named" "$R/d.txt" "$R/usb/locked"
+  contains "details: what no volume list can show" "$R/d.txt" "Folders excluded in System Settings ▸ Spotlight"
+  contains "VoiceOver hears the outcome" "$R/spoken.txt" "Search options explains what was searched."
+  contains "the explanation is in the menu bar" "$R/menu.txt" "Why Might Results Be Missing?"
+  lacks "and it is enabled" "$R/menu.txt" "Why Might Results Be Missing? (disabled"
+  contains "the command opens a sheet" "$R/sheet.txt" "sheet: true"
+  contains "the sheet shows the volumes" "$R/sheet.txt" "Work Share: Network volumes"
+  contains "VoiceOver reads the sheet's text" "$R/ax.txt" "Searched: This Mac."
+  contains "VoiceOver reaches its button" "$R/ax.txt" "OK"
+  contains "OK closes it" "$R/closed.txt" "sheet: false"
+  contains "Search options has the entry" "$R/options.txt" "Why might results be missing?"
+  contains "the entry opens the same sheet" "$R/sheet2.txt" "Old Disk: Spotlight indexing is off"
+
+  # With indexing off, the startup disk is left out: its stand-in folder must not be read.
+  S="wait:1;location:thismac;wait:1;search:report;event;wait:3;log:$R/off.txt;searchdetails:$R/off-d.txt;quit"
+  run "$R" "$R/F" "$S" ARBOR_TEST_SEARCH_VOLUMES="Macintosh HD|startup|disabled|$R/off"
+  lacks "indexing off: nothing is read" "$R/off.txt" "report-off.txt"
+  contains "indexing off: the startup disk is left out" "$R/off-d.txt" "    Macintosh HD: Spotlight indexing is off on this volume."
+
+  # A headless run with nothing injected searches nothing at all.
+  S="wait:1;location:thismac;wait:1;search:report;event;wait:3;log:$R/none.txt;searchdetails:$R/none-d.txt;quit"
+  run "$R" "$R/F" "$S"
+  lacks "nothing injected: no real file is listed" "$R/none.txt" "report-"
+  contains "nothing injected: still says it's incomplete" "$R/none.txt" "Search incomplete"
+  lacks "nothing injected: no real volume is named" "$R/none-d.txt" "Included:"
+  discard wholemac "$R"
+fi
+
 # FE-055: long names wrap in Details when the Folder Options choice is on. The window width sets the Name column.
 if want namewrap; then
   R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/L"
@@ -1187,6 +1234,60 @@ if want capabilities; then
   contains "opening a file past the path limit says why" "$R/d.txt" "too long for macOS to open"
   lacks "and doesn't ask macOS to open it" "$R/d.txt" "system open: open"
   discard capabilities "$R"
+fi
+
+# promised-files.md (FE-102, FE-240, FE-256): file promises through the real drop path, with stand-in providers.
+if want promises; then
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F"; K=$(cd "$R" && pwd -P)
+  printf 'already here' > "$R/F/report.txt"; echo 1 > "$R/F/a.txt"
+
+  S="wait:1;promisedrop:unnamed:new.txt:$K/F;promisewait;wait:0.5;log:$R/ok.txt;quit"
+  run "$R" "$R/F" "$S"
+  contains "a delivered promise is copied in and selected" "$R/ok.txt" "selected: new.txt"
+  contains "its staging folder is removed afterwards" "$R/ok.txt" "promised: staging=gone report=none"
+  check "the delivered bytes arrive" "$R/F/new.txt" "delivered"
+
+  S="wait:1;promisedrop:ok:report.txt:$K/F;wait:1.5;log:$R/conflict.txt;opbutton:Skip this file;wait:1;promisewait;wait:0.3;log:$R/skipped.txt;quit"
+  run "$R" "$R/F" "$S"
+  contains "a promised name that exists asks first" "$R/conflict.txt" "Replace or Skip Files"
+  check "and the file there stays when skipped" "$R/F/report.txt" "already here"
+  contains "skipping ends the job" "$R/skipped.txt" "promised: staging=gone report=none"
+
+  S="wait:1;promisedrop:ok:report.txt:$K/F;wait:1.5;opbutton:Replace the file in the destination;wait:1;promisewait;wait:0.3;quit"
+  run "$R" "$R/F" "$S"
+  check "only the explicit Replace brings the promised file in" "$R/F/report.txt" "delivered"
+  check "and the file it replaced goes to the Trash" "$R/trash/report.txt" "already here"
+
+  S="wait:1;promisedrop:fail:broken.bin:$K/F;promisewait;wait:0.3;log:$R/fail.txt;button:OK;wait:0.3;quit"
+  run "$R" "$R/F" "$S"
+  contains "an error is shown with the provider's reason" "$R/fail.txt" "couldn't be received. The attachment could not be fetched."
+  contains "its partial file is removed" "$R/fail.txt" "promised: staging=gone"
+  if [ -e "$R/F/broken.bin" ]; then echo "FAIL  a failed promise left output"; FAILED=1; GROUP_FAILED=1; else echo "pass  a failed promise leaves no output"; fi
+
+  S="wait:1;promisedrop:lie:ghost.bin:$K/F;promisewait;wait:0.3;log:$R/lie.txt;button:OK;wait:0.3"
+  S+=";promisedrop:escape:away.txt:$K/F;promisewait;wait:0.3;log:$R/escape.txt;button:OK;wait:0.3"
+  S+=";promisedrop:link:hosts:$K/F;promisewait;wait:0.3;log:$R/link.txt;button:OK;wait:0.3;quit"
+  run "$R" "$R/F" "$S"
+  contains "a success report with nothing there fails" "$R/lie.txt" "the file isn't there"
+  contains "a location outside staging is refused" "$R/escape.txt" "isn't safe"
+  contains "a symbolic link is refused" "$R/link.txt" "isn't safe"
+  for n in ghost.bin away.txt hosts; do
+    if [ -e "$R/F/$n" ] || [ -L "$R/F/$n" ]; then echo "FAIL  $n reached the folder"; FAILED=1; GROUP_FAILED=1; else echo "pass  $n stayed out"; fi
+  done
+
+  S="wait:1;promisedrop:stall:waiting.bin:$K/F;wait:0.4;log:$R/stall1.txt;promisewait;wait:0.3;log:$R/stall2.txt;button:OK;wait:0.3;quit"
+  run "$R" "$R/F" "$S" ARBOR_PROMISE_STALL=2
+  contains "a silent provider shows progress meanwhile" "$R/stall1.txt" "Receiving “waiting.bin”"
+  contains "a partial file doesn't count as received" "$R/stall1.txt" "promised: staging=present"
+  contains "the unavailable provider is explained" "$R/stall2.txt" "stopped responding or has quit"
+  if [ -e "$R/F/waiting.bin" ]; then echo "FAIL  a stalled promise left output"; FAILED=1; GROUP_FAILED=1; else echo "pass  a stalled promise leaves no output"; fi
+
+  S="wait:1;windowsize:1000,700;wait:0.3;promisedrop:slow:big.bin:$K/F;wait:1.6;log:$R/slow.txt;snapshot:$R/slow.png;promisecancel;promisewait;wait:0.5;log:$R/cancel.txt;quit"
+  run "$R" "$R/F" "$S"
+  contains "bytes arriving are shown" "$R/slow.txt" "Receiving “big.bin” · "
+  contains "cancel removes what arrived" "$R/cancel.txt" "promised: staging=gone report=none job=none"
+  if [ -e "$R/F/big.bin" ]; then echo "FAIL  a cancelled promise left output"; FAILED=1; GROUP_FAILED=1; else echo "pass  a cancelled promise leaves no output"; fi
+  discard promises "$R"
 fi
 
 exit $FAILED

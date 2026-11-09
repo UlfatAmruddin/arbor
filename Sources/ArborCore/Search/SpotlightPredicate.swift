@@ -149,7 +149,8 @@ public enum SpotlightIndexState: String, Sendable {
 
     public static func parse(mdutilOutput text: String) -> SpotlightIndexState {
         let t = text.lowercased()
-        if t.contains("indexing enabled") { return .enabled }
+        // The startup disk reports this on recent macOS, and Spotlight still answers for it.
+        if t.contains("indexing enabled") || t.contains("index is read-only") { return .enabled }
         if t.contains("indexing disabled") || t.contains("indexing and searching disabled") { return .disabled }
         return .unknown
     }

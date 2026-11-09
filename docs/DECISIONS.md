@@ -57,7 +57,7 @@ project owner confirmed them.
 | DEC-fileops | [file-operations.md](features/file-operations.md) | 1–22 | DEC-fileops-3: folders merge without a prompt by default, matching Windows' "Hide folder merge conflicts" (on); the "Confirm Folder Replace" prompt is opt-in in Folder Options |
 | DEC-items | [item-actions.md](features/item-actions.md) | 1–13 | — |
 | DEC-fileops | [file-operations.md](features/file-operations.md) | 1–28 | DEC-fileops-3: folders merge without a prompt by default, matching Windows' "Hide folder merge conflicts" (on); the "Confirm Folder Replace" prompt is opt-in in Folder Options |
-| DEC-search | [search.md](features/search.md) | 1–11 | DEC-search-1 supersedes DEC-014; Home, libraries and This Mac scopes extended by DEC-consistency-1/2; FE-145 relevance order added by DEC-consistency-5 |
+| DEC-search | [search.md](features/search.md) | 1–12 | DEC-search-1 supersedes DEC-014; Home, libraries and This Mac scopes extended by DEC-consistency-1/2; FE-145 relevance order added by DEC-consistency-5 |
 | DEC-properties | [properties.md](features/properties.md) | 1–10 | — |
 | DEC-archives | [archives.md](features/archives.md) | 1–11 | — |
 | DEC-tags | [finder-tags.md](features/finder-tags.md) | 1–7 | — |
@@ -72,6 +72,7 @@ project owner confirmed them.
 | DEC-workspaces | [workspaces.md](features/workspaces.md) | 1–9 | — |
 | DEC-winlink | [windows-shortcuts.md](features/windows-shortcuts.md) | 1–15 | — |
 | DEC-address | [address-entry.md](features/address-entry.md) | 1–13 | — |
+| DEC-promises | [promised-files.md](features/promised-files.md) | 1–5 | — |
 
 Other changes since the first log: the size format in Details (whole KB) and elsewhere (1024-based) is set by
 DEC-parity-2, replacing the adaptive Finder-style sizes mentioned in grouping.md's gaps; the Type column says "Shortcut"
