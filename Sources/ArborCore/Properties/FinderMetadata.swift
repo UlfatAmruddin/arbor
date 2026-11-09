@@ -127,11 +127,6 @@ public enum FinderMetadata {
         readAttribute("com.apple.quarantine", of: url) != nil
     }
 
-    /// Explorer's "Unblock" (stops Gatekeeper's prompt); only on explicit user action.
-    public static func removeQuarantine(from url: URL) throws {
-        if removexattr(url.path, "com.apple.quarantine", XATTR_NOFOLLOW) != 0, errno != ENOATTR { throw POSIXError.current }
-    }
-
     /// Download sources recorded by browsers.
     public static func whereFroms(of url: URL) -> [String] {
         guard let data = readAttribute("com.apple.metadata:kMDItemWhereFroms", of: url),

@@ -1,7 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Home (FE-069–FE-073, FE-080, FE-082, FE-206, FE-239); see docs/features/home-and-this-mac.md.
+/// Home (FE-069–FE-072, FE-080, FE-082, FE-206, FE-239); see docs/features/home-and-this-mac.md.
 enum HomeFeature: ExplorerFeature {
     static let id = "home"
     private static var observers: [NSObjectProtocol] = []

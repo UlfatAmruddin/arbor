@@ -116,7 +116,7 @@ enum PropertiesFeature: ExplorerFeature {
             }
             return 0.3
         }
-        // propset:name=New.txt | locked=1 | hidden=0 | mode=0640 | tags=A;B | comment=… | unblock=1 | template=Pictures:1
+        // propset:name=New.txt | locked=1 | hidden=0 | mode=0640 | tags=A;B | comment=… | template=Pictures:1
         DebugScript.registerStep("propset") { arg, _ in
             guard let controller = front() else { return 0.5 }
             let parts = arg.split(separator: "=", maxSplits: 1).map(String.init)
@@ -134,7 +134,6 @@ enum PropertiesFeature: ExplorerFeature {
             case "comment":
                 if let tab = controller.tabs.compactMap({ $0 as? DetailsTab }).first { tab.setCommentForScript(value) }
                 else { model.edit { e, _ in e.comment = value } }
-            case "unblock": model.edit { e, _ in e.quarantined = value != "1" }
             case "template":
                 let bits = value.split(separator: ":").map(String.init)
                 controller.tabs.compactMap { $0 as? CustomizeTab }.first?.selectTemplateForScript(bits[0], subfolders: bits.count > 1 && bits[1] == "1")

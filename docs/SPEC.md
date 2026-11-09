@@ -299,7 +299,7 @@ Build a surface × selection × capability matrix. Surfaces: app bar, file, fold
 
 Modern Windows context actions can be supplied through registered commands; default-application associations and arbitrary context extensions are distinct mechanisms. [R17: SDK] Use per-provider capability intersections for mixed selections; do not show an action that only half the batch supports unless the partial scope is explicit.
 
-Core action families: open/open-with; new; clipboard; rename; deletion; shortcut/alias; pin/favorite; share/send; copy path; properties; type-specific print/rotate/background; compression/extraction; terminal; provider actions. Some entries are only legacy, account, type or installation dependent. Exact menu order, customization and Show more options require build-level capture. The 2026 redesign was announced as a rollout, not a universal invariant. [R18: ROLLOUT]
+Core action families: open/open-with; new; clipboard; rename; deletion; shortcut/alias; pin/favorite; share/send; copy path; properties; type-specific rotate/background; compression/extraction; terminal; provider actions. Some entries are only legacy, account, type or installation dependent. Exact menu order, customization and Show more options require build-level capture. The 2026 redesign was announced as a rollout, not a universal invariant. [R18: ROLLOUT]
 
 ## 8. Rename, clipboard, and drag/drop
 
@@ -656,7 +656,7 @@ Status: specified / observed / implemented / passed / failed / not applicable
 | T22 | Remove a collection source/recent entry | Membership/history changes; file retained |
 | T23 | Delete on nonrecycling provider | Permanent consequence explicitly chosen |
 | T24 | Same-name network shares | Correct server/account identity used |
-| T25 | Extract/create/modify each archive | Format-specific capability and no unsafe extraction |
+| T25 | Extract/create each archive | Format-specific capability and no unsafe extraction |
 | T26 | Offline device/cloud disconnect | No UI hang or fictional complete result |
 | T27 | Keyboard and VoiceOver task sequence | Locate, inspect, move and recover without pointer |
 | T28 | Large directory and event churn | Useful progress, stable interaction and bounded resources |
@@ -836,9 +836,11 @@ These linked discussions were consulted earlier and retained as attributed quali
 
 ## 20. Complete inherited feature register
 
-All 234 original IDs and intended outcomes are embedded below, so this document stands on its own. These are our inherited candidate requirements, including deliberate improvements and platform adaptations. They are not verbatim Microsoft specifications, direct reference evidence, implementation commitments, or a declaration of current completion.
+All 234 original IDs and intended outcomes, apart from the retired ones listed below, are embedded here, so this document stands on its own. These are our inherited candidate requirements, including deliberate improvements and platform adaptations. They are not verbatim Microsoft specifications, direct reference evidence, implementation commitments, or a declaration of current completion.
 
 For every row: **implementation = not started; exact Windows observation = pending where applicable**. Earlier source-family pointers are superseded for evidence claims by section 19 and future observation records. Requirements that describe desired safety/resource behavior remain proposals even when strongly recommended.
+
+**Retired requirements.** The project owner removed these on 2026-11-09 (DEC-025) because they have no Mac counterpart or would serve too few people. Their IDs are not reused, and any mention of them in this document's research notes is out of scope. Retired: FE-073, FE-095, FE-100, FE-142, FE-165, FE-172, FE-184, FE-185, FE-193, FE-194, FE-196, FE-214, FE-216, FE-217. FE-097 no longer includes Print.
 
 
 ### Navigation and location
@@ -937,7 +939,6 @@ For every row: **implementation = not started; exact Windows observation = pendi
 | FE-070 | Explorer parity candidate | Quick access folders | Pin unpin reorder and navigate without duplicating real files. |
 | FE-071 | Explorer parity candidate | Favorite files | Distinguish file favorites from pinned folders and recent activity. |
 | FE-072 | Explorer parity candidate | Recent files and frequent folders | Audit scope; provider coverage; removal; clearing; and privacy controls. |
-| FE-073 | Explorer parity candidate | Recommended and shared content | Audit account-dependent Windows features; define provider-backed Mac equivalent. |
 | FE-074 | Explorer parity candidate | This PC | Mac equivalent lists real internal/external volumes and mounted shares with storage figures. |
 | FE-075 | Explorer parity candidate | Gallery | Audit chronological collection; source folders; date navigation; and actions separately from icon view. |
 | FE-076 | Explorer parity candidate | Libraries | Audit aggregated folders; default save location; optimization; and library management. |
@@ -964,12 +965,10 @@ For every row: **implementation = not started; exact Windows observation = pendi
 | FE-092 | Explorer parity candidate | Create shortcut and paste shortcut | Use Mac aliases; explicitly distinguish aliases from symbolic links. |
 | FE-093 | Explorer parity candidate | File folder background tree menus | Inventory each surface; multi-selection; mixed types; and unavailable commands. |
 | FE-094 | Explorer parity candidate | Command bar | Audit New; file actions; Sort; View; overflow; and contextual commands. |
-| FE-095 | Explorer parity candidate | Modern and legacy menu variants | Audit Show more options; Shift context menu; and customization on exact reference build. |
 | FE-096 | Explorer parity candidate | Send to and Share | Translate supported destinations to Mac services and share targets. |
-| FE-097 | Explorer parity candidate | Print rotate set wallpaper | Offer only valid type-specific operations and preserve metadata where possible. |
+| FE-097 | Explorer parity candidate | Rotate and set wallpaper | Offer only valid type-specific operations and preserve metadata where possible. |
 | FE-098 | Explorer parity candidate | Open terminal here | Open the chosen terminal at a folder without constructing unsafe shell command strings. |
 | FE-099 | Explorer parity candidate | Properties | Show a coherent native inspector plus an explicit Reveal/Get Info handoff. |
-| FE-100 | Explorer parity candidate | Pin to Start or taskbar | Record Windows action; map to appropriate app favorites or Dock handoff where supported. |
 | FE-101 | macOS adaptation | External app clipboard interoperability | Copy files to/from Finder and common Mac apps; validate move intent separately. |
 | FE-102 | macOS adaptation | File promises and dropped attachments | Handle promised files with progress; cancellation; and unavailable-provider errors. |
 | FE-103 | Proposed improvement | Advanced batch rename | Preview transformations; conflicts; numbering; and undo before applying. |
@@ -1026,7 +1025,6 @@ For every row: **implementation = not started; exact Windows observation = pendi
 | FE-139 | Explorer parity candidate | Search settings edge cases | Audit non-indexed content; system folders; archive search; natural-language options; and localized query syntax before committing support. |
 | FE-140 | Explorer parity candidate | Indexing integration | Report available coverage and avoid claiming all content is indexed. |
 | FE-141 | Explorer parity candidate | Unindexed search | Direct scan fallback is cancellable and reports inaccessible subtrees. |
-| FE-142 | Explorer parity candidate | Semantic and cloud search | Audit hardware; account; locale; and rollout dependencies; distinguish optional feature from baseline. |
 | FE-143 | macOS adaptation | Spotlight metadata adapter | Use supported Mac search APIs with measured coverage and fallback behavior. |
 | FE-144 | Proposed improvement | Why a result is absent | Expose permission; exclusion; offline; indexing; and unsupported content explanations when known. |
 | FE-145 | Proposed improvement | Name-first ranking | Exact filename then prefix then substring; content results labeled separately. |
@@ -1059,14 +1057,12 @@ For every row: **implementation = not started; exact Windows observation = pendi
 |---|---|---|---|
 | FE-163 | Explorer parity candidate | ZIP browsing and extraction | Audit navigation; extract-all; individual extraction; destination choice; and collisions. |
 | FE-164 | Explorer parity candidate | ZIP creation | Define selections; relative paths; naming; cancellation; and preservation limits. |
-| FE-165 | Explorer parity candidate | Modify existing archives | Audit adding; deleting; renaming; editing; and drag/drop into archives separately for each format; do not assume all formats behave like ZIP. |
 | FE-166 | Explorer parity candidate | 7z TAR and compressed TAR | Audit extraction versus creation formats against the reference build; do not infer symmetry. |
 | FE-167 | Explorer parity candidate | RAR extraction | Record supported variants; do not promise RAR creation. |
 | FE-168 | Explorer parity candidate | Archive compression options | Audit method; level; symbolic link handling; and creation wizard where present. |
 | FE-169 | Explorer parity candidate | Encrypted archive behavior | Record Windows limits; optional password support is separate from baseline parity. |
 | FE-170 | Explorer parity candidate | Archive safety | Reject traversal paths; unsafe link targets; excessive expansion; and unintended overwrites. |
 | FE-171 | Explorer parity candidate | Mount and eject ISO | Audit Windows behavior; use supported macOS disk-image services for ISO/DMG. |
-| FE-172 | Explorer parity candidate | Optical burn and disc tools | Inventory Explorer commands; capability gate by attached hardware and Mac support. |
 | FE-173 | macOS adaptation | Archive metadata portability | Explain when Finder tags; resource forks; or permissions cannot be represented. |
 
 ### Drives devices network and sharing
@@ -1083,8 +1079,6 @@ For every row: **implementation = not started; exact Windows observation = pendi
 | FE-181 | Explorer parity candidate | Share sheet and nearby sharing | Use native Mac sharing and AirDrop where supported; Windows Nearby Sharing is a distinct protocol. |
 | FE-182 | Explorer parity candidate | Phone camera and portable devices | Audit MTP/PTP nodes; Mac support may require a dedicated provider. |
 | FE-183 | Explorer parity candidate | Format rename and disk tools | Inventory format; cleanup; optimization; error checking; and map to supported Mac system tools. |
-| FE-184 | Explorer parity candidate | Encrypted and locked drives | Inventory BitLocker-related shell actions; Mac unlock flows require separate providers. |
-| FE-185 | Explorer parity candidate | Offline Files and enterprise storage | Record Windows Sync Center/DFS/provider dependencies and whether Mac equivalent is feasible. |
 | FE-186 | Explorer parity candidate | Administrative file-operation prompts | Audit UAC retry flows; design bounded Mac authorization only for supported actions without running the whole browser as root. |
 | FE-187 | macOS adaptation | Multiple identically named shares | Identify by server plus share plus stable volume identity; never resolve by display name alone. |
 | FE-188 | macOS adaptation | Filesystem capabilities | Detect APFS; HFS+; exFAT; FAT; SMB; and read-only NTFS limitations rather than promising writes. |
@@ -1097,10 +1091,7 @@ For every row: **implementation = not started; exact Windows observation = pendi
 | FE-190 | Explorer parity candidate | Online-only available and pinned states | Expose provider-backed state and distinguish unknown state. |
 | FE-191 | Explorer parity candidate | Download and free-space actions | Only offer provider-supported commands with truthful completion state. |
 | FE-192 | Explorer parity candidate | Sync errors and conflicts | Display known provider failures and offer provider-specific handoff. |
-| FE-193 | Explorer parity candidate | Share links and permissions | Use provider APIs where available; do not equate a local path with a share link. |
-| FE-194 | Explorer parity candidate | Cloud version history | Provider-specific capability; audit Windows entry points and Mac API availability. |
 | FE-195 | Explorer parity candidate | Multiple accounts and business content | Distinguish personal/work accounts and unavailable authentication. |
-| FE-196 | Explorer parity candidate | Home cloud recommendations | Optional provider-backed surface; do not claim parity from local recent files. |
 | FE-197 | macOS adaptation | iCloud Drive | Read actual native state; coordinate downloads; respect optimized storage. |
 | FE-198 | macOS adaptation | File Provider integration | Validate availability of status; context actions; eviction; and enumeration per installed provider. |
 
@@ -1128,10 +1119,7 @@ For every row: **implementation = not started; exact Windows observation = pendi
 | FE-211 | Explorer parity candidate | Namespace providers | Local files; virtual collections; archives; network; and devices share a capability interface. |
 | FE-212 | Explorer parity candidate | Preview and icon handlers | Use Mac equivalents; record unsupported Windows-only formats explicitly. |
 | FE-213 | Explorer parity candidate | Explorer address commands and shell names | Inventory commands; expose safe Mac aliases/handoffs; never execute typed text implicitly. |
-| FE-214 | Explorer parity candidate | WSL Linux and developer storage nodes | Record installed-feature-dependent Linux namespaces and Dev Drive actions; map only to actual configured Mac providers or a documented system boundary. |
 | FE-215 | Explorer parity candidate | Windows shortcut file compatibility | Audit LNK and URL shortcut behavior; distinguish parsing/import from Mac alias creation and never assume executables are portable. |
-| FE-216 | Explorer parity candidate | Windows desktop taskbar and Start host | Track as OS-shell boundary; not a standalone Mac file-browser capability. |
-| FE-217 | Explorer parity candidate | System Open and Save dialogs | Track as separate system integration boundary; this app cannot automatically replace every other app's dialogs. |
 | FE-218 | macOS adaptation | Reveal in Finder and Services | Interoperate with Mac apps without claiming global Finder replacement. |
 | FE-219 | macOS adaptation | Launch URLs and CLI entry | Open a supplied location safely with clear permission errors. |
 | FE-220 | macOS adaptation | Signed notarized universal releases | Plan Intel/Apple silicon packaging subject to minimum-OS decision. |
@@ -1181,7 +1169,7 @@ These append to, and refine, existing IDs rather than silently changing their me
 | FE-251 | FE-024; FE-149; FE-228 | Global cache and inactive-tab budgets | PROP | Caches share app-wide byte bounds; inactive tabs retain compact navigation state without duplicate heavy data. |
 | FE-252 | FE-228; FE-234 | Cold/warm and retained-growth benchmark protocol | R33 (metric context only) | Record hardware/configuration/fixture/metric/repeats; test many cycles and helpers; agree targets before enforcing numbers. |
 | FE-253 | FE-232; FE-233 | Documentation-first reference procedure | USER; PROP | Continue planning by default; use only authorized disposable observations; receiving the specification does not authorize building. |
-| FE-254 | FE-079; FE-182; FE-214 | Conditional namespace applicability | R04; R05 | Keep device/Linux/enterprise/extension capabilities tied to actual environment and Mac equivalent; avoid universal-folder assumptions. |
+| FE-254 | FE-079; FE-182 | Conditional namespace applicability | R04; R05 | Keep device/Linux/enterprise/extension capabilities tied to actual environment and Mac equivalent; avoid universal-folder assumptions. |
 | FE-255 | FE-117; FE-125 | Actual committed destination identity | R36 | Record the destination object/name returned after collision handling; never assume the requested name was committed unchanged. |
 | FE-256 | FE-102; FE-120 | Promise completion versus partial output | R38 | Check readiness/error and partial-file state; an existing destination URL cannot by itself mark a promise successful. |
 | FE-257 | FE-115 | Progress callbacks versus pause capability | R37 | Do not infer pause/resume support from timer method names; specify and prove engine/provider support. |
@@ -1201,7 +1189,7 @@ These append to, and refine, existing IDs rather than silently changing their me
 
 ### Structural verification
 
-The delivered file was checked for exactly one definition of each FE-001–FE-258 requirement, the presence of the full vision and scope constraints, source-label definitions, no unresolved assembly placeholders, and a complete section order. These are document integrity checks, not functional or visual application tests.
+The delivered file was checked for exactly one definition of each FE-001–FE-258 requirement (14 were retired later; see section 20), the presence of the full vision and scope constraints, source-label definitions, no unresolved assembly placeholders, and a complete section order. These are document integrity checks, not functional or visual application tests.
 
 ### Completion boundary
 

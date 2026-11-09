@@ -10,17 +10,15 @@ public struct EditableState: Equatable, Sendable {
     public var mode: UInt16?
     public var tags: [String]
     public var comment: String
-    public var quarantined: Bool
 
     public init(name: String, locked: Bool = false, hidden: Bool = false, mode: UInt16? = nil,
-                tags: [String] = [], comment: String = "", quarantined: Bool = false) {
+                tags: [String] = [], comment: String = "") {
         self.name = name
         self.locked = locked
         self.hidden = hidden
         self.mode = mode
         self.tags = tags
         self.comment = comment
-        self.quarantined = quarantined
     }
 
     public static func read(_ url: URL) throws -> EditableState {
@@ -28,8 +26,7 @@ public struct EditableState: Equatable, Sendable {
         var st = stat()
         let mode: UInt16? = lstat(url.path, &st) == 0 ? UInt16(st.st_mode & 0o7777) : nil
         return EditableState(name: url.lastPathComponent, locked: flags.isLocked, hidden: flags.isHidden, mode: mode,
-                             tags: FinderMetadata.tags(of: url), comment: FinderMetadata.comment(of: url),
-                             quarantined: FinderMetadata.isQuarantined(url))
+                             tags: FinderMetadata.tags(of: url), comment: FinderMetadata.comment(of: url))
     }
 
     public func value(of field: EditableField) -> AnyHashable {
@@ -40,13 +37,12 @@ public struct EditableState: Equatable, Sendable {
         case .mode: return mode.map { Int($0) } ?? -1
         case .tags: return tags
         case .comment: return comment
-        case .quarantine: return quarantined
         }
     }
 }
 
 public enum EditableField: String, CaseIterable, Sendable {
-    case name, locked, hidden, mode, tags, comment, quarantine
+    case name, locked, hidden, mode, tags, comment
 
     public var title: String {
         switch self {
@@ -56,7 +52,6 @@ public enum EditableField: String, CaseIterable, Sendable {
         case .mode: return L10n.tr("Permissions")
         case .tags: return L10n.tr("Tags")
         case .comment: return L10n.tr("Comments")
-        case .quarantine: return L10n.tr("Unblock")
         }
     }
 }
@@ -119,9 +114,6 @@ public struct PropertyChangePlan: Sendable {
             }
             if fields.contains(.comment) {
                 try step(.comment) { try FinderMetadata.setComment(edited.comment, on: url) }
-            }
-            if fields.contains(.quarantine), !edited.quarantined {
-                try step(.quarantine) { try FinderMetadata.removeQuarantine(from: url) }
             }
             if fields.contains(.name) {
                 try step(.name) { url = try Renamer.rename(url, to: edited.name, fileManager: fileManager) }

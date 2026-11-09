@@ -11,7 +11,7 @@ extension MenuSection {
     static let imageActions = MenuSection(rank: 460, name: "imageActions")
 }
 
-/// Item actions (FE-057, FE-064, FE-088, FE-089, FE-092, FE-096, FE-097, FE-100, FE-103, FE-106,
+/// Item actions (FE-057, FE-064, FE-088, FE-089, FE-092, FE-096, FE-097, FE-103, FE-106,
 /// FE-108, FE-109, FE-111).
 enum ItemActionsFeature: ExplorerFeature {
     static let id = "item-actions"

@@ -106,7 +106,7 @@ parent; an external change while a rename field is open keeps the typed text.
 
 Status: implemented; the headless checks pass, and the manual list below still has to be run in a GUI session. Arbor stays an
 ordinary app beside Finder: the folder handler rank stays None, Show in Finder is unchanged, and nothing claims to replace
-Finder (other apps' Reveal actions and Open/Save dialogs stay Finder's, FE-217). Services don't exist on Windows, so this is
+Finder (other apps' Reveal actions and Open/Save dialogs stay Finder's). Services don't exist on Windows, so this is
 a macOS adaptation, not Explorer parity.
 
 - **Provider.** One service, Open in Arbor, for files and folders (`NSServices` in `Resources/Info.plist`,

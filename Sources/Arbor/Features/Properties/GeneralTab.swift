@@ -76,9 +76,6 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
     private lazy var advanced = SheetButton(L10n.tr("Advanced…")) { [weak self] _ in self?.showAdvanced() }
     private let attributeNote = SheetLabel.wrapping("", small: true)
     private let securityNote = SheetLabel.wrapping(L10n.tr("This file came from another computer. macOS may check it with Gatekeeper before it opens."), small: true)
-    private lazy var unblock = SheetCheckbox(L10n.tr("Unblock")) { [weak self] box in
-        self?.model.edit { edited, _ in edited.quarantined = box.state != .on }
-    }
     private var securityRow: NSView?
     private var securitySeparator: NSView?
     private var openWithRow: NSView?
@@ -190,21 +187,9 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
         form.row(L10n.tr("Attributes:"), attributes, alignTop: true)
         form.add(indented(attributeNote))
         if model.subject == .file {
-            let unblockBox = NSView()
-            unblockBox.translatesAutoresizingMaskIntoConstraints = false
-            unblockBox.addSubview(securityNote)
-            unblockBox.addSubview(unblock)
-            NSLayoutConstraint.activate([
-                securityNote.topAnchor.constraint(equalTo: unblockBox.topAnchor),
-                securityNote.leadingAnchor.constraint(equalTo: unblockBox.leadingAnchor),
-                securityNote.trailingAnchor.constraint(lessThanOrEqualTo: unblock.leadingAnchor, constant: -8),
-                securityNote.bottomAnchor.constraint(equalTo: unblockBox.bottomAnchor),
-                unblock.trailingAnchor.constraint(equalTo: unblockBox.trailingAnchor),
-                unblock.topAnchor.constraint(equalTo: unblockBox.topAnchor),
-            ])
             form.separator()
             securitySeparator = form.stack.arrangedSubviews.last
-            securityRow = form.row(L10n.tr("Security:"), unblockBox, alignTop: true)
+            securityRow = form.row(L10n.tr("Security:"), securityNote, alignTop: true)
             securityRow?.isHidden = true
             securitySeparator?.isHidden = true
         }
@@ -320,7 +305,6 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
             accessedValue.stringValue = info.accessed.map { PropertyFormat.longDate($0) } ?? "Unknown"
             securityRow?.isHidden = !info.quarantined
             securitySeparator?.isHidden = !info.quarantined
-            unblock.state = entries[0].edited.quarantined ? .off : .on
         }
         showSizes()
         readOnly.allowsMixed = model.tri(\.locked, edited: false) == .mixed
@@ -388,7 +372,7 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
         if needsScan { lines.append("contains: \(containsValue.stringValue)  scanning: \(scanning)") }
         if !isMulti { lines.append("created: \(createdValue.stringValue)") }
         lines.append("read-only: \(readOnly.state)  hidden: \(hidden.state)\(hidden.isEnabled ? "" : " (disabled)")")
-        if model.subject == .file { lines.append("security row: \(securityRow?.isHidden == false ? "shown, unblock=\(unblock.state)" : "hidden")") }
+        if model.subject == .file { lines.append("security row: \(securityRow?.isHidden == false ? "shown" : "hidden")") }
         return lines.joined(separator: "\n")
     }
 }

@@ -29,6 +29,10 @@ their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
   rewrite would lose stay read-only.
 - Clipboard: files copied in other apps paste as a copy, and Option-Command-V moves them here.
 
+### Removed
+- Properties no longer offers Unblock on downloaded files. It still says a file came from another computer, and
+  macOS keeps checking the file before it opens.
+
 ### Files and reliability
 - Permanent delete stops at a volume mounted inside the folder instead of erasing it.
 - Items past the system's path limit are listed, and actions on them explain why they can't run.

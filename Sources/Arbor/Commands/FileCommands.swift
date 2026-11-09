@@ -1,7 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Open, New, Rename, Delete, Share, Copy as path, Terminal, Finder, Pin, Eject (FE-083–FE-100).
+/// Open, New, Rename, Delete, Share, Copy as path, Terminal, Finder, Pin, Eject (FE-083–FE-099).
 enum FileCommands {
     static func register() {
         let r = CommandRegistry.shared

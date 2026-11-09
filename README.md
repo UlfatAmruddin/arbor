@@ -130,7 +130,7 @@ frequent folders stay on your Mac and can be turned off or cleared in Folder Opt
 
 | Document | What's in it |
 |---|---|
-| [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md) | Status of every requirement (FE-001…FE-258) |
+| [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md) | Status of every requirement |
 | [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md) | Results of the task scenarios T01–T30 |
 | [docs/SPEC.md](docs/SPEC.md) | Product vision and behavioral specification |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Decision log, with an index of each area's decisions |

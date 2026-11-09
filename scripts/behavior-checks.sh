@@ -1316,6 +1316,21 @@ if want embedded-metadata; then
   discard embedded-metadata "$R"
 fi
 
+# FE-158: a downloaded file is described, and Properties never clears its quarantine flag.
+if want quarantine; then
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F"
+  echo a > "$R/F/download.txt"; echo b > "$R/F/local.txt"
+  xattr -w com.apple.quarantine "0081;00000000;Test;" "$R/F/download.txt"
+  S="wait:1;propertiesof:$R/F/download.txt;wait:0.8;proplog:$R/download.txt;propsnapshot:$R/download.png"
+  S+=";propset:comment=kept;propapply;wait:1;propcancel;wait:0.5;propertiesof:$R/F/local.txt;wait:0.8;proplog:$R/local.txt;quit"
+  run "$R" "$R/F" "$S"
+  contains "a downloaded file says where it came from" "$R/download.txt" "security row: shown"
+  contains "a local file shows no security row" "$R/local.txt" "security row: hidden"
+  fact "the other edit was applied" test -n "$(xattr -p com.apple.metadata:kMDItemFinderComment "$R/F/download.txt" 2>/dev/null)"
+  fact "applying other edits keeps the quarantine flag" test -n "$(xattr -p com.apple.quarantine "$R/F/download.txt" 2>/dev/null)"
+  discard quarantine "$R"
+fi
+
 # FE-101: the clipboard shared with other apps. Finder can't be driven headless, so a stand-in writes the same file URLs.
 if want clipboard; then
   R=$(arbor_mktemp_dir); F="$R/F"; O="$R/other"; mkdir -p "$R/trash" "$F" "$O"

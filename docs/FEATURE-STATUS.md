@@ -1,7 +1,7 @@
 # Feature status
 
-The single status list for every requirement in [SPEC.md](SPEC.md): FE-001 to FE-258, one row each, none left out
-(FE-234). Statuses were taken from the area documents in [docs/features/](features/) and checked against the code;
+The single status list for every requirement in [SPEC.md](SPEC.md): one row each, none left out (FE-234).
+IDs run to FE-258 with gaps; SPEC.md section 20 lists the retired ones. Statuses were taken from the area documents in [docs/features/](features/) and checked against the code;
 where a claim couldn't be confirmed it was lowered. Scenario results (T01–T30) are in [ACCEPTANCE.md](ACCEPTANCE.md).
 
 **Status:** *implemented* = works as the requirement asks on macOS · *partial* = part of it works (the note says
@@ -17,11 +17,11 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 
 | Status | Requirements |
 |---|---|
-| implemented | 223 |
-| partial | 11 |
-| macOS boundary | 13 |
-| not done | 11 |
-| **total** | **258** |
+| implemented | 225 |
+| partial | 9 |
+| macOS boundary | 3 |
+| not done | 7 |
+| **total** | **244** |
 
 | Area | Implemented | Partial | macOS boundary | Not done |
 |---|---|---|---|---|
@@ -29,17 +29,17 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | Tabs, windows and session | 11 | 0 | 0 | 0 |
 | Views, density and readability | 28 | 0 | 0 | 0 |
 | Selection, focus and input | 13 | 0 | 0 | 0 |
-| Home, special locations and collections | 12 | 0 | 2 | 0 |
-| File actions, clipboard and menus | 18 | 1 | 2 | 0 |
+| Home, special locations and collections | 12 | 0 | 1 | 0 |
+| File actions, clipboard and menus | 19 | 0 | 0 | 0 |
 | Drag and drop | 10 | 0 | 0 | 0 |
 | Operations, progress, conflicts and recovery | 17 | 0 | 0 | 0 |
-| Search and filtering | 15 | 0 | 1 | 0 |
-| Preview, metadata and properties | 14 | 2 | 0 | 0 |
-| Archives and disk images | 8 | 1 | 0 | 2 |
-| Drives, devices, network and sharing | 9 | 0 | 4 | 2 |
-| Cloud and account integrations | 4 | 3 | 1 | 2 |
+| Search and filtering | 15 | 0 | 0 | 0 |
+| Preview, metadata and properties | 15 | 1 | 0 | 0 |
+| Archives and disk images | 8 | 1 | 0 | 0 |
+| Drives, devices, network and sharing | 9 | 0 | 2 | 2 |
+| Cloud and account integrations | 4 | 3 | 0 | 0 |
 | Accessibility, localization and preferences | 9 | 1 | 0 | 0 |
-| System integration and expansion boundary | 7 | 2 | 3 | 2 |
+| System integration and expansion boundary | 7 | 2 | 0 | 2 |
 | Reliability and acceptance coverage | 10 | 0 | 0 | 2 |
 | Additional research requirements (§21) | 22 | 1 | 0 | 1 |
 
@@ -48,9 +48,8 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 - **No Windows reference audit.** No Windows 11 machine was available. Parity is based on Microsoft's documentation
   and recalled behavior, recorded in [research/windows11-reference.md](research/windows11-reference.md) with DOC / RECALL
   labels. Exact menus, wording, spacing and colors may differ from a current Windows 11 build (FE-232, FE-247 not done).
-- **Features with no macOS equivalent** are boundaries, not imitations: drive letters, BitLocker, WSL and Dev Drive,
-  Control Panel and other shell folders, Pin to Start/taskbar, Microsoft account recommendations, Windows' legacy
-  context menu, Offline Files, replacing other apps' Open/Save dialogs, and pinning cloud files (no public API).
+- **Features with no macOS equivalent** are boundaries, not imitations: drive letters, Control Panel and other shell
+  folders, and pinning cloud files (no public API).
 - **Not exercised against real services:** SMB/AFP servers and Bonjour discovery (tested with simulated servers),
   OneDrive/Dropbox/Google Drive File Provider domains (tested with a simulated provider), Time Machine disks, RAR files,
   a live VoiceOver session, a physical trackpad and pointer-driven drags (headless runs can't move the mouse).
@@ -153,7 +152,6 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-070 | Quick access folders | implemented | unit; headless menus | [home-and-this-mac](features/home-and-this-mac.md) | Order can't be changed by dragging tiles |
 | FE-071 | Favorite files | implemented | unit; headless | [home-and-this-mac](features/home-and-this-mac.md) |  |
 | FE-072 | Recent files and frequent folders | implemented | unit; acceptance T22 | [home-and-this-mac](features/home-and-this-mac.md) |  |
-| FE-073 | Recommended and shared content | macOS boundary | — | [home-and-this-mac](features/home-and-this-mac.md) | Needs Microsoft account insights; no Mac provider |
 | FE-074 | This PC → This Mac | implemented | headless with a mounted disk image | [home-and-this-mac](features/home-and-this-mac.md) |  |
 | FE-075 | Gallery | implemented | unit; headless with generated photos | [gallery-libraries](features/gallery-libraries.md) |  |
 | FE-076 | Libraries | implemented | unit; acceptance T21, T22 | [gallery-libraries](features/gallery-libraries.md) | No `.library-ms` import: its Windows paths don't resolve on a Mac (DEC-GL-16) |
@@ -180,12 +178,10 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-092 | Create shortcut and paste shortcut | implemented | headless | [item-actions](features/item-actions.md) | Mac aliases; symbolic links separate |
 | FE-093 | Context menus per surface | implemented | headless `menu:` dumps | [consistency](features/consistency.md) |  |
 | FE-094 | Command bar | implemented | snapshots; headless `log` | [visual-parity](features/visual-parity.md) |  |
-| FE-095 | Modern and legacy menu variants | macOS boundary | — | [visual-parity](features/visual-parity.md) | AppKit has one menu style; no "Show more options" layer, icon row items are text |
 | FE-096 | Send to and Share | implemented | headless with test folders | [item-actions](features/item-actions.md) | Bluetooth and Fax omitted |
-| FE-097 | Print, rotate, set wallpaper | partial | unit; headless | [item-actions](features/item-actions.md) | Rotate and wallpaper built; Print omitted (no honest Mac API) |
+| FE-097 | Rotate and set wallpaper | implemented | unit; headless | [item-actions](features/item-actions.md) | Rotate right/left and desktop background, offered only for items that support them |
 | FE-098 | Open terminal here | implemented | behavior-checks `headless` | [qa-core](features/qa-core.md) | No shell strings |
 | FE-099 | Properties | implemented | headless; snapshots | [properties](features/properties.md) |  |
-| FE-100 | Pin to Start or taskbar | macOS boundary | — | [item-actions](features/item-actions.md) | No Mac counterpart without editing Dock preferences |
 | FE-101 | Clipboard interoperability with Mac apps | implemented | unit; behavior-checks `clipboard` | [clipboard-interop](features/clipboard-interop.md) | Finder copies paste as copies and Option-paste moves them; checked with a stand-in, not real Finder |
 | FE-102 | File promises and dropped attachments | implemented | unit; behavior-checks `promises` | [promised-files](features/promised-files.md) | Progress, Cancel and unavailable-provider errors; checked with stand-in providers, not a real Mail drag |
 | FE-103 | Advanced batch rename | implemented | unit; headless | [item-actions](features/item-actions.md) |  |
@@ -242,7 +238,6 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-139 | Search settings edge cases | implemented | unit; headless | [search](features/search.md) |  |
 | FE-140 | Indexing integration | implemented | unit | [search](features/search.md) |  |
 | FE-141 | Unindexed search | implemented | acceptance T18 | [search](features/search.md) |  |
-| FE-142 | Semantic and cloud search | macOS boundary | — | [search](features/search.md) | No equivalent public API |
 | FE-143 | Spotlight metadata adapter | implemented | unit (translation) | [search](features/search.md) | Live index results not observed headless |
 | FE-144 | Why a result is absent | implemented | unit; acceptance T18 | [search](features/search.md) |  |
 | FE-145 | Name-first ranking | implemented | unit (SearchRelevanceTests); acceptance T04 | [consistency](features/consistency.md) | Relevance is the default order of results |
@@ -263,7 +258,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-155 | Previous Versions | implemented | unit (fake backups); headless | [properties](features/properties.md) | Real Time Machine disk not tested |
 | FE-156 | Attribute check boxes | implemented | unit; headless | [properties](features/properties.md) |  |
 | FE-157 | Version and signature tabs | implemented | unit | [properties](features/properties.md) |  |
-| FE-158 | Downloaded-file unblock and provenance | partial | code review | [properties](features/properties.md) | An Unblock box removes the quarantine attribute (Explorer parity), which the spec asks not to copy; kept for owner review |
+| FE-158 | Downloaded-file unblock and provenance | implemented | behavior-checks `quarantine` | [properties](features/properties.md) | Says a file came from another computer and leaves its quarantine flag alone, so macOS still checks it. No Unblock, which would bypass Gatekeeper (DEC-025) |
 | FE-159 | Quick Look | implemented | headless `quicklook` | [consistency](features/consistency.md) |  |
 | FE-160 | App bundles and packages | implemented | headless | [properties](features/properties.md) |  |
 | FE-161 | Finder metadata | implemented | unit; headless | [properties](features/properties.md) |  |
@@ -275,14 +270,12 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 |---|---|---|---|---|---|
 | FE-163 | ZIP browsing and extraction | implemented | unit; acceptance T12, T25 | [archives](features/archives.md) |  |
 | FE-164 | ZIP creation | implemented | unit; acceptance T25 | [archives](features/archives.md) |  |
-| FE-165 | Modify existing archives | not done | acceptance T25 (commands off inside) | [archives](features/archives.md) | Archives are read-only by decision (DEC-archives-3) |
 | FE-166 | 7z, TAR and compressed TAR | implemented | unit; acceptance T25 | [archives](features/archives.md) |  |
 | FE-167 | RAR extraction | partial | — | [archives](features/archives.md) | Read through the system libarchive; untested (no fixture can be built) |
 | FE-168 | Archive compression options | implemented | unit; snapshots | [archives](features/archives.md) | No Zstandard writer |
 | FE-169 | Encrypted archive behavior | implemented | unit | [archives](features/archives.md) | Detected and refused with an explanation, like Windows |
 | FE-170 | Archive safety | implemented | unit; acceptance T25 | [archives](features/archives.md) |  |
 | FE-171 | Mount and eject ISO | implemented | headless | [archives](features/archives.md) |  |
-| FE-172 | Optical burn and disc tools | not done | — | [archives](features/archives.md) |  |
 | FE-173 | Archive metadata portability | implemented | unit | [archives](features/archives.md) |  |
 
 ## Drives, devices, network and sharing
@@ -299,8 +292,6 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-181 | Share sheet and nearby sharing | implemented | code review | [item-actions](features/item-actions.md) | System share sheet (AirDrop included) |
 | FE-182 | Phone camera and portable devices | not done | — | — | No MTP/PTP browsing |
 | FE-183 | Format, rename and disk tools | macOS boundary | headless | [properties](features/properties.md) | Handoffs to Disk Utility and Storage settings; volume rename where allowed |
-| FE-184 | Encrypted and locked drives | macOS boundary | — | — | BitLocker has no Mac counterpart (DEC-019) |
-| FE-185 | Offline Files and enterprise storage | macOS boundary | — | — | Sync Center/DFS have no Mac counterpart |
 | FE-186 | Administrative file-operation prompts | not done | — | — | No privileged helper; permission failures are reported per item |
 | FE-187 | Same-named shares | implemented | unit; acceptance T24 | [network](features/network.md) |  |
 | FE-188 | Filesystem capabilities | implemented | unit; headless | [consistency](features/consistency.md) | Drive Properties › File System |
@@ -313,10 +304,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-190 | Online-only, available, pinned states | implemented | unit; acceptance T20 | [cloud](features/cloud.md) | No pin state (no public API) |
 | FE-191 | Download and free-space actions | implemented | headless | [cloud](features/cloud.md) |  |
 | FE-192 | Sync errors and conflicts | partial | unit | [cloud](features/cloud.md) | Shown in the Status column; no provider handoff |
-| FE-193 | Share links and permissions | not done | — | [cloud](features/cloud.md) |  |
-| FE-194 | Cloud version history | not done | — | [cloud](features/cloud.md) |  |
 | FE-195 | Multiple accounts | partial | unit | [cloud](features/cloud.md) | One node per account folder; no sign-in state |
-| FE-196 | Home cloud recommendations | macOS boundary | — | [cloud](features/cloud.md) | No provider API |
 | FE-197 | iCloud Drive | implemented | unit | [cloud](features/cloud.md) | Not checked against a signed-in account in tests |
 | FE-198 | File Provider integration | partial | — | [cloud](features/cloud.md) | Uses the generic keys; unverified on real OneDrive/Dropbox/Google Drive |
 
@@ -344,10 +332,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-211 | Namespace providers | implemented | unit; every location kind | [qa-core](features/qa-core.md) | `LocationProvider` registry (docs/ARCHITECTURE.md) |
 | FE-212 | Preview and icon handlers | implemented | unit; headless | [icon-views](features/icon-views.md) | Quick Look; Windows-only handlers have no equivalent |
 | FE-213 | Address commands and shell names | partial | unit; headless `address` | [address-entry](features/address-entry.md) | `shell:` names go to a Mac place or say why not; nothing launches, so hand-offs to System Settings, Font Book or Terminal are left out |
-| FE-214 | WSL and developer storage nodes | macOS boundary | — | — | No Mac counterpart (DEC-019) |
 | FE-215 | Windows shortcut file compatibility | implemented | unit; `windows-shortcut-checks.sh` | [windows-shortcuts](features/windows-shortcuts.md) | Read-only; Windows programs are never launched |
-| FE-216 | Windows desktop, taskbar and Start host | macOS boundary | — | — | OS shell, out of scope |
-| FE-217 | System Open and Save dialogs | macOS boundary | — | — | Other apps' dialogs can't be replaced |
 | FE-218 | Reveal in Finder and Services | implemented | unit; behavior-checks `services` | [qa-core](features/qa-core.md) |  |
 | FE-219 | Launch URLs and CLI entry | implemented | headless (path argument) | [qa-core](features/qa-core.md) | `Arbor <path>`; documents opened from Finder |
 | FE-220 | Signed, notarized universal releases | partial | build checks | [distribution](features/distribution.md) | Universal build and DMG done; signing/notarization pipeline not run (no Developer ID yet) |
@@ -369,7 +354,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-231 | Provider capability tests | implemented | unit (`ProviderCapabilityMatrixTests`); behavior-checks `capabilities` | [cloud](features/cloud.md) |  |
 | FE-232 | Reference parity audit | not done | — | — | No Windows reference machine (see Known limitations) |
 | FE-233 | User task validation | not done | — | — | No user studies run |
-| FE-234 | Release completeness report | implemented | this file | — | Every FE-001…FE-258 row is listed |
+| FE-234 | Release completeness report | implemented | this file | — | Every requirement still in SPEC.md is listed; retired ones and the reason are in SPEC.md section 20 and DEC-025 |
 
 ## Additional research requirements (§21)
 

@@ -178,7 +178,6 @@ extension EditableState {
         case .mode: mode = other.mode
         case .tags: tags = other.tags
         case .comment: comment = other.comment
-        case .quarantine: quarantined = other.quarantined
         }
     }
 }

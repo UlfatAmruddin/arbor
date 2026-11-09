@@ -422,7 +422,7 @@ if want T24; then
 fi
 
 if want T25; then
-  begin T25 "Extract/create/modify each archive"
+  begin T25 "Extract/create each archive"
   mkdir -p "$R/fx/docs" "$R/out"; echo "a" > "$R/fx/docs/a.txt"; echo "b" > "$R/fx/b.txt"
   /usr/bin/python3 -I - "$R/fx/evil.zip" <<'PY'
 import sys, zipfile
@@ -439,7 +439,7 @@ PY
   contains "archives are read-only: Rename/Delete/Paste off inside" "$R/b.txt" "file.rename(off)"
   fact "a member with ../ was not written outside" test ! -e "$R/escaped.txt" -a ! -e "$R/out/../escaped.txt" -a ! -e /abs.txt
   fact "the safe member was extracted" sh -c "find '$R/out' -name ok.txt | grep -q ."
-  finish "RAR extraction untested (no fixture can be made with built-in tools); modifying archives is not offered (read-only)"
+  finish "RAR extraction untested (no fixture can be made with built-in tools)"
 fi
 
 if want T26; then

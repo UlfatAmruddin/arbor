@@ -14,10 +14,7 @@ Code: `Sources/Arbor/Features/Cloud/`, `Sources/ArborCore/CloudStatus.swift`.
 | FE-162 | Preview pane: online-only files show "“x” is available when online" + **Download to preview**; nothing downloads on selection; progress and errors shown | Implemented | Snapshots (light/dark) |
 | FE-113 | Copy (or move out of the provider) of cloud folders or online-only files asks "Download from … to copy these items?" first; moves inside one provider folder never ask | Implemented | Headless: Cancel left the destination empty |
 | FE-192 | Sync errors and conflicts shown in the Status column | Partial | Provider-specific handoff not possible (see FE-244) |
-| FE-193 | Share links / permissions | Not done | iCloud-only API exists (below); core Share… uses the system share sheet |
-| FE-194 | Version history | Not done | `NSFileVersion` covers local/conflict versions only |
 | FE-195 | Multiple accounts | Partial | Each CloudStorage folder is its own node with its account label; no auth state is readable |
-| FE-196 | Home cloud recommendations | Boundary | No provider API for recommendations |
 | FE-197 | iCloud Drive native state, coordinated downloads, optimized storage respected (never hydrates on browse) | Implemented | Status reads are metadata only, bounded to visible rows |
 | FE-198 | File Provider domains: enumeration, status, eviction per provider | Partial | Depends on what each provider reports through the same keys; unverified on real OneDrive/Dropbox/Google Drive in this run (headless runs never touch real cloud folders) |
 | FE-244 | Which provider capabilities a third-party browser can use | Documented below | API research |
