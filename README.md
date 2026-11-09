@@ -6,6 +6,8 @@ real cut and paste, and a status bar: the layout and habits Windows users alread
 
 Arbor is released under the MIT license. It is an independent project.
 
+It is an early preview: some Explorer features are missing or only partly done ([full list](docs/FEATURE-STATUS.md)).
+
 > **Trademarks.** Arbor isn't affiliated with, endorsed by or sponsored by Microsoft. "Windows" and "File Explorer"
 > are trademarks of Microsoft Corporation and are used here only to describe the behavior Arbor follows. Arbor uses
 > its own artwork and the system font; no Microsoft icons, fonts or logos are included.
@@ -16,16 +18,6 @@ Arbor is released under the MIT license. It is an independent project.
 <p align="center">
   <img src="docs/images/icons-dark.png" width="820" alt="Arbor showing a folder of pictures in Large icons, dark appearance">
 </p>
-
-## Status
-
-Version 0.2, an early but broad preview. Of the 258 requirements in the specification, 203 are implemented, 28
-partly, 13 are macOS boundaries (no Mac counterpart, so Arbor offers the closest real equivalent instead of a fake
-button) and 14 aren't done yet. Every one is listed in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md), and the
-end-to-end task scenarios are recorded in [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md).
-
-No Windows reference machine was used while building it: parity is based on Microsoft's documentation and on recalled
-behavior, so details such as exact spacing, colors or menu order may differ from a current Windows 11 build.
 
 ## Features
 
