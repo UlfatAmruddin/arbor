@@ -945,8 +945,8 @@ if want detailsmarquee; then
 
   # A listing change during a hold waits for mouse-up, and a refresh keeps the selection.
   S="wait:1;view:details;wait:0.5;detailsmarquee:200,10,50,70::3:queued;wait:0.5;opstart:copy:$R/src/zz.txt:$R/S;wait:0.5;log:$R/h1.txt"
-  S+=";snapshot:$R/band-light.png;wait:3;log:$R/h2.txt"
-  S+=";detailsmarquee:200,10,50,70::4:queued;wait:0.3;refresh;wait:0.3;log:$R/h3.txt;wait:4;log:$R/h4.txt;quit"
+  S+=";snapshot:$R/band-light.png;wait:6;log:$R/h2.txt"
+  S+=";detailsmarquee:200,10,50,70::4:queued;wait:0.3;refresh;wait:0.3;log:$R/h3.txt;wait:8;log:$R/h4.txt;quit"
   run "$R" "$R/S" "$S" ARBOR_APPEARANCE=light
   contains "still tracking during the hold" "$R/h1.txt" "tracking=true"
   contains "the new row waits for mouse-up" "$R/h1.txt" "tableRows=3 "

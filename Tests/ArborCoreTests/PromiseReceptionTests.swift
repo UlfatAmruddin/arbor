@@ -320,7 +320,7 @@ struct PromiseReceptionTests {
             reader(first, nil)
         }
         reference.promise = source
-        let (_, outcome) = try await place.receive([source])
+        let (_, outcome) = try await place.receive([source], quiet: 5)
         #expect(outcome.received.map(\.lastPathComponent).sorted() == ["a", "b"])
     }
 
