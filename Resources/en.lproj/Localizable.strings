@@ -29,9 +29,10 @@
 "%@ Properties" = "%@ Properties";
 "%@ bytes" = "%@ bytes";
 "%@ compresses one file. Choose a TAR format for folders or several items." = "%@ compresses one file. Choose a TAR format for folders or several items.";
+"%@ contains characters that can't be stored." = "%@ contains characters that can't be stored.";
 "%@ copied." = "%@ copied.";
-"%@ cut. Paste to move it." = "%@ cut. Paste to move it.";
-"%@ cut. Paste to move them." = "%@ cut. Paste to move them.";
+"%@ cut. Paste in Arbor to move it. Other apps get a copy." = "%@ cut. Paste in Arbor to move it. Other apps get a copy.";
+"%@ cut. Paste in Arbor to move them. Other apps get a copy." = "%@ cut. Paste in Arbor to move them. Other apps get a copy.";
 "%@ didn't accept the user name or password. Try again with different credentials." = "%@ didn't accept the user name or password. Try again with different credentials.";
 "%@ didn't respond in time. It may be busy, asleep, or on a slow connection." = "%@ didn't respond in time. It may be busy, asleep, or on a slow connection.";
 "%@ done" = "%@ done";
@@ -51,6 +52,7 @@
 "%@ in this archive have names too long to use. They aren't shown and won't be extracted." = "%@ in this archive have names too long to use. They aren't shown and won't be extracted.";
 "%@ is a network device without shared folders." = "%@ is a network device without shared folders.";
 "%@ is disconnected" = "%@ is disconnected";
+"%@ is too long." = "%@ is too long.";
 "%@ isn't available yet" = "%@ isn't available yet";
 "%@ isn't responding" = "%@ isn't responding";
 "%@ items" = "%@ items";
@@ -121,6 +123,7 @@
 "A name can't be empty." = "A name can't be empty.";
 "A name can't contain “/”." = "A name can't contain “/”.";
 "A place in “%@” isn't responding" = "A place in “%@” isn't responding";
+"A rating must be between 0 and 5." = "A rating must be between 0 and 5.";
 "A request to open items in Arbor took too long and was dropped." = "A request to open items in Arbor took too long and was dropped.";
 "A workspace named “%@” already exists." = "A workspace named “%@” already exists.";
 "A workspace remembers this window's tabs. Your files and folders aren't changed." = "A workspace remembers this window's tabs. Your files and folders aren't changed.";
@@ -184,6 +187,8 @@
 "Always show icons, never thumbnails" = "Always show icons, never thumbnails";
 "Always show menus" = "Always show menus";
 "An item named “%@” already exists in this folder." = "An item named “%@” already exists in this folder.";
+"Another app changed the file while it was being replaced, and the version set aside couldn't go to the Trash. It is at %@; copy it somewhere safe, because that folder is temporary." = "Another app changed the file while it was being replaced, and the version set aside couldn't go to the Trash. It is at %@; copy it somewhere safe, because that folder is temporary.";
+"Another app changed the file while it was being replaced. The version set aside is in the Trash; check the file before relying on it." = "Another app changed the file while it was being replaced. The version set aside is in the Trash; check the file before relying on it.";
 "Another disk or server is mounted here. Nothing on it was deleted; eject it, then try again." = "Another disk or server is mounted here. Nothing on it was deleted; eject it, then try again.";
 "Another item has the same name with different capitalization." = "Another item has the same name with different capitalization.";
 "Apple silicon" = "Apple silicon";
@@ -531,6 +536,7 @@
 "Duplicate tab" = "Duplicate tab";
 "E-mail" = "E-mail";
 "Edit" = "Edit";
+"Edit Properties" = "Edit Properties";
 "Edit…" = "Edit…";
 "Eject" = "Eject";
 "Eject “%@”" = "Eject “%@”";
@@ -540,6 +546,7 @@
 "Enter a name with at least one visible character." = "Enter a name with at least one visible character.";
 "Enter a new name for “%@”." = "Enter a new name for “%@”.";
 "Enter a new name for “%@”. The file keeps its place in “%@”." = "Enter a new name for “%@”. The file keeps its place in “%@”.";
+"Enter the date taken as YYYY-MM-DD HH:MM:SS." = "Enter the date taken as YYYY-MM-DD HH:MM:SS.";
 "Error" = "Error";
 "Error checking" = "Error checking";
 "Every file of this type will open with the app you choose." = "Every file of this type will open with the app you choose.";
@@ -811,10 +818,12 @@
 "Move Down" = "Move Down";
 "Move Focus to Next Area" = "Move Focus to Next Area";
 "Move Item Here" = "Move Item Here";
+"Move Items Here" = "Move Items Here";
 "Move Tab to New Window" = "Move Tab to New Window";
 "Move Up" = "Move Up";
 "Move down" = "Move down";
 "Move item here" = "Move item here";
+"Move items here" = "Move items here";
 "Move tab to new window" = "Move tab to new window";
 "Move to Trash" = "Move to Trash";
 "Move up" = "Move up";
@@ -899,6 +908,7 @@
 "Not done" = "Not done";
 "Not imported, not available on this Mac: %@." = "Not imported, not available on this Mac: %@.";
 "Not imported, the value in the file isn't allowed: %@." = "Not imported, the value in the file isn't allowed: %@.";
+"Not rated" = "Not rated";
 "Nothing could be extracted safely." = "Nothing could be extracted safely.";
 "Nothing is selected." = "Nothing is selected.";
 "Nothing to import from this file." = "Nothing to import from this file.";
@@ -957,6 +967,7 @@
 "Original Location" = "Original Location";
 "Original Location: %@" = "Original Location: %@";
 "Other items are stored inside it, but it isn't a folder." = "Other items are stored inside it, but it isn't a folder.";
+"Other names point to this file (hard links), and replacing it would separate them." = "Other names point to this file (hard links), and replacing it would separate them.";
 "Other properties" = "Other properties";
 "Owner" = "Owner";
 "Owner:" = "Owner:";
@@ -1115,6 +1126,7 @@
 "Save your tags and comments anyway?" = "Save your tags and comments anyway?";
 "Saved by a newer version of Arbor. Workspaces are read-only." = "Saved by a newer version of Arbor. Workspaces are read-only.";
 "Saved for this folder" = "Saved for this folder";
+"Saved inside the file without changing the picture itself. The previous version goes to the Trash." = "Saved inside the file without changing the picture itself. The previous version goes to the Trash.";
 "Saved search" = "Saved search";
 "Saved tags and comments for “%@”." = "Saved tags and comments for “%@”.";
 "Saved “%@”." = "Saved “%@”.";
@@ -1273,6 +1285,7 @@
 "Stop" = "Stop";
 "Store (no compression)" = "Store (no compression)";
 "Stored by macOS alongside the file, not inside it. Other computers and some cloud services may not keep them." = "Stored by macOS alongside the file, not inside it. Other computers and some cloud services may not keep them.";
+"Stored in this image" = "Stored in this image";
 "Subject" = "Subject";
 "Swipe to Go Back and Forward" = "Swipe to Go Back and Forward";
 "Swipe to go back and forward" = "Swipe to go back and forward";
@@ -1321,7 +1334,11 @@
 "The app offering it stopped responding or has quit." = "The app offering it stopped responding or has quit.";
 "The app said it had finished, but the file isn't there." = "The app said it had finished, but the file isn't there.";
 "The archive lists more items than Arbor can show." = "The archive lists more items than Arbor can show.";
+"The change couldn't be verified as harmless to the image, so the file wasn't changed." = "The change couldn't be verified as harmless to the image, so the file wasn't changed.";
 "The change is kept until you quit, and Arbor will try again with your next change." = "The change is kept until you quit, and Arbor will try again with your next change.";
+"The clipboard holds %@. Arbor can paste up to %@ at once, so nothing was pasted." = "The clipboard holds %@. Arbor can paste up to %@ at once, so nothing was pasted.";
+"The clipboard holds something other than files on this Mac, so nothing was pasted." = "The clipboard holds something other than files on this Mac, so nothing was pasted.";
+"The clipboard includes a whole disk. Arbor doesn't paste disks, so nothing was pasted." = "The clipboard includes a whole disk. Arbor doesn't paste disks, so nothing was pasted.";
 "The connection was cancelled." = "The connection was cancelled.";
 "The copy couldn't be created." = "The copy couldn't be created.";
 "The copy couldn't be written." = "The copy couldn't be written.";
@@ -1342,14 +1359,19 @@
 "The existing file goes to the Trash." = "The existing file goes to the Trash.";
 "The existing files go to the Trash." = "The existing files go to the Trash.";
 "The file being %@ will be named “%@”." = "The file being %@ will be named “%@”.";
+"The file changed after these properties were read, so nothing was written. They have been read again; make your changes again if you still want them." = "The file changed after these properties were read, so nothing was written. They have been read again; make your changes again if you still want them.";
+"The file is locked. Unlock it, then try again." = "The file is locked. Unlock it, then try again.";
 "The file is too large for the destination." = "The file is too large for the destination.";
 "The file isn't a valid ZIP archive." = "The file isn't a valid ZIP archive.";
+"The file or its folder can't be written to." = "The file or its folder can't be written to.";
+"The file or its previous version changed since the edit." = "The file or its previous version changed since the edit.";
 "The folder being %@ will be named “%@”." = "The folder being %@ will be named “%@”.";
 "The folder “%@” is locked." = "The folder “%@” is locked.";
 "The folder “%@” is locked. Unlock it in Get Info, then try again." = "The folder “%@” is locked. Unlock it in Get Info, then try again.";
 "The folder “%@” is no longer at the destination." = "The folder “%@” is no longer at the destination.";
 "The folders and files in this library keep their names." = "The folders and files in this library keep their names.";
 "The image couldn't be read." = "The image couldn't be read.";
+"The image's previous properties couldn't be put back." = "The image's previous properties couldn't be put back.";
 "The item couldn't be received." = "The item couldn't be received.";
 "The item is locked. Unlock it in Get Info, then try again." = "The item is locked. Unlock it in Get Info, then try again.";
 "The item no longer exists." = "The item no longer exists.";
@@ -1370,6 +1392,7 @@
 "The network share isn't connected any more. Reconnect to keep browsing this folder." = "The network share isn't connected any more. Reconnect to keep browsing this folder.";
 "The network share was disconnected." = "The network share was disconnected.";
 "The operation was cancelled." = "The operation was cancelled.";
+"The original couldn't be moved to the Trash, so it wasn't replaced." = "The original couldn't be moved to the Trash, so it wasn't replaced.";
 "The path is too long or nested too deeply." = "The path is too long or nested too deeply.";
 "The path to this item is too long for the Trash." = "The path to this item is too long for the Trash.";
 "The path to “%@” is too long for macOS to open." = "The path to “%@” is too long for macOS to open.";
@@ -1377,6 +1400,7 @@
 "The permissions of this item couldn't be read." = "The permissions of this item couldn't be read.";
 "The permissions were changed again after your change, so undoing it could remove someone else's change." = "The permissions were changed again after your change, so undoing it could remove someone else's change.";
 "The preview appears when %@ finishes downloading it." = "The preview appears when %@ finishes downloading it.";
+"The properties couldn't be written, so the file wasn't changed." = "The properties couldn't be written, so the file wasn't changed.";
 "The regular expression isn't valid: %@" = "The regular expression isn't valid: %@";
 "The rotated image couldn't be saved." = "The rotated image couldn't be saved.";
 "The save location isn't available, so “%@” is used instead." = "The save location isn't available, so “%@” is used instead.";
@@ -1424,21 +1448,25 @@
 "This digital signature is OK. Signed with a Developer ID and notarized by Apple." = "This digital signature is OK. Signed with a Developer ID and notarized by Apple.";
 "This digital signature is OK. Signed with a Developer ID issued by Apple." = "This digital signature is OK. Signed with a Developer ID issued by Apple.";
 "This digital signature isn't valid: %@" = "This digital signature isn't valid: %@";
+"This disk can't replace a file in one step, so properties aren't edited here." = "This disk can't replace a file in one step, so properties aren't edited here.";
 "This disk is read-only, so nothing on it can be removed." = "This disk is read-only, so nothing on it can be removed.";
 "This drive is mounted read-only. Files can be opened and copied, but not changed." = "This drive is mounted read-only. Files can be opened and copied, but not changed.";
 "This drive is read-only." = "This drive is read-only.";
 "This drive's details couldn't be read." = "This drive's details couldn't be read.";
 "This file came from another computer. macOS may check it with Gatekeeper before it opens." = "This file came from another computer. macOS may check it with Gatekeeper before it opens.";
+"This file can't be edited." = "This file can't be edited.";
 "This file has a shortcut's extension, but it isn't a Windows shortcut." = "This file has a shortcut's extension, but it isn't a Windows shortcut.";
 "This file has no embedded properties that Spotlight or ImageIO can read." = "This file has no embedded properties that Spotlight or ImageIO can read.";
 "This file is stored in iCloud and isn't downloaded. Open it to download it." = "This file is stored in iCloud and isn't downloaded. Open it to download it.";
 "This file is too large to be a Windows shortcut." = "This file is too large to be a Windows shortcut.";
 "This file is too large to be an Arbor settings file." = "This file is too large to be an Arbor settings file.";
+"This file is too large to edit its properties safely." = "This file is too large to edit its properties safely.";
 "This file isn't an Arbor saved search." = "This file isn't an Arbor saved search.";
 "This file's type is unknown, so only this file will change." = "This file's type is unknown, so only this file will change.";
 "This folder is empty." = "This folder is empty.";
 "This folder is synced by %@. Files stored only online download when you open them." = "This folder is synced by %@. Files stored only online download when you open them.";
 "This folder: “%@” · %@ · %@" = "This folder: “%@” · %@ · %@";
+"This image has too many pixels to verify a change safely." = "This image has too many pixels to verify a change safely.";
 "This is a symbolic link to a Windows shortcut. Open the shortcut itself instead." = "This is a symbolic link to a Windows shortcut. Open the shortcut itself instead.";
 "This isn't a valid web address." = "This isn't a valid web address.";
 "This isn't an Arbor settings file." = "This isn't an Arbor settings file.";
@@ -1454,6 +1482,8 @@
 "This option checks the drive for file system errors. On a Mac this is First Aid in Disk Utility." = "This option checks the drive for file system errors. On a Mac this is First Aid in Disk Utility.";
 "This page isn't a folder, so new or pasted items have nowhere to go. Open a folder first." = "This page isn't a folder, so new or pasted items have nowhere to go. Open a folder first.";
 "This part of Arbor hasn't been built yet. It's tracked in docs/FEATURE-STATUS.md." = "This part of Arbor hasn't been built yet. It's tracked in docs/FEATURE-STATUS.md.";
+"This photo holds data that rewriting its properties would lose, so they can't be edited here." = "This photo holds data that rewriting its properties would lose, so they can't be edited here.";
+"This property can't be changed in this file." = "This property can't be changed in this file.";
 "This saved search was made by a newer version of Arbor (format %@)." = "This saved search was made by a newer version of Arbor (format %@).";
 "This settings file was made by a newer version of Arbor." = "This settings file was made by a newer version of Arbor.";
 "This shortcut couldn't be read." = "This shortcut couldn't be read.";
@@ -1464,6 +1494,7 @@
 "This shortcut points to “%@”, a Windows program. Windows programs can't run on a Mac." = "This shortcut points to “%@”, a Windows program. Windows programs can't run on a Mac.";
 "This shortcut points to “%@”, which only means something on Windows." = "This shortcut points to “%@”, which only means something on Windows.";
 "This shortcut starts its target with extra instructions (arguments). Arbor never runs a target with arguments." = "This shortcut starts its target with extra instructions (arguments). Arbor never runs a target with arguments.";
+"This type of file can't have its date taken removed." = "This type of file can't have its date taken removed.";
 "This wizard helps you to create shortcuts to files, folders, disks, servers or internet addresses." = "This wizard helps you to create shortcuts to files, folders, disks, servers or internet addresses.";
 "Thumbnail" = "Thumbnail";
 "Tiles" = "Tiles";
@@ -1577,6 +1608,7 @@
 "Write only" = "Write only";
 "Write only (Drop Box)" = "Write only (Drop Box)";
 "XZ File" = "XZ File";
+"YYYY-MM-DD HH:MM:SS" = "YYYY-MM-DD HH:MM:SS";
 "Year" = "Year";
 "Yes" = "Yes";
 "Yes, after you confirm" = "Yes, after you confirm";

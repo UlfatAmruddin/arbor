@@ -24,6 +24,10 @@ their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 - Files promised by other apps show progress, can be cancelled, say so when the app stops responding, and go through
   the normal copy rules. Nothing counts as received until the app reports it delivered.
 - Searching This Mac says which drives and folders were included, which were left out, and why.
+- Properties: edit the title, description, rating and date taken inside images, for the fields a type can store without
+  re-encoding. The picture itself isn't touched, the original goes to the Trash for Undo, and photos holding data a
+  rewrite would lose stay read-only.
+- Clipboard: files copied in other apps paste as a copy, and Option-Command-V moves them here.
 
 ### Files and reliability
 - Permanent delete stops at a volume mounted inside the folder instead of erasing it.

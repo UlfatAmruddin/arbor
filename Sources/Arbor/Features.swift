@@ -71,6 +71,8 @@ enum Features {
 
         PromisedFilesFeature.self,   // files promised by other apps
 
+        ClipboardInteropFeature.self,   // scripted checks of the clipboard shared with other apps
+
         ReliabilityFeature.self,   // behavior and safety checks (undo names, headless safety, alert queue)
 
         WorkspacesFeature.self,   // named tab sets, an Arbor addition

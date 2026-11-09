@@ -24,6 +24,14 @@ public enum SystemTrash {
         return trashed
     }
 
+    /// For an item staged elsewhere: the Trash journal records where it really came from.
+    @discardableResult
+    public static func trash(_ url: URL, recordedAs original: URL) throws -> URL {
+        let trashed = try trash(url, into: testDirectory)
+        notify(original: original, trashed: trashed)
+        return trashed
+    }
+
     /// `directory`: a private stand-in for the Trash, or nil for the real one; like the Trash, it keeps the name when free.
     @discardableResult
     static func trash(_ url: URL, into directory: URL?) throws -> URL {

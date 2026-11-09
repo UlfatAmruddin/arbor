@@ -23,6 +23,7 @@ enum PropertiesFeature: ExplorerFeature {
 
         SidePaneRegistry.register(SidePaneDescriptor(id: "details", title: "Details pane") { DetailsSidePane() })
         registerScriptSteps()
+        EmbeddedMetadataSection.registerScriptSteps()
     }
 
     /// The selection, else the right-clicked tree node, else the folder on screen.

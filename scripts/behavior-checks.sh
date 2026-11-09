@@ -1290,4 +1290,71 @@ if want promises; then
   discard promises "$R"
 fi
 
+# FE-152: embedded properties in the Details tab: written, refused when the file changed, undone. docs/features/properties.md.
+if want embedded-metadata; then
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F"
+  # A tiny generated picture; sips makes the JPEG from it.
+  echo "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAEElEQVR4nGP4z8DAwMDAAAAJ/gH/4cXYyAAAAABJRU5ErkJggg==" | base64 -D > "$R/F/p.png"
+  sips -z 64 64 -s format jpeg "$R/F/p.png" --out "$R/F/photo.jpg" >/dev/null 2>&1
+  cp "$R/F/photo.jpg" "$R/F/second.jpg"
+  S="wait:1;propertiesof:$R/F/photo.jpg;proptab:Details;wait:0.8;proplog:$R/before.txt;propsnapshot:$R/details.png"
+  S+=";propembedded:title=A new title;propembedded:rating=4;propembedded:date=2024-03-07 14:30;proplog:$R/pending.txt;propapply;wait:1.2;proplog:$R/saved.txt;propsnapshot:$R/saved.png;propcancel"
+  S+=";wait:0.5;action:undo:;event;wait:1;propertiesof:$R/F/photo.jpg;proptab:Details;wait:0.8;proplog:$R/undone.txt;propcancel"
+  S+=";wait:0.5;propertiesof:$R/F/second.jpg;proptab:Details;wait:0.8;propembedded:title=Too late;propembedded:touch=1;propapply;wait:1;proplog:$R/refused.txt;propbutton:OK;wait:0.8;proplog:$R/reloaded.txt;propcancel"
+  S+=";wait:0.5;propertiesof:$R/F/p.png;proptab:Details;wait:0.8;proplog:$R/png.txt;quit"
+  run "$R" "$R/F" "$S"
+  contains "a JPEG offers all four fields" "$R/before.txt" "embedded editable: title,description,rating,dateTaken"
+  contains "pending edits enable Apply" "$R/pending.txt" "apply enabled: true"
+  contains "the title is written" "$R/saved.txt" "embedded title: A new title"
+  contains "the rating is written" "$R/saved.txt" "embedded rating: 4"
+  contains "the date is written" "$R/saved.txt" "embedded dateTaken: 2024:03:07 14:30:00"
+  contains "undo restores the earlier properties" "$R/undone.txt" "embedded title: "
+  lacks "undo removed the written title" "$R/undone.txt" "A new title"
+  lacks "a file changed meanwhile keeps its properties" "$R/reloaded.txt" "embedded title: Too late"
+  contains "the changed file was read again" "$R/reloaded.txt" "embedded editable: title,description,rating,dateTaken"
+  contains "PNG is not offered" "$R/png.txt" "embedded: none"
+  discard embedded-metadata "$R"
+fi
+
+# FE-101: the clipboard shared with other apps. Finder can't be driven headless, so a stand-in writes the same file URLs.
+if want clipboard; then
+  R=$(arbor_mktemp_dir); F="$R/F"; O="$R/other"; mkdir -p "$R/trash" "$F" "$O"
+  echo copied > "$O/copied.txt"; echo moved > "$O/moved.txt"; echo more > "$O/more.txt"; echo theirs > "$O/clash.txt"
+  echo mine > "$F/clash.txt"; echo safe > "$O/safe.txt"; echo own > "$F/own.txt"
+  S="wait:1;foreignclipboard:$O/copied.txt;log:$R/foreign.txt;click:edit.paste;event;wait:1.5;log:$R/copied.txt"
+  S+=";foreignclipboard:$O/moved.txt|$O/more.txt;menu:background:$R/menu.txt;menukey:cmd+option+v;event;wait:1.5;log:$R/moved.txt;menu:background:$R/after.txt;location:$O;wait:0.8;log:$R/source.txt;location:$F;wait:0.8"
+  S+=";action:undo:;event;wait:2;log:$R/undone.txt"
+  S+=";foreignclipboard:$O/clash.txt;click:edit.paste;event;wait:1.5;log:$R/clash.txt;opbutton:Compare info for both files;wait:0.5;opcompare:both;opbutton:Continue;wait:1.5;log:$R/kept.txt"
+  S+=";foreignclipboardraw:file://server/share/x.txt;click:edit.paste;event;wait:0.8;log:$R/remote.txt"
+  S+=";foreignclipboardraw:file://$O/safe.txt|https://example.com/x;click:edit.pasteMove;event;wait:0.8;log:$R/mixed.txt"
+  S+=";foreignclipboardraw:file:///;click:edit.pasteMove;event;wait:0.8;log:$R/disk.txt"
+  S+=";select:own.txt;click:edit.copy;event;log:$R/arbor-copy.txt"
+  S+=";select:own.txt;click:edit.cut;event;log:$R/arbor-cut.txt"
+  S+=";foreignclipboard:$O/safe.txt;log:$R/replaced.txt;quit"
+  run "$R" "$F" "$S"
+  contains "another app's copy is offered" "$R/foreign.txt" "clipboard: names=[copied.txt] paste=copy"
+  contains "another app's copy pastes" "$R/copied.txt" "copied.txt"
+  fact "and the original stays" test -f "$O/copied.txt" -a -f "$F/copied.txt"
+  contains "two items read as items" "$R/menu.txt" "Move items here"
+  contains "Option-paste moves" "$R/moved.txt" "moved.txt | own.txt"
+  check "the originals are gone after moving" "$R/source.txt" "rows: clash.txt | copied.txt | safe.txt"
+  contains "moved items aren't offered again" "$R/after.txt" "Paste [⌘V] (disabled)"
+  fact "Undo brings them back" test -f "$O/moved.txt" -a -f "$O/more.txt" -a ! -e "$F/moved.txt"
+  contains "a conflict asks" "$R/clash.txt" "Replace or Skip Files"
+  fact "the existing file is untouched while asking" test "$(cat "$F/clash.txt")" = mine
+  contains "keep both adds a copy beside it" "$R/kept.txt" "clash (2).txt"
+  contains "a remote file is refused" "$R/remote.txt" "something other than files on this Mac"
+  contains "a mix is refused whole" "$R/mixed.txt" "something other than files on this Mac"
+  fact "and its file stays put" test -f "$O/safe.txt" -a ! -e "$F/safe.txt"
+  contains "a whole disk is refused" "$R/disk.txt" "whole disk"
+  contains "copy offers file URLs and text" "$R/arbor-copy.txt" "pasteboard: items=1 types=[public.file-url,public.utf8-plain-text] text=[$(cd "$F" && pwd -P)/own.txt]"
+  contains "cut offers exactly the same" "$R/arbor-cut.txt" "pasteboard: items=1 types=[public.file-url,public.utf8-plain-text] text=[$(cd "$F" && pwd -P)/own.txt]"
+  contains "cut is a move only in Arbor" "$R/arbor-cut.txt" "clipboard: names=[own.txt] paste=move cut marks=[own.txt]"
+  contains "and says so" "$R/arbor-cut.txt" "Other apps get a copy."
+  contains "another app's copy ends the cut" "$R/replaced.txt" "clipboard: names=[safe.txt] paste=copy cut marks=[]"
+  fact "nothing moved by itself" test -f "$F/own.txt"
+  for f in foreign copied moved undone remote mixed disk arbor-copy arbor-cut; do check "nothing opened: $f" "$R/$f.txt" "system open: none"; done
+  discard clipboard "$R"
+fi
+
 exit $FAILED

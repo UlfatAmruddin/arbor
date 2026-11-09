@@ -59,12 +59,20 @@ public enum ExternalOpen {
 
     /// The stored spelling keeps one folder one location (QA-CORE-2).
     private static func localFileURL(_ url: URL) -> URL? {
+        validatedFileURL(url).map(PathResolver.onDiskSpelling)
+    }
+
+    /// The path a URL from outside Arbor names, or nil unless it is a plain local file URL.
+    public static func validatedFileURL(_ url: URL) -> URL? {
         let host = url.host ?? ""
         guard url.isFileURL, url.baseURL == nil, host.isEmpty || host == "localhost",
+              url.query == nil, url.fragment == nil,
+              // Foundation would quietly resolve "file:name" against the current folder.
+              url.relativePath.hasPrefix("/"),
               // Foundation keeps %00 as literal text, and a file could have that name.
               !url.absoluteString.contains("%00"),
               // A file reference URL gives its current path, or nil once the file is gone.
               let path = (url as NSURL).filePathURL, path.path.hasPrefix("/") else { return nil }
-        return PathResolver.onDiskSpelling(path)
+        return path
     }
 }

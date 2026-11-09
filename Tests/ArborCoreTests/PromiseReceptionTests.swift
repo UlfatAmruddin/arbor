@@ -316,7 +316,11 @@ struct PromiseReceptionTests {
             let second = folder.appendingPathComponent("b")
             try? Data("a".utf8).write(to: first)
             try? Data("b".utf8).write(to: second)
-            DispatchQueue.global().asyncAfter(deadline: .now() + 0.2) { reader(second, nil) }
+            // Its own thread: when every test runs at once the shared pool can start this too late.
+            Thread.detachNewThread {
+                Thread.sleep(forTimeInterval: 0.2)
+                reader(second, nil)
+            }
             reader(first, nil)
         }
         reference.promise = source

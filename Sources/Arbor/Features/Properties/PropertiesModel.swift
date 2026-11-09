@@ -23,6 +23,10 @@ final class PropertiesModel {
     /// Extra apply steps owned by tabs (folder template, icon, volume name): error message to stop, nil when done.
     var extraAppliers: [String: () -> String?] = [:]
     var extraChanges: Set<String> = [] { didSet { notify() } }
+    /// Apply's last step when it is too slow for the main thread (rewriting a file); ends with an error message or nil.
+    var slowApplier: ((_ done: @escaping (String?) -> Void) -> Void)?
+    var hasSlowChange = false { didSet { notify() } }
+    private var isRunningSlowApply = false
 
     init(items: [FileItem]) {
         entries = items.map { item in
@@ -43,7 +47,7 @@ final class PropertiesModel {
 
     var single: Entry? { entries.count == 1 ? entries[0] : nil }
     var urls: [URL] { entries.map(\.url) }
-    var hasChanges: Bool { entries.contains { PropertyChangePlan(url: $0.url, original: $0.original, edited: $0.edited).hasChanges } || !extraChanges.isEmpty }
+    var hasChanges: Bool { entries.contains { PropertyChangePlan(url: $0.url, original: $0.original, edited: $0.edited).hasChanges } || !extraChanges.isEmpty || hasSlowChange }
 
     func notify() { observers.forEach { $0() } }
 
@@ -89,6 +93,7 @@ final class PropertiesModel {
 
     /// Asks first when another app changed an edited field; `completion(true)` when all written, failures in a sheet.
     func apply(in window: NSWindow?, completion: @escaping (Bool) -> Void) {
+        guard !isRunningSlowApply else { completion(false); return }
         let check = refreshFromDisk()
         if !check.missing.isEmpty {
             PropertiesWindowController.present(message: L10n.format("“%@” can't be found.", "\(check.missing[0])"),
@@ -105,11 +110,23 @@ final class PropertiesModel {
             alert.addButton(withTitle: L10n.tr("Cancel"))
             PropertiesWindowController.present(alert, window: window) { [weak self] response in
                 guard let self, response == .alertFirstButtonReturn else { completion(false); return }
-                completion(self.write(in: window))
+                self.finish(self.write(in: window), window: window, completion)
             }
             return
         }
-        completion(write(in: window))
+        finish(write(in: window), window: window, completion)
+    }
+
+    private func finish(_ written: Bool, window: NSWindow?, _ completion: @escaping (Bool) -> Void) {
+        guard written, hasSlowChange, let slowApplier else { completion(written); return }
+        isRunningSlowApply = true
+        slowApplier { [weak self] message in
+            self?.isRunningSlowApply = false
+            if let message {
+                PropertiesWindowController.present(message: L10n.tr("Some properties couldn't be changed."), info: message, window: window)
+            }
+            completion(message == nil)
+        }
     }
 
     private func write(in window: NSWindow?) -> Bool {

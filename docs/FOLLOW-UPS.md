@@ -22,6 +22,10 @@ else lands here and is worked through when convenient. Delete a line when it is 
 - whole-mac-search: `Sources/ArborCore/Performance/MountPoints.swift`: browsableVolumes() is documented as mount-table only and safe on the main thread, but it calls URL(fileURLWithPath:
 - whole-mac-search: `Sources/Arbor/Features/Search/SearchSession.swift`: startExtras still does disk work on the main thread for every This Mac scan root:
 - whole-mac-search: `Sources/Arbor/Features/Search/SearchSession.swift`: When merge reaches the 10,000-result limit it calls stopEngines, which calls spotlight.cancel().
+- metadata-editing: `Sources/ArborCore/Properties/EmbeddedMetadata.swift`: Opening Properties now reads every regular file through ImageIO, including online-only cloud placeholders.
+- metadata-editing: `Sources/ArborCore/Properties/EmbeddedMetadataEditor.swift`: Editing the date writes a non-ISO value into XMP.
+- clipboard-interop: `Sources/ArborCore/ClipboardFiles.swift`: plainText joins raw paths with newlines, and an ordinary Copy or Cut now puts that text on the first pasteboard item.
+- clipboard-interop: `Sources/ArborCore/ClipboardFiles.swift`: The whole-disk refusal can be bypassed by hostile pasteboard content.
 
 ## Small tidy-ups
 
@@ -66,3 +70,6 @@ else lands here and is worked through when convenient. Delete a line when it is 
 - whole-mac-search: `Sources/Arbor/Features/Search/SearchSession.swift`: The per-volume wording overclaims Spotlight coverage in two cases.
 - whole-mac-search: `Sources/ArborCore/Search/WholeMacCoverage.swift`: oneLine exists to stop outside text forging lines of the explanation, but it misses U+2028 and U+2029, whose categories are lineSeparator and paragraphSeparator rather than control (verified).
 - whole-mac-search: `Sources/ArborCore/Search/SpotlightPredicate.swift`: parse searches the whole mdutil output, which begins with the volume path.
+- metadata-editing: `Sources/ArborCore/Properties/EmbeddedMetadata.swift`: The length limit is measured two ways.
+- metadata-editing: `Sources/ArborCore/Properties/EmbeddedMetadataEditor.swift`: Undo's 'changed since' check misses changes to tags, comments, permissions and ACLs.
+- clipboard-interop: `Sources/Arbor/Features/ItemActions/ItemActionsFeature.swift`: Paste Shortcut goes through readURLs(), which turns every refusal into an empty list, so the user gets only a beep.

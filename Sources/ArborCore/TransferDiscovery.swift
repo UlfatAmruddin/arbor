@@ -55,6 +55,11 @@ public struct FileStamp: Sendable, Equatable, Codable {
     public init?(_ url: URL) {
         var info = stat()
         guard lstat(url.path, &info) == 0 else { return nil }
+        self.init(info)
+    }
+
+    /// From a descriptor's `fstat`, when acting on what was checked.
+    public init(_ info: stat) {
         device = UInt64(bitPattern: Int64(info.st_dev))
         inode = UInt64(info.st_ino)
         size = Int64(info.st_size)

@@ -2,8 +2,8 @@ import AppKit
 import UniformTypeIdentifiers
 import ArborCore
 
-/// Explorer's Details tab (FE-151, FE-152, FE-161). Metadata is read-only; Finder tags and comments, stored
-/// beside the file rather than in it, are editable in their own group.
+/// Explorer's Details tab (FE-151, FE-152, FE-161). Finder tags and comments, stored beside the file, are editable
+/// in their own group; so are the properties inside an image that a lossless rewrite can change (`EmbeddedMetadataSection`).
 final class DetailsTab: PropertiesTab, PropertiesTabDebug {
     let title = L10n.tr("Details")
     let view: NSView
@@ -23,11 +23,14 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
     private var rows: [MetadataRow] = []
     private var loadToken = 0
     private var loadedURL: URL?
+    let embedded: EmbeddedMetadataSection
 
     init(model: PropertiesModel, controller: PropertiesWindowController) {
         self.model = model
         self.controller = controller
+        embedded = EmbeddedMetadataSection(model: model)
         view = page
+        embedded.onNeedsReload = { [weak self] in self?.load() }
         tagsField.onChange = { [weak self] text in
             let tags = FinderMetadata.parseTags(text)
             self?.model.edit { edited, _ in edited.tags = tags }
@@ -97,9 +100,12 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
                 rows += app.compactMap { label, value in value.map { MetadataRow(group: L10n.tr("Application"), label: label, value: $0) } }
             }
             rows += Self.fileRows(url: url, item: item)
+            let snapshot = EmbeddedSnapshot.read(url)
             DispatchQueue.main.async {
                 guard let self, token == self.loadToken else { return }
-                self.rows = rows
+                self.embedded.show(snapshot)
+                let replaced = self.embedded.replacedRowLabels
+                self.rows = rows.filter { !replaced.contains($0.label) }
                 self.rebuild()
             }
         }
@@ -186,17 +192,21 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
         addGroup("Finder tags and comments")
         addRow(L10n.tr("Tags"), tagsField)
         addRow(L10n.tr("Comments"), commentField)
-        let note = SheetLabel.wrapping(L10n.tr("Stored by macOS alongside the file, not inside it. Other computers and some cloud services may not keep them."), small: true)
-        let noteRow = NSView()
-        noteRow.translatesAutoresizingMaskIntoConstraints = false
-        noteRow.addSubview(note)
-        NSLayoutConstraint.activate([
-            note.topAnchor.constraint(equalTo: noteRow.topAnchor, constant: 2),
-            note.bottomAnchor.constraint(equalTo: noteRow.bottomAnchor, constant: -2),
-            note.leadingAnchor.constraint(equalTo: noteRow.leadingAnchor, constant: 14),
-            note.trailingAnchor.constraint(equalTo: noteRow.trailingAnchor, constant: -8),
-        ])
-        list.add(noteRow)
+        func addNote(_ text: String) {
+            let note = SheetLabel.wrapping(text, small: true)
+            let noteRow = NSView()
+            noteRow.translatesAutoresizingMaskIntoConstraints = false
+            noteRow.addSubview(note)
+            NSLayoutConstraint.activate([
+                note.topAnchor.constraint(equalTo: noteRow.topAnchor, constant: 2),
+                note.bottomAnchor.constraint(equalTo: noteRow.bottomAnchor, constant: -2),
+                note.leadingAnchor.constraint(equalTo: noteRow.leadingAnchor, constant: 14),
+                note.trailingAnchor.constraint(equalTo: noteRow.trailingAnchor, constant: -8),
+            ])
+            list.add(noteRow)
+        }
+        addNote(L10n.tr("Stored by macOS alongside the file, not inside it. Other computers and some cloud services may not keep them."))
+        embedded.addRows(addGroup: addGroup, addRow: addRow, addNote: addNote)
         for row in rows {
             if row.group != group {
                 group = row.group
@@ -249,6 +259,7 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
     var debugText: String {
         var lines = ["tags: \(tagsField.stringValue)", "comments: \(commentField.stringValue)",
                      "remove link: \(removeLink.isHidden ? "hidden" : "shown")"]
+        lines += embedded.debugLines
         lines += rows.map { "\($0.group) / \($0.label): \($0.value)" }
         return lines.joined(separator: "\n")
     }

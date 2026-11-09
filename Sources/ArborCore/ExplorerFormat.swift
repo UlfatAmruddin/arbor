@@ -34,6 +34,7 @@ public enum ExplorerMenuWording {
         "Copy as Path": L10n.tr("Copy as path"),
         "Paste Shortcut": L10n.tr("Paste shortcut"),
         "Move Item Here": L10n.tr("Move item here"),
+        "Move Items Here": L10n.tr("Move items here"),
         "Create Shortcut": L10n.tr("Create shortcut"),
         "Create Symbolic Link": L10n.tr("Create symbolic link"),
         "Sort By": L10n.tr("Sort by"),

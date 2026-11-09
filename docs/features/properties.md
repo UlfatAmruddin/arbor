@@ -11,7 +11,7 @@ Code: `Sources/Arbor/Features/Properties/` (UI) and `Sources/ArborCore/Propertie
 | FE-148 | Details pane | implemented | Replaces the core "details" pane: large preview (`ThumbnailPolicy.panePreview`: QuickLook thumbnail for pictures and videos, a page with a hairline border for PDF, office, iWork and e-book documents, the type icon for text, source code, CSV, JSON, Markdown and logs, whose thumbnail was a nearly blank page; "Always show icons" shows icons; cancelled on change; unit tests `PanePreviewTests`, `log` line `preview:`, snapshots light/dark), name, type, property list, multi-select summary ("3 items selected", size of files, date range), folder summary when nothing is selected, availability (local / iCloud / network) and sharing (iCloud shared). Stale loads dropped by generation token. Scripted log + snapshots |
 | FE-150 | General properties | implemented | Name (editable), type with extension, Opens with + Change… (sets the default app for the type), location, Size and Size on disk (allocated blocks), "Contains: N Files, M Folders" scanned in the background with live updates, Stop, cancel on close; Created/Modified/Accessed in Explorer's long format; multi-selection "2 Files, 1 Folder", "All of type …"/"Multiple types", "All in …". Unit + scripted |
 | FE-151 | Detailed metadata | implemented | Details tab: Spotlight attributes grouped like Explorer (Description, Origin, Image, Camera, GPS, Media, Audio, Video, Content, File) with Explorer formatting; ImageIO fallback for unindexed images; app bundle info. Unit + scripted |
-| FE-152 | Metadata editing/removal | partial | Embedded metadata is read-only (never rewritten in place). "Remove Properties and Personal Information" is offered for JPEG/PNG/HEIC/TIFF only, as Explorer's "Create a copy with all possible properties removed": lossless copy, orientation kept, original untouched. Unit test checks EXIF/GPS gone, pixels and orientation kept |
+| FE-152 | Metadata editing/removal | partial | Details tab edits title, description, rating and date taken inside images, per type as audited below; other embedded fields and other file kinds stay read-only. Written by lossless copy, verified, swapped in atomically; the previous version goes to the Trash and Undo brings it back. Unit: `EmbeddedMetadataTests` (generated images, one round trip per type, refusals, hostile values, undo). Scripted: `behavior-checks.sh embedded-metadata`. "Remove Properties and Personal Information" is offered for JPEG/PNG/HEIC/TIFF only, as Explorer's "Create a copy with all possible properties removed": lossless copy, orientation kept, original untouched. Unit test checks EXIF/GPS gone, pixels and orientation kept |
 | FE-153 | Security | implemented | Owner/group/everyone with POSIX bits as Allow check boxes (editable when you own the item; Deny disabled with explanation), ACL entries with Allow/Deny, mode in octal/symbolic, and **effective access tested with faccessat(AT_EACCESS)**. **Edit…** ("Permissions for <name>", `PermissionsEditorSheet.swift`): add (user or group, Allow/Deny, Full control · Modify · Read & execute · Read · Write, inheritance for folders) and remove access-list entries, change the group to one of the owner's groups; each change is shown as a summary to confirm, applied at once, and the last change can be undone (refused if the list changed since). Owner change is explained (administrator only). Unit tests: real ACL via `chmod +a`, Locked file reports no write despite mode 644, add/remove/undo/refusal, inheritance, group change; headless Edit… run with sheet snapshots |
 | FE-154 | Sharing / Customize | implemented (boundary for sharing) | Customize: "Optimize this folder for" + "Also apply to all subfolders" persisted per folder (API below); folder icon change/restore via `NSWorkspace.setIcon`. Sharing tab hands off to System Settings › Sharing |
 | FE-155 | Previous Versions | implemented | Document versions (`NSFileVersion`) with Open (read-only temp copy, removed when the app showing it quits), Restore (current kept as a version first, confirmed) and Restore To… (never overwrites; Save panel's replace moves the old item to Trash). Time Machine status and local snapshot dates via `tmutil` (read-only verbs, args array, timeout); "Browse in Time Machine" reveals the item in Finder then opens Time Machine; empty states say so. **Copies in Time Machine backups** (`TimeMachineVersionsView.swift`): the item's distinct copies in `tmutil listbackups` folders, newest first; Open (read-only temporary copy, removed when the app showing it quits; folders open in a new tab) and Restore… (confirmed, then a normal copy job into the item's folder, so Replace / Skip / Keep both is asked). Without Full Disk Access this is explained with a "Privacy Settings…" button. Unit tests on a fake backup tree; headless runs with `ARBOR_TM_BACKUPS` / `ARBOR_TM_ACCESS=denied` |
@@ -25,8 +25,48 @@ Code: `Sources/Arbor/Features/Properties/` (UI) and `Sources/ArborCore/Propertie
 Scripted steps added (TESTING.md style): `propertiesof:<path>`, `proptab:<title>`, `proplog:<file>`, `propsnapshot:<png>`,
 `propsheetsnapshot:<png>`, `propbutton:<title>`, `propset:<field>=<value>` (name, locked, hidden, mode, tags, comment,
 unblock, template=Name:0|1), `propexternal:comment|hidden|name=…` (simulates another app), `propprincipal:<n>`,
-`propremovemeta`, `propapply`, `propok`, `propcancel`, `paneedit:tags=…|comment=…|save`. The window logger adds the
+`propremovemeta`, `propapply`, `propok`, `propcancel`, `paneedit:tags=…|comment=…|save`, `propembedded:title|description|rating|date=<value>`
+and `propembedded:touch=1` (another app changed the file). The window logger adds the
 Details pane's contents and the number of open Properties windows.
+
+## Editing properties inside images (FE-152)
+
+Code: `ArborCore/Properties/EmbeddedMetadata.swift` (fields, audit table, reading, validation), `EmbeddedMetadataEditor.swift`
+(the write), `EmbeddedMetadataVerifier.swift` (the proof), `Features/Properties/EmbeddedMetadataSection.swift` (the rows).
+
+**What each type can store**, from auditing ImageIO's lossless copy (`CGImageDestinationCopyImageSource`, macOS 26) on every
+type it can write. "Yes" means an edit is applied to the XMP, IPTC and Exif copies alike and reads back; a field not listed for a
+type is read-only because the copy leaves an older value behind or the type has no lossless copy at all.
+
+| Type | Title | Description | Rating | Date taken |
+|---|---|---|---|---|
+| JPEG | yes | yes | yes | yes (removable) |
+| HEIC | yes | no: the Exif and TIFF copies aren't rewritten | yes | no: same reason |
+| TIFF | yes | no: the edit is not applied | yes | yes (can't be removed) |
+| PNG | no | no | no | no: edits are dropped when the file already has XMP |
+| GIF, BMP, WebP, JPEG 2000, AVIF, TGA, EXR, PDF, RAW | no lossless copy, or ImageIO can't write the type at all | | | |
+
+A cleared title is written empty and a cleared rating as 0, because HEIC and TIFF don't honour removing a tag.
+
+**Offered per field, and only when true.** A field is not offered (shown read-only if it has a value) when a rewrite would lose or
+can't reproduce it: titles in several languages (the rewrite keeps only one), values with control or direction-override characters,
+text over 1,024 characters (title) or 8,192 (description), a rating outside 0 to 5, a date Exif can't parse.
+The whole file stays read-only, with the reason shown, when it is over 512 MB or 256 megapixels (64 frames at most), locked,
+hard-linked (replacing it would split the names), unwritable, on a volume without atomic exchange (`VOL_CAP_INT_RENAME_SWAP`),
+or a JPEG holding data ImageIO's copy drops: a camera MakerNote (every manufacturer tried, Apple included) or APP1 data other than the main Exif and XMP, such as Extended XMP or FLIR.
+
+**Saving** reads the original through a held no-follow descriptor, bounded, re-checks its stamp (device, inode, size, modification
+date), writes a copy into an `itemReplacementDirectory` on the same volume, verifies, copies permissions, owner, access list, flags, tags, comments and the creation date
+onto it, and exchanges the two with `renamex_np(RENAME_SWAP)`. The stamps are checked again after the exchange, which is undone on a mismatch.
+If another app moved or replaced the file in that moment, the exchange isn't undone over its file: the version set aside goes to the Trash (or, if that fails, stays in the staging folder), and the message says where it is.
+
+**Verification** refuses unless: same type and frame count; every frame decodes identically (hashed, one frame at a time); depth, matte and gain-map
+data are identical; the edited fields read back and no other field moved; every other ImageIO property and XMP tag survives; and, for JPEG, every segment that
+isn't JFIF, the first Exif, the first main XMP, the Photoshop segment or the multi-picture index, and everything from the first scan to the end of the file, is byte-identical, and every IPTC dataset is still there with its value, bar those the edit rewrites (`IPTCStructure`: 2:5 for a title, 2:120 for a description, 2:55 and 2:60 for a date) and the character-set and version markers ImageIO always writes itself.
+Segments are told apart by signature, not marker. `ExifStructure` also walks the original's Exif directories, because ImageIO doesn't show everything it drops: the
+MakerNote must be byte-identical and every tag in the main, Exif and GPS directories must still be there, so a file with, say, Windows' XP title tags is refused. Padding and the interoperability directory are exempt.
+
+**Undo** (Edit ▸ Undo, `OperationCenter`'s stack) exchanges the Trash copy back; Redo exchanges again. Each refuses if either file changed since (FE-129).
 
 ## Folder template API (for Folder Options / views)
 
@@ -47,7 +87,12 @@ folder URL) and `Prefs.changed` with `key == "folderTemplates"`. Choosing "Gener
   only for the owner (ACL changes apply at once after a confirmation summary, with undo of the last change). A Deny
   entry never removes readattr/readsecurity/writesecurity/chown, so the owner can't lock themselves out of the list.
   Owner change isn't offered (needs root). Access is shown as tested, never inferred.
-- **DEC-properties-4** Embedded metadata is never edited in place; removal only creates a cleaned copy of images.
+- **DEC-properties-4** Embedded metadata is never edited in place: an edit is a verified lossless copy exchanged atomically
+  with the original, and "Remove Properties" only creates a cleaned copy.
+- **DEC-properties-11** A rewritten image's previous version goes to the Trash (DEC-010: Replace trashes, never deletes), so Undo and
+  the Trash can both bring it back. If it can't reach the Trash, the exchange is undone and the edit refused.
+- **DEC-properties-12** Only fields whose audited write reads back are offered; the rest are shown read-only, and the audit
+  stays honest through a unit test round-tripping each type. Apply's slow step (`PropertiesModel.slowApplier`) runs after the fast ones and off the main thread.
 - **DEC-properties-5** Finder comments are written to the `com.apple.metadata:kMDItemFinderComment` attribute (what
   Spotlight reads). No AppleScript to Finder (it would need Automation permission).
 - **DEC-properties-6** Previous Versions = NSFileVersion document versions + Time Machine status; per-file Time Machine
@@ -68,6 +113,8 @@ folder URL) and `Prefs.changed` with `key == "folderTemplates"`. Choosing "Gener
 - Volume rename of the startup disk may be refused by macOS (error is shown). Time Machine backups (as opposed to local
   snapshots) can't be listed without Full Disk Access (the tab says so); local snapshots are counted, not browsed
   (mounting them needs root). Backup copies were checked on a fake backup tree, not a real Time Machine disk.
-- Writing embedded properties (title, rating, authors) isn't supported. Folder "Read-only" doesn't mimic Windows'
+- Embedded properties beyond title, description, rating and date taken, and those of audio, video and documents, are read-only. The Details pane doesn't
+  edit them. HEIC and TIFF can't store a date or description change losslessly (audit above). Spotlight may show the old value until it reindexes.
+  JPEG segments are checked byte for byte; HEIC containers can't be, beyond their frames, auxiliary data and properties. Folder "Read-only" doesn't mimic Windows'
   "only applies to files in folder" tri-state; it locks the folder itself, as explained in the window.
 - Context-menu "Properties" for the Home/This Mac pages' own items depends on those pages exposing a selection.

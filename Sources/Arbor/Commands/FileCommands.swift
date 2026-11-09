@@ -239,7 +239,7 @@ enum ClipboardCommands {
                 perform: { ctx in
                     let urls = ctx.selection.map(\.url)
                     FileClipboard.shared.write(urls, kind: .move)
-                    ctx.window?.statusBar.setMessage((urls.count == 1 ? L10n.format("%@ cut. Paste to move it.", StatusText.items(urls.count)) : L10n.format("%@ cut. Paste to move them.", StatusText.items(urls.count))))
+                    ctx.window?.statusBar.setMessage((urls.count == 1 ? L10n.format("%@ cut. Paste in Arbor to move it. Other apps get a copy.", StatusText.items(urls.count)) : L10n.format("%@ cut. Paste in Arbor to move them. Other apps get a copy.", StatusText.items(urls.count))))
                 }),
             ExplorerCommand(
                 id: "edit.copy", title: "Copy", symbol: "doc.on.doc", shortcut: Shortcut("c"),
@@ -266,6 +266,8 @@ enum ClipboardCommands {
             ExplorerCommand(
                 id: "edit.pasteMove", title: "Move Item Here", shortcut: Shortcut("v", [.command, .option]),
                 placements: [.backgroundContextMenu(.clipboard, 20), .mainMenu("Edit", .clipboard, 40)],
+                yieldsToTextInput: true,   // ⌥⌘V while typing must not move files
+                dynamicTitle: { _ in FileClipboard.shared.itemCount > 1 ? L10n.tr("Move Items Here") : L10n.tr("Move Item Here") },
                 isEnabled: { ctx in FileClipboard.shared.canPaste && pasteTarget(ctx) != nil },
                 perform: { ctx in paste(ctx, forceMove: true) }),
             ExplorerCommand(
@@ -310,11 +312,23 @@ enum ClipboardCommands {
 
     static func paste(_ ctx: CommandContext, forceMove: Bool) {
         guard let folder = pasteTarget(ctx), let window = ctx.window else { NSSound.beep(); return }
-        let urls = FileClipboard.shared.readURLs()
-        guard !urls.isEmpty else { NSSound.beep(); return }
-        let kind = forceMove ? .move : FileClipboard.shared.pasteKind(for: urls)
+        let clipboard = FileClipboard.shared
+        let changeCount = clipboard.changeCount
+        let urls: [URL]
+        switch clipboard.contents() {
+        case .files(let files):
+            urls = files
+        case .nothing:
+            NSSound.beep()
+            return
+        case .refused(let refusal):
+            window.statusBar.setMessage(refusal.message, isError: true)
+            NSSound.beep()
+            return
+        }
+        let kind = forceMove ? .move : clipboard.pasteKind(for: urls)
         window.startTransfer(kind, urls, to: folder) { report in
-            if kind == .move, report.problems.isEmpty { FileClipboard.shared.finishedCut() }
+            if report.movedEverything { clipboard.finishedMove(changeCount: changeCount) }
         }
     }
 }

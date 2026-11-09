@@ -17,8 +17,8 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 
 | Status | Requirements |
 |---|---|
-| implemented | 222 |
-| partial | 12 |
+| implemented | 223 |
+| partial | 11 |
 | macOS boundary | 13 |
 | not done | 11 |
 | **total** | **258** |
@@ -30,7 +30,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | Views, density and readability | 28 | 0 | 0 | 0 |
 | Selection, focus and input | 13 | 0 | 0 | 0 |
 | Home, special locations and collections | 12 | 0 | 2 | 0 |
-| File actions, clipboard and menus | 17 | 2 | 2 | 0 |
+| File actions, clipboard and menus | 18 | 1 | 2 | 0 |
 | Drag and drop | 10 | 0 | 0 | 0 |
 | Operations, progress, conflicts and recovery | 17 | 0 | 0 | 0 |
 | Search and filtering | 15 | 0 | 1 | 0 |
@@ -186,7 +186,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-098 | Open terminal here | implemented | behavior-checks `headless` | [qa-core](features/qa-core.md) | No shell strings |
 | FE-099 | Properties | implemented | headless; snapshots | [properties](features/properties.md) |  |
 | FE-100 | Pin to Start or taskbar | macOS boundary | — | [item-actions](features/item-actions.md) | No Mac counterpart without editing Dock preferences |
-| FE-101 | Clipboard interoperability with Mac apps | partial | code review | [qa-core](features/qa-core.md) | File URLs to and from Finder; move intent only for Arbor's own cut |
+| FE-101 | Clipboard interoperability with Mac apps | implemented | unit; behavior-checks `clipboard` | [clipboard-interop](features/clipboard-interop.md) | Finder copies paste as copies and Option-paste moves them; checked with a stand-in, not real Finder |
 | FE-102 | File promises and dropped attachments | implemented | unit; behavior-checks `promises` | [promised-files](features/promised-files.md) | Progress, Cancel and unavailable-provider errors; checked with stand-in providers, not a real Mail drag |
 | FE-103 | Advanced batch rename | implemented | unit; headless | [item-actions](features/item-actions.md) |  |
 
@@ -257,7 +257,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-149 | Thumbnail providers | implemented | unit; headless counters | [icon-views](features/icon-views.md) |  |
 | FE-150 | General properties | implemented | unit; headless | [properties](features/properties.md) |  |
 | FE-151 | Detailed metadata | implemented | unit; headless | [properties](features/properties.md) |  |
-| FE-152 | Metadata editing and removal | partial | unit | [properties](features/properties.md) | Embedded metadata read-only; "remove properties" makes a cleaned copy of images |
+| FE-152 | Metadata editing and removal | partial | unit; behavior-checks `embedded-metadata` | [properties](features/properties.md) | Title, description, rating and date taken in images, where the type stores them losslessly; other file types stay read-only |
 | FE-153 | Security and ownership | implemented | unit (real ACLs); headless | [properties](features/properties.md) |  |
 | FE-154 | Sharing and customization properties | implemented | headless | [properties](features/properties.md) | Sharing hands off to System Settings |
 | FE-155 | Previous Versions | implemented | unit (fake backups); headless | [properties](features/properties.md) | Real Time Machine disk not tested |
