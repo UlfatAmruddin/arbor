@@ -265,10 +265,10 @@ if want breadcrumb; then
   check "a drop after a rebuild is refused" "$R/s4.txt" "last drag: accepted false"
   fact "and moves nothing" test -f "$O/z.txt"
 
-  # A collapsed path reflows after a spring: the resting pointer must not spring again.
+  # A collapsed path reflows after a spring: the resting pointer must not spring again. The width is pinned: it decides what collapses.
   D1=$(printf 'first-%024d' 0); D2=$(printf 'second-%024d' 0); D3=$(printf 'third-%024d' 0); D4=$(printf 'fourth-%024d' 0); D5=$(printf 'fifth-%024d' 0)
   mkdir -p "$P/P/$D1/$D2/$D3/$D4/$D5"; KD3="${P#/private}/P/$D1/$D2/$D3"; KD4="$KD3/$D4"
-  S="wait:1;dragfiles:plain:$O/z.txt;log:$R/c0.txt;crumbhover:$D1;crumbstate:$R/c1.txt;crumbleave;crumbhover:$D4;wait:1;log:$R/c2.txt;crumbhover:=;log:$R/c3.txt;wait:1.2;log:$R/c4.txt;crumbleave;crumbhover:$D3;wait:1;log:$R/c5.txt;quit"
+  S="wait:1;windowsize:1180,760;dragfiles:plain:$O/z.txt;log:$R/c0.txt;crumbhover:$D1;crumbstate:$R/c1.txt;crumbleave;crumbhover:$D4;wait:1;log:$R/c2.txt;crumbhover:=;log:$R/c3.txt;wait:1.2;log:$R/c4.txt;crumbleave;crumbhover:$D3;wait:1;log:$R/c5.txt;quit"
   run "$R" "$P/P/$D1/$D2/$D3/$D4/$D5" "$S"
   fact "the path is collapsed" grep -Eq "collapsed: [1-9].*$D1[,)]" "$R/c0.txt"
   check "a collapsed segment is no target" "$R/c1.txt" "last drag: operation 0"
