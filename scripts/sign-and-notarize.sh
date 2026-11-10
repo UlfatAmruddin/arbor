@@ -26,7 +26,7 @@ DMG_ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --format) DMG_ARGS+=(--format "${2:?--format needs ULFO or UDZO}"); shift ;;
-    -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "sign-and-notarize.sh: unknown argument '$1'" >&2; exit 2 ;;
   esac
   shift
