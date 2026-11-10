@@ -1,4 +1,4 @@
-# Pushing a tag such as v0.2.0 builds the universal app, makes the disk image, signs and notarizes
+# Pushing a tag such as v0.3.0 builds the universal app, makes the disk image, signs and notarizes
 # it when the signing secrets are set, and attaches it to a draft GitHub Release.
 # See docs/RELEASING.md for the secrets and the full checklist.
 name: Release
@@ -62,14 +62,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#v}"
+          notes="$RUNNER_TEMP/notes.md"
           if [ "$HAS_CERTIFICATE" = "true" ]; then
-            note="Signed with a Developer ID and notarized by Apple."
+            echo "Signed with a Developer ID and notarized by Apple." > "$notes"
           else
-            note="This build is not signed with a Developer ID. The first time you open it, right-click Arbor and choose Open, or use System Settings > Privacy & Security > Open Anyway."
+            {
+              echo "**First launch:** this build isn't signed with an Apple Developer ID, so macOS blocks it the first time."
+              echo "Open Arbor once, then go to System Settings → Privacy & Security and click **Open Anyway**."
+              echo "On macOS 14 you can instead Control-click Arbor in Applications and choose **Open**."
+            } > "$notes"
           fi
+          # This version's section of CHANGELOG.md.
+          { echo; awk -v v="## $version" '$0 == v { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md; } >> "$notes"
           gh release create "$GITHUB_REF_NAME" \
             "build/Arbor-$version.dmg" "build/Arbor-$version.dmg.sha256" \
-            --draft --title "Arbor $version" --generate-notes --notes "$note"
+            --draft --title "Arbor $version" --notes-file "$notes"
 
       - name: Remove signing keychain
         if: always() && env.HAS_CERTIFICATE == 'true'

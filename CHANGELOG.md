@@ -3,7 +3,7 @@
 All notable user-visible changes. Versions follow `VERSION`; requirement IDs refer to [docs/SPEC.md](docs/SPEC.md) and
 their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 
-## Unreleased
+## 0.3.0
 
 ### New
 - Address bar: path suggestions while typing, and `shell:` names such as `shell:downloads` that go to the matching Mac
@@ -78,6 +78,7 @@ their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 - Network addresses with unusual host names no longer crash Arbor.
 
 ### Distribution
+- Releases are ad-hoc signed, without an Apple Developer ID: macOS asks once, on first launch (see the README).
 - Distribution builds ignore the `ARBOR_*` test variables.
 - Ad-hoc signed releases use the hardened runtime.
 

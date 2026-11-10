@@ -53,56 +53,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # A Developer ID release minus Apple's own services, with an identity made here and thrown away (docs/features/distribution.md).
-      # After the upload, because it re-signs the app and replaces the image. Disposable runners only: it changes keychains and trust.
-      - name: Signing rehearsal with a throwaway identity
-        if: ${{ runner.environment == 'github-hosted' }}
-        env:
-          REHEARSAL_IDENTITY: Arbor Signing Rehearsal
-        run: |
-          [ "${RUNNER_ENVIRONMENT:-}" = github-hosted ] || exit 1
-          work="$(mktemp -d "$RUNNER_TEMP/rehearsal.XXXXXX")"
-          trap 'security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true; rm -rf "$work"' EXIT
-
-          cat > "$work/openssl.cnf" <<EOF
-          [req]
-          distinguished_name = name
-          prompt = no
-          [name]
-          CN = $REHEARSAL_IDENTITY
-          [codesign]
-          keyUsage = critical,digitalSignature
-          extendedKeyUsage = critical,codeSigning
-          EOF
-          # macOS's own openssl: Homebrew's OpenSSL 3 writes a .p12 that the security tool can't read.
-          /usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -days 1 -config "$work/openssl.cnf" -extensions codesign \
-            -keyout "$work/key.pem" -out "$work/certificate.pem" 2>/dev/null
-          CERTIFICATE_PASSWORD="$(uuidgen)"
-          export CERTIFICATE_PASSWORD
-          /usr/bin/openssl pkcs12 -export -inkey "$work/key.pem" -in "$work/certificate.pem" -out "$work/identity.p12" \
-            -passout env:CERTIFICATE_PASSWORD
-          rm -f "$work/key.pem"
-          scripts/ci-import-certificate.sh "$work/identity.p12"
-
-          # Named by hash: macOS denies trusting this certificate, and codesign finds an untrusted identity only that way.
-          hash="$(/usr/bin/openssl x509 -noout -fingerprint -sha1 -in "$work/certificate.pem" | cut -d= -f2 | tr -d :)"
-          DEVELOPER_ID_APPLICATION="$hash" scripts/sign-and-notarize.sh --rehearsal
-
-          dmg="build/Arbor-$(tr -d '[:space:]' < VERSION).dmg"
-          codesign --verify --strict --verbose=2 build/Arbor.app
-          codesign --verify --verbose=2 "$dmg"
-          app_details="$(codesign -dv --verbose=2 build/Arbor.app 2>&1)"
-          dmg_details="$(codesign -dv --verbose=2 "$dmg" 2>&1)"
-          printf '%s\n' "$app_details"
-          grep -Eq '^CodeDirectory .*flags=.*runtime' <<< "$app_details"
-          grep -qxF "Authority=$REHEARSAL_IDENTITY" <<< "$app_details"
-          grep -qxF "Authority=$REHEARSAL_IDENTITY" <<< "$dmg_details"
-          [ "$(plutil -extract ArborDistribution raw build/Arbor.app/Contents/Info.plist)" = true ]
-
-  # The headless suites drive build/Arbor.app (ARBOR_HEADLESS=1). The debug app is built here rather than
-  # passed from build-and-test: a clean debug build takes under a minute on a developer Mac (a few on a runner),
-  # while an artifact would lose the executable bit and the timestamps the stale-bundle guard compares, and
-  # would make this job wait for the other one.
   app-checks:
     name: App checks (behavior, core, Windows shortcuts, acceptance)
     runs-on: macos-26

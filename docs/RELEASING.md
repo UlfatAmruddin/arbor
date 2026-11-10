@@ -7,14 +7,14 @@ and Intel, macOS 14+) and a link to `/Applications`. See DEC-003, DEC-004 and DE
 
 ## How versions work
 
-- `VERSION` (repository root) is the only place the version is written, e.g. `0.2.0`. It becomes
-  `CFBundleShortVersionString`, the disk image name and the release tag (`v0.2.0`).
+- `VERSION` (repository root) is the only place the version is written, e.g. `0.3.0`. It becomes
+  `CFBundleShortVersionString`, the disk image name and the release tag (`v0.3.0`).
 - The build number (`CFBundleVersion`) is the number of commits, `git rev-list --count HEAD`, so
   every build from a later commit has a higher number. Builds from a shallow clone print a warning;
   set `ARBOR_BUILD_NUMBER` to override.
 - The minimum macOS comes from `platforms` in `Package.swift` and is written to
   `LSMinimumSystemVersion`; the build checks that every architecture slice targets the same version.
-- Arbor ▸ About Arbor shows "Version 0.2.0 (123)": version and build number.
+- Arbor ▸ About Arbor shows "Version 0.3.0 (123)": version and build number.
 
 ## Scripts
 
@@ -31,7 +31,9 @@ and Intel, macOS 14+) and a link to `/Applications`. See DEC-003, DEC-004 and DE
 Nothing to set up. Releases are ad-hoc signed; the release notes and the README tell people how to
 open an ad-hoc signed app the first time.
 
-### Once you have a Developer ID (signed and notarized releases)
+### If a Developer ID is ever added (signed and notarized releases)
+
+Arbor ships without one (DEC-027). These steps are kept for a future maintainer.
 Do these once, in order. No file in the repository has to change: the Release workflow reads the six
 secrets in step 7.
 
@@ -75,9 +77,6 @@ secrets in step 7.
    never run, so read its log: "Sign, package and notarize" must end with "is signed, notarized and
    stapled."
 
-CI's signing rehearsal covers the certificate import, hardened-runtime signing, the disk image and
-the signature checks with a throwaway identity. It can't cover Apple's timestamp, notarization,
-stapling or Gatekeeper, so step 9 and step 5 of the checklist are the first test of those.
 
 ### Repository settings
 In the repository settings, turn on **Private vulnerability reporting** (Security ▸ Settings) so the

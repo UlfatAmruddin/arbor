@@ -20,7 +20,7 @@ labels: bug
 3.
 
 **Versions**
-- Arbor: <!-- Arbor ▸ About Arbor, e.g. 0.2.0 (123) -->
+- Arbor: <!-- Arbor ▸ About Arbor, e.g. 0.3.0 (123) -->
 - macOS: <!-- Apple menu ▸ About This Mac, e.g. 15.3 -->
 - Mac: <!-- Apple silicon or Intel -->
 - Where the files are: <!-- internal disk, external drive (format), network share (SMB/AFP), iCloud Drive, other cloud folder -->

@@ -17,8 +17,8 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 
 | Status | Requirements |
 |---|---|
-| implemented | 231 |
-| partial | 3 |
+| implemented | 232 |
+| partial | 2 |
 | macOS boundary | 3 |
 | not done | 7 |
 | **total** | **244** |
@@ -39,7 +39,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | Drives, devices, network and sharing | 9 | 0 | 2 | 2 |
 | Cloud and account integrations | 6 | 1 | 0 | 0 |
 | Accessibility, localization and preferences | 10 | 0 | 0 | 0 |
-| System integration and expansion boundary | 8 | 1 | 0 | 2 |
+| System integration and expansion boundary | 9 | 0 | 0 | 2 |
 | Reliability and acceptance coverage | 10 | 0 | 0 | 2 |
 | Additional research requirements (§21) | 22 | 1 | 0 | 1 |
 
@@ -54,7 +54,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
   OneDrive/Dropbox/Google Drive File Provider domains (tested with a simulated provider), Time Machine disks, RAR files,
   a live VoiceOver session, a physical trackpad and pointer-driven drags (headless runs can't move the mouse).
 - **English only** by decision (DEC-026). Every visible string goes through the string table, so a translation is one data file.
-- **Unsigned builds** until a Developer ID is available (FE-220); see the README for the first-launch steps.
+- **Ad-hoc signed releases** by decision (DEC-027): macOS asks once on first launch; see the README.
 
 ## Navigation and location
 
@@ -292,7 +292,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-181 | Share sheet and nearby sharing | implemented | code review | [item-actions](features/item-actions.md) | System share sheet (AirDrop included) |
 | FE-182 | Phone camera and portable devices | not done | — | — | No MTP/PTP browsing |
 | FE-183 | Format, rename and disk tools | macOS boundary | headless | [properties](features/properties.md) | Handoffs to Disk Utility and Storage settings; volume rename where allowed |
-| FE-186 | Administrative file-operation prompts | not done | — | — | No privileged helper; permission failures are reported per item |
+| FE-186 | Administrative file-operation prompts | not done | — | — | No privileged helper, which needs a Developer ID (DEC-027); permission failures are reported per item |
 | FE-187 | Same-named shares | implemented | unit; acceptance T24 | [network](features/network.md) |  |
 | FE-188 | Filesystem capabilities | implemented | unit; headless | [consistency](features/consistency.md) | Drive Properties › File System |
 
@@ -335,7 +335,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-215 | Windows shortcut file compatibility | implemented | unit; `windows-shortcut-checks.sh` | [windows-shortcuts](features/windows-shortcuts.md) | Read-only; Windows programs are never launched |
 | FE-218 | Reveal in Finder and Services | implemented | unit; behavior-checks `services` | [qa-core](features/qa-core.md) |  |
 | FE-219 | Launch URLs and CLI entry | implemented | headless (path argument) | [qa-core](features/qa-core.md) | `Arbor <path>`; documents opened from Finder |
-| FE-220 | Signed, notarized universal releases | partial | build checks; CI signing rehearsal | [distribution](features/distribution.md) | Universal build, DMG and a signing rehearsal on GitHub with a throwaway identity; real Developer ID signing and notarization need an Apple Developer account (docs/RELEASING.md) |
+| FE-220 | Signed, notarized universal releases | implemented | build checks; CI | [distribution](features/distribution.md) | Universal app and disk image, ad-hoc signed with the hardened runtime, released from a tag; no Developer ID by decision (DEC-027), so macOS asks once on first launch |
 | FE-221 | Public open-source governance | implemented | — | [distribution](features/distribution.md) | MIT license, README, CONTRIBUTING, SECURITY, templates; this file is the roadmap |
 | FE-222 | Privacy by default | implemented | code review (no telemetry, no own network calls) | — | No crash reporter |
 

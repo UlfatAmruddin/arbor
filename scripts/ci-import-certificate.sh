@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Imports a signing identity (.p12) into a new keychain, $RUNNER_TEMP/signing.keychain-db, and puts that first
-# on the keychain search list. Used by the release workflow and CI's signing rehearsal; the .p12 is removed.
+# on the keychain search list. Used by the release workflow; the .p12 is removed.
 #
 # Usage: CERTIFICATE_PASSWORD=<.p12 password> scripts/ci-import-certificate.sh <file.p12>
 #

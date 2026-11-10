@@ -2,12 +2,9 @@
 # Signs build/Arbor.app, packages it into build/Arbor-<version>.dmg, and (when credentials are
 # available) notarizes and staples the disk image.
 #
-# Usage: scripts/sign-and-notarize.sh [--format ULFO|UDZO] [--rehearsal]
+# Usage: scripts/sign-and-notarize.sh [--format ULFO|UDZO]
 #
 # Run scripts/build-app.sh release --universal first.
-#
-#   --rehearsal  needs an identity and does all but contact Apple: no secure timestamp, no notarization.
-#                What it makes is not for release. CI uses it with a throwaway identity.
 #
 # Environment:
 #   DEVELOPER_ID_APPLICATION  signing identity, e.g. "Developer ID Application: Jane Doe (TEAMID1234)"
@@ -26,12 +23,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 DMG_ARGS=()
-REHEARSAL=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --format) DMG_ARGS+=(--format "${2:?--format needs ULFO or UDZO}"); shift ;;
-    --rehearsal) REHEARSAL=1 ;;
-    -h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "sign-and-notarize.sh: unknown argument '$1'" >&2; exit 2 ;;
   esac
   shift
@@ -43,14 +38,6 @@ ENTITLEMENTS="Resources/Arbor.entitlements"
 VERSION="$(plutil -extract CFBundleShortVersionString raw "$APP/Contents/Info.plist")"
 DMG="build/Arbor-$VERSION.dmg"
 IDENTITY="${DEVELOPER_ID_APPLICATION:-}"
-# Falling back to ad-hoc would let a rehearsal pass while proving nothing.
-if [ "$REHEARSAL" = 1 ] && [ -z "$IDENTITY" ]; then
-  echo "sign-and-notarize.sh: --rehearsal needs DEVELOPER_ID_APPLICATION" >&2
-  exit 2
-fi
-# The timestamp service is Apple's.
-TIMESTAMP=--timestamp
-if [ "$REHEARSAL" = 1 ]; then TIMESTAMP=--timestamp=none; fi
 
 # Distribution builds ignore the ARBOR_* test hooks (ArborCore/Automation.swift); ad-hoc ones have no Team ID to tell.
 plutil -replace ArborDistribution -bool YES "$APP/Contents/Info.plist"
@@ -93,31 +80,22 @@ EOF
 fi
 
 # --- Developer ID path -------------------------------------------------------------------------
-# A rehearsal identity is self-signed and named by its hash, so the system never calls it valid.
-if [ "$REHEARSAL" = 1 ]; then
-  security find-identity -p codesigning | grep -qF "$IDENTITY" || { echo "sign-and-notarize.sh: rehearsal identity not found" >&2; exit 1; }
-elif ! security find-identity -v -p codesigning | grep -qF "\"$IDENTITY\""; then
+if ! security find-identity -v -p codesigning | grep -qF "\"$IDENTITY\""; then
   echo "sign-and-notarize.sh: signing identity not found in the keychain: $IDENTITY" >&2
   echo "  (security find-identity -v -p codesigning lists the available ones)" >&2
   exit 1
 fi
 
 echo "Signing $APP with hardened runtime"
-codesign --force --options runtime "$TIMESTAMP" --entitlements "$ENTITLEMENTS" --sign "$IDENTITY" "$APP"
+codesign --force --options runtime --timestamp --entitlements "$ENTITLEMENTS" --sign "$IDENTITY" "$APP"
 codesign --verify --strict --verbose=2 "$APP"
 require_hardened_runtime
 
 scripts/make-dmg.sh --skip-build ${DMG_ARGS[@]+"${DMG_ARGS[@]}"}
 
 echo "Signing $DMG"
-codesign --force "$TIMESTAMP" --sign "$IDENTITY" "$DMG"
+codesign --force --timestamp --sign "$IDENTITY" "$DMG"
 codesign --verify --verbose=2 "$DMG"
-
-if [ "$REHEARSAL" = 1 ]; then
-  echo
-  echo "$DMG is a rehearsal: no secure timestamp and not notarized. Do not release it."
-  exit 0
-fi
 
 NOTARY=()
 if [ -n "${NOTARY_KEYCHAIN_PROFILE:-}" ]; then

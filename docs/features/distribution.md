@@ -15,8 +15,7 @@ Files: `VERSION`, `scripts/build-app.sh`, `scripts/make-dmg.sh`, `scripts/dmg-la
 | FE-220 | One minimum macOS (14.0) everywhere | Implemented | Read from `Package.swift`, stamped into `LSMinimumSystemVersion`, used in the build triples; the build fails if `vtool` reports another `minos` for any slice (both report 14.0) |
 | FE-220 | Single version source, build number, About panel | Implemented | `VERSION` → `CFBundleShortVersionString`; commit count → `CFBundleVersion` (0.2.0, build 67 at the time of writing); the standard About panel shows both |
 | FE-220 | Disk image with Applications link, drawn background, window layout | Implemented | Built, `hdiutil verify`, mounted privately (`-nobrowse`) and checked: app, `/Applications` link, version, signature, `.DS_Store`, Retina background TIFF, custom volume icon flag. `.DS_Store` read back with an independent parser (allocator, sorted records, plists). **Not checked:** how Finder draws the window, because that needs Finder on screen |
-| FE-220 | Developer ID signing with hardened runtime, notarization, stapling | Implemented, never run with a real Developer ID (no Apple Developer account yet) | Ad-hoc path run end to end; an unknown identity fails early with a clear message; the hardened runtime with `Arbor.entitlements` (ad-hoc) launches both slices |
-| FE-220 | Signing rehearsal in CI | Added, **has not run yet**: it starts with the next push | `Signing rehearsal` step of `build-and-test`, GitHub-hosted runners only. Makes a throwaway keychain and self-signed identity, runs `sign-and-notarize.sh --rehearsal` on the universal app, checks with `codesign --verify --strict` and `codesign -dv`. So far only parsed (YAML), `bash -n`, and the certificate recipe tried with `openssl` on temporary files; no keychain command has been run on a developer Mac |
+| FE-220 | Developer ID signing with hardened runtime, notarization, stapling | Implemented, not used: no Developer ID by decision (DEC-027) | Ad-hoc path run end to end; an unknown identity fails early with a clear message; the hardened runtime with `Arbor.entitlements` (ad-hoc) launches both slices |
 | FE-220 | CI on every push and pull request | Running | `ci.yml`'s three jobs (build and unit tests, app checks, performance budgets) have run on GitHub's `macos-26` hosted runner since the repository went public; the runner tolerances in `ci.yml` come from those runs |
 | FE-220 | Tagged releases | Implemented, **has never run** | `release.yml` runs only for a `v*` tag and none exists. YAML parsed, every `run:` block checked with `bash -n`; actions pinned to exact versions |
 | FE-220 | Homebrew cask | Template | `ruby -c`; needs a real sha256 per release and a tap (see the file) |
@@ -35,12 +34,12 @@ Files: `VERSION`, `scripts/build-app.sh`, `scripts/make-dmg.sh`, `scripts/dmg-la
 - **DEC-distribution-8** The release workflow creates a **draft** release, so a maintainer checks the download before publishing.
 - **DEC-distribution-9** Vulnerabilities are reported through GitHub's private vulnerability reporting (no email address is published); it has to be turned on in the repository settings.
 - **DEC-distribution-10** CI uses the `macos-26` runner so it compiles with the same Swift version (6.2+) the project is developed with.
-- **DEC-distribution-11** The signing rehearsal uses a certificate generated in the job and named by its hash (macOS refuses to trust it, even on a runner), and `--rehearsal` skips everything of Apple's (secure timestamp, notarization). No secret is involved, so it also runs for pull requests, and nothing outside GitHub can make it fail. It refuses to run without an identity, because the ad-hoc fallback would pass while proving nothing.
-- **DEC-distribution-12** Both workflows import their identity through `scripts/ci-import-certificate.sh`, so the rehearsal runs the release's own import. The script refuses to run outside a GitHub-hosted runner, because it replaces the keychain search list.
+- **DEC-distribution-11** Removed by DEC-027: CI no longer rehearses Developer ID signing.
+- **DEC-distribution-12** The release workflow imports a Developer ID, if one is ever set, through `scripts/ci-import-certificate.sh`. The script refuses to run outside a GitHub-hosted runner, because it replaces the keychain search list.
 
 ## Known gaps
 
 - Finder's rendering of the disk image window (background, icon positions, window size) has not been seen; check it once by opening the image (RELEASING.md, step 3).
-- Real Developer ID signing, Apple's timestamp, notarization, stapling and Gatekeeper's verdict have never run: they need an Apple Developer account. The release workflow has never run either.
+- Releases are ad-hoc signed (DEC-027): Developer ID signing, notarization and stapling never run, and macOS asks once on first launch. The release workflow has never run either.
 - The release notes say "Signed with a Developer ID and notarized" whenever `DEVELOPER_ID_CERTIFICATE_P12` is set, even if the other secrets are missing. RELEASING.md requires all six.
 - No in-app update mechanism (none planned; Homebrew or a new download updates the app).
