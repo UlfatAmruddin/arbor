@@ -17,8 +17,8 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 
 | Status | Requirements |
 |---|---|
-| implemented | 230 |
-| partial | 4 |
+| implemented | 231 |
+| partial | 3 |
 | macOS boundary | 3 |
 | not done | 7 |
 | **total** | **244** |
@@ -38,7 +38,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | Archives and disk images | 9 | 0 | 0 | 0 |
 | Drives, devices, network and sharing | 9 | 0 | 2 | 2 |
 | Cloud and account integrations | 6 | 1 | 0 | 0 |
-| Accessibility, localization and preferences | 9 | 1 | 0 | 0 |
+| Accessibility, localization and preferences | 10 | 0 | 0 | 0 |
 | System integration and expansion boundary | 8 | 1 | 0 | 2 |
 | Reliability and acceptance coverage | 10 | 0 | 0 | 2 |
 | Additional research requirements (§21) | 22 | 1 | 0 | 1 |
@@ -53,7 +53,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 - **Not exercised against real services:** SMB/AFP servers and Bonjour discovery (tested with simulated servers),
   OneDrive/Dropbox/Google Drive File Provider domains (tested with a simulated provider), Time Machine disks, RAR files,
   a live VoiceOver session, a physical trackpad and pointer-driven drags (headless runs can't move the mouse).
-- **English only.** Every visible string goes through the string table, but no translations exist yet.
+- **English only** by decision (DEC-026). Every visible string goes through the string table, so a translation is one data file.
 - **Unsigned builds** until a Developer ID is available (FE-220); see the README for the first-launch steps.
 
 ## Navigation and location
@@ -317,7 +317,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-201 | Contrast, motion, transparency | implemented | snapshot with forced contrast | [accessibility](features/accessibility.md) |  |
 | FE-202 | Text scaling and zoom | implemented | snapshots at 150 % | [accessibility](features/accessibility.md) |  |
 | FE-203 | Focus after refresh and navigation | implemented | headless `focus:` | [accessibility](features/accessibility.md) |  |
-| FE-204 | Localization and RTL | partial | `l10naudit:`; `extract-strings.sh --check`; behavior-checks `localization` | [accessibility](features/accessibility.md) | Every visible sentence and count goes through the string tables with plural rules; layouts, numbers, shortcuts and paths checked under long and right-to-left test languages; no translations yet |
+| FE-204 | Localization and RTL | implemented | `l10naudit:`; `extract-strings.sh --check`; behavior-checks `localization` | [accessibility](features/accessibility.md) | Layouts, truncation, shortcuts, numbers, dates and paths checked under long and right-to-left test languages; Arbor ships in English only (DEC-026) |
 | FE-205 | Preferences persistence | implemented | two-launch headless run | [folder-options](features/folder-options.md) |  |
 | FE-206 | Recent activity privacy | implemented | headless | [home-and-this-mac](features/home-and-this-mac.md) |  |
 | FE-207 | Permission guidance | implemented | headless (Trash, Time Machine, Local Network denied states) | [trash](features/trash.md) |  |
