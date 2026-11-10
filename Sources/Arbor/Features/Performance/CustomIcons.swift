@@ -84,7 +84,7 @@ extension DetailsViewController {
     func reloadVisibleIcons() {
         let rows = table.rows(in: table.visibleRect)
         let column = table.column(withIdentifier: NSUserInterfaceItemIdentifier("name"))
-        guard rows.length > 0, column >= 0 else { return }
+        guard rows.length > 0, column >= 0, !holdsRowReload() else { return }
         table.reloadData(forRowIndexes: IndexSet(integersIn: rows.location..<(rows.location + rows.length)),
                          columnIndexes: [column])
     }

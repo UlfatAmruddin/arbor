@@ -3,6 +3,11 @@
 All notable user-visible changes. Versions follow `VERSION`; requirement IDs refer to [docs/SPEC.md](docs/SPEC.md) and
 their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 
+## Unreleased
+
+### Fixed
+- Details: a rename stays open when you come back to Arbor or a custom icon turns up; neither keeps the half-typed name.
+
 ## 0.3.0
 
 ### New

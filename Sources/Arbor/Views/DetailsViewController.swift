@@ -192,6 +192,8 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
     /// Tab (+1) / Shift-Tab (-1) ended the rename: continue with the next/previous item (FE-064).
     private var renameStep = 0
     private var deferredUpdate: ItemViewUpdate?
+    /// A row reload asked for during a rename (`holdsRowReload`); it runs when the rename ends.
+    private var rowsReloadHeld = false
     /// A band is being dragged: row indexes must stay valid until mouse-up (FE-058).
     var isTrackingMarquee = false
     /// `restoreSelectionEnds` is re-applying an unchanged selection one step at a time.
@@ -433,13 +435,27 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
 
     func applyDeferredUpdate() {
         refitNameWrap()
-        guard let update = deferredUpdate else { return }
-        deferredUpdate = nil
-        display(update)
+        if let update = deferredUpdate {
+            deferredUpdate = nil
+            display(update)
+        }
+        if rowsReloadHeld {
+            rowsReloadHeld = false
+            reloadRows()
+        }
     }
 
+    /// A rename holds row reloads, like a listing: reloading the edited cell would end the rename and keep the
+    /// half-typed name. True if held; every row is redrawn when the rename ends.
+    func holdsRowReload() -> Bool {
+        guard isEditingName else { return false }
+        rowsReloadHeld = true
+        return true
+    }
+
+    /// Redraws every row in place (coming back to Arbor does, to show the clipboard's cut items).
     func reloadRows() {
-        guard isViewLoaded else { return }
+        guard isViewLoaded, !holdsRowReload() else { return }
         table.rowHeight = Theme.rowHeight(compact: Prefs.compactView)
         syncNameWrap()
         let indexes = IndexSet(integersIn: 0..<rows.count)

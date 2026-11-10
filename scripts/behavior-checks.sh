@@ -1674,7 +1674,9 @@ if want clipboard; then
   S+=";foreignclipboardraw:file:///;click:edit.pasteMove;event;wait:0.8;log:$R/disk.txt"
   S+=";select:own.txt;click:edit.copy;event;log:$R/arbor-copy.txt"
   S+=";select:own.txt;click:edit.cut;event;log:$R/arbor-cut.txt"
-  S+=";foreignclipboard:$O/safe.txt;log:$R/replaced.txt;quit"
+  S+=";foreignclipboard:$O/safe.txt;log:$R/replaced.txt"
+  # Coming back to Arbor redraws rows for the clipboard; an open rename waits for it.
+  S+=";select:own.txt;click:file.rename;wait:0.3;type:half.txt;foreignclipboard:$O/safe.txt;wait:0.3;log:$R/renaming.txt;escape;wait:0.5;quit"
   run "$R" "$F" "$S"
   contains "another app's copy is offered" "$R/foreign.txt" "clipboard: names=[copied.txt] paste=copy"
   contains "another app's copy pastes" "$R/copied.txt" "copied.txt"
@@ -1697,6 +1699,8 @@ if want clipboard; then
   contains "and says so" "$R/arbor-cut.txt" "Other apps get a copy."
   contains "another app's copy ends the cut" "$R/replaced.txt" "clipboard: names=[safe.txt] paste=copy cut marks=[]"
   fact "nothing moved by itself" test -f "$F/own.txt"
+  contains "a clipboard change leaves a rename open" "$R/renaming.txt" "rename field: editing “half.txt”"
+  fact "and doesn't rename half-typed" test -f "$F/own.txt" -a ! -e "$F/half.txt"
   for f in foreign copied moved undone remote mixed disk arbor-copy arbor-cut; do check "nothing opened: $f" "$R/$f.txt" "system open: none"; done
   discard clipboard "$R"
 fi
