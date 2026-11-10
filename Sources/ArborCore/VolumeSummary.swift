@@ -58,7 +58,7 @@ public struct VolumeSummary: Equatable, Sendable {
 
 public enum VolumeSections {
     public static let devicesAndDrives = L10n.tr("Devices and drives")
-    public static let networkLocations = "Network locations"
+    public static let networkLocations = L10n.tr("Network locations")
 
     public static func sorted(_ volumes: [VolumeSummary]) -> [VolumeSummary] {
         volumes.sorted { a, b in
@@ -98,7 +98,7 @@ public enum CapacityText {
     /// Three significant digits, truncated so free space is never overstated ("15.9 GB", "512 bytes").
     /// Decimal units (1 GB = 1,000,000,000 bytes), like the rest of macOS.
     public static func size(_ bytes: Int64) -> String {
-        guard bytes >= 1000 else { return bytes == 1 ? L10n.tr("1 byte") : L10n.format("%@ bytes", PropertyFormat.grouped(max(0, bytes))) }
+        guard bytes >= 1000 else { return L10n.plural(one: "%lld byte", other: "%lld bytes", Int(clamping: max(0, bytes))) }
         var value = Double(bytes) / 1000
         var unit = 0
         while value >= 1000, unit < SizeUnit.last { value /= 1000; unit += 1 }

@@ -167,7 +167,7 @@ final class MapNetworkDriveSheet: NSWindowController, NSComboBoxDelegate, NSComb
     private func browse() {
         let discovery = NetworkCenter.shared.services.makeDiscovery()
         browseDiscovery = discovery
-        showMessage("Looking for computers…", busy: true)
+        showMessage(L10n.tr("Looking for computers…"), busy: true)
         discovery.onChange = { [weak self, weak discovery] in
             guard let self, let discovery, discovery.state != .searching else { return }
             self.browseDiscovery = nil
@@ -190,10 +190,10 @@ final class MapNetworkDriveSheet: NSWindowController, NSComboBoxDelegate, NSComb
     private var browseDiscovery: NetworkDiscovering?
 
     private func browseShares(of device: NetworkDevice) {
-        showMessage("Looking for shared folders on \(device.name)…", busy: true)
+        showMessage(L10n.format("Looking for shared folders on %@…", device.name), busy: true)
         NetworkCenter.shared.services.resolve(device) { [weak self] address in
             guard let self else { return }
-            guard let address else { self.showMessage("Arbor can't find the address of “\(device.name)”.", error: true); return }
+            guard let address else { self.showMessage(L10n.format("Arbor can't find the address of “%@”.", device.name), error: true); return }
             self.folderField.stringValue = address.unc + "\\"
             NetworkCenter.shared.services.listShares(on: address) { [weak self] result in
                 guard let self else { return }
@@ -227,14 +227,14 @@ final class MapNetworkDriveSheet: NSWindowController, NSComboBoxDelegate, NSComb
         guard attempt == nil else { return }
         let text = folderField.stringValue
         guard let address = NetworkAddress.parse(text) else {
-            showMessage("“\(text)” isn't a network folder. Type it like \\\\server\\share or smb://server/share.", error: true)
+            showMessage(L10n.format("“%@” isn't a network folder. Type it like \\\\server\\share or smb://server/share.", text), error: true)
             return
         }
         guard address.share != nil else {
-            showMessage("Add the shared folder's name after the server name, like \\\\\(address.hostDisplayName)\\share.", error: true)
+            showMessage(L10n.format("Add the shared folder's name after the server name, like \\\\%@\\share.", address.hostDisplayName), error: true)
             return
         }
-        showMessage("Attempting to connect to \(address.unc)…", busy: true)
+        showMessage(L10n.format("Attempting to connect to %@…", address.unc), busy: true)
         finishButton.isEnabled = false
         folderField.isEnabled = false
         let wantsReconnect = reconnect.state == .on
@@ -262,7 +262,7 @@ final class MapNetworkDriveSheet: NSWindowController, NSComboBoxDelegate, NSComb
             self.attempt = nil
             finishButton.isEnabled = true
             folderField.isEnabled = true
-            showMessage("Cancelled.")
+            showMessage(L10n.tr("Cancelled."))
             return
         }
         close(navigateTo: nil)
@@ -362,8 +362,8 @@ final class DisconnectDrivesSheet: NSWindowController {
             let status = center.status(of: drive)
             var share: MountedShare?
             if case .connected(let s) = status { share = s; shownMounts.insert(s.mountPoint.path) }
-            let detail = share == nil ? "  —  not connected" : "  —  \(drive.address.unc)"
-            let box = NSButton(checkboxWithTitle: drive.label + detail, target: nil, action: nil)
+            let title = share == nil ? L10n.format("%@  —  not connected", drive.label) : "\(drive.label)  —  \(drive.address.unc)"
+            let box = NSButton(checkboxWithTitle: title, target: nil, action: nil)
             box.toolTip = share?.mountPoint.path
             add(box, share: share, drive: drive, to: list)
         }

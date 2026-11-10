@@ -170,8 +170,8 @@ final class DetailsSidePane: NSView, SidePaneProvider {
             typeLabel.stringValue = item.typeDescription
             thumbnail.image = item.isFolder ? IconProvider.shared.icon(for: item, size: 128) : IconProvider.shared.fileIcon(item.url, size: 128)
             requestThumbnail(item, token: token)
-            setRows([("Size", item.size.map(PropertyFormat.adaptiveSize) ?? (item.isFolder ? "" : "Unknown")),
-                     ("Date modified", item.modified.map { PropertyFormat.shortDate($0) } ?? "")].filter { !$0.1.isEmpty })
+            setRows([(L10n.tr("Size"), item.size.map(PropertyFormat.adaptiveSize) ?? (item.isFolder ? "" : L10n.tr("Unknown"))),
+                     (L10n.tr("Date modified"), item.modified.map { PropertyFormat.shortDate($0) } ?? "")].filter { !$0.1.isEmpty })
             prepareEditing(item)
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 let rows = Self.singleRows(item)
@@ -200,7 +200,7 @@ final class DetailsSidePane: NSView, SidePaneProvider {
             thumbnail.contentTintColor = nil
             if let location {
                 nameLabel.stringValue = LocationRegistry.provider(for: location).title(for: location)
-                typeLabel.stringValue = location.folderURL == nil ? "" : "Folder"
+                typeLabel.stringValue = location.folderURL == nil ? "" : L10n.tr("Folder")
                 thumbnail.image = IconProvider.shared.icon(for: location, size: 128)
                 setRows([])
                 message.stringValue = L10n.tr("Select a file to see its details.")
@@ -279,7 +279,9 @@ final class DetailsSidePane: NSView, SidePaneProvider {
         if let d = v?.contentModificationDate { rows.append((L10n.tr("Date modified"), PropertyFormat.shortDate(d))) }
         if let d = v?.creationDate { rows.append((L10n.tr("Date created"), PropertyFormat.shortDate(d))) }
         let meta = SpotlightMetadata.rows(for: url, isImage: v?.contentType?.conforms(to: .image) ?? false)
-        let wanted: Set<String> = ["Dimensions", "Length", "Authors", "Title", "Camera model", "Album", "Bit rate", "Pages", "Rating"]
+        // Row labels arrive translated, so the wanted ones are compared in the same language.
+        let wanted = Set([L10n.tr("Dimensions"), L10n.tr("Length"), L10n.tr("Authors"), L10n.tr("Title"), L10n.tr("Camera model"),
+                          L10n.tr("Album"), L10n.tr("Bit rate"), L10n.tr("Pages"), L10n.tr("Rating")])
         for row in meta where wanted.contains(row.label) { rows.append((row.label, row.value)) }
         if item.isPackage, let bundle = BundleInfo.read(url) {
             if let version = bundle.version { rows.append((L10n.tr("Version"), version)) }

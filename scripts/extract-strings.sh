@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
-# Regenerates the English base string table, Resources/en.lproj/Localizable.strings, from the sources.
+# Regenerates the English base tables, Resources/en.lproj/Localizable.strings and .stringsdict, from the sources.
 # Keys are the English text (see Sources/ArborCore/Accessibility/L10n.swift). Collected:
 #   L10n.tr("…"), L10n.format("…", …), L10n.plainFormat("…", …), L10n.template("…")   strings routed explicitly
 #   title: "…", tooltip: "…" in ExplorerCommand  command titles and tooltips (routed by ExplorerCommand)
 #   ChromeButton(… tooltip: "…")                 button tooltips (routed by ChromeButton)
+#   L10n.plural(one: "…", other: "…", n)         counted sentences, written to Localizable.stringsdict
 # Strings built with interpolation ("\(…)") are skipped: route them with L10n.format and a %@ key.
-# Usage: scripts/extract-strings.sh               rewrite the English table
-#        scripts/extract-strings.sh --check [dir] fail if the English table is out of date, or if any translation in
+# Usage: scripts/extract-strings.sh               rewrite the English tables
+#        scripts/extract-strings.sh --check [dir] fail if an English table is out of date, or if any translation in
 #                                                 Resources (or dir, which holds <language>.lproj folders) is invalid
 #        scripts/extract-strings.sh --pseudo dir  write the pseudo-languages into dir (a scratch copy of the app only)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT=Resources/en.lproj/Localizable.strings
+PLURALS=Resources/en.lproj/Localizable.stringsdict
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
@@ -20,7 +22,7 @@ string_tables() {
   if [ ! -x "$TMP/string-tables" ]; then
     local core=Sources/ArborCore/Accessibility
     swiftc -parse-as-library -o "$TMP/string-tables" scripts/string-tables.swift \
-      "$core/FormatSpecifiers.swift" "$core/StringTableCheck.swift" "$core/PseudoLocalization.swift"
+      "$core/FormatSpecifiers.swift" "$core/PluralTable.swift" "$core/StringTableCheck.swift" "$core/PseudoLocalization.swift"
   fi
   "$TMP/string-tables" "$@"
 }
@@ -45,9 +47,38 @@ LC_ALL=C sort -u "$TMP/raw" > "$TMP/sorted"
     printf '"%s" = "%s";\n' "$line" "$line"
   done < "$TMP/sorted"
 } > "$TMP/table"
+
+# One plural entry per key: the English "other" form is the key.
+find Sources -name '*.swift' -print0 | xargs -0 perl -0777 -ne '
+    while (/L10n\.plural\(\s*one:\s*"((?:[^"\\]|\\.)*)",\s*other:\s*"((?:[^"\\]|\\.)*)"/g) { print "$2\t$1\n" }
+' | LC_ALL=C sort -u > "$TMP/plural-pairs"
+DUPLICATE=$(cut -f1 "$TMP/plural-pairs" | uniq -d | head -n 1)
+if [ -n "$DUPLICATE" ]; then echo "extract-strings.sh: \"$DUPLICATE\" has two different singular forms" >&2; exit 1; fi
+{
+  echo '<?xml version="1.0" encoding="UTF-8"?>'
+  echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'
+  echo '<plist version="1.0">'
+  echo '<dict>'
+  perl -ne '
+    sub xml {
+      my $t = shift;
+      $t =~ s/\\(["\\nt])/$1 eq "n" ? "\n" : $1 eq "t" ? "\t" : $1/ge;
+      $t =~ s/&/&amp;/g; $t =~ s/</&lt;/g; $t =~ s/>/&gt;/g;
+      return $t;
+    }
+    chomp; my ($other, $one) = split /\t/, $_, 2; my ($k, $o) = (xml($other), xml($one));
+    print "\t<key>$k</key>\n\t<dict>\n\t\t<key>NSStringLocalizedFormatKey</key>\n\t\t<string>%#\@count\@</string>\n\t\t<key>count</key>\n\t\t<dict>\n",
+          "\t\t\t<key>NSStringFormatSpecTypeKey</key>\n\t\t\t<string>NSStringPluralRuleType</string>\n",
+          "\t\t\t<key>NSStringFormatValueTypeKey</key>\n\t\t\t<string>lld</string>\n",
+          "\t\t\t<key>one</key>\n\t\t\t<string>$o</string>\n\t\t\t<key>other</key>\n\t\t\t<string>$k</string>\n\t\t</dict>\n\t</dict>\n";
+  ' "$TMP/plural-pairs"
+  echo '</dict>'
+  echo '</plist>'
+} > "$TMP/plurals"
 if [ "${1:-}" = "--check" ]; then
   if ! cmp -s "$TMP/table" "$OUT"; then echo "$OUT is out of date; run scripts/extract-strings.sh" >&2; exit 1; fi
-  echo "$OUT is up to date ($(grep -c '^"' "$OUT") strings)"
+  if ! cmp -s "$TMP/plurals" "$PLURALS"; then echo "$PLURALS is out of date; run scripts/extract-strings.sh" >&2; exit 1; fi
+  echo "$OUT is up to date ($(grep -c '^"' "$OUT") strings, $(grep -c $'^\t<key>' "$PLURALS") plurals)"
   RESOURCES="${2:-Resources}"
   # A language folder is one with a name other than en.lproj.
   for folder in "$RESOURCES"/*.lproj; do
@@ -57,4 +88,5 @@ if [ "${1:-}" = "--check" ]; then
 fi
 mkdir -p "$(dirname "$OUT")"
 cp "$TMP/table" "$OUT"
-echo "Wrote $OUT ($(grep -c '^"' "$OUT") strings)"
+cp "$TMP/plurals" "$PLURALS"
+echo "Wrote $OUT ($(grep -c '^"' "$OUT") strings, $(grep -c $'^\t<key>' "$PLURALS") plurals)"

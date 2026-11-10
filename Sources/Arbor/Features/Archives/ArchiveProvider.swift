@@ -46,7 +46,7 @@ final class ArchiveCatalog: @unchecked Sendable {
     func load(_ archive: URL, process: ToolProcess) throws -> Listing {
         if let hit = cached(archive) { return hit }
         guard let stamp = Self.stamp(of: archive) else {
-            throw ArchiveError.unreadable("“\(archive.lastPathComponent)” is no longer available.")
+            throw ArchiveError.unreadable(L10n.format("“%@” is no longer available.", archive.lastPathComponent))
         }
         let listing = try ArchiveTool.list(archive, process: process)
         let result = Listing(archive: archive.standardizedFileURL, entries: listing.entries,
@@ -94,16 +94,12 @@ final class ArchiveProvider: LocationProvider {
     /// Items kept out because their names point outside the archive or are too long.
     static func hiddenItemsNote(_ index: ArchiveIndex) -> String? {
         if index.unsafeCount > 0 {
-            let items = StatusText.items(index.unsafeCount)
-            return index.unsafeCount == 1
-                ? L10n.format("%@ in this archive has a name that points outside it. It isn't shown and won't be extracted.", items)
-                : L10n.format("%@ in this archive have names that point outside it. They aren't shown and won't be extracted.", items)
+            return L10n.plural(one: "%lld item in this archive has a name that points outside it. It isn't shown and won't be extracted.",
+                               other: "%lld items in this archive have names that point outside it. They aren't shown and won't be extracted.", index.unsafeCount)
         }
         if index.tooLongCount > 0 {
-            let items = StatusText.items(index.tooLongCount)
-            return index.tooLongCount == 1
-                ? L10n.format("%@ in this archive has a name too long to use. It isn't shown and won't be extracted.", items)
-                : L10n.format("%@ in this archive have names too long to use. They aren't shown and won't be extracted.", items)
+            return L10n.plural(one: "%lld item in this archive has a name too long to use. It isn't shown and won't be extracted.",
+                               other: "%lld items in this archive have names too long to use. They aren't shown and won't be extracted.", index.tooLongCount)
         }
         return nil
     }
@@ -111,10 +107,8 @@ final class ArchiveProvider: LocationProvider {
     /// Listing rows that couldn't be read; shown after any damage warning, which explains them better.
     static func unreadableItemsNote(_ index: ArchiveIndex) -> String? {
         guard index.unreadableCount > 0 else { return nil }
-        let items = StatusText.items(index.unreadableCount)
-        return index.unreadableCount == 1
-            ? L10n.format("%@ in this archive couldn't be read. It isn't shown and won't be extracted.", items)
-            : L10n.format("%@ in this archive couldn't be read. They aren't shown and won't be extracted.", items)
+        return L10n.plural(one: "%lld item in this archive couldn't be read. It isn't shown and won't be extracted.",
+                           other: "%lld items in this archive couldn't be read. They aren't shown and won't be extracted.", index.unreadableCount)
     }
 
     func load(_ location: Location, context: LocationLoadContext,
@@ -144,7 +138,7 @@ final class ArchiveProvider: LocationProvider {
                     noteIsError = false
                 }
                 guard let items = listing.index.items(in: inner, archive: listing.archive, includeHidden: includeHidden) else {
-                    throw ArchiveError.unreadable("“\(inner)” isn't a folder in “\(file.lastPathComponent)”.")
+                    throw ArchiveError.unreadable(L10n.format("“%@” isn't a folder in “%@”.", inner, file.lastPathComponent))
                 }
                 result = .success(.items(items))
             } catch {

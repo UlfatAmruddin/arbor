@@ -76,7 +76,7 @@ final class CopyEngine {
                             original: original, in: folder)
         default:
             hooks.entryDone(TransferTotals(items: 1))
-            return .skipped("Special files (pipes, sockets, devices) aren't copied.")
+            return .skipped(L10n.tr("Special files (pipes, sockets, devices) aren't copied."))
         }
     }
 
@@ -222,7 +222,7 @@ final class CopyEngine {
         case .copyWithout: return nil
         case .skip:
             hooks.entryDone(totals ?? TransferDiscovery.measure(source) ?? TransferTotals(items: 1))
-            return .skipped("Skipped: the destination can't keep this item's properties.")
+            return .skipped(L10n.tr("Skipped: the destination can't keep this item's properties."))
         case .cancel:
             control.cancel()
             return .cancelled(leftContent: false)
@@ -397,7 +397,7 @@ final class CopyEngine {
         while true {
             guard let error = removeIfUnchanged(source, isFolder: isFolder, original: original, in: folder) else {
                 hooks.detail(ItemResult(source: source, outcome: .copiedButSourceRemains(
-                    target, "Copied, but the original was replaced during the move, so it was kept.")))
+                    target, L10n.tr("Copied, but the original was replaced during the move, so it was kept."))))
                 return
             }
             if error == 0 || error == ENOENT { return }
@@ -405,7 +405,7 @@ final class CopyEngine {
             case .retry: continue
             case .skip, .cancel:
                 hooks.detail(ItemResult(source: source, outcome: .copiedButSourceRemains(
-                    target, "Copied, but the original couldn't be removed. \(String(cString: strerror(error)))")))
+                    target, L10n.format("Copied, but the original couldn't be removed. %@", String(cString: strerror(error))))))
                 return
             }
         }

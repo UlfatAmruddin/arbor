@@ -388,7 +388,7 @@ final class BatchRenameDialog: NSObject, NSTableViewDataSource, NSTableViewDeleg
         let problems = preview.problemCount
         let text: String
         if problems > 0 {
-            text = (problems == 1 ? L10n.tr("1 name has a problem.") : L10n.format("%@ names have problems.", "\(problems)")) + L10n.tr(" Change the options to rename.")
+            text = L10n.plural(one: "%lld name has a problem. Change the options to rename.", other: "%lld names have problems. Change the options to rename.", problems)
         } else {
             text = preview.changeCount == 0 ? L10n.tr("No names change.") : L10n.format("%@ of %@ will be renamed.", "\(preview.changeCount)", "\(StatusText.items(items.count))")
         }

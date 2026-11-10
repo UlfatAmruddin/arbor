@@ -1,6 +1,6 @@
 import Foundation
 
-/// Validates translated string tables against the English base, for `scripts/extract-strings.sh --check` (FE-204).
+/// Validates translated string and plural tables against the English base, for `scripts/extract-strings.sh --check` (FE-204).
 public enum StringTableCheck {
     public struct Report: Equatable, Sendable {
         public var language: String
@@ -14,9 +14,40 @@ public enum StringTableCheck {
 
     /// One report per `<language>.lproj` in `resources` other than English.
     public static func check(resources: URL) throws -> [Report] {
-        let base = try parse(resources.appendingPathComponent("\(baseLanguage).lproj/\(tableName)"))
+        let baseFolder = resources.appendingPathComponent("\(baseLanguage).lproj", isDirectory: true)
+        let base = try parse(baseFolder.appendingPathComponent(tableName))
+        let pluralBase = baseFolder.appendingPathComponent(PluralTable.tableName)
+        let plurals = FileManager.default.fileExists(atPath: pluralBase.path) ? try PluralTable.parse(pluralBase) : [:]
         return try languages(in: resources).filter { $0 != baseLanguage }.map { language in
-            check(language: language, table: resources.appendingPathComponent("\(language).lproj/\(tableName)"), base: base)
+            let folder = resources.appendingPathComponent("\(language).lproj", isDirectory: true)
+            var report = check(language: language, table: folder.appendingPathComponent(tableName), base: base)
+            guard isLanguageIdentifier(language) else { return report }
+            checkPlurals(of: folder.appendingPathComponent(PluralTable.tableName), base: plurals, into: &report)
+            return report
+        }
+    }
+
+    /// A language without a plural table shows those sentences in English, like a missing key.
+    static func checkPlurals(of table: URL, base: [String: PluralTable.Forms], into report: inout Report) {
+        guard FileManager.default.fileExists(atPath: table.path) else {
+            report.missing += base.count
+            return
+        }
+        do {
+            check(plurals: try PluralTable.parse(table), base: base, into: &report)
+        } catch {
+            report.errors.append(String(describing: error))
+        }
+    }
+
+    static func check(plurals translated: [String: PluralTable.Forms], base: [String: PluralTable.Forms], into report: inout Report) {
+        report.missing += base.keys.filter { translated[$0] == nil }.count
+        for (key, forms) in translated.sorted(by: { $0.key < $1.key }) {
+            guard base[key] != nil else {
+                report.errors.append("unknown key \(quoted(key))")
+                continue
+            }
+            report.errors += PluralTable.problems(key: key, forms: forms).map { "\($0) for \(quoted(key))" }
         }
     }
 

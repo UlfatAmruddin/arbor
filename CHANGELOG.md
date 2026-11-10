@@ -35,6 +35,8 @@ their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 - Properties: edit the title, artist, album, year, track, genre and comment inside MP3, FLAC and M4A files. The audio isn't
   touched, the original goes to the Trash for Undo, and files that can't be changed safely stay read-only.
 - Long and right-to-left languages: layouts, numbers, sizes and paths now adapt, ready for translations.
+- Properties: edit the title, subject, authors and keywords inside PDF files, and the same fields plus categories and
+  comments inside Word, Excel and PowerPoint files. Signed or encrypted documents stay read-only.
 
 ### Removed
 - Properties no longer offers Unblock on downloaded files. It still says a file came from another computer, and

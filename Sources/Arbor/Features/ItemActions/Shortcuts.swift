@@ -54,7 +54,7 @@ enum Shortcuts {
         for target in targets {
             do { created.append(try createAlias(to: target, in: folder)) } catch { problems.append(error.localizedDescription) }
         }
-        if !created.isEmpty { registerUndoCreate(created, name: "Create Shortcut") }
+        if !created.isEmpty { registerUndoCreate(created, name: L10n.tr("Create Shortcut")) }
         if !problems.isEmpty { NSAlert.show(L10n.tr("Some shortcuts couldn't be created."), problems.joined(separator: "\n"), in: window?.window) }
         return created
     }
@@ -157,8 +157,9 @@ enum Shortcuts {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = L10n.tr("Problem with Shortcut")
-        let what = targetName.map { "The item “\($0)”" } ?? "The item"
-        alert.informativeText = L10n.format("%@ that this shortcut refers to has been changed or moved, so this shortcut will no longer work properly.\n\nDo you want to delete this shortcut?", "\(what)")
+        alert.informativeText = targetName.map {
+            L10n.format("The item “%@” that this shortcut refers to has been changed or moved, so this shortcut will no longer work properly.\n\nDo you want to delete this shortcut?", $0)
+        } ?? L10n.tr("The item that this shortcut refers to has been changed or moved, so this shortcut will no longer work properly.\n\nDo you want to delete this shortcut?")
         alert.addButton(withTitle: L10n.tr("Yes"))
         alert.addButton(withTitle: L10n.tr("No"))
         alert.buttons[1].keyEquivalent = "\u{1b}"

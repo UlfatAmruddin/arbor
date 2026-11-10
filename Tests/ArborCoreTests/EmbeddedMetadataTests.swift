@@ -62,9 +62,11 @@ import Testing
         #expect(EmbeddedSupport.forType(UTType.jpeg.identifier)?.canRemoveDate == true)
         #expect(EmbeddedSupport.forType(UTType.heic.identifier)?.fields == [.title, .rating])
         #expect(EmbeddedSupport.forType(UTType.tiff.identifier)?.fields == [.title, .rating, .dateTaken])
-        for type in [UTType.png, .gif, .bmp, .webP, .pdf, UTType("public.jpeg-2000")!, UTType("public.avif")!] {
+        for type in [UTType.png, .gif, .bmp, .webP, UTType("public.jpeg-2000")!, UTType("public.avif")!] {
             #expect(EmbeddedSupport.forType(type.identifier) == nil)
         }
+        // A PDF is edited as a document, not through ImageIO.
+        #expect(EmbeddedSupport.forType(UTType.pdf.identifier)?.isDocument == true)
     }
 
     @Test(arguments: [(UTType.jpeg, "a.jpg"), (.heic, "a.heic"), (.tiff, "a.tiff")])

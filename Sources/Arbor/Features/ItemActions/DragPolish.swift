@@ -87,8 +87,9 @@ enum DragPolish {
         if Location.folder(destination) == window.location {
             window.navigate(to: window.location, select: created.map(\.lastPathComponent))
         }
-        window.statusBar.setMessage(created.count == 1 ? "Created “\(created[0].lastPathComponent)”."
-                                                       : "Created \(created.count) shortcuts in “\(displayName(of: destination))”.")
+        window.statusBar.setMessage(created.count == 1 ? L10n.format("Created “%@”.", created[0].lastPathComponent)
+                                                       : L10n.plural(one: "Created %lld shortcut in “%@”.", other: "Created %lld shortcuts in “%@”.",
+                                                                     created.count, displayName(of: destination)))
     }
 
     /// Explorer's right-drag menu. The default (bold) item is what a plain drag would have done.
@@ -106,13 +107,13 @@ enum DragPolish {
             menu.addItem(item)
         }
         let sameFolder = sources.allSatisfy { $0.deletingLastPathComponent().standardizedFileURL == destination.standardizedFileURL }
-        add("Copy here", isDefault: suggested == .copy) { window.startTransfer(.copy, sources, to: destination) }
+        add(L10n.tr("Copy here"), isDefault: suggested == .copy) { window.startTransfer(.copy, sources, to: destination) }
         if !sameFolder {
-            add("Move here", isDefault: suggested == .move) { window.startTransfer(.move, sources, to: destination) }
+            add(L10n.tr("Move here"), isDefault: suggested == .move) { window.startTransfer(.move, sources, to: destination) }
         }
-        add("Create shortcuts here", isDefault: false) { createShortcuts(window, sources, in: destination) }
+        add(L10n.tr("Create shortcuts here"), isDefault: false) { createShortcuts(window, sources, in: destination) }
         menu.addItem(.separator())
-        add("Cancel", isDefault: false) {}
+        add(L10n.tr("Cancel"), isDefault: false) {}
         if AppDelegate.isHeadless {
             pendingMenu = menu
             return

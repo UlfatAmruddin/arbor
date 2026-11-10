@@ -494,9 +494,10 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
         let alert = NSAlert()
         alert.messageText = L10n.tr("Folder Views")
         let count = FolderViews.shared.savedCount
-        alert.informativeText = count == 1
-            ? L10n.tr("Do you want to reset all folders to their default view settings?\n\nArbor forgets the saved view of 1 folder and any view applied to a folder type. Your files aren't changed.")
-            : L10n.format("Do you want to reset all folders to their default view settings?\n\nArbor forgets the saved views of %@ folders and any view applied to a folder type. Your files aren't changed.", "\(count)")
+        alert.informativeText = L10n.plural(
+            one: "Do you want to reset all folders to their default view settings?\n\nArbor forgets the saved view of %lld folder and any view applied to a folder type. Your files aren't changed.",
+            other: "Do you want to reset all folders to their default view settings?\n\nArbor forgets the saved views of %lld folders and any view applied to a folder type. Your files aren't changed.",
+            count)
         alert.addButton(withTitle: L10n.tr("Yes"))
         alert.addButton(withTitle: L10n.tr("No"))
         present(alert) { [weak self] response in

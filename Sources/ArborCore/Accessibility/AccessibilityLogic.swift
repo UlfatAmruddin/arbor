@@ -75,7 +75,7 @@ public struct AnnouncementThrottle: Sendable {
 public enum AnnouncementText {
     /// "3 items selected". A single item isn't repeated (VoiceOver reads the row); clearing a multiple selection is.
     public static func selection(count: Int, previous: Int) -> String? {
-        if count >= 2 { return count == previous ? nil : L10n.format("%@ items selected", StatusText.number(count)) }
+        if count >= 2 { return count == previous ? nil : L10n.plural(one: "%lld item selected", other: "%lld items selected", count) }
         if count == 0, previous >= 2 { return L10n.tr("Selection cleared") }
         return nil
     }

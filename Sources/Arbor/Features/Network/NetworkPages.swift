@@ -19,7 +19,7 @@ class NetworkTilesPage: NSViewController, LocationPageStatus {
 
     var statusSummary: String {
         let count = grid.allTiles.count
-        let selected = grid.selected.map { _ in "1 item selected  |" } ?? ""
+        let selected = grid.selected.map { _ in L10n.plural(one: "%lld item selected", other: "%lld items selected", 1) + "  |" } ?? ""
         return StatusText.items(count) + "  |" + (selected.isEmpty ? "" : "  " + selected)
     }
 
@@ -175,9 +175,9 @@ final class NetworkPageController: NetworkTilesPage {
         var sections: [TileSection] = []
         for category in NetworkCategory.allCases {
             let tiles = devices.filter { $0.category == category }.map(tile)
-            sections.append(TileSection(id: category.rawValue, title: category.rawValue, tiles: tiles))
+            sections.append(TileSection(id: category.rawValue, title: category.title, tiles: tiles))
         }
-        sections.append(TileSection(id: "locations", title: "Network locations", tiles: driveTiles()))
+        sections.append(TileSection(id: "locations", title: VolumeSections.networkLocations, tiles: driveTiles()))
         grid.setSections(sections)
 
         var bannerViews: [NSView] = []
@@ -352,7 +352,7 @@ final class ServerPageController: NetworkTilesPage {
         }
         let title: String
         switch error {
-        case .timedOut: title = "\(server.hostDisplayName) isn't responding."
+        case .timedOut: title = L10n.format("%@ isn't responding.", server.hostDisplayName)
         case .authenticationFailed: title = L10n.format("Sign in to see the shared folders on %@.", "\(server.hostDisplayName)")
         case .listingUnsupported: title = L10n.format("Shared folders on %@ can't be listed.", "\(server.hostDisplayName)")
         default: title = L10n.format("Arbor can't access %@.", "\(server.unc)")
@@ -396,7 +396,7 @@ final class ServerPageController: NetworkTilesPage {
             }
             return tile
         }
-        grid.setSections([TileSection(id: "shares", title: "Shared folders", tiles: tiles)])
+        grid.setSections([TileSection(id: "shares", title: L10n.tr("Shared folders"), tiles: tiles)])
         grid.emptyView = tiles.isEmpty ? emptyLabel(L10n.format("%@ has no shared folders you can see.", "\(server.hostDisplayName)")) : nil
         window.updateChrome()
     }

@@ -50,11 +50,10 @@ enum WorkspacePrompts {
     }
 
     private static func savedMessage(_ saved: Workspace, leftOut: Int) -> String {
-        if leftOut == 1 {
-            return L10n.format("Saved “%@”. 1 tab was left out: workspaces hold up to %d tabs and can't store very long addresses.", saved.name, SessionState.tabLimit)
-        }
-        if leftOut > 1 {
-            return L10n.format("Saved “%@”. %d tabs were left out: workspaces hold up to %d tabs and can't store very long addresses.", saved.name, leftOut, SessionState.tabLimit)
+        if leftOut > 0 {
+            return L10n.plural(one: "Saved “%2$@”. %1$lld tab was left out: workspaces hold up to %3$d tabs and can't store very long addresses.",
+                               other: "Saved “%2$@”. %1$lld tabs were left out: workspaces hold up to %3$d tabs and can't store very long addresses.",
+                               leftOut, saved.name, SessionState.tabLimit)
         }
         return L10n.format("Saved “%@”.", saved.name)
     }

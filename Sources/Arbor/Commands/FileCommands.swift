@@ -104,7 +104,8 @@ enum FileCommands {
                 perform: { ctx in
                     let paths = (ctx.selection.isEmpty ? ctx.targetFolder.map { [$0] } ?? [] : ctx.selection.map(\.url)).map(\.path)
                     FileClipboard.shared.writePaths(CopyAsPath.text(for: paths))
-                    ctx.window?.statusBar.setMessage(paths.count == 1 ? "Copied path: \"\(paths[0])\"" : "Copied \(paths.count) paths.")
+                    ctx.window?.statusBar.setMessage(paths.count == 1 ? L10n.format("Copied path: \"%@\"", paths[0])
+                                                     : L10n.plural(one: "Copied %lld path.", other: "Copied %lld paths.", paths.count))
                 }),
             ExplorerCommand(
                 id: "file.openInTerminal", title: "Open in Terminal", symbol: "terminal",
@@ -204,7 +205,7 @@ enum FileCommands {
         guard !items.isEmpty, let window = ctx.window, let host = window.window else { NSSound.beep(); return }
         let alert = NSAlert()
         alert.alertStyle = .critical
-        alert.messageText = items.count == 1 ? L10n.format("Permanently delete “%@”?", "\(items[0].name)") : L10n.format("Permanently delete %@ items?", "\(items.count)")
+        alert.messageText = items.count == 1 ? L10n.format("Permanently delete “%@”?", "\(items[0].name)") : L10n.plural(one: "Permanently delete %lld item?", other: "Permanently delete %lld items?", items.count)
         alert.informativeText = L10n.tr("This can't be undone. The items won't go to the Trash.")
         let delete = alert.addButton(withTitle: L10n.tr("Delete Permanently"))
         let cancel = alert.addButton(withTitle: L10n.tr("Cancel"))
@@ -239,7 +240,7 @@ enum ClipboardCommands {
                 perform: { ctx in
                     let urls = ctx.selection.map(\.url)
                     FileClipboard.shared.write(urls, kind: .move)
-                    ctx.window?.statusBar.setMessage((urls.count == 1 ? L10n.format("%@ cut. Paste in Arbor to move it. Other apps get a copy.", StatusText.items(urls.count)) : L10n.format("%@ cut. Paste in Arbor to move them. Other apps get a copy.", StatusText.items(urls.count))))
+                    ctx.window?.statusBar.setMessage(L10n.plural(one: "%lld item cut. Paste in Arbor to move it. Other apps get a copy.", other: "%lld items cut. Paste in Arbor to move them. Other apps get a copy.", urls.count))
                 }),
             ExplorerCommand(
                 id: "edit.copy", title: "Copy", symbol: "doc.on.doc", shortcut: Shortcut("c"),
@@ -250,7 +251,7 @@ enum ClipboardCommands {
                 perform: { ctx in
                     let urls = ctx.selection.map(\.url)
                     FileClipboard.shared.write(urls, kind: .copy)
-                    ctx.window?.statusBar.setMessage(L10n.format("%@ copied.", "\(StatusText.items(urls.count))"))
+                    ctx.window?.statusBar.setMessage(L10n.plural(one: "%lld item copied.", other: "%lld items copied.", urls.count))
                 }),
             ExplorerCommand(
                 id: "edit.paste", title: "Paste", symbol: "doc.on.clipboard", shortcut: Shortcut("v"),

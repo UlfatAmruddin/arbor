@@ -93,18 +93,20 @@ enum CloudFeature: ExplorerFeature {
         let folders = cloudSources.filter { FileOps.isPlainFolder($0) }
         let onlineOnly = cloudSources.filter { !folders.contains($0) && CloudStatusStore.shared.status(for: $0) == .onlineOnly }
         guard !folders.isEmpty || !onlineOnly.isEmpty else { return nil }
-        let verb = kind == .move ? "move" : "copy"
-        let subject: String
-        if folders.count + onlineOnly.count == 1 {
-            subject = "“\((folders.first ?? onlineOnly[0]).lastPathComponent)” is"
-        } else {
-            subject = "\(folders.count + onlineOnly.count) of these items are"
+        let move = kind == .move
+        let message: String
+        switch (move, cloudSources.count == 1) {
+        case (true, true): message = L10n.format("Download from %@ to move this item?", root.displayName)
+        case (true, false): message = L10n.format("Download from %@ to move these items?", root.displayName)
+        case (false, true): message = L10n.format("Download from %@ to copy this item?", root.displayName)
+        case (false, false): message = L10n.format("Download from %@ to copy these items?", root.displayName)
         }
-        let what = folders.isEmpty ? "available only online, so \(onlineOnly.count == 1 ? "it" : "they") must be downloaded"
-                                   : "in \(root.displayName). Any files in \(folders.count == 1 ? "it" : "them") that are only available online will be downloaded"
+        let count = folders.count + onlineOnly.count
+        let name = (folders.first ?? onlineOnly[0]).lastPathComponent
         return TransferPreflight.Prompt(
-            message: L10n.format("Download from %@ to %@ %@?", "\(root.displayName)", "\(verb)", "\(cloudSources.count == 1 ? "this item" : "these items")"),
-            info: "\(subject) \(what) to this Mac before they're \(kind == .move ? "moved" : "copied"). This can take a while and use storage space.",
+            message: message,
+            info: preflightInfo(count: count, name: name, provider: folders.isEmpty ? nil : root.displayName, move: move)
+                + " " + L10n.tr("This can take a while and use storage space."),
             confirmTitle: kind == .move ? L10n.tr("Download and Move") : L10n.tr("Download and Copy"))
     }
 
@@ -157,11 +159,37 @@ enum CloudFeature: ExplorerFeature {
 
     enum Action { case download, evict }
 
+    /// Why the download comes first: one named item or a count, online-only items or folders inside `provider`.
+    private static func preflightInfo(count: Int, name: String, provider: String?, move: Bool) -> String {
+        switch (provider, count == 1, move) {
+        case (nil, true, true): return L10n.format("“%@” is available only online, so it must be downloaded to this Mac before it's moved.", name)
+        case (nil, true, false): return L10n.format("“%@” is available only online, so it must be downloaded to this Mac before it's copied.", name)
+        case (nil, false, true):
+            return L10n.plural(one: "%lld of these items is available only online, so it must be downloaded to this Mac before it's moved.",
+                               other: "%lld of these items are available only online, so they must be downloaded to this Mac before they're moved.", count)
+        case (nil, false, false):
+            return L10n.plural(one: "%lld of these items is available only online, so it must be downloaded to this Mac before it's copied.",
+                               other: "%lld of these items are available only online, so they must be downloaded to this Mac before they're copied.", count)
+        case (let provider?, true, true):
+            return L10n.format("“%@” is in %@. Any files in it that are only available online will be downloaded to this Mac before they're moved.", name, provider)
+        case (let provider?, true, false):
+            return L10n.format("“%@” is in %@. Any files in it that are only available online will be downloaded to this Mac before they're copied.", name, provider)
+        case (let provider?, false, true):
+            return L10n.plural(one: "%1$lld of these items is in %2$@. Any files in it that are only available online will be downloaded to this Mac before they're moved.",
+                               other: "%1$lld of these items are in %2$@. Any files in them that are only available online will be downloaded to this Mac before they're moved.",
+                               count, provider)
+        case (let provider?, false, false):
+            return L10n.plural(one: "%1$lld of these items is in %2$@. Any files in it that are only available online will be downloaded to this Mac before they're copied.",
+                               other: "%1$lld of these items are in %2$@. Any files in them that are only available online will be downloaded to this Mac before they're copied.",
+                               count, provider)
+        }
+    }
+
     /// Reports request errors at once, then polls (bounded) for the state the items actually reach.
     static func run(_ action: Action, _ items: [FileItem], window: BrowserWindowController?) {
         guard !items.isEmpty else { NSSound.beep(); return }
         let urls = items.map(\.url)
-        let provider = CloudEnvironment.root(containing: urls[0])?.displayName ?? "the provider"
+        let provider = CloudEnvironment.root(containing: urls[0])?.displayName ?? L10n.tr("the provider")
         DispatchQueue.global(qos: .userInitiated).async {
             var failures: [String] = []
             var accepted: [URL] = []
@@ -173,20 +201,21 @@ enum CloudFeature: ExplorerFeature {
                     }
                     accepted.append(url)
                 } catch {
-                    failures.append("• \(url.lastPathComponent): \(error.localizedDescription)")
+                    failures.append(L10n.format("• %@: %@", url.lastPathComponent, error.localizedDescription))
                 }
             }
             DispatchQueue.main.async {
                 CloudStatusStore.shared.invalidate(urls)
                 if !failures.isEmpty {
-                    NSAlert.show(action == .download ? "\(provider) couldn't download \(failures.count == 1 ? "1 item" : "\(failures.count) items")."
-                                                     : "\(provider) couldn't free up space for \(failures.count == 1 ? "1 item" : "\(failures.count) items").",
+                    NSAlert.show(action == .download
+                                    ? L10n.plural(one: "%2$@ couldn't download %1$lld item.", other: "%2$@ couldn't download %1$lld items.", failures.count, provider)
+                                    : L10n.plural(one: "%2$@ couldn't free up space for %1$lld item.", other: "%2$@ couldn't free up space for %1$lld items.", failures.count, provider),
                                  failures.prefix(10).joined(separator: "\n"), in: window?.window)
                 }
                 guard !accepted.isEmpty else { return }
                 window?.statusBar.setMessage(action == .download
-                    ? "Downloading \(StatusText.items(accepted.count)) from \(provider)…"
-                    : "Asked \(provider) to free up space for \(StatusText.items(accepted.count))…")
+                    ? L10n.plural(one: "Downloading %1$lld item from %2$@…", other: "Downloading %1$lld items from %2$@…", accepted.count, provider)
+                    : L10n.plural(one: "Asked %2$@ to free up space for %1$lld item…", other: "Asked %2$@ to free up space for %1$lld items…", accepted.count, provider))
                 follow(action, accepted, provider: provider, window: window, started: Date())
             }
         }
@@ -199,8 +228,8 @@ enum CloudFeature: ExplorerFeature {
             let errors = statuses.filter(\.isFailure).count
             if done == urls.count {
                 window?.statusBar.setMessage(action == .download
-                    ? "\(StatusText.items(done)) now available on this device."
-                    : "Freed up space: \(StatusText.items(done)) now available when online.")
+                    ? L10n.plural(one: "%lld item now available on this device.", other: "%lld items now available on this device.", done)
+                    : L10n.plural(one: "Freed up space: %lld item now available when online.", other: "Freed up space: %lld items now available when online.", done))
             } else if errors > 0 {
                 window?.statusBar.setMessage(L10n.format("%@ reported a problem with %@. See the Status column.", "\(provider)", "\(StatusText.items(errors))"), isError: true)
             } else if Date().timeIntervalSince(started) > (action == .download ? 120 : 20) {

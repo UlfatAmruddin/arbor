@@ -184,7 +184,7 @@ final class CreateShortcutWizard: NSObject, NSTextFieldDelegate {
         panel.allowsMultipleSelection = false
         panel.resolvesAliases = false
         panel.directoryURL = folder
-        panel.prompt = "OK"
+        panel.prompt = L10n.tr("OK")
         panel.message = L10n.tr("Choose the item you want the shortcut to point to.")
         panel.beginSheetModal(for: sheet) { [weak self] response in
             guard response == .OK, let url = panel.url, let self else { return }
@@ -211,7 +211,7 @@ final class CreateShortcutWizard: NSObject, NSTextFieldDelegate {
             case .success(.file(let url)): target = .item(url, isFolder: false); showPage(2)
             case .success(.network(let url)): target = .address(url); showPage(2)
             case .failure:
-                showError("Arbor can't find “\(text)”. Make sure you typed the name correctly, and then try again.")
+                showError(L10n.format("Arbor can't find “%@”. Make sure you typed the name correctly, and then try again.", text))
             }
             return
         }
@@ -219,7 +219,7 @@ final class CreateShortcutWizard: NSObject, NSTextFieldDelegate {
     }
 
     private func finish(name: String) {
-        if let problem = NameRules.validate(name) { showError(problem.errorDescription ?? "That name isn't valid."); return }
+        if let problem = NameRules.validate(name) { showError(problem.errorDescription ?? L10n.tr("That name isn't valid.")); return }
         guard let target else { showPage(1); return }
         do {
             let created: URL
@@ -227,7 +227,7 @@ final class CreateShortcutWizard: NSObject, NSTextFieldDelegate {
             case .item(let url, _): created = try Shortcuts.createAlias(to: url, in: folder, name: name)
             case .address(let url): created = try Shortcuts.createWebLocation(url, in: folder, name: name)
             }
-            Shortcuts.registerUndoCreate([created], name: "New Shortcut")
+            Shortcuts.registerUndoCreate([created], name: L10n.tr("New Shortcut"))
             let browser = self.browser
             close()
             if let browser, Location.folder(folder) == browser.location {

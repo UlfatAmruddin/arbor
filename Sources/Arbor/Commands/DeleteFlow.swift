@@ -18,7 +18,7 @@ enum DeleteFlow {
         }
         if !trashed.isEmpty {
             OperationCenter.shared.registerUndoTrash(trashed)
-            window.statusBar.setMessage(L10n.format("%@ moved to the Trash. Press ⌘Z to undo.", "\(StatusText.items(trashed.count))"))
+            window.statusBar.setMessage(L10n.plural(one: "%lld item moved to the Trash. Press ⌘Z to undo.", other: "%lld items moved to the Trash. Press ⌘Z to undo.", trashed.count))
         }
         window.refreshSelecting(urls: nextSelection.map { [$0] } ?? [])
 
@@ -35,7 +35,7 @@ enum DeleteFlow {
 
     static func cannotTrashTitle(_ items: [FileItem]) -> String {
         items.count == 1 ? L10n.format("“%@” can't be moved to the Trash.", items[0].name)
-                         : L10n.format("%@ items can't be moved to the Trash.", "\(items.count)")
+                         : L10n.plural(one: "%lld item can't be moved to the Trash.", other: "%lld items can't be moved to the Trash.", items.count)
     }
 
     private static func reasons(_ failures: [TrashFailure]) -> String {

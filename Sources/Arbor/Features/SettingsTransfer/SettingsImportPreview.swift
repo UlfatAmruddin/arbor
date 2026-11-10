@@ -11,7 +11,7 @@ enum SettingsImportPreview {
     static func alert(for plan: PortableImportPlan) -> NSAlert {
         let alert = NSAlert()
         alert.alertStyle = .informational
-        alert.messageText = plan.changes.count == 1 ? L10n.tr("Import 1 setting?") : L10n.format("Import %d settings?", plan.changes.count)
+        alert.messageText = L10n.plural(one: "Import %lld setting?", other: "Import %lld settings?", plan.changes.count)
         let scope = L10n.tr("Folders, pins, network drives, privacy and confirmation settings stay as they are.")
         alert.informativeText = [plan.note, scope].filter { !$0.isEmpty }.joined(separator: "\n\n")
         let list = table(for: plan)

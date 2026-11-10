@@ -17,7 +17,7 @@ protocol SearchController: AnyObject {
 }
 
 extension SearchController {
-    func placeholder(for location: Location) -> String { "Search \(location.displayName)" }
+    func placeholder(for location: Location) -> String { L10n.format("Search %@", location.displayName) }
     func locationDidChange(_ location: Location) {}
     /// Default: the filter text (search tabs show their query).
     func boxText(for location: Location, filterText: String) -> String { filterText }

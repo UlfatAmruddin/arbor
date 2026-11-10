@@ -60,8 +60,8 @@ enum SendToCommands {
             menu.append(ClosureMenuItem(L10n.tr("Desktop (create shortcut)"), image: icon(IconProvider.shared.folderIcon(.desktop, size: 16))) {
                 let created = Shortcuts.createShortcuts(to: urls, in: desktop, window: window)
                 if !created.isEmpty {
-                    window?.statusBar.setMessage(created.count == 1 ? "Created “\(created[0].lastPathComponent)” on the Desktop."
-                                                                   : "Created \(created.count) shortcuts on the Desktop.")
+                    window?.statusBar.setMessage(created.count == 1 ? L10n.format("Created “%@” on the Desktop.", created[0].lastPathComponent)
+                                                                   : L10n.plural(one: "Created %lld shortcut on the Desktop.", other: "Created %lld shortcuts on the Desktop.", created.count))
                 }
             })
         }

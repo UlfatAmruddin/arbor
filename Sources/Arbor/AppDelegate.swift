@@ -153,7 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showAbout(_ sender: Any?) {
         NSApp.orderFrontStandardAboutPanel(options: [
             .credits: NSAttributedString(
-                string: "An open-source file manager for macOS with the layout of Windows File Explorer: tabs, a navigation pane, an editable address bar and a details view.",
+                string: L10n.tr("An open-source file manager for macOS with the layout of Windows File Explorer: tabs, a navigation pane, an editable address bar and a details view."),
                 attributes: [.font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)]),
         ])
     }

@@ -17,8 +17,8 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 
 | Status | Requirements |
 |---|---|
-| implemented | 229 |
-| partial | 5 |
+| implemented | 230 |
+| partial | 4 |
 | macOS boundary | 3 |
 | not done | 7 |
 | **total** | **244** |
@@ -34,7 +34,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | Drag and drop | 10 | 0 | 0 | 0 |
 | Operations, progress, conflicts and recovery | 17 | 0 | 0 | 0 |
 | Search and filtering | 15 | 0 | 0 | 0 |
-| Preview, metadata and properties | 15 | 1 | 0 | 0 |
+| Preview, metadata and properties | 16 | 0 | 0 | 0 |
 | Archives and disk images | 9 | 0 | 0 | 0 |
 | Drives, devices, network and sharing | 9 | 0 | 2 | 2 |
 | Cloud and account integrations | 6 | 1 | 0 | 0 |
@@ -252,7 +252,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-149 | Thumbnail providers | implemented | unit; headless counters | [icon-views](features/icon-views.md) |  |
 | FE-150 | General properties | implemented | unit; headless | [properties](features/properties.md) |  |
 | FE-151 | Detailed metadata | implemented | unit; headless | [properties](features/properties.md) |  |
-| FE-152 | Metadata editing and removal | partial | unit; behavior-checks `embedded-metadata`, `audio-metadata` | [properties](features/properties.md) | Images, MP3, FLAC and M4A edit in place, with every other byte verified unchanged; per-type audit table in the area document; PDF and Office stay read-only for now |
+| FE-152 | Metadata editing and removal | implemented | unit; behavior-checks `embedded-metadata`, `audio-metadata`, `document-metadata` | [properties](features/properties.md) | Per-type audit in the area document. Images, MP3, FLAC, M4A, PDF and Office edit in place with every other byte verified unchanged; signed, encrypted or unusual files stay read-only with the reason |
 | FE-153 | Security and ownership | implemented | unit (real ACLs); headless | [properties](features/properties.md) |  |
 | FE-154 | Sharing and customization properties | implemented | headless | [properties](features/properties.md) | Sharing hands off to System Settings |
 | FE-155 | Previous Versions | implemented | unit (fake backups); headless | [properties](features/properties.md) | Real Time Machine disk not tested |
@@ -317,7 +317,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-201 | Contrast, motion, transparency | implemented | snapshot with forced contrast | [accessibility](features/accessibility.md) |  |
 | FE-202 | Text scaling and zoom | implemented | snapshots at 150 % | [accessibility](features/accessibility.md) |  |
 | FE-203 | Focus after refresh and navigation | implemented | headless `focus:` | [accessibility](features/accessibility.md) |  |
-| FE-204 | Localization and RTL | partial | `l10naudit:`; `extract-strings.sh --check`; behavior-checks `localization` | [accessibility](features/accessibility.md) | Layouts, numbers, shortcuts and paths checked under long and right-to-left test languages; a language is one data file; no translations yet |
+| FE-204 | Localization and RTL | partial | `l10naudit:`; `extract-strings.sh --check`; behavior-checks `localization` | [accessibility](features/accessibility.md) | Every visible sentence and count goes through the string tables with plural rules; layouts, numbers, shortcuts and paths checked under long and right-to-left test languages; no translations yet |
 | FE-205 | Preferences persistence | implemented | two-launch headless run | [folder-options](features/folder-options.md) |  |
 | FE-206 | Recent activity privacy | implemented | headless | [home-and-this-mac](features/home-and-this-mac.md) |  |
 | FE-207 | Permission guidance | implemented | headless (Trash, Time Machine, Local Network denied states) | [trash](features/trash.md) |  |

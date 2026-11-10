@@ -253,7 +253,7 @@ final class AddressCompletionController: AddressEditingSession {
     }
 
     private static func countText(_ count: Int) -> String {
-        count == 1 ? L10n.tr("1 suggestion") : L10n.format("%@ suggestions", StatusText.number(count))
+        L10n.plural(one: "%lld suggestion", other: "%lld suggestions", count)
     }
 
     // MARK: Picking

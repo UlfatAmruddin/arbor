@@ -292,9 +292,9 @@ final class OperationHistoryWindow: NSObject, NSWindowDelegate, NSOutlineViewDat
         var text = record.countsText
         if record.wasCancelled, !record.wasInterrupted { text = L10n.format("Cancelled · %@", text) }
         switch record.verification?.state {
-        case .verified?: text += " · Verified"
-        case .failed?: text += " · Verification failed (\(record.verification?.failures.count ?? 0))"
-        case .cancelled?: text += " · Verification cancelled"
+        case .verified?: text = L10n.format("%@ · Verified", text)
+        case .failed?: text = L10n.format("%@ · Verification failed (%d)", text, record.verification?.failures.count ?? 0)
+        case .cancelled?: text = L10n.format("%@ · Verification cancelled", text)
         case nil: break
         }
         return text

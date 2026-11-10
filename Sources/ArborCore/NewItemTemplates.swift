@@ -23,16 +23,16 @@ public struct NewItemTemplate: Sendable, Equatable, Identifiable {
 public enum NewItemTemplates {
     /// A valid 1×1 white BMP; Windows' zero-byte file won't open in most Mac image apps.
     public static let bitmap = NewItemTemplate(
-        id: "bmp", menuTitle: L10n.tr("Bitmap image"), baseName: L10n.tr("New Bitmap image"), fileExtension: "bmp",
+        id: "bmp", menuTitle: L10n.tr("Bitmap image"), baseName: L10n.plainFormat("New Bitmap image"), fileExtension: "bmp",
         contents: bitmapData(width: 1, height: 1))
 
     /// Minimal valid RTF with one empty paragraph.
     public static let richText = NewItemTemplate(
-        id: "rtf", menuTitle: L10n.tr("Rich Text Document"), baseName: L10n.tr("New Rich Text Document"), fileExtension: "rtf",
+        id: "rtf", menuTitle: L10n.tr("Rich Text Document"), baseName: L10n.plainFormat("New Rich Text Document"), fileExtension: "rtf",
         contents: Data(#"{\rtf1\ansi\ansicpg1252\deff0{\fonttbl{\f0\fswiss Helvetica;}}\f0\fs24\par}"#.utf8))
 
     public static let text = NewItemTemplate(
-        id: "txt", menuTitle: L10n.tr("Text Document"), baseName: L10n.tr("New Text Document"), fileExtension: "txt", contents: Data())
+        id: "txt", menuTitle: L10n.tr("Text Document"), baseName: L10n.plainFormat("New Text Document"), fileExtension: "txt", contents: Data())
 
     /// Windows order. The archives feature inserts "Compressed (zipped) Folder" after Bitmap image.
     public static let all: [NewItemTemplate] = [bitmap, richText, text]
@@ -97,12 +97,12 @@ public enum NewItemTemplates {
 public enum ShortcutNaming {
     /// "Report.pdf - Shortcut", then "… (2)". Keeps the target's extension; the alias has none.
     public static func shortcutName(for targetName: String, isTaken: (String) -> Bool) -> String {
-        numbered("\(targetName) - Shortcut", isTaken: isTaken)
+        numbered(L10n.plainFormat("%@ - Shortcut", targetName), isTaken: isTaken)
     }
 
     /// "Report.pdf - Symbolic link", then "… (2)".
     public static func symbolicLinkName(for targetName: String, isTaken: (String) -> Bool) -> String {
-        numbered("\(targetName) - Symbolic link", isTaken: isTaken)
+        numbered(L10n.plainFormat("%@ - Symbolic link", targetName), isTaken: isTaken)
     }
 
     /// Also used for names typed in the Create Shortcut wizard.
@@ -115,7 +115,7 @@ public enum ShortcutNaming {
 
     /// File name without extension, folder name, or the host for web addresses.
     public static func wizardDefaultName(for target: URL, isFolder: Bool) -> String {
-        if !target.isFileURL { return target.host ?? "New Internet Shortcut" }
+        if !target.isFileURL { return target.host ?? L10n.plainFormat("New Internet Shortcut") }
         let name = target.lastPathComponent
         if isFolder || name == "/" { return name == "/" ? "Macintosh HD" : name }
         let base = NameRules.splitExtension(name, treatAsFolder: false).base

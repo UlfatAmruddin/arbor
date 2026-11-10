@@ -748,7 +748,8 @@ struct TransferRateTests {
         for seconds in [Double.infinity, -.infinity, .nan, 1e9, 5.7e20, .greatestFiniteMagnitude] {
             #expect(TransferRateEstimator.describeRemaining(seconds) == "Calculating…", "\(seconds)")
         }
-        #expect(TransferRateEstimator.describeRemaining(1e8) == "About 1157 days")
+        // The count is grouped in the user's locale, like every other count.
+        #expect(TransferRateEstimator.describeRemaining(1e8) == "About \(StatusText.number(1157)) days")
     }
 
     @Test func emptyItemsAfterALargeFileNeverTrapTheEstimate() {

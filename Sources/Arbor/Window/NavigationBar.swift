@@ -10,7 +10,7 @@ final class SearchBox: NSView, NSTextFieldDelegate {
     private let magnifier = NSImageView()
     private var isFocused = false { didSet { needsDisplay = true } }
 
-    var placeholder: String = "Search" {
+    var placeholder: String = L10n.tr("Search") {
         didSet {
             field.placeholderAttributedString = NSAttributedString(string: placeholder, attributes: [
                 .foregroundColor: Theme.secondaryText, .font: Theme.bodyFont,
@@ -59,7 +59,7 @@ final class SearchBox: NSView, NSTextFieldDelegate {
             magnifier.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
             magnifier.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
-        placeholder = "Search"
+        placeholder = L10n.tr("Search")
         setAccessibilityElement(false)
     }
 

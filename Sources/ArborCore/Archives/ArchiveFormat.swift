@@ -97,7 +97,7 @@ public enum DiskImage {
 
 /// Names Arbor gives to new archives and extraction folders (Windows conventions, DEC-012 numbering).
 public enum ArchiveNaming {
-    public static let newZipName = "New Compressed (zipped) Folder.zip"
+    public static let newZipName = L10n.plainFormat("New Compressed (zipped) Folder") + ".zip"
 
     /// "New Compressed (zipped) Folder.zip", then "New Compressed (zipped) Folder (2).zip".
     public static func newZipName(isTaken: (String) -> Bool) -> String {

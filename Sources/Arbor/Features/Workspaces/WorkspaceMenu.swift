@@ -25,10 +25,9 @@ enum WorkspaceMenu {
             return L10n.format("The saved workspaces were damaged. The file was kept as %@.", WorkspaceFile.damagedCopyName)
         case .damaged(copyKept: false):
             return L10n.tr("The saved workspaces are damaged and couldn't be set aside. Workspaces are read-only.")
-        case .partial(1, copyKept: true):
-            return L10n.format("1 saved entry couldn't be read. A copy of the file was kept as %@.", WorkspaceFile.damagedCopyName)
         case .partial(let skipped, copyKept: true):
-            return L10n.format("%d saved entries couldn't be read. A copy of the file was kept as %@.", skipped, WorkspaceFile.damagedCopyName)
+            return L10n.plural(one: "%lld saved entry couldn't be read. A copy of the file was kept as %@.",
+                               other: "%lld saved entries couldn't be read. A copy of the file was kept as %@.", skipped, WorkspaceFile.damagedCopyName)
         case .partial(_, copyKept: false):
             return L10n.tr("Some saved entries couldn't be read and no copy could be made. Workspaces are read-only.")
         case .newerVersion:
@@ -46,7 +45,7 @@ enum WorkspaceMenu {
 
     private static func row(for workspace: Workspace, window: BrowserWindowController?) -> NSMenuItem {
         let row = NSMenuItem(title: workspace.name, action: nil, keyEquivalent: "")
-        row.toolTip = workspace.tabs.count == 1 ? L10n.tr("1 tab") : L10n.format("%d tabs", workspace.tabs.count)
+        row.toolTip = L10n.plural(one: "%lld tab", other: "%lld tabs", workspace.tabs.count)
         let menu = NSMenu(title: workspace.name)
         // ClosureMenuItem is its own target, so automatic validation would re-enable disabled rows.
         menu.autoenablesItems = false

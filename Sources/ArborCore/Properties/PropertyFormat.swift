@@ -14,7 +14,7 @@ public enum PropertyFormat {
 
     /// Explorer's size: 1024-based, three significant digits, truncated, unit switch at 1000 ("0.99 MB").
     public static func adaptiveSize(_ bytes: Int64) -> String {
-        if bytes < 1000 { return L10n.format("%@ bytes", "\(grouped(max(bytes, 0)))") }
+        if bytes < 1000 { return byteCount(bytes) }
         var value = Double(bytes) / 1024
         var unit = 0
         while value >= 1000, unit < SizeUnit.last {
@@ -32,9 +32,13 @@ public enum PropertyFormat {
         return SizeUnit.text(f.string(from: NSNumber(value: truncated)) ?? "\(truncated)", unit: unit)
     }
 
+    private static func byteCount(_ bytes: Int64) -> String {
+        L10n.plural(one: "%lld byte", other: "%lld bytes", Int(clamping: max(bytes, 0)))
+    }
+
     /// `1.23 KB (1,264 bytes)`.
     public static func propertiesSize(_ bytes: Int64) -> String {
-        if bytes < 1000 { return L10n.format("%@ bytes", "\(grouped(max(bytes, 0)))") }
+        if bytes < 1000 { return byteCount(bytes) }
         return L10n.format("%@ (%@ bytes)", "\(adaptiveSize(bytes))", "\(grouped(bytes))")
     }
 
@@ -83,8 +87,8 @@ public enum PropertyFormat {
     }
 
     /// "1 File", "12 Files", "1 Folder", "3 Folders".
-    public static func files(_ n: Int) -> String { n == 1 ? L10n.tr("1 File") : L10n.format("%@ Files", grouped(n)) }
-    public static func folders(_ n: Int) -> String { n == 1 ? L10n.tr("1 Folder") : L10n.format("%@ Folders", grouped(n)) }
+    public static func files(_ n: Int) -> String { L10n.plural(one: "%lld File", other: "%lld Files", n) }
+    public static func folders(_ n: Int) -> String { L10n.plural(one: "%lld Folder", other: "%lld Folders", n) }
 
     /// "12 Files, 3 Folders".
     public static func filesAndFolders(files fileCount: Int, folders folderCount: Int) -> String {
@@ -189,7 +193,7 @@ public struct SelectionSummary: Equatable {
 
     public var count: Int { files + folders }
     public var countText: String { PropertyFormat.filesAndFolders(files: files, folders: folders) }
-    public var selectedText: String { count == 1 ? L10n.tr("1 item selected") : L10n.format("%@ items selected", PropertyFormat.grouped(count)) }
+    public var selectedText: String { L10n.plural(one: "%lld item selected", other: "%lld items selected", count) }
 
     public var typeText: String {
         switch type {

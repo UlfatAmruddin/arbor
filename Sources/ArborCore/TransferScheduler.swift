@@ -21,8 +21,7 @@ public struct TransferScheduler: Sendable, Equatable {
     public static func concurrencyLimitTitle(_ limit: Int) -> String {
         switch limit {
         case 0: return L10n.tr("No limit")
-        case 1: return L10n.tr("1 operation at a time")
-        default: return L10n.format("%d operations at a time", limit)
+        default: return L10n.plural(one: "%lld operation at a time", other: "%lld operations at a time", limit)
         }
     }
 
@@ -55,7 +54,8 @@ public struct TransferScheduler: Sendable, Equatable {
             return L10n.tr("Waiting for another operation on the same drive")
         }
         if concurrencyLimit > 0, running.count >= concurrencyLimit {
-            return concurrencyLimit == 1 ? L10n.tr("Waiting: one operation at a time") : L10n.format("Waiting: %d operations at a time", concurrencyLimit)
+            return concurrencyLimit == 1 ? L10n.tr("Waiting: one operation at a time")
+                : L10n.plural(one: "Waiting: %lld operation at a time", other: "Waiting: %lld operations at a time", concurrencyLimit)
         }
         return L10n.tr("Waiting to start")
     }

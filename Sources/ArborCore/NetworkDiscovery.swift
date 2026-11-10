@@ -57,6 +57,14 @@ public enum NetworkCategory: String, CaseIterable, Sendable {
     case computer = "Computer"
     case mediaDevices = "Media Devices"
     case infrastructure = "Network Infrastructure"
+
+    public var title: String {
+        switch self {
+        case .computer: return L10n.tr("Computer")
+        case .mediaDevices: return L10n.tr("Media Devices")
+        case .infrastructure: return L10n.tr("Network Infrastructure")
+        }
+    }
 }
 
 /// A device on the network, merged from all its advertisements.
@@ -187,16 +195,19 @@ public struct FileSystemCapabilities: Equatable, Sendable {
     public var canWrite: Bool { !isReadOnly }
 
     /// Most important first.
-    public var notes: [String] {
+    public var notes: [String] { (readOnlyNote.map { [$0] } ?? []) + limitNotes }
+
+    public var readOnlyNote: String? {
+        guard isReadOnly else { return nil }
+        return kind == .ntfs ? L10n.tr("macOS can read NTFS drives but can't write to them.") : L10n.tr("This drive is read-only.")
+    }
+
+    /// What the format can't keep or do, apart from being read-only.
+    public var limitNotes: [String] {
         var notes: [String] = []
-        if kind == .ntfs && isReadOnly {
-            notes.append("macOS can read NTFS drives but can't write to them.")
-        } else if isReadOnly {
-            notes.append("This drive is read-only.")
-        }
-        if kind == .fat { notes.append("Files larger than 4 GB can't be stored on FAT32.") }
-        if kind == .exFAT || kind == .fat { notes.append("This format doesn't keep Mac permissions.") }
-        if isNetwork { notes.append("Deleted items on network drives may be removed permanently instead of going to the Trash.") }
+        if kind == .fat { notes.append(L10n.tr("Files larger than 4 GB can't be stored on FAT32.")) }
+        if kind == .exFAT || kind == .fat { notes.append(L10n.tr("This format doesn't keep Mac permissions.")) }
+        if isNetwork { notes.append(L10n.tr("Deleted items on network drives may be removed permanently instead of going to the Trash.")) }
         return notes
     }
 }

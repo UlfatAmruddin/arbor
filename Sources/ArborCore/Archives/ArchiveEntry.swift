@@ -213,7 +213,7 @@ public struct ArchiveIndex: Sendable {
     public static func typeDescription(name: String, isDirectory: Bool) -> String {
         // System kind names can be lower-case; the Type column capitalizes like Explorer.
         func capitalized(_ s: String) -> String { s.prefix(1).uppercased() + s.dropFirst() }
-        if isDirectory { return capitalized(UTType.folder.localizedDescription ?? "Folder") }
+        if isDirectory { return capitalized(UTType.folder.localizedDescription ?? L10n.tr("Folder")) }
         let ext = NameRules.splitExtension(name, treatAsFolder: false).ext ?? ""
         if let format = ArchiveFormat.detect(name: name) { return format.typeName }
         if !ext.isEmpty, let type = UTType(filenameExtension: ext), let text = type.localizedDescription { return capitalized(text) }

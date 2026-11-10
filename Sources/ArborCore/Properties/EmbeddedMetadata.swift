@@ -5,11 +5,15 @@ import UniformTypeIdentifiers
 
 /// The embedded properties Arbor can edit (FE-152).
 public enum EmbeddedField: String, CaseIterable, Sendable {
-    case title, description, rating, dateTaken, artist, album, year, track, genre, comment
+    case title, subject, author, keywords, category, description, rating, dateTaken, artist, album, year, track, genre, comment
 
     public var label: String {
         switch self {
         case .title: return L10n.tr("Title")
+        case .subject: return L10n.tr("Subject")
+        case .author: return L10n.tr("Authors")
+        case .keywords: return L10n.tr("Keywords")
+        case .category: return L10n.tr("Categories")
         case .description: return L10n.tr("Description")
         case .rating: return L10n.tr("Rating")
         case .dateTaken: return L10n.tr("Date taken")
@@ -35,12 +39,17 @@ public struct EmbeddedSupport: Equatable, Sendable {
         UTType.heic.identifier: EmbeddedSupport(fields: [.title, .rating], canRemoveDate: false),
         UTType.tiff.identifier: EmbeddedSupport(fields: [.title, .rating, .dateTaken], canRemoveDate: false),
         ID3Format.identifier: audio, FLACFormat.identifier: audio, M4AFormat.identifier: audio,
+        PDFFormat.identifier: EmbeddedSupport(fields: [.title, .subject, .author, .keywords], canRemoveDate: false),
+        OfficeFormat.identifier: EmbeddedSupport(fields: [.title, .subject, .author, .keywords, .category, .comment], canRemoveDate: false),
     ]
 
     private static let audio = EmbeddedSupport(fields: [.title, .artist, .album, .year, .track, .genre, .comment], canRemoveDate: false)
 
     /// Sound rather than a picture, which is all the Details tab's wording depends on.
     public var isAudio: Bool { fields.contains(.artist) }
+
+    /// A PDF or Office document.
+    public var isDocument: Bool { fields.contains(.author) }
 
     public static func forType(_ identifier: String) -> EmbeddedSupport? { table[identifier] }
 }
@@ -62,7 +71,7 @@ public enum EmbeddedFailure: Error, LocalizedError, Equatable {
     case invalidValue(String), notEditable, cannotRemoveDate, verificationFailed, writeFailed, trashFailed, changedSinceSaved
     /// `reason` says what about this file's own structure keeps it read-only.
     case structure(String)
-    case soundUnverified, noRoomBesideMetadata
+    case soundUnverified, noRoomBesideMetadata, documentUnverified
     /// Another app got in during the swap. `keptAt` is where the set-aside file stayed; nil means it reached the Trash.
     case interrupted(keptAt: String?)
 
@@ -94,6 +103,7 @@ public enum EmbeddedFailure: Error, LocalizedError, Equatable {
         case .changedSinceSaved: return L10n.tr("The file or its previous version changed since the edit.")
         case .structure(let reason): return reason
         case .soundUnverified: return L10n.tr("The change couldn't be verified as harmless to the audio, so the file wasn't changed.")
+        case .documentUnverified: return L10n.tr("The change couldn't be verified as harmless to the document, so the file wasn't changed.")
         case .noRoomBesideMetadata: return L10n.tr("There isn't enough free space inside this file to store that without moving its audio, so nothing was changed.")
         case .interrupted(nil): return L10n.tr("Another app changed the file while it was being replaced. The version set aside is in the Trash; check the file before relying on it.")
         case .interrupted(let path?): return L10n.format("Another app changed the file while it was being replaced, and the version set aside couldn't go to the Trash. It is at %@; copy it somewhere safe, because that folder is temporary.", path)
@@ -232,7 +242,7 @@ extension CGImageMetadataTag {
 /// Keeps file-supplied text from misleading the display, and tells whether showing it changed it.
 public enum EmbeddedText {
     public static func limit(_ field: EmbeddedField) -> Int {
-        field == .description || field == .comment ? EmbeddedLimits.maxDescriptionLength : EmbeddedLimits.maxTitleLength
+        field == .description || field == .comment || field == .keywords ? EmbeddedLimits.maxDescriptionLength : EmbeddedLimits.maxTitleLength
     }
 
     public static func clean(_ raw: String, limit: Int) -> (text: String, isExact: Bool) {
@@ -311,9 +321,11 @@ public enum EmbeddedEdits {
 
     private static func canonical(_ text: String, _ field: EmbeddedField, _ snapshot: EmbeddedSnapshot) throws -> String {
         switch field {
-        case .title, .description, .artist, .album, .genre, .comment:
+        case .title, .subject, .author, .keywords, .category, .description, .artist, .album, .genre, .comment:
             guard text.count <= EmbeddedText.limit(field) else { throw EmbeddedFailure.invalidValue(L10n.format("%@ is too long.", "\(field.label)")) }
-            guard !text.unicodeScalars.contains(where: EmbeddedText.isUnsafe) else {
+            // XML can't hold U+FFFE or U+FFFF, and reads a carriage return back as a line feed.
+            let unstorable: (Unicode.Scalar) -> Bool = { snapshot.support.isDocument && ($0 == "\r" || $0.value == 0xFFFE || $0.value == 0xFFFF) }
+            guard !text.unicodeScalars.contains(where: { EmbeddedText.isUnsafe($0) || unstorable($0) }) else {
                 throw EmbeddedFailure.invalidValue(L10n.format("%@ contains characters that can't be stored.", "\(field.label)"))
             }
             // ID3 reads a leading bracket or a bare number as a code from its fixed genre list.

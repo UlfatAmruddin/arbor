@@ -237,23 +237,23 @@ extension ItemGridView {
         let line2 = CGRect(x: left, y: line1.maxY + 1, width: line1.width, height: m.detailLineHeight)
         drawLine(displayName(item), in: line1, font: m.nameFont, color: Theme.primaryText, lineBreak: .byTruncatingMiddle,
                  underline: underline)
-        drawPair("Type:", item.typeDescription, in: line2)
+        drawPair(L10n.tr("Type:"), item.typeDescription, in: line2)
 
         let middleX = left + available * 0.47
         let middleWidth = available * 0.24
         if let detail = InteractionHooks.itemDetail.first((item, location)) {
             drawPair(detail.label, detail.value, in: CGRect(x: middleX, y: line2.minY, width: middleWidth, height: line2.height))
         } else if ThumbnailPolicy.hasDimensions(item), let dims = ImageInfoService.shared.dimensions(for: item), !dims.isEmpty {
-            drawPair("Dimensions:", dims, in: CGRect(x: middleX, y: line2.minY, width: middleWidth, height: line2.height))
+            drawPair(L10n.tr("Dimensions:"), dims, in: CGRect(x: middleX, y: line2.minY, width: middleWidth, height: line2.height))
         }
         let rightX = left + available * 0.73
         let rightWidth = available * 0.27
         if let date = item.modified {
-            drawPair("Date modified:", ItemGridView.dateFormatter.string(from: date),
+            drawPair(L10n.tr("Date modified:"), ItemGridView.dateFormatter.string(from: date),
                      in: CGRect(x: rightX, y: line1.minY + (m.lineHeight - m.detailLineHeight), width: rightWidth, height: m.detailLineHeight))
         }
         if !item.isFolder, let size = item.size {
-            drawPair("Size:", StatusText.bytes(size), in: CGRect(x: rightX, y: line2.minY, width: rightWidth, height: line2.height))
+            drawPair(L10n.tr("Size:"), StatusText.bytes(size), in: CGRect(x: rightX, y: line2.minY, width: rightWidth, height: line2.height))
         }
     }
 

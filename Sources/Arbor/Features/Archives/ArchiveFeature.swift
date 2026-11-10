@@ -87,7 +87,7 @@ enum ArchiveFeature: ExplorerFeature {
     static func openMember(_ ref: ArchiveItemRef, in window: BrowserWindowController?, with app: URL? = nil) {
         guard let folder = try? ArchiveJobs.freshSessionFolder() else { return }
         let request = ArchiveJobs.ExtractRequest(archive: ref.archive, roots: [ref.innerPath], base: ref.parentPath,
-                                                 destination: folder, verb: "Opening “\(ref.name)”")
+                                                 destination: folder, verb: L10n.format("Opening “%@”", ref.name))
         weak let weakWindow = window
         ArchiveJobs.extract(request, window: window?.window) { result in
             switch result {
@@ -124,13 +124,13 @@ enum ArchiveFeature: ExplorerFeature {
               let folder = try? ArchiveJobs.freshSessionFolder() else { NSSound.beep(); return }
         let roots = ctx.selection.compactMap { ArchiveCatalog.ref(for: $0.url)?.innerPath }
         let request = ArchiveJobs.ExtractRequest(archive: file, roots: roots, base: inner, destination: folder,
-                                                 verb: "Copying from “\(file.lastPathComponent)”")
+                                                 verb: L10n.format("Copying from “%@”", file.lastPathComponent))
         weak let window = ctx.window
         ArchiveJobs.extract(request, window: window?.window) { result in
             switch result {
             case .success(let outcome):
                 FileClipboard.shared.write(outcome.placed, kind: .copy)
-                window?.statusBar.setMessage(L10n.format("%@ copied.", "\(StatusText.items(outcome.placed.count))"))
+                window?.statusBar.setMessage(L10n.plural(one: "%lld item copied.", other: "%lld items copied.", outcome.placed.count))
                 ArchiveJobs.reportSkipped(outcome, window: window?.window)
             case .failure(let error):
                 ArchiveJobs.show(error, title: L10n.tr("The items couldn't be copied."), window: window?.window)

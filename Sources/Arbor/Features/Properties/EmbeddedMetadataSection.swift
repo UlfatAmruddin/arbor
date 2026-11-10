@@ -1,7 +1,7 @@
 import AppKit
 import ArborCore
 
-/// The Details tab's rows for properties stored inside an image or audio file (FE-152); offers only what a rewrite can keep.
+/// The Details tab's rows for properties stored inside an image, audio file or document (FE-152); offers only what a rewrite can keep.
 final class EmbeddedMetadataSection {
     private let model: PropertiesModel
     private var snapshot: EmbeddedSnapshot?
@@ -39,7 +39,7 @@ final class EmbeddedMetadataSection {
     /// Labels of rows this section replaces, so Spotlight's copies aren't shown beside them.
     var replacedRowLabels: Set<String> {
         guard let snapshot else { return [] }
-        if snapshot.support.isAudio {
+        if snapshot.support.isAudio || snapshot.support.isDocument {
             var labels = EmbeddedField.allCases.filter { snapshot.editable.contains($0) || snapshot.values[$0] != nil }.map(\.label)
             // Spotlight files an audio file's artist under its generic name.
             if labels.contains(EmbeddedField.artist.label) { labels.append(L10n.tr("Authors")) }
@@ -65,8 +65,9 @@ final class EmbeddedMetadataSection {
     func addRows(addGroup: (String) -> Void, addRow: (String, NSView) -> Void, addNote: (String) -> Void) {
         guard let snapshot else { return }
         let offered = EmbeddedField.allCases.filter { snapshot.editable.contains($0) || snapshot.values[$0] != nil }
-        guard !offered.isEmpty || (snapshot.support.isAudio && snapshot.blocked != nil) else { return }
-        addGroup(snapshot.support.isAudio ? L10n.tr("Stored in this audio file") : L10n.tr("Stored in this image"))
+        let wording = Self.wording(snapshot.support)
+        guard !offered.isEmpty || (!wording.isImage && snapshot.blocked != nil) else { return }
+        addGroup(wording.group)
         for field in offered {
             let view: NSView
             if snapshot.editable.contains(field) {
@@ -79,13 +80,21 @@ final class EmbeddedMetadataSection {
             }
             addRow(field.label, view)
         }
-        if let blocked = snapshot.blocked {
-            addNote(blocked.localizedDescription)
-        } else if snapshot.support.isAudio {
-            addNote(L10n.tr("Saved inside the file without changing the sound itself. The previous version goes to the Trash."))
-        } else {
-            addNote(L10n.tr("Saved inside the file without changing the picture itself. The previous version goes to the Trash."))
+        addNote(snapshot.blocked?.localizedDescription ?? wording.note)
+    }
+
+    /// What the rows are called for each kind of file.
+    private static func wording(_ support: EmbeddedSupport) -> (group: String, note: String, undoFailure: String, isImage: Bool) {
+        if support.isAudio {
+            return (L10n.tr("Stored in this audio file"), L10n.tr("Saved inside the file without changing the sound itself. The previous version goes to the Trash."),
+                    L10n.tr("The audio file's previous properties couldn't be put back."), false)
         }
+        if support.isDocument {
+            return (L10n.tr("Stored in this document"), L10n.tr("Saved inside the file without changing its contents. The previous version goes to the Trash."),
+                    L10n.tr("The document's previous properties couldn't be put back."), false)
+        }
+        return (L10n.tr("Stored in this image"), L10n.tr("Saved inside the file without changing the picture itself. The previous version goes to the Trash."),
+                L10n.tr("The image's previous properties couldn't be put back."), true)
     }
 
     private func readOnlyText(_ field: EmbeddedField) -> String {
@@ -117,8 +126,7 @@ final class EmbeddedMetadataSection {
         guard !edits.isEmpty else { done(nil); return }
         // A rename earlier in this Apply may have moved the file.
         let current = snapshot.moved(to: url)
-        let undoFailure = snapshot.support.isAudio ? L10n.tr("The audio file's previous properties couldn't be put back.")
-                                                   : L10n.tr("The image's previous properties couldn't be put back.")
+        let undoFailure = Self.wording(snapshot.support).undoFailure
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let result = Result { try EmbeddedMetadataEditor.save(edits, over: current) }
             DispatchQueue.main.async {
@@ -177,7 +185,8 @@ final class EmbeddedMetadataSection {
 }
 
 extension EmbeddedMetadataSection {
-    /// propembedded:<field>=<value> (title, description, rating, date, artist, album, year, track, genre, comment) | touch=1 (another app changed the file).
+    /// propembedded:<field>=<value> (title, subject, author, keywords, category, description, rating, date, artist, album, year, track, genre, comment)
+    /// | touch=1 (another app changed the file).
     static func registerScriptSteps() {
         DebugScript.registerStep("propembedded") { arg, _ in
             guard let controller = PropertiesWindowController.front,

@@ -62,7 +62,7 @@ enum TrashActions {
         confirmPermanent(items, window: window?.window) {
             remove(items.map(\.url), window: window) { removed in
                 window?.refreshSelecting(urls: next.map { [$0] } ?? [])
-                if removed > 0 { window?.statusBar.setMessage(L10n.format("%@ permanently deleted.", "\(StatusText.items(removed))")) }
+                if removed > 0 { window?.statusBar.setMessage(L10n.plural(one: "%lld item permanently deleted.", other: "%lld items permanently deleted.", removed)) }
             }
         }
     }
@@ -89,7 +89,7 @@ enum TrashActions {
                     confirmPermanent(entries.map(\.item), window: window?.window) {
                         remove(entries.map(\.item.url), window: window) { removed in
                             if window?.location == .trash { window?.reload() }
-                            window?.statusBar.setMessage(removed > 0 ? "The Trash was emptied (\(StatusText.items(removed)))." : nil)
+                            window?.statusBar.setMessage(removed > 0 ? L10n.plural(one: "The Trash was emptied (%lld item).", other: "The Trash was emptied (%lld items).", removed) : nil)
                         }
                     }
                 }
@@ -111,11 +111,11 @@ enum TrashActions {
                 let trusted = folder?.url == SystemTrash.testDirectory?.standardizedFileURL
                 switch folder.flatMap({ SystemTrash.removePermanently(url, inTrash: $0.url, trusted: trusted) }) {
                 case nil:
-                    failures.append("• \(names[url] ?? url.lastPathComponent): it isn't in a Trash folder.")
+                    failures.append(L10n.format("• %@: it isn't in a Trash folder.", names[url] ?? url.lastPathComponent))
                 case 0?:
                     removed.append(url)
                 case let error?:
-                    failures.append("• \(names[url] ?? url.lastPathComponent): \(String(cString: strerror(error)))")
+                    failures.append(L10n.format("• %@: %@", names[url] ?? url.lastPathComponent, String(cString: strerror(error))))
                 }
             }
             TrashJournal.shared.remove(removed)
@@ -123,8 +123,8 @@ enum TrashActions {
                 TrashStore.noteChanged()
                 completion(removed.count)
                 if !failures.isEmpty {
-                    NSAlert.show(failures.count == 1 ? "1 item couldn't be deleted." : "\(failures.count) items couldn't be deleted.",
-                                 failures.prefix(10).joined(separator: "\n") + (failures.count > 10 ? "\n…and \(failures.count - 10) more." : ""),
+                    NSAlert.show(L10n.plural(one: "%lld item couldn't be deleted.", other: "%lld items couldn't be deleted.", failures.count),
+                                 failures.prefix(10).joined(separator: "\n") + (failures.count > 10 ? "\n" + L10n.format("…and %d more.", failures.count - 10) : ""),
                                  in: window?.window)
                 }
             }
@@ -202,25 +202,32 @@ enum TrashActions {
                     restored.append(try TrashRestorer.restore(from: move.from, to: move.to, missingParents: move.parents,
                                                               journal: TrashJournal.shared))
                 } catch {
-                    failures.append("• \(move.to.lastPathComponent): \(error.localizedDescription)")
+                    failures.append(L10n.format("• %@: %@", move.to.lastPathComponent, error.localizedDescription))
                 }
             }
             DispatchQueue.main.async {
                 if !restored.isEmpty { registerUndoRestore(restored) }
                 TrashStore.noteChanged()
                 if window?.location == .trash { window?.reload() }
-                var parts: [String] = []
-                if !restored.isEmpty { parts.append("\(StatusText.items(restored.count)) restored") }
-                if skipped > 0 { parts.append("\(skipped) skipped") }
-                if !parts.isEmpty { window?.statusBar.setMessage(parts.joined(separator: ", ") + ".") }
+                if let summary = restoreSummary(restored: restored.count, skipped: skipped) { window?.statusBar.setMessage(summary) }
                 if unknown > 0 {
-                    NSAlert.show(unknown == 1 ? "1 item can't be restored." : "\(unknown) items can't be restored.",
-                                 "Arbor only knows where items came from if Arbor moved them to the Trash. To put back items deleted in Finder, use Finder's Put Back.",
+                    NSAlert.show(L10n.plural(one: "%lld item can't be restored.", other: "%lld items can't be restored.", unknown),
+                                 L10n.tr("Arbor only knows where items came from if Arbor moved them to the Trash. To put back items deleted in Finder, use Finder's Put Back."),
                                  style: .informational, in: window?.window)
                 } else if !failures.isEmpty {
                     NSAlert.show(L10n.tr("Some items couldn't be restored."), failures.prefix(10).joined(separator: "\n"), in: window?.window)
                 }
             }
+        }
+    }
+
+    /// "3 items restored, 1 skipped." as one sentence per combination, so a translation never joins the parts itself.
+    private static func restoreSummary(restored: Int, skipped: Int) -> String? {
+        switch (restored > 0, skipped > 0) {
+        case (true, true): return L10n.plural(one: "%lld item restored, %lld skipped.", other: "%lld items restored, %lld skipped.", restored, skipped)
+        case (true, false): return L10n.plural(one: "%lld item restored.", other: "%lld items restored.", restored)
+        case (false, true): return L10n.plural(one: "%lld item skipped.", other: "%lld items skipped.", skipped)
+        case (false, false): return nil
         }
     }
 
@@ -233,7 +240,7 @@ enum TrashActions {
                 if let trashed = try? SystemTrash.trash(url) { pairs.append((url, trashed)) }
             }
             // Every later Undo/Redo round keeps the name "Restore".
-            center.registerUndoTrash(pairs, actionName: "Restore")
+            center.registerUndoTrash(pairs, actionName: L10n.tr("Restore"))
         }
         center.undoManager.setActionName(L10n.tr("Restore"))
     }
@@ -256,14 +263,14 @@ enum TrashActions {
                     let entry = TrashStore.entry(for: item.url)
                     alert.messageText = L10n.format("“%@” Properties", "\(item.name)")
                     var lines = [L10n.format("Type: %@", "\(item.typeDescription)"),
-                                 "Original Location: \(entry?.record?.originalFolder ?? "Unknown")",
-                                 "Date Deleted: \(entry?.dateDeleted.map(dates.string(from:)) ?? "Unknown")",
-                                 "Size: \(sizeText(total))"]
-                    if item.isFolder { lines.append(L10n.format("Contains: %@ files", "\(sizes[0].files.formatted())")) }
+                                 L10n.format("Original Location: %@", entry?.record?.originalFolder ?? L10n.tr("Unknown")),
+                                 L10n.format("Date Deleted: %@", entry?.dateDeleted.map(dates.string(from:)) ?? L10n.tr("Unknown")),
+                                 L10n.format("Size: %@", sizeText(total))]
+                    if item.isFolder { lines.append(L10n.plural(one: "Contains: %lld file", other: "Contains: %lld files", sizes[0].files)) }
                     if let modified = item.modified { lines.append(L10n.format("Date Modified: %@", "\(dates.string(from: modified))")) }
                     lines.append(L10n.format("In: %@", "\(item.url.deletingLastPathComponent().path)"))
                     if entry?.record == nil {
-                        lines.append("\nArbor didn't move this item to the Trash, so its original location isn't known.")
+                        lines.append("\n" + L10n.tr("Arbor didn't move this item to the Trash, so its original location isn't known."))
                     }
                     alert.informativeText = lines.joined(separator: "\n")
                 } else {
@@ -289,13 +296,13 @@ enum TrashActions {
                 var line = "\(folder.volumeName) — \(folder.url.path)\n"
                 if let items {
                     let size = measure(folder.url)
-                    line += "    \(StatusText.items(items.count)), \(StatusText.bytes(size.bytes)) used"
+                    line += "    " + L10n.plural(one: "%lld item, %@ used", other: "%lld items, %@ used", items.count, StatusText.bytes(size.bytes))
                 } else if FileManager.default.fileExists(atPath: folder.url.path) {
                     line += L10n.tr("    Contents can't be read (Full Disk Access is needed)")
                 } else {
                     line += L10n.tr("    Empty")
                 }
-                if let free { line += "\n    Space available: \(StatusText.bytes(free))" }
+                if let free { line += "\n    " + L10n.format("Space available: %@", StatusText.bytes(free)) }
                 lines.append(line)
             }
             DispatchQueue.main.async {
@@ -305,14 +312,14 @@ enum TrashActions {
                 alert.icon = TrashIcon.image(full: TrashStore.isFull == true, size: 64)
                 alert.messageText = L10n.tr("Trash Properties")
                 alert.informativeText = lines.joined(separator: "\n\n")
-                    + "\n\nmacOS manages the Trash size. To remove items automatically after 30 days, use Finder › Settings › Advanced."
+                    + "\n\n" + L10n.tr("macOS manages the Trash size. To remove items automatically after 30 days, use Finder › Settings › Advanced.")
                 present(alert, in: window?.window) { _ in }
             }
         }
     }
 
     static func sizeText(_ bytes: Int64) -> String {
-        "\(StatusText.bytes(bytes)) (\(bytes.formatted()) bytes)"
+        L10n.format("%@ (%@ bytes)", StatusText.bytes(bytes), bytes.formatted())
     }
 
     /// Logical size of a file or folder contents. On request only.

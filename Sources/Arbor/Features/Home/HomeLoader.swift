@@ -10,7 +10,7 @@ struct HomeTile: Equatable {
     let subtitle: String
     let isPinned: Bool
 
-    var item: FileItem { FileItem(url: url, name: name, isFolder: true, typeDescription: "Folder") }
+    var item: FileItem { FileItem(url: url, name: name, isFolder: true, typeDescription: L10n.tr("Folder")) }
 }
 
 /// A Favorites or Recent row: the real item plus the date and location Home shows.
@@ -123,7 +123,7 @@ enum HomeLoader {
 
     private static func tile(_ url: URL, pinned: Bool) -> HomeTile {
         let parent = url.deletingLastPathComponent()
-        let subtitle = url.path == "/" ? "This Mac" : FileManager.default.displayName(atPath: parent.path)
+        let subtitle = url.path == "/" ? L10n.tr("This Mac") : FileManager.default.displayName(atPath: parent.path)
         return HomeTile(url: url, name: FileManager.default.displayName(atPath: url.path), subtitle: subtitle, isPinned: pinned)
     }
 

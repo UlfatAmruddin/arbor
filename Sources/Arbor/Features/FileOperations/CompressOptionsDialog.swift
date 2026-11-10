@@ -186,7 +186,7 @@ final class CompressOptionsDialog: FileOpsDialog {
         var text: String
         switch format {
         case .zip: text = L10n.tr("ZIP opens everywhere, including Windows. Mac-only properties (Finder tags, resource forks) aren't stored; Compress to ▸ ZIP File keeps them for a single item.")
-        case .sevenZip: text = "7z usually makes the smallest archives. Windows 11 opens it."
+        case .sevenZip: text = L10n.tr("7z usually makes the smallest archives. Windows 11 opens it.")
         case .tar, .tarGzip, .tarBzip2, .tarXz: text = L10n.tr("TAR keeps Unix permissions and links. Windows 11 opens .tar, .tar.gz, .tar.bz2 and .tar.xz.")
         case .gzip, .bzip2, .xz: text = L10n.tr("Compresses this one file on its own, without an archive around it.")
         }
@@ -214,7 +214,7 @@ final class CompressOptionsDialog: FileOpsDialog {
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
         panel.directoryURL = options.destinationFolder
-        panel.prompt = "Select Folder"
+        panel.prompt = L10n.tr("Select Folder")
         panel.beginSheetModal(for: self.panel) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             self?.destinationField.stringValue = url.path
@@ -239,7 +239,7 @@ final class CompressOptionsDialog: FileOpsDialog {
         OperationCenter.shared.begin(activity)
         let folder = options.destinationFolder.standardizedFileURL
         DispatchQueue.global(qos: .userInitiated).async {
-            var outcome: Result<URL, Error> = .failure(ArchiveError.toolFailed("The archive couldn't be saved in the folder."))
+            var outcome: Result<URL, Error> = .failure(ArchiveError.toolFailed(L10n.tr("The archive couldn't be saved in the folder.")))
             do {
                 let total = Double(max(Self.countEntries(sources, limit: 200_000), 1))
                 var done = 0.0
@@ -271,7 +271,7 @@ final class CompressOptionsDialog: FileOpsDialog {
                 CompressOptionsDialog.lastResult = outcome.map(\.path)
                 switch outcome {
                 case .success(let url):
-                    ArchiveJobs.registerUndoCreate(url, action: "Compress")
+                    ArchiveJobs.registerUndoCreate(url, action: L10n.tr("Compress"))
                     guard let browser else { return }
                     if Location.folder(folder) == browser.location {
                         browser.refreshSelecting([url.lastPathComponent])

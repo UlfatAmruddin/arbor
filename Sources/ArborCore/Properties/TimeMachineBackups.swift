@@ -50,7 +50,7 @@ public enum TimeMachineBackups {
         if !configured { return .notConfigured }
         if status == 0 { return .backups([]) }
         let message = (stderr.isEmpty ? stdout : stderr).trimmingCharacters(in: .whitespacesAndNewlines)
-        return .unavailable(message.isEmpty ? "Time Machine backups couldn't be listed." : message)
+        return .unavailable(message.isEmpty ? L10n.tr("Time Machine backups couldn't be listed.") : message)
     }
 
     /// Bounded by `timeout`. Call off the main thread.
@@ -62,7 +62,7 @@ public enum TimeMachineBackups {
         p.standardOutput = out
         p.standardError = err
         p.standardInput = FileHandle.nullDevice
-        do { try p.run() } catch { return .unavailable("tmutil couldn't be started.") }
+        do { try p.run() } catch { return .unavailable(L10n.tr("tmutil couldn't be started.")) }
         final class Box: @unchecked Sendable { var out = Data(); var err = Data() }
         let box = Box()
         let group = DispatchGroup()
@@ -72,7 +72,7 @@ public enum TimeMachineBackups {
         DispatchQueue.global(qos: .utility).async { box.err = err.fileHandleForReading.readDataToEndOfFile(); group.leave() }
         if group.wait(timeout: .now() + timeout) == .timedOut {
             p.terminate()
-            return .unavailable("Time Machine didn't answer in time. Is the backup disk connected?")
+            return .unavailable(L10n.tr("Time Machine didn't answer in time. Is the backup disk connected?"))
         }
         p.waitUntilExit()
         return classify(stdout: String(decoding: box.out, as: UTF8.self), stderr: String(decoding: box.err, as: UTF8.self),

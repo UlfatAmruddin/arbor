@@ -97,7 +97,7 @@ final class PropertiesModel {
         let check = refreshFromDisk()
         if !check.missing.isEmpty {
             PropertiesWindowController.present(message: L10n.format("“%@” can't be found.", "\(check.missing[0])"),
-                                               info: "It may have been moved, renamed or deleted by another app. Close this window and try again.",
+                                               info: L10n.tr("It may have been moved, renamed or deleted by another app. Close this window and try again."),
                                                window: window)
             completion(false)
             return
@@ -144,9 +144,9 @@ final class PropertiesModel {
                 PropertiesFeature.itemsChanged(old: oldURL, new: newURL)
             } catch let error as PropertyApplyError {
                 entries[i].url = error.url
-                failures.append("“\(entries[i].original.name)”: \(error.localizedDescription)")
+                failures.append(L10n.format("“%@”: %@", entries[i].original.name, error.localizedDescription))
             } catch {
-                failures.append("“\(entries[i].original.name)”: \(error.localizedDescription)")
+                failures.append(L10n.format("“%@”: %@", entries[i].original.name, error.localizedDescription))
             }
         }
         for key in extraChanges.sorted() {

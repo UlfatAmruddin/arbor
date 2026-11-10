@@ -54,7 +54,7 @@ final class ScopedSearchController: SearchController {
         self.inner = inner
     }
 
-    static let unavailableText = "Nothing to search here"
+    static let unavailableText = L10n.tr("Nothing to search here")
 
     func placeholder(for location: Location) -> String {
         let text = inner.placeholder(for: location)
@@ -63,7 +63,7 @@ final class ScopedSearchController: SearchController {
         if available != isAvailable || window.searchBox.field.isEnabled != available {
             isAvailable = available
             window.searchBox.field.isEnabled = available
-            window.searchBox.toolTip = available ? nil : "This page has no items to search or filter."
+            window.searchBox.toolTip = available ? nil : L10n.tr("This page has no items to search or filter.")
             if !available { window.searchBox.text = "" }
         }
         return available ? text : Self.unavailableText

@@ -525,7 +525,7 @@ final class SectionHeader: NSView {
     private func updateChevron() {
         chevron.image = NSImage.tintedSymbol(collapsed ? "chevron.right" : "chevron.down", size: 9, weight: .semibold,
                                              color: Theme.secondaryText.resolved(for: effectiveAppearance))
-        setAccessibilityValue(collapsed ? "collapsed" : "expanded")
+        setAccessibilityValue(collapsed ? L10n.tr("collapsed") : L10n.tr("expanded"))
     }
 
     override func viewDidChangeEffectiveAppearance() { updateChevron() }

@@ -37,7 +37,7 @@ enum NetworkError: Error, LocalizedError, Equatable {
         case .localNetworkDenied:
             return L10n.tr("Arbor isn't allowed to look for computers on your network.")
         case .failed(let message, let code):
-            return code == 0 ? message : "\(message) (error \(code))"
+            return code == 0 ? message : L10n.format("%@ (error %d)", message, code)
         }
     }
 
@@ -134,7 +134,7 @@ final class LiveNetworkServices: NetworkServicing {
         let token = NetworkCancellable { if process.isRunning { process.terminate() } }
         DispatchQueue.global(qos: .userInitiated).async {
             do { try process.run() } catch {
-                DispatchQueue.main.async { if !token.isCancelled { completion(.failure(.failed("Arbor couldn't run smbutil.", code: 0))) } }
+                DispatchQueue.main.async { if !token.isCancelled { completion(.failure(.failed(L10n.tr("Arbor couldn't run smbutil."), code: 0))) } }
                 return
             }
             let output = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
@@ -200,7 +200,7 @@ final class LiveNetworkServices: NetworkServicing {
         case ETIMEDOUT: return .timedOut(what)
         case EHOSTUNREACH, EHOSTDOWN, ENETUNREACH, ECONNREFUSED, ENOENT, -6602: return .unreachable(what)
         case -5998, -6003: return .noShares(what)
-        default: return .failed("Arbor couldn't connect to \(what).", code: Int(status))
+        default: return .failed(L10n.format("Arbor couldn't connect to %@.", what), code: Int(status))
         }
     }
 
@@ -212,7 +212,7 @@ final class LiveNetworkServices: NetworkServicing {
                 let result = Darwin.unmount(path, MNT_FORCE)
                 let code = errno
                 DispatchQueue.main.async {
-                    completion(result == 0 ? .success(()) : .failure(code == EBUSY ? .busy(name) : .failed("Arbor couldn't disconnect “\(name)”.", code: Int(code))))
+                    completion(result == 0 ? .success(()) : .failure(code == EBUSY ? .busy(name) : .failed(L10n.format("Arbor couldn't disconnect “%@”.", name), code: Int(code))))
                 }
             }
             return

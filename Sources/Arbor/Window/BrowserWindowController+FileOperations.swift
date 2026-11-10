@@ -23,7 +23,7 @@ extension BrowserWindowController {
             if report.wasCancelled {
                 self.statusBar.setMessage(report.kind == .copy ? L10n.tr("Transfer cancelled. Items already copied were kept.") : L10n.tr("Transfer cancelled. Items already moved were kept."))
             } else if report.problems.isEmpty, !report.committed.isEmpty {
-                self.statusBar.setMessage(report.kind == .copy ? L10n.format("%@ copied to “%@”.", StatusText.items(report.committed.count), displayName(of: report.destination)) : L10n.format("%@ moved to “%@”.", StatusText.items(report.committed.count), displayName(of: report.destination)))
+                self.statusBar.setMessage(report.kind == .copy ? L10n.plural(one: "%lld item copied to “%@”.", other: "%lld items copied to “%@”.", report.committed.count, displayName(of: report.destination)) : L10n.plural(one: "%lld item moved to “%@”.", other: "%lld items moved to “%@”.", report.committed.count, displayName(of: report.destination)))
             }
         }
     }

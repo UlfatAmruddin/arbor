@@ -20,12 +20,14 @@ public enum ExifOrientation {
 
 public enum ImageRotationError: Error, LocalizedError, Equatable {
     case unsupported(String)
+    case animated
     case unreadable
     case writeFailed
 
     public var errorDescription: String? {
         switch self {
         case .unsupported(let kind): return L10n.format("%@ images can't be rotated here.", "\(kind)")
+        case .animated: return L10n.tr("Animated images can't be rotated here.")
         case .unreadable: return L10n.tr("The image couldn't be read.")
         case .writeFailed: return L10n.tr("The rotated image couldn't be saved.")
         }
@@ -75,7 +77,7 @@ public enum ImageRotator {
             }
             method = .orientationTag
         } else if pixelTypes.contains(type) {
-            guard CGImageSourceGetCount(source) == 1 else { throw ImageRotationError.unsupported("Animated") }
+            guard CGImageSourceGetCount(source) == 1 else { throw ImageRotationError.animated }
             guard let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw ImageRotationError.unreadable }
             // Apply any existing orientation, then the quarter turn, so the result needs no tag.
             let target = ExifOrientation.rotated(current, clockwise: clockwise)

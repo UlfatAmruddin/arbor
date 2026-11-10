@@ -52,7 +52,7 @@ final class FileSystemTab: PropertiesTab, PropertiesTabDebug {
         status.stringValue = report.isReadOnly ? L10n.tr("This drive is read-only.") : L10n.tr("What this drive's format supports:")
         for (field, row) in zip(values, report.rows) { field.stringValue = row.value }
         let list = report.notes
-        notes.stringValue = list.isEmpty ? "No limits worth noting." : list.map { "• " + $0 }.joined(separator: "\n")
+        notes.stringValue = list.isEmpty ? L10n.tr("No limits worth noting.") : list.map { "• " + $0 }.joined(separator: "\n")
     }
 
     func reload() {}

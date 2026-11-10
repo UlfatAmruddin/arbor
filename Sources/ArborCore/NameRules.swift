@@ -42,11 +42,11 @@ public enum NameRules {
     /// "Report - Copy.pdf", then "Report - Copy (2).pdf".
     public static func duplicateName(for name: String, treatAsFolder: Bool, isTaken: (String) -> Bool) -> String {
         let (base, ext) = splitExtension(name, treatAsFolder: treatAsFolder)
-        let first = join("\(base) - Copy", ext)
+        let first = join(L10n.plainFormat("%@ - Copy", base), ext)
         if !isTaken(first) { return first }
         var n = 2
-        while isTaken(join("\(base) - Copy (\(n))", ext)) { n += 1 }
-        return join("\(base) - Copy (\(n))", ext)
+        while isTaken(join(L10n.plainFormat("%@ - Copy (%@)", base, "\(n)"), ext)) { n += 1 }
+        return join(L10n.plainFormat("%@ - Copy (%@)", base, "\(n)"), ext)
     }
 
     /// "Report (2).pdf", "Report (3).pdf".
@@ -59,7 +59,7 @@ public enum NameRules {
 
     /// "New folder", then "New folder (2)".
     public static func newFolderName(isTaken: (String) -> Bool) -> String {
-        let first = L10n.tr("New folder")
+        let first = L10n.plainFormat("New folder")
         if !isTaken(first) { return first }
         var n = 2
         while isTaken(numberedNewFolder(n)) { n += 1 }

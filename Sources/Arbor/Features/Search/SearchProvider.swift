@@ -57,14 +57,14 @@ final class SearchProvider: LocationProvider {
         case .stopped: return L10n.tr("The search was stopped. Press Refresh to search again.")
         case .finished:
             if let scope = coverage.scopeUnavailable { return L10n.format("“%@” isn't available. It may have been moved, deleted or disconnected.", "\(scope)") }
-            return coverage.isComplete ? "No items match your search."
-                : "No items match your search. Some places couldn't be searched; see Search options ▸ Why might results be missing?"
+            return coverage.isComplete ? L10n.tr("No items match your search.")
+                : L10n.tr("No items match your search. Some places couldn't be searched; see Search options ▸ Why might results be missing?")
         }
     }
 
     func statusDetail(for location: Location) -> String? {
         guard let session = Self.session(for: location) else { return L10n.tr("Searching…") }
-        return session.superseded ? "Searching…" : session.coverage.statusLine
+        return session.superseded ? L10n.tr("Searching…") : session.coverage.statusLine
     }
 }
 

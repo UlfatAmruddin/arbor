@@ -39,7 +39,8 @@ final class GroupHeaderCellView: NSTableCellView {
         let symbol = collapsed ? "chevron.right" : "chevron.down"
         chevron.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
             .withSymbolConfiguration(.init(pointSize: 10, weight: .semibold))
-        setAccessibilityLabel("\(title), \(StatusText.items(count)), \(collapsed ? "collapsed" : "expanded")")
+        setAccessibilityLabel(collapsed ? L10n.format("%@, %@, collapsed", title, StatusText.items(count))
+                                        : L10n.format("%@, %@, expanded", title, StatusText.items(count)))
         setAccessibilityValue(collapsed ? 0 : 1)
         needsDisplay = true
     }

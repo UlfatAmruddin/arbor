@@ -44,13 +44,15 @@ To keep the code easy to change:
 - Logic without UI goes in `Sources/ArborCore`, as small pure types with tests. UI code stays thin.
 - Search before adding a helper, and give each type one job.
 - No disk or network work on the main thread; cancel work that has gone stale.
-- User-visible strings go through `L10n`. Comments are one line and say why, not what.
+- User-visible strings go through `L10n` as whole sentences: `L10n.tr`, `L10n.format` with `%@` for the parts that vary, `L10n.plural(one:other:…)` for a sentence with a count, `L10n.plainFormat` for a generated file name. Never assemble a sentence from translated pieces or pick a word with `count == 1`; `StringCoverageTests` fails on a literal shown without `L10n`. Comments are one line and say why, not what.
 
 ## Adding a language
-A language is one data file. Copy `Resources/en.lproj/Localizable.strings` to `Resources/<language>.lproj/Localizable.strings` (for example `fr` or `pt-BR`) and translate the right-hand side of each line; keys are the English text and stay as they are. Nothing else changes: the build copies every `.lproj` and declares it, and a key you leave out shows in English.
+A language is one folder of data files. Copy `Resources/en.lproj/Localizable.strings` to `Resources/<language>.lproj/Localizable.strings` (for example `fr` or `pt-BR`) and translate the right-hand side of each line; keys are the English text and stay as they are. Nothing else changes: the build copies every `.lproj` and declares it, and a key you leave out shows in English.
+
+Sentences with a count ("3 items were copied") are in `Resources/en.lproj/Localizable.stringsdict`. Copy it to the same folder and, for each entry, replace the `one` and `other` forms with the forms your language uses: any of `zero`, `one`, `two`, `few`, `many` and `other` (the [CLDR plural rules](https://www.unicode.org/cldr/charts/latest/supplemental/language_plural_rules.html) say which; `other` is required, so Japanese needs only that). Every form is a whole sentence and keeps the count, `%lld`, even where your language would leave it out.
 
 - Keep the `%` parts: the same specifiers, of the same kind, as the English. `%1$@ … %2$@` numbers let you change the order. Write a percent sign as `%%`.
-- `scripts/extract-strings.sh --check` (also run by `scripts/test.sh`) rejects unknown keys, empty values, wrong specifiers and malformed files, and reports how many strings aren't translated yet.
+- `scripts/extract-strings.sh --check` (also run by `scripts/test.sh`) rejects unknown keys, empty values, wrong specifiers (in every plural form too) and malformed files, and reports how many strings aren't translated yet.
 - Right-to-left languages mirror the app on their own. To check your layout, use the pseudo-languages in `TESTING.md`.
 - Text that doesn't fit is a bug in Arbor rather than in the translation: report it.
 

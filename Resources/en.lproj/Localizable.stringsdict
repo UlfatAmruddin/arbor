@@ -1,0 +1,1292 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>%1$lld of these items are in %2$@. Any files in them that are only available online will be downloaded to this Mac before they're copied.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%1$lld of these items is in %2$@. Any files in it that are only available online will be downloaded to this Mac before they're copied.</string>
+			<key>other</key>
+			<string>%1$lld of these items are in %2$@. Any files in them that are only available online will be downloaded to this Mac before they're copied.</string>
+		</dict>
+	</dict>
+	<key>%1$lld of these items are in %2$@. Any files in them that are only available online will be downloaded to this Mac before they're moved.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%1$lld of these items is in %2$@. Any files in it that are only available online will be downloaded to this Mac before they're moved.</string>
+			<key>other</key>
+			<string>%1$lld of these items are in %2$@. Any files in them that are only available online will be downloaded to this Mac before they're moved.</string>
+		</dict>
+	</dict>
+	<key>%2$@ (%1$lld folders couldn't be read)</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%2$@ (%1$lld folder couldn't be read)</string>
+			<key>other</key>
+			<string>%2$@ (%1$lld folders couldn't be read)</string>
+		</dict>
+	</dict>
+	<key>%2$@ couldn't download %1$lld items.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%2$@ couldn't download %1$lld item.</string>
+			<key>other</key>
+			<string>%2$@ couldn't download %1$lld items.</string>
+		</dict>
+	</dict>
+	<key>%2$@ couldn't free up space for %1$lld items.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%2$@ couldn't free up space for %1$lld item.</string>
+			<key>other</key>
+			<string>%2$@ couldn't free up space for %1$lld items.</string>
+		</dict>
+	</dict>
+	<key>%lld File Conflicts</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld File Conflict</string>
+			<key>other</key>
+			<string>%lld File Conflicts</string>
+		</dict>
+	</dict>
+	<key>%lld Files</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld File</string>
+			<key>other</key>
+			<string>%lld Files</string>
+		</dict>
+	</dict>
+	<key>%lld Folders</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld Folder</string>
+			<key>other</key>
+			<string>%lld Folders</string>
+		</dict>
+	</dict>
+	<key>%lld archives couldn't be read</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld archive couldn't be read</string>
+			<key>other</key>
+			<string>%lld archives couldn't be read</string>
+		</dict>
+	</dict>
+	<key>%lld bytes</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld byte</string>
+			<key>other</key>
+			<string>%lld bytes</string>
+		</dict>
+	</dict>
+	<key>%lld copies don't match their originals.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld copy doesn't match its original.</string>
+			<key>other</key>
+			<string>%lld copies don't match their originals.</string>
+		</dict>
+	</dict>
+	<key>%lld copies weren't removed.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld copy wasn't removed.</string>
+			<key>other</key>
+			<string>%lld copies weren't removed.</string>
+		</dict>
+	</dict>
+	<key>%lld files added to Favorites.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld file added to Favorites.</string>
+			<key>other</key>
+			<string>%lld files added to Favorites.</string>
+		</dict>
+	</dict>
+	<key>%lld files' contents couldn't be checked</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld file's contents couldn't be checked</string>
+			<key>other</key>
+			<string>%lld files' contents couldn't be checked</string>
+		</dict>
+	</dict>
+	<key>%lld folders couldn't be opened (access denied)</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld folder couldn't be opened (access denied)</string>
+			<key>other</key>
+			<string>%lld folders couldn't be opened (access denied)</string>
+		</dict>
+	</dict>
+	<key>%lld folders couldn't be read</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld folder couldn't be read</string>
+			<key>other</key>
+			<string>%lld folders couldn't be read</string>
+		</dict>
+	</dict>
+	<key>%lld folders couldn't be read.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld folder couldn't be read.</string>
+			<key>other</key>
+			<string>%lld folders couldn't be read.</string>
+		</dict>
+	</dict>
+	<key>%lld images couldn't be rotated.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld image couldn't be rotated.</string>
+			<key>other</key>
+			<string>%lld images couldn't be rotated.</string>
+		</dict>
+	</dict>
+	<key>%lld items</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item</string>
+			<key>other</key>
+			<string>%lld items</string>
+		</dict>
+	</dict>
+	<key>%lld items can't be moved to the Trash.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item can't be moved to the Trash.</string>
+			<key>other</key>
+			<string>%lld items can't be moved to the Trash.</string>
+		</dict>
+	</dict>
+	<key>%lld items can't be restored.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item can't be restored.</string>
+			<key>other</key>
+			<string>%lld items can't be restored.</string>
+		</dict>
+	</dict>
+	<key>%lld items copied to “%@”.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item copied to “%@”.</string>
+			<key>other</key>
+			<string>%lld items copied to “%@”.</string>
+		</dict>
+	</dict>
+	<key>%lld items copied.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item copied.</string>
+			<key>other</key>
+			<string>%lld items copied.</string>
+		</dict>
+	</dict>
+	<key>%lld items couldn't be copied.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item couldn't be copied.</string>
+			<key>other</key>
+			<string>%lld items couldn't be copied.</string>
+		</dict>
+	</dict>
+	<key>%lld items couldn't be deleted.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item couldn't be deleted.</string>
+			<key>other</key>
+			<string>%lld items couldn't be deleted.</string>
+		</dict>
+	</dict>
+	<key>%lld items couldn't be moved.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item couldn't be moved.</string>
+			<key>other</key>
+			<string>%lld items couldn't be moved.</string>
+		</dict>
+	</dict>
+	<key>%lld items couldn't be received.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item couldn't be received.</string>
+			<key>other</key>
+			<string>%lld items couldn't be received.</string>
+		</dict>
+	</dict>
+	<key>%lld items cut. Paste in Arbor to move them. Other apps get a copy.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item cut. Paste in Arbor to move it. Other apps get a copy.</string>
+			<key>other</key>
+			<string>%lld items cut. Paste in Arbor to move them. Other apps get a copy.</string>
+		</dict>
+	</dict>
+	<key>%lld items in this archive couldn't be read. They aren't shown and won't be extracted.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item in this archive couldn't be read. It isn't shown and won't be extracted.</string>
+			<key>other</key>
+			<string>%lld items in this archive couldn't be read. They aren't shown and won't be extracted.</string>
+		</dict>
+	</dict>
+	<key>%lld items in this archive have names that point outside it. They aren't shown and won't be extracted.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item in this archive has a name that points outside it. It isn't shown and won't be extracted.</string>
+			<key>other</key>
+			<string>%lld items in this archive have names that point outside it. They aren't shown and won't be extracted.</string>
+		</dict>
+	</dict>
+	<key>%lld items in this archive have names too long to use. They aren't shown and won't be extracted.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item in this archive has a name too long to use. It isn't shown and won't be extracted.</string>
+			<key>other</key>
+			<string>%lld items in this archive have names too long to use. They aren't shown and won't be extracted.</string>
+		</dict>
+	</dict>
+	<key>%lld items moved to the Trash. Press ⌘Z to undo.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item moved to the Trash. Press ⌘Z to undo.</string>
+			<key>other</key>
+			<string>%lld items moved to the Trash. Press ⌘Z to undo.</string>
+		</dict>
+	</dict>
+	<key>%lld items moved to “%@”.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item moved to “%@”.</string>
+			<key>other</key>
+			<string>%lld items moved to “%@”.</string>
+		</dict>
+	</dict>
+	<key>%lld items now available on this device.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item now available on this device.</string>
+			<key>other</key>
+			<string>%lld items now available on this device.</string>
+		</dict>
+	</dict>
+	<key>%lld items permanently deleted.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item permanently deleted.</string>
+			<key>other</key>
+			<string>%lld items permanently deleted.</string>
+		</dict>
+	</dict>
+	<key>%lld items restored, %lld skipped.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item restored, %lld skipped.</string>
+			<key>other</key>
+			<string>%lld items restored, %lld skipped.</string>
+		</dict>
+	</dict>
+	<key>%lld items restored.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item restored.</string>
+			<key>other</key>
+			<string>%lld items restored.</string>
+		</dict>
+	</dict>
+	<key>%lld items selected</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item selected</string>
+			<key>other</key>
+			<string>%lld items selected</string>
+		</dict>
+	</dict>
+	<key>%lld items skipped.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item skipped.</string>
+			<key>other</key>
+			<string>%lld items skipped.</string>
+		</dict>
+	</dict>
+	<key>%lld items were copied successfully.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item was copied successfully.</string>
+			<key>other</key>
+			<string>%lld items were copied successfully.</string>
+		</dict>
+	</dict>
+	<key>%lld items were moved successfully.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item was moved successfully.</string>
+			<key>other</key>
+			<string>%lld items were moved successfully.</string>
+		</dict>
+	</dict>
+	<key>%lld items weren't extracted.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item wasn't extracted.</string>
+			<key>other</key>
+			<string>%lld items weren't extracted.</string>
+		</dict>
+	</dict>
+	<key>%lld items, %@ used</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld item, %@ used</string>
+			<key>other</key>
+			<string>%lld items, %@ used</string>
+		</dict>
+	</dict>
+	<key>%lld names have problems. Change the options to rename.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld name has a problem. Change the options to rename.</string>
+			<key>other</key>
+			<string>%lld names have problems. Change the options to rename.</string>
+		</dict>
+	</dict>
+	<key>%lld of these items are available only online, so they must be downloaded to this Mac before they're copied.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld of these items is available only online, so it must be downloaded to this Mac before it's copied.</string>
+			<key>other</key>
+			<string>%lld of these items are available only online, so they must be downloaded to this Mac before they're copied.</string>
+		</dict>
+	</dict>
+	<key>%lld of these items are available only online, so they must be downloaded to this Mac before they're moved.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld of these items is available only online, so it must be downloaded to this Mac before it's moved.</string>
+			<key>other</key>
+			<string>%lld of these items are available only online, so they must be downloaded to this Mac before they're moved.</string>
+		</dict>
+	</dict>
+	<key>%lld operations at a time</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld operation at a time</string>
+			<key>other</key>
+			<string>%lld operations at a time</string>
+		</dict>
+	</dict>
+	<key>%lld operations running</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld operation running</string>
+			<key>other</key>
+			<string>%lld operations running</string>
+		</dict>
+	</dict>
+	<key>%lld other entries in the file were ignored.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld other entry in the file was ignored.</string>
+			<key>other</key>
+			<string>%lld other entries in the file were ignored.</string>
+		</dict>
+	</dict>
+	<key>%lld saved entries couldn't be read. A copy of the file was kept as %@.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld saved entry couldn't be read. A copy of the file was kept as %@.</string>
+			<key>other</key>
+			<string>%lld saved entries couldn't be read. A copy of the file was kept as %@.</string>
+		</dict>
+	</dict>
+	<key>%lld selected</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld selected</string>
+			<key>other</key>
+			<string>%lld selected</string>
+		</dict>
+	</dict>
+	<key>%lld suggestions</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld suggestion</string>
+			<key>other</key>
+			<string>%lld suggestions</string>
+		</dict>
+	</dict>
+	<key>%lld tabs</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld tab</string>
+			<key>other</key>
+			<string>%lld tabs</string>
+		</dict>
+	</dict>
+	<key>%lld tabs have a location this version of Arbor can't open.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld tab has a location this version of Arbor can't open.</string>
+			<key>other</key>
+			<string>%lld tabs have a location this version of Arbor can't open.</string>
+		</dict>
+	</dict>
+	<key>%lld volumes weren't searched (%@)</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld volume wasn't searched (%@)</string>
+			<key>other</key>
+			<string>%lld volumes weren't searched (%@)</string>
+		</dict>
+	</dict>
+	<key>About %lld days</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>About %lld day</string>
+			<key>other</key>
+			<string>About %lld days</string>
+		</dict>
+	</dict>
+	<key>About %lld hours</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>About %lld hour</string>
+			<key>other</key>
+			<string>About %lld hours</string>
+		</dict>
+	</dict>
+	<key>About %lld minutes</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>About %lld minute</string>
+			<key>other</key>
+			<string>About %lld minutes</string>
+		</dict>
+	</dict>
+	<key>About %lld seconds</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>About %lld second</string>
+			<key>other</key>
+			<string>About %lld seconds</string>
+		</dict>
+	</dict>
+	<key>Asked %2$@ to free up space for %1$lld items…</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Asked %2$@ to free up space for %1$lld item…</string>
+			<key>other</key>
+			<string>Asked %2$@ to free up space for %1$lld items…</string>
+		</dict>
+	</dict>
+	<key>Contains: %lld files</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Contains: %lld file</string>
+			<key>other</key>
+			<string>Contains: %lld files</string>
+		</dict>
+	</dict>
+	<key>Copied %lld paths.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Copied %lld path.</string>
+			<key>other</key>
+			<string>Copied %lld paths.</string>
+		</dict>
+	</dict>
+	<key>Created %lld shortcuts in “%@”.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Created %lld shortcut in “%@”.</string>
+			<key>other</key>
+			<string>Created %lld shortcuts in “%@”.</string>
+		</dict>
+	</dict>
+	<key>Created %lld shortcuts on the Desktop.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Created %lld shortcut on the Desktop.</string>
+			<key>other</key>
+			<string>Created %lld shortcuts on the Desktop.</string>
+		</dict>
+	</dict>
+	<key>Do you want to reset all folders to their default view settings?
+
+Arbor forgets the saved views of %lld folders and any view applied to a folder type. Your files aren't changed.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Do you want to reset all folders to their default view settings?
+
+Arbor forgets the saved view of %lld folder and any view applied to a folder type. Your files aren't changed.</string>
+			<key>other</key>
+			<string>Do you want to reset all folders to their default view settings?
+
+Arbor forgets the saved views of %lld folders and any view applied to a folder type. Your files aren't changed.</string>
+		</dict>
+	</dict>
+	<key>Downloading %1$lld items from %2$@…</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Downloading %1$lld item from %2$@…</string>
+			<key>other</key>
+			<string>Downloading %1$lld items from %2$@…</string>
+		</dict>
+	</dict>
+	<key>Freed up space: %lld items now available when online.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Freed up space: %lld item now available when online.</string>
+			<key>other</key>
+			<string>Freed up space: %lld items now available when online.</string>
+		</dict>
+	</dict>
+	<key>Import %lld settings?</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Import %lld setting?</string>
+			<key>other</key>
+			<string>Import %lld settings?</string>
+		</dict>
+	</dict>
+	<key>Imported %lld settings.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Imported %lld setting.</string>
+			<key>other</key>
+			<string>Imported %lld settings.</string>
+		</dict>
+	</dict>
+	<key>Permanently delete %lld items?</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Permanently delete %lld item?</string>
+			<key>other</key>
+			<string>Permanently delete %lld items?</string>
+		</dict>
+	</dict>
+	<key>Rotated %lld items left. Press ⌘Z to undo.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Rotated %lld item left. Press ⌘Z to undo.</string>
+			<key>other</key>
+			<string>Rotated %lld items left. Press ⌘Z to undo.</string>
+		</dict>
+	</dict>
+	<key>Rotated %lld items right. Press ⌘Z to undo.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Rotated %lld item right. Press ⌘Z to undo.</string>
+			<key>other</key>
+			<string>Rotated %lld items right. Press ⌘Z to undo.</string>
+		</dict>
+	</dict>
+	<key>Saved “%2$@”. %1$lld tabs were left out: workspaces hold up to %3$d tabs and can't store very long addresses.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Saved “%2$@”. %1$lld tab was left out: workspaces hold up to %3$d tabs and can't store very long addresses.</string>
+			<key>other</key>
+			<string>Saved “%2$@”. %1$lld tabs were left out: workspaces hold up to %3$d tabs and can't store very long addresses.</string>
+		</dict>
+	</dict>
+	<key>Skip %lld files with the same date and size</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Skip %lld file with the same date and size</string>
+			<key>other</key>
+			<string>Skip %lld files with the same date and size</string>
+		</dict>
+	</dict>
+	<key>The Trash was emptied (%lld items).</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>The Trash was emptied (%lld item).</string>
+			<key>other</key>
+			<string>The Trash was emptied (%lld items).</string>
+		</dict>
+	</dict>
+	<key>This disk has %lld local snapshots; the newest is from %@.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>This disk has %lld local snapshot; the newest is from %@.</string>
+			<key>other</key>
+			<string>This disk has %lld local snapshots; the newest is from %@.</string>
+		</dict>
+	</dict>
+	<key>This search is too long. Use at most %lld words and operators.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>This search is too long. Use at most %lld word or operator.</string>
+			<key>other</key>
+			<string>This search is too long. Use at most %lld words and operators.</string>
+		</dict>
+	</dict>
+	<key>Verified: %lld files match their originals (size and SHA-256).</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Verified: %lld file matches its original (size and SHA-256).</string>
+			<key>other</key>
+			<string>Verified: %lld files match their originals (size and SHA-256).</string>
+		</dict>
+	</dict>
+	<key>Waiting: %lld operations at a time</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Waiting: %lld operation at a time</string>
+			<key>other</key>
+			<string>Waiting: %lld operations at a time</string>
+		</dict>
+	</dict>
+	<key>macOS denied access to %lld folders.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>macOS denied access to %lld folder.</string>
+			<key>other</key>
+			<string>macOS denied access to %lld folders.</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

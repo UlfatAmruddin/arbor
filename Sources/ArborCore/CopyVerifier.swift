@@ -43,10 +43,10 @@ public enum CopyVerifier {
         func walk(_ source: URL, _ copy: URL) {
             if cancelled() || skip.contains(source.standardizedFileURL.path) { return }
             var s = stat(), c = stat()
-            guard lstat(source.path, &s) == 0 else { return fail(source, "The original can't be read anymore.") }
-            guard lstat(copy.path, &c) == 0 else { return fail(source, "The copy is missing.") }
+            guard lstat(source.path, &s) == 0 else { return fail(source, L10n.tr("The original can't be read anymore.")) }
+            guard lstat(copy.path, &c) == 0 else { return fail(source, L10n.tr("The copy is missing.")) }
             let sType = s.st_mode & S_IFMT, cType = c.st_mode & S_IFMT
-            guard sType == cType else { return fail(source, "The copy is a different kind of item.") }
+            guard sType == cType else { return fail(source, L10n.tr("The copy is a different kind of item.")) }
             switch sType {
             case S_IFDIR:
                 let names = (try? FileManager.default.contentsOfDirectory(atPath: source.path)) ?? []
@@ -58,19 +58,19 @@ public enum CopyVerifier {
                 result.filesChecked += 1
                 if (try? FileManager.default.destinationOfSymbolicLink(atPath: source.path))
                     != (try? FileManager.default.destinationOfSymbolicLink(atPath: copy.path)) {
-                    fail(source, "The copied link points somewhere else.")
+                    fail(source, L10n.tr("The copied link points somewhere else."))
                 }
             case S_IFREG:
                 result.filesChecked += 1
                 guard s.st_size == c.st_size else {
-                    return fail(source, "The sizes differ (\(s.st_size) bytes, copy \(c.st_size) bytes).")
+                    return fail(source, L10n.format("The sizes differ (%@ bytes, copy %@ bytes).", PropertyFormat.grouped(Int64(s.st_size)), PropertyFormat.grouped(Int64(c.st_size))))
                 }
                 switch compare(source, copy, control: control, chunkSize: chunkSize, progress: { delta in
                     result.bytesChecked += delta
                     progress(result.bytesChecked)
                 }) {
                 case .same: break
-                case .different: fail(source, "The contents differ (SHA-256 doesn't match).")
+                case .different: fail(source, L10n.tr("The contents differ (SHA-256 doesn't match)."))
                 case .unreadable(let why): fail(source, why)
                 case .cancelled: result.cancelled = true
                 }
@@ -89,8 +89,8 @@ public enum CopyVerifier {
 
     public static func compare(_ a: URL, _ b: URL, control: TransferControl? = nil, chunkSize: Int = CopyVerifier.chunkSize,
                                progress: (Int64) -> Void = { _ in }) -> Comparison {
-        guard let ha = try? FileHandle(forReadingFrom: a) else { return .unreadable("The original couldn't be read.") }
-        guard let hb = try? FileHandle(forReadingFrom: b) else { try? ha.close(); return .unreadable("The copy couldn't be read.") }
+        guard let ha = try? FileHandle(forReadingFrom: a) else { return .unreadable(L10n.tr("The original couldn't be read.")) }
+        guard let hb = try? FileHandle(forReadingFrom: b) else { try? ha.close(); return .unreadable(L10n.tr("The copy couldn't be read.")) }
         defer { try? ha.close(); try? hb.close() }
         _ = fcntl(hb.fileDescriptor, F_NOCACHE, 1)
         var sa = SHA256(), sb = SHA256()
@@ -101,7 +101,7 @@ public enum CopyVerifier {
                 da = try ha.read(upToCount: chunkSize) ?? Data()
                 db = try hb.read(upToCount: chunkSize) ?? Data()
             } catch {
-                return .unreadable("Reading failed: \(error.localizedDescription)")
+                return .unreadable(L10n.format("Reading failed: %@", error.localizedDescription))
             }
             if da.isEmpty && db.isEmpty { break }
             sa.update(data: da)

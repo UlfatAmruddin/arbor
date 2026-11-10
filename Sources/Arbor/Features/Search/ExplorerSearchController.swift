@@ -409,7 +409,7 @@ final class SearchHistoryDropdown {
         headerRow.edgeInsets = NSEdgeInsets(top: 2, left: 10, bottom: 4, right: 10)
         list.addArrangedSubview(headerRow)
         for entry in entries {
-            let row = ChromeButton(symbol: "clock.arrow.circlepath", title: entry, tooltip: "Search for “\(entry)”")
+            let row = ChromeButton(symbol: "clock.arrow.circlepath", title: entry, tooltip: L10n.format("Search for “%@”", entry))
             row.symbolSize = 12
             row.symbolTint = Theme.secondaryText
             row.fixedHeight = 30

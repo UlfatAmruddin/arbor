@@ -85,7 +85,7 @@ extension OperationCenter {
                         window.reload()
                     }
                     if !refused.isEmpty {
-                        NSAlert.show(refused.count == 1 ? L10n.tr("1 copy wasn't removed.") : L10n.format("%@ copies weren't removed.", StatusText.number(refused.count)),
+                        NSAlert.show(L10n.plural(one: "%lld copy wasn't removed.", other: "%lld copies weren't removed.", refused.count),
                                      L10n.tr("They changed after they were copied, so undoing could lose work:\n") + refused.joined(separator: ", "),
                                      in: NSApp.keyWindow)
                     }

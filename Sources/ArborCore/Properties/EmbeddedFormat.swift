@@ -26,7 +26,7 @@ struct EmbeddedInspection {
 }
 
 enum EmbeddedFormats {
-    static let all: [any EmbeddedFormat] = [ImageEmbeddedFormat(), ID3Format(), FLACFormat(), M4AFormat()]
+    static let all: [any EmbeddedFormat] = [ImageEmbeddedFormat(), ID3Format(), FLACFormat(), M4AFormat(), PDFFormat(), OfficeFormat()]
 
     static func format(forType identifier: String) -> (any EmbeddedFormat)? {
         all.first { $0.typeIdentifiers.contains(identifier) }

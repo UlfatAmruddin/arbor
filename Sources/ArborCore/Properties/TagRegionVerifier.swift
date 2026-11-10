@@ -12,7 +12,7 @@ enum TagRegionVerifier {
               before.blocked == nil, after.blocked == nil,
               outsideMatches(before, original, after, written),
               keptItemsMatch(before, original, after, written, edited: Set(edits.keys)),
-              fieldsMatch(before, after, edits: edits) else { throw EmbeddedFailure.soundUnverified }
+              fieldsMatch(before.fields, after.fields, edits: edits) else { throw EmbeddedFailure.soundUnverified }
     }
 
     /// Before and after the region, every byte; and what can't move hasn't.
@@ -33,10 +33,10 @@ enum TagRegionVerifier {
     }
 
     /// The re-parse shows exactly the requested values and every other field as it was, by bytes: a lookalike isn't the value asked for.
-    private static func fieldsMatch(_ before: TagLayout, _ after: TagLayout, edits: [EmbeddedField: String]) -> Bool {
+    static func fieldsMatch(_ before: [EmbeddedField: EmbeddedReader.Raw], _ after: [EmbeddedField: EmbeddedReader.Raw], edits: [EmbeddedField: String]) -> Bool {
         EmbeddedField.allCases.allSatisfy { field in
-            let found = after.fields[field]
-            guard let wanted = edits[field] else { return found == before.fields[field] }
+            let found = after[field]
+            guard let wanted = edits[field] else { return found == before[field] }
             if wanted.isEmpty { return found == nil }
             return found?.canEdit == true && found.map { Array($0.text.utf8) == Array(wanted.utf8) } == true
         }

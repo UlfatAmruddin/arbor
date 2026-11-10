@@ -56,7 +56,7 @@ enum NetworkConnectFlow {
                                choice: @escaping (FailureChoice) -> Void) {
         let alert = NSAlert()
         alert.messageText = L10n.format("Arbor can't access %@", "\(address.shareRoot?.unc ?? address.unc)")
-        alert.informativeText = (error.errorDescription ?? "") + (error.isAuthentication ? "" : "\n\nCheck the name and that the computer is on, or ask the person who manages it.")
+        alert.informativeText = (error.errorDescription ?? "") + (error.isAuthentication ? "" : "\n\n" + L10n.tr("Check the name and that the computer is on, or ask the person who manages it."))
         alert.alertStyle = .warning
         alert.addButton(withTitle: L10n.tr("Retry"))
         if error.isAuthentication { alert.addButton(withTitle: L10n.tr("Use Different Credentials…")) }

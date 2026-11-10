@@ -7,11 +7,20 @@ import ArborCore
 ///     plain: NSTextField "Size on disk:"
 ///     clipped: NSButton "[Ŕéšţöŕé ðéƒáüļţš·····]" needs 182 has 150
 ///     l10naudit: 2 windows, 148 strings, 1 plain, 0 clipped
+///
+/// `plurals:/path` appends an item count in each plural category, to show which form the language picks:
+///
+///     plurals: 0=0 items | 1=1 item | 2=2 items | 3=3 items | 11=11 items | 100=100 items
 enum LocalizationAudit {
     static func register() {
         DebugScript.registerStep("l10naudit") { path, controller in
             AccessibilityDebug.append(report(controller), to: path)
             return 0.3
+        }
+        DebugScript.registerStep("plurals") { path, _ in
+            let counts = [0, 1, 2, 3, 11, 100].map { "\($0)=\(StatusText.items($0))" }
+            AccessibilityDebug.append("plurals: " + counts.joined(separator: " | ") + "\n", to: path)
+            return 0.1
         }
     }
 

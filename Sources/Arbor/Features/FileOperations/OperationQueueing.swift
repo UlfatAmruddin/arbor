@@ -192,8 +192,8 @@ final class JobPanelExtras: NSStackView {
         waitingLabel.isHidden = !waiting
         queueRow.isHidden = !waiting
         if waiting {
-            let place = queue.position(job).map { " · Number \($0) in the queue" } ?? ""
-            waitingLabel.stringValue = queue.reason(job) + place
+            let reason = queue.reason(job)
+            waitingLabel.stringValue = queue.position(job).map { L10n.format("%@ · Number %d in the queue", reason, $0) } ?? reason
             moveUp.isEnabled = queue.canMove(job, by: -1)
             moveDown.isEnabled = queue.canMove(job, by: 1)
             moveUp.alphaValue = moveUp.isEnabled ? 1 : 0.4

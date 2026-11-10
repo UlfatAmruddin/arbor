@@ -137,7 +137,7 @@ final class ExtractWizard: NSWindowController, NSTextFieldDelegate {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        panel.prompt = "Select Folder"
+        panel.prompt = L10n.tr("Select Folder")
         panel.message = L10n.tr("Select a destination")
         panel.directoryURL = archive.deletingLastPathComponent()
         panel.beginSheetModal(for: sheet) { [weak self] response in
@@ -150,11 +150,11 @@ final class ExtractWizard: NSWindowController, NSTextFieldDelegate {
     /// The destination typed or chosen, or an explanation of what's wrong with it.
     func destination() -> Result<URL, ArchiveJobs.Failure> {
         let text = (pathField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines) as NSString).expandingTildeInPath
-        guard text.hasPrefix("/") else { return .failure(.message("Type a full path, such as ~/Documents/Photos.")) }
+        guard text.hasPrefix("/") else { return .failure(.message(L10n.tr("Type a full path, such as ~/Documents/Photos."))) }
         let url = URL(fileURLWithPath: text).standardizedFileURL
         var isDirectory: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), !isDirectory.boolValue {
-            return .failure(.message("“\(url.lastPathComponent)” is a file. Choose a folder."))
+            return .failure(.message(L10n.format("“%@” is a file. Choose a folder.", url.lastPathComponent)))
         }
         return .success(url)
     }
@@ -173,7 +173,7 @@ final class ExtractWizard: NSWindowController, NSTextFieldDelegate {
         let browser = self.browser
         close(sheet: true)
         let request = ArchiveJobs.ExtractRequest(archive: archive, roots: [""], base: "", destination: destination,
-                                                 verb: "Extracting “\(archive.lastPathComponent)”")
+                                                 verb: L10n.format("Extracting “%@”", archive.lastPathComponent))
         ArchiveJobs.extract(request, window: browser?.window) { result in
             switch result {
             case .success(let outcome):

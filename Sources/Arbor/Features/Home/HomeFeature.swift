@@ -52,7 +52,7 @@ enum HomeFeature: ExplorerFeature {
                         ctx.window?.statusBar.setMessage(L10n.tr("Removed from Favorites. The file itself wasn't changed."))
                     } else {
                         HomeStore.addFavorites(urls)
-                        ctx.window?.statusBar.setMessage(urls.count == 1 ? L10n.tr("Added to Favorites.") : L10n.format("%@ files added to Favorites.", "\(urls.count)"))
+                        ctx.window?.statusBar.setMessage(urls.count == 1 ? L10n.tr("Added to Favorites.") : L10n.plural(one: "%lld file added to Favorites.", other: "%lld files added to Favorites.", urls.count))
                     }
                 }),
             ExplorerCommand(

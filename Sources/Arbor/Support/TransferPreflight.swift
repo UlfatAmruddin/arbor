@@ -14,7 +14,7 @@ enum TransferPreflight {
             alert.messageText = message
             alert.informativeText = info
             alert.addButton(withTitle: confirmTitle)
-            alert.addButton(withTitle: "Cancel")
+            alert.addButton(withTitle: L10n.tr("Cancel"))
             AlertSheets.present(alert, in: window) { completion($0 == .alertFirstButtonReturn) }
         }
     }

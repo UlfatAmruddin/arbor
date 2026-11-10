@@ -36,7 +36,7 @@ final class ArchiveMemberPromise: NSFilePromiseProvider, NSFilePromiseProviderDe
             let semaphore = DispatchSemaphore(value: 0)
             DispatchQueue.main.async {
                 let request = ArchiveJobs.ExtractRequest(archive: self.ref.archive, roots: [self.ref.innerPath], base: self.ref.parentPath,
-                                                         destination: folder, verb: "Extracting “\(self.ref.name)”")
+                                                         destination: folder, verb: L10n.format("Extracting “%@”", self.ref.name))
                 ArchiveJobs.extract(request, window: nil) { result in
                     if case .failure(let error) = result { box.failure = error }
                     semaphore.signal()

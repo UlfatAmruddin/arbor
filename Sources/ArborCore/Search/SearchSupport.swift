@@ -210,15 +210,15 @@ public struct SearchCoverage: Equatable, Sendable {
         if phase == .stopped { out.append(L10n.tr("the search was stopped before it finished")) }
         if let limit = resultLimit { out.append(L10n.format("only the first %@ results are shown", limit.formatted())) }
         if let leftOut = leftOutSummary { out.append(leftOut) }
-        if deniedCount > 0 { out.append(deniedCount == 1 ? L10n.tr("1 folder couldn't be opened (access denied)") : L10n.format("%@ folders couldn't be opened (access denied)", deniedCount.formatted())) }
-        if unreadableCount > 0 { out.append(unreadableCount == 1 ? L10n.tr("1 folder couldn't be read") : L10n.format("%@ folders couldn't be read", unreadableCount.formatted())) }
+        if deniedCount > 0 { out.append(L10n.plural(one: "%lld folder couldn't be opened (access denied)", other: "%lld folders couldn't be opened (access denied)", deniedCount)) }
+        if unreadableCount > 0 { out.append(L10n.plural(one: "%lld folder couldn't be read", other: "%lld folders couldn't be read", unreadableCount)) }
         if indexUnavailable { out.append(L10n.tr("this location isn't indexed, so contents of documents and authors weren't searched")) }
         if indexTimedOut { out.append(L10n.tr("the Spotlight index didn't respond in time")) }
         if indexOnly { out.append(locations.isEmpty ? L10n.tr("only places in the Spotlight index were searched") : L10n.tr("the Spotlight index may not cover every folder")) }
         if contentUnchecked > 0, !contentFromIndex {
-            out.append(contentUnchecked == 1 ? L10n.tr("1 file's contents couldn't be checked") : L10n.format("%@ files' contents couldn't be checked", contentUnchecked.formatted()))
+            out.append(L10n.plural(one: "%lld file's contents couldn't be checked", other: "%lld files' contents couldn't be checked", contentUnchecked))
         }
-        if archivesUnreadable > 0 { out.append(archivesUnreadable == 1 ? L10n.tr("1 archive couldn't be read") : L10n.format("%@ archives couldn't be read", archivesUnreadable.formatted())) }
+        if archivesUnreadable > 0 { out.append(L10n.plural(one: "%lld archive couldn't be read", other: "%lld archives couldn't be read", archivesUnreadable)) }
         if !skippedVolumes.isEmpty { out.append(L10n.format("other disks inside this folder weren't searched (%@)", skippedVolumes.joined(separator: ", "))) }
         if mayBeStale { out.append(L10n.tr("files changed faster than Arbor could follow; Refresh to update")) }
         return out
@@ -238,9 +238,9 @@ public struct SearchCoverage: Equatable, Sendable {
             let g = gaps
             if g.isEmpty { return L10n.tr("Search complete") }
             let lead = phase == .stopped ? L10n.tr("Search stopped") : L10n.tr("Search incomplete")
-            let rest = g.filter { $0 != "the search was stopped before it finished" }
+            let rest = g.filter { $0 != L10n.tr("the search was stopped before it finished") }
             guard let first = rest.first else { return lead }
-            return "\(lead): \(first)" + (rest.count > 1 ? " (+\(rest.count - 1) more)" : "")
+            return rest.count > 1 ? L10n.format("%@: %@ (+%@ more)", lead, first, StatusText.number(rest.count - 1)) : L10n.format("%@: %@", lead, first)
         }
     }
 
@@ -249,15 +249,15 @@ public struct SearchCoverage: Equatable, Sendable {
         var lines = locationLines
         lines += gaps.map { "• " + $0.prefix(1).uppercased() + $0.dropFirst() + "." }
         if !deniedFolders.isEmpty {
-            lines.append("Folders that couldn't be opened:")
+            lines.append(L10n.tr("Folders that couldn't be opened:"))
             lines += deniedFolders.map { "    " + $0 }
-            if deniedCount > deniedFolders.count { lines.append("    …and \(deniedCount - deniedFolders.count) more") }
+            if deniedCount > deniedFolders.count { lines.append("    " + L10n.format("…and %d more", deniedCount - deniedFolders.count)) }
         }
         if contentFromIndex {
-            lines.append("• Contents of documents Arbor can't read as plain text (PDF, Office, Pages…) come from the Spotlight index. Folders excluded in System Settings ▸ Spotlight aren't covered.")
+            lines.append("• " + L10n.tr("Contents of documents Arbor can't read as plain text (PDF, Office, Pages…) come from the Spotlight index. Folders excluded in System Settings ▸ Spotlight aren't covered."))
         }
         lines += locationNotes.map { "• " + $0 }
-        if lines.isEmpty { lines.append("Every folder in the search location was searched.") }
+        if lines.isEmpty { lines.append(L10n.tr("Every folder in the search location was searched.")) }
         return lines
     }
 
@@ -266,7 +266,7 @@ public struct SearchCoverage: Equatable, Sendable {
         guard let first = names.first else { return nil }
         if names.count == 1 { return L10n.format("“%@” wasn't searched", first) }
         let shown = names.prefix(3).joined(separator: ", ") + (names.count > 3 ? ", …" : "")
-        return L10n.format("%@ volumes weren't searched (%@)", names.count.formatted(), shown)
+        return L10n.plural(one: "%lld volume wasn't searched (%@)", other: "%lld volumes weren't searched (%@)", names.count, shown)
     }
 
     private var locationLines: [String] {

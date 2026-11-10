@@ -131,17 +131,13 @@ public struct MetadataInventory: OptionSet, Sendable, Hashable {
     /// "Finder tags, comments and an access list", for the dialog.
     public var description: String {
         var parts: [String] = []
-        if contains(.tags) { parts.append("Finder tags") }
-        if contains(.comment) { parts.append("comments") }
-        if contains(.resourceFork) { parts.append("a resource fork") }
-        if contains(.finderInfo) { parts.append("Finder information") }
-        if contains(.otherAttributes) { parts.append("extended attributes") }
-        if contains(.accessList) { parts.append("access-list permissions") }
-        switch parts.count {
-        case 0: return "properties"
-        case 1: return parts[0]
-        default: return parts.dropLast().joined(separator: ", ") + " and " + parts.last!
-        }
+        if contains(.tags) { parts.append(L10n.tr("Finder tags")) }
+        if contains(.comment) { parts.append(L10n.tr("comments")) }
+        if contains(.resourceFork) { parts.append(L10n.tr("a resource fork")) }
+        if contains(.finderInfo) { parts.append(L10n.tr("Finder information")) }
+        if contains(.otherAttributes) { parts.append(L10n.tr("extended attributes")) }
+        if contains(.accessList) { parts.append(L10n.tr("access-list permissions")) }
+        return parts.isEmpty ? L10n.tr("properties") : ListFormatter.localizedString(byJoining: parts)
     }
 }
 

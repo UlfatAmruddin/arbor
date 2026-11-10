@@ -190,7 +190,7 @@ final class OperationsWindow: NSObject, NSWindowDelegate {
         if headerBox.isHidden == many { changedLayout = true }
         headerBox.isHidden = !many
         let waiting = jobs.filter { TransferQueueController.shared.isWaiting($0) }.count
-        let summary = waiting == 0 ? L10n.format("%@ operations running", StatusText.number(jobs.count))
+        let summary = waiting == 0 ? L10n.plural(one: "%lld operation running", other: "%lld operations running", jobs.count)
             : L10n.format("%@ running, %@ waiting", StatusText.number(jobs.count - waiting), StatusText.number(waiting))   // queue controls (FE-127)
         header.stringValue = many ? summary : ""
         window.title = many ? summary : panels[ObjectIdentifier(jobs[0])]?.windowTitle ?? ""
@@ -374,7 +374,7 @@ final class JobPanelView: NSView {
             timeValue.stringValue = L10n.tr("Calculating…")
             itemsValue.stringValue = L10n.format("Calculating… (%@ found)", "\(StatusText.items(p.itemsDone))")
         } else {
-            timeValue.stringValue = paused ? "Paused" : (job.monitor.secondsRemaining.map(TransferRateEstimator.describeRemaining) ?? "Calculating…")
+            timeValue.stringValue = paused ? L10n.tr("Paused") : (job.monitor.secondsRemaining.map(TransferRateEstimator.describeRemaining) ?? L10n.tr("Calculating…"))
             if let items = p.itemsRemaining {
                 let bytes = p.bytesRemaining.map { " (\(StatusText.bytes($0)))" } ?? ""
                 itemsValue.stringValue = "\(items.formatted())\(bytes)"

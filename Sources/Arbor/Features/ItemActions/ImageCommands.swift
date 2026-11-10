@@ -44,7 +44,7 @@ enum ImageCommands {
             var problems: [String] = []
             for url in urls {
                 do { try ImageRotator.rotate(url, clockwise: clockwise); done.append(url) } catch {
-                    problems.append("• \(url.lastPathComponent): \(error.localizedDescription)")
+                    problems.append(L10n.format("• %@: %@", url.lastPathComponent, error.localizedDescription))
                 }
             }
             DispatchQueue.main.async { [weak window] in
@@ -52,9 +52,11 @@ enum ImageCommands {
                 IconProvider.shared.purgeFileIcons()
                 guard let window else { return }
                 window.refreshSelecting(urls: urls)
-                window.statusBar.setMessage(done.isEmpty ? nil : "Rotated \(StatusText.items(done.count)) \(clockwise ? "right" : "left"). Press ⌘Z to undo.")
+                window.statusBar.setMessage(done.isEmpty ? nil : clockwise
+                    ? L10n.plural(one: "Rotated %lld item right. Press ⌘Z to undo.", other: "Rotated %lld items right. Press ⌘Z to undo.", done.count)
+                    : L10n.plural(one: "Rotated %lld item left. Press ⌘Z to undo.", other: "Rotated %lld items left. Press ⌘Z to undo.", done.count))
                 if !problems.isEmpty {
-                    NSAlert.show(problems.count == 1 ? "1 image couldn't be rotated." : "\(problems.count) images couldn't be rotated.",
+                    NSAlert.show(L10n.plural(one: "%lld image couldn't be rotated.", other: "%lld images couldn't be rotated.", problems.count),
                                  problems.joined(separator: "\n"), in: window.window)
                 }
             }

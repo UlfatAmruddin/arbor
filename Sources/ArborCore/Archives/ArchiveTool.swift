@@ -226,7 +226,7 @@ public enum ArchiveTool {
             if message.localizedCaseInsensitiveContains("passphrase") || message.localizedCaseInsensitiveContains("encrypt") {
                 throw ArchiveError.encrypted
             }
-            if nothingReadable { throw ArchiveError.unreadable(message.isEmpty ? "The archive couldn't be read." : message) }
+            if nothingReadable { throw ArchiveError.unreadable(message.isEmpty ? L10n.tr("The archive couldn't be read.") : message) }
             return Listing(entries: parsed.entries, warning: message)
         }
         return Listing(entries: parsed.entries, warning: nil)
@@ -272,7 +272,7 @@ public enum ArchiveTool {
                 let message = ArchiveError.summarize(output.stderr)
                 if plan.hasEncrypted || message.localizedCaseInsensitiveContains("passphrase")
                     || message.localizedCaseInsensitiveContains("encrypt") { throw ArchiveError.encrypted }
-                throw ArchiveError.toolFailed(message.isEmpty ? "The archive couldn't be extracted." : message)
+                throw ArchiveError.toolFailed(message.isEmpty ? L10n.tr("The archive couldn't be extracted.") : message)
             }
         }
         for folder in plan.folders {
@@ -321,7 +321,7 @@ public enum ArchiveTool {
         }
         if output.wasCancelled { throw ArchiveError.cancelled }
         if output.status != 0 {
-            throw ArchiveError.toolFailed(ArchiveError.summarize(output.stderr).nilIfEmpty ?? "The archive couldn't be created.")
+            throw ArchiveError.toolFailed(ArchiveError.summarize(output.stderr).nilIfEmpty ?? L10n.tr("The archive couldn't be created."))
         }
     }
 }

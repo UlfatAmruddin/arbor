@@ -48,8 +48,7 @@ public struct PortableImportPlan: Sendable {
         var lines: [String] = []
         if !invalidTitles.isEmpty { lines.append(L10n.format("Not imported, the value in the file isn't allowed: %@.", Self.list(invalidTitles))) }
         if !unavailableTitles.isEmpty { lines.append(L10n.format("Not imported, not available on this Mac: %@.", Self.list(unavailableTitles))) }
-        if ignoredCount == 1 { lines.append(L10n.tr("1 other entry in the file was ignored.")) }
-        if ignoredCount > 1 { lines.append(L10n.format("%d other entries in the file were ignored.", ignoredCount)) }
+        if ignoredCount > 0 { lines.append(L10n.plural(one: "%lld other entry in the file was ignored.", other: "%lld other entries in the file were ignored.", ignoredCount)) }
         return lines.joined(separator: "\n")
     }
 

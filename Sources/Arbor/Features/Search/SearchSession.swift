@@ -242,7 +242,7 @@ final class SearchSession {
 
     private func startSpotlight(expression: SearchExpression, evaluator: SearchEvaluator) {
         guard let predicate = SpotlightPredicate.make(expression, matchContents: evaluator.matchContents) else {
-            if request.scope == nil { coverage.phase = .failed("this search can't be answered from the Spotlight index. Search a folder instead.") }
+            if request.scope == nil { coverage.phase = .failed(L10n.tr("this search can't be answered from the Spotlight index. Search a folder instead.")) }
             return
         }
         if let wholeMac, !wholeMac.runsSpotlight { return }

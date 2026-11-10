@@ -87,8 +87,8 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
         }
         let icon = fixedImage(NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: nil), 28)
         icon.contentTintColor = Theme.iconTint
-        let intro = SheetLabel.wrapping(isFile ? "Previous versions come from document versions saved by apps (File › Revert To) and from Time Machine backups."
-                                               : "Previous versions of folders come from Time Machine backups.", secondary: false)
+        let intro = SheetLabel.wrapping(isFile ? L10n.tr("Previous versions come from document versions saved by apps (File › Revert To) and from Time Machine backups.")
+                                               : L10n.tr("Previous versions of folders come from Time Machine backups."), secondary: false)
         add(hstack([icon, intro], spacing: 10))
         if isFile {
             add(SheetLabel.make(L10n.tr("File versions:")))
@@ -158,7 +158,7 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
             let image = fixedImage(IconProvider.shared.fileIcon(model.single?.url ?? v.url, size: 16), 16)
             let name = SheetLabel.make(v.name)
             name.widthAnchor.constraint(equalToConstant: 150).isActive = true
-            let date = SheetLabel.make(v.date.map { PropertyFormat.shortDate($0) } ?? "Unknown")
+            let date = SheetLabel.make(v.date.map { PropertyFormat.shortDate($0) } ?? L10n.tr("Unknown"))
             let row = SheetListRow([image, name, date], height: 22)
             row.onSelect = { [weak self] in self?.select(i) }
             rows.append(row)
@@ -175,8 +175,8 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
             }
             if let latest = status.localSnapshotDates.first {
                 let newest = PropertyFormat.shortDate(latest), count = status.localSnapshotDates.count
-                text += " " + (count == 1 ? L10n.format("This disk has 1 local snapshot; the newest is from %@.", newest)
-                    : L10n.format("This disk has %@ local snapshots; the newest is from %@.", PropertyFormat.grouped(count), newest))
+                text += " " + L10n.plural(one: "This disk has %lld local snapshot; the newest is from %@.",
+                                    other: "This disk has %lld local snapshots; the newest is from %@.", count, newest)
             }
             if status.isConfigured || !status.localSnapshotDates.isEmpty {
                 text += L10n.tr(" To see older copies of this item, browse it in Time Machine.")
@@ -238,7 +238,7 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
                 try DocumentVersions.restore(version, to: target)
                 PropertiesFeature.itemsChanged(old: target, new: target)
             } catch {
-                DispatchQueue.main.async { PropertiesWindowController.present(message: "The version couldn't be restored.", info: error.localizedDescription, window: self?.controller?.window) }
+                DispatchQueue.main.async { PropertiesWindowController.present(message: L10n.tr("The version couldn't be restored."), info: error.localizedDescription, window: self?.controller?.window) }
             }
         }
     }
@@ -387,7 +387,7 @@ final class CustomizeTab: PropertiesTab, PropertiesTabDebug {
         guard let url = model.single?.url, let pending = pendingIcon else { return nil }
         let ok = NSWorkspace.shared.setIcon(pending, forFile: url.path, options: [])
         pendingIcon = nil
-        return ok ? nil : "The folder icon couldn't be changed."
+        return ok ? nil : L10n.tr("The folder icon couldn't be changed.")
     }
 
     var debugText: String {
@@ -547,18 +547,18 @@ final class DriveGeneralTab: PropertiesTab, PropertiesTabDebug {
         guard let info else { typeValue.stringValue = L10n.tr("This drive's details couldn't be read."); return }
         if !model.extraChanges.contains("volumeName") { nameField.stringValue = info.name }
         nameField.isEditable = info.canRename && !info.isReadOnly
-        nameField.toolTip = nameField.isEditable ? nil : "This drive can't be renamed here."
+        nameField.toolTip = nameField.isEditable ? nil : L10n.tr("This drive can't be renamed here.")
         typeValue.stringValue = info.typeText
         fsValue.stringValue = info.fileSystem
         func put(_ n: Int64, _ a: NSTextField, _ b: NSTextField) {
-            a.stringValue = L10n.format("%@ bytes", "\(PropertyFormat.grouped(n))")
+            a.stringValue = L10n.plural(one: "%lld byte", other: "%lld bytes", Int(clamping: n))
             b.stringValue = PropertyFormat.adaptiveSize(n)
         }
         put(info.used, usedBytes, usedShort)
         put(info.free, freeBytes, freeShort)
         put(info.capacity, capBytes, capShort)
         purgeable.stringValue = info.purgeable > 0
-            ? "macOS can free up another \(PropertyFormat.adaptiveSize(info.purgeable)) of purgeable space (caches, snapshots, optimized iCloud files) when needed."
+            ? L10n.format("macOS can free up another %@ of purgeable space (caches, snapshots, optimized iCloud files) when needed.", PropertyFormat.adaptiveSize(info.purgeable))
             : ""
         purgeable.isHidden = info.purgeable == 0
         pie.fraction = info.usedFraction

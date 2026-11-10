@@ -76,7 +76,7 @@ enum NewItemCommands {
         guard let folder = ItemActionsFeature.writableFolder(ctx), let window = ctx.window else { NSSound.beep(); return }
         do {
             let url = try NewItemTemplates.create(template, in: folder)
-            Shortcuts.registerUndoCreate([url], name: "New \(template.menuTitle)")
+            Shortcuts.registerUndoCreate([url], name: L10n.format("New %@", template.menuTitle))
             if Location.folder(folder) == window.location {
                 window.refreshSelecting([url.lastPathComponent], rename: url.lastPathComponent)
             }
@@ -145,7 +145,7 @@ enum ShortcutCommands {
                         }
                     }
                     guard !created.isEmpty else { return }
-                    Shortcuts.registerUndoCreate(created, name: "Create Symbolic Link")
+                    Shortcuts.registerUndoCreate(created, name: L10n.tr("Create Symbolic Link"))
                     window.refreshSelecting(created.map(\.lastPathComponent))
                     window.statusBar.setMessage(L10n.format("Created %@ as symbolic links. Unlike shortcuts, they stop working if the original moves.", "\(StatusText.items(created.count))"))
                 }),

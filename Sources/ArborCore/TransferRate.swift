@@ -64,23 +64,26 @@ public struct TransferRateEstimator: Sendable {
         let s = max(0, seconds)
         if s < 60 {
             let rounded = max(5, Int((s / 5).rounded(.up)) * 5)
-            return rounded >= 60 ? L10n.tr("About 1 minute") : L10n.format("About %@ seconds", "\(rounded)")
+            return rounded >= 60 ? minutesText(1) : L10n.plural(one: "About %lld second", other: "About %lld seconds", rounded)
         }
         let minutes = Int((s / 60).rounded())
-        if minutes < 60 { return minutes == 1 ? L10n.tr("About 1 minute") : L10n.format("About %@ minutes", "\(minutes)") }
+        if minutes < 60 { return minutesText(minutes) }
         let hours = minutes / 60, rest = minutes % 60
         if hours < 48 {
             // Whole sentences, so translations never assemble "hour(s)" and "minute(s)" themselves.
             switch (hours == 1, rest) {
-            case (true, 0): return L10n.tr("About 1 hour")
-            case (false, 0): return L10n.format("About %@ hours", "\(hours)")
+            case (_, 0): return L10n.plural(one: "About %lld hour", other: "About %lld hours", hours)
             case (true, 1): return L10n.tr("About 1 hour and 1 minute")
             case (true, _): return L10n.format("About 1 hour and %@ minutes", "\(rest)")
             case (false, 1): return L10n.format("About %@ hours and 1 minute", "\(hours)")
             case (false, _): return L10n.format("About %@ hours and %@ minutes", "\(hours)", "\(rest)")
             }
         }
-        return L10n.format("About %@ days", "\(Int((Double(hours) / 24).rounded()))")
+        return L10n.plural(one: "About %lld day", other: "About %lld days", Int((Double(hours) / 24).rounded()))
+    }
+
+    private static func minutesText(_ minutes: Int) -> String {
+        L10n.plural(one: "About %lld minute", other: "About %lld minutes", minutes)
     }
 
     /// "45.2 MB/s", "812 KB/s": Explorer's adaptive 1024-based units with three significant digits.

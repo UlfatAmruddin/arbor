@@ -1587,6 +1587,64 @@ if want audio-metadata; then
   discard audio-metadata "$R"
 fi
 
+# FE-152: properties inside PDF and Office documents: written, the original kept as a prefix or entry for entry, refused when signed, undone. docs/features/properties.md.
+if want document-metadata; then
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/work" "$R/pkg/_rels" "$R/pkg/docProps" "$R/pkg/word"
+  pdf() {   # pdf <catalog extra> <path>: a one-page PDF with a classic table and an information dictionary.
+    perl -e 'binmode STDOUT; my ($extra) = @ARGV;
+      my @o = ("<</Type/Catalog/Pages 2 0 R$extra>>", "<</Type/Pages/Kids[3 0 R]/Count 1>>", "<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>",
+               "<</Title(Old title)/Author(Old author)/Producer(Checks)>>");
+      my $d = "%PDF-1.7\n"; my @off;
+      for my $i (0..$#o) { push @off, length $d; $d .= ($i + 1) . " 0 obj\n$o[$i]\nendobj\n"; }
+      my $x = length $d; $d .= "xref\n0 5\n0000000000 65535 f\r\n"; $d .= sprintf("%010d 00000 n\r\n", $_) for @off;
+      print $d . "trailer\n<</Size 5/Root 1 0 R/Info 4 0 R>>\nstartxref\n$x\n%%EOF\n"' "$1" > "$2"
+  }
+  pdf "" "$R/F/doc.pdf"; cp "$R/F/doc.pdf" "$R/work/doc.orig"
+  pdf "" "$R/F/kept.pdf"; cp "$R/F/kept.pdf" "$R/work/kept.orig"
+  pdf "/AcroForm<</Fields[]/SigFlags 3>>" "$R/F/signed.pdf"
+  printf '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>' > "$R/pkg/[Content_Types].xml"
+  printf '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>' > "$R/pkg/_rels/.rels"
+  printf '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Old title</dc:title><dc:creator>Old author</dc:creator><cp:lastModifiedBy>Checks</cp:lastModifiedBy></cp:coreProperties>' > "$R/pkg/docProps/core.xml"
+  printf '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Body</w:t></w:r></w:p></w:body></w:document>' > "$R/pkg/word/document.xml"
+  (cd "$R/pkg" && zip -q -X -nw "$R/F/report.docx" "[Content_Types].xml" _rels/.rels docProps/core.xml word/document.xml)
+  cp "$R/F/report.docx" "$R/work/report.orig"
+  mkdir -p "$R/pkg/_xmlsignatures"; printf '<a/>' > "$R/pkg/_xmlsignatures/sig1.xml"
+  (cd "$R/pkg" && zip -q -X -nw "$R/F/signed.docx" "[Content_Types].xml" _rels/.rels docProps/core.xml word/document.xml _xmlsignatures/sig1.xml)
+  S="wait:1;propertiesof:$R/F/doc.pdf;proptab:Details;wait:0.8;proplog:$R/pdf-before.txt;propsnapshot:$R/pdf.png"
+  S+=";propembedded:title=A PDF title 写;propembedded:author=Someone;propembedded:subject=About it;propembedded:keywords=one, two"
+  S+=";proplog:$R/pdf-pending.txt;propapply;wait:1.2;proplog:$R/pdf-saved.txt;propcancel"
+  S+=";wait:0.5;action:undo:;event;wait:1;propertiesof:$R/F/doc.pdf;proptab:Details;wait:0.8;proplog:$R/pdf-undone.txt;propcancel"
+  S+=";wait:0.5;propertiesof:$R/F/kept.pdf;proptab:Details;wait:0.8;propembedded:title=Kept;propapply;wait:1.2;propcancel"
+  S+=";wait:0.5;propertiesof:$R/F/report.docx;proptab:Details;wait:0.8;proplog:$R/docx-before.txt"
+  S+=";propembedded:title=A Word title;propembedded:category=Reports;propembedded:comment=Noted;propembedded:keywords=alpha"
+  S+=";propapply;wait:1.2;proplog:$R/docx-saved.txt;propsnapshot:$R/docx.png;propcancel"
+  S+=";wait:0.5;propertiesof:$R/F/signed.pdf;proptab:Details;wait:0.8;proplog:$R/signed-pdf.txt;propcancel"
+  S+=";wait:0.5;propertiesof:$R/F/signed.docx;proptab:Details;wait:0.8;proplog:$R/signed-docx.txt;quit"
+  run "$R" "$R/F" "$S"
+  contains "a PDF offers the document fields" "$R/pdf-before.txt" "embedded editable: title,subject,author,keywords"
+  contains "the PDF's old title is read" "$R/pdf-before.txt" "embedded title: Old title"
+  contains "pending PDF edits enable Apply" "$R/pdf-pending.txt" "apply enabled: true"
+  contains "the PDF title is written" "$R/pdf-saved.txt" "embedded title: A PDF title 写"
+  contains "the PDF keywords are written" "$R/pdf-saved.txt" "embedded keywords: one, two"
+  contains "undo reads the PDF's earlier title" "$R/pdf-undone.txt" "embedded title: Old title"
+  fact "undo restores the PDF byte for byte" cmp -s "$R/F/doc.pdf" "$R/work/doc.orig"
+  fact "the edited PDF begins with every original byte" sh -c "head -c \$(stat -f%z '$R/work/kept.orig') '$R/F/kept.pdf' | cmp -s - '$R/work/kept.orig'"
+  fact "the edited PDF grew" test "$(stat -f%z "$R/F/kept.pdf")" -gt "$(stat -f%z "$R/work/kept.orig")"
+  contains "an Office document offers its fields" "$R/docx-before.txt" "embedded editable: title,subject,author,keywords,category,comment"
+  contains "the Word title is written" "$R/docx-saved.txt" "embedded title: A Word title"
+  contains "the category is written" "$R/docx-saved.txt" "embedded category: Reports"
+  contains "the comment is written" "$R/docx-saved.txt" "embedded comment: Noted"
+  contains "the author is kept" "$R/docx-saved.txt" "embedded author: Old author"
+  fact "the package still tests sound" unzip -tqq "$R/F/report.docx"
+  fact "the document part is unchanged" sh -c "unzip -p '$R/F/report.docx' word/document.xml | cmp -s - '$R/pkg/word/document.xml'"
+  fact "other core properties are kept" sh -c "unzip -p '$R/F/report.docx' docProps/core.xml | grep -q '<cp:lastModifiedBy>Checks</cp:lastModifiedBy>'"
+  contains "a signed PDF is read-only with its reason" "$R/signed-pdf.txt" "is signed or has a signature field"
+  contains "and offers nothing" "$R/signed-pdf.txt" "embedded editable: "
+  contains "a signed Office document is read-only with its reason" "$R/signed-docx.txt" "is digitally signed"
+  contains "and shows its title read-only" "$R/signed-docx.txt" "embedded title: Old title"
+  discard document-metadata "$R"
+fi
+
 # FE-158: a downloaded file is described, and Properties never clears its quarantine flag.
 if want quarantine; then
   R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F"
@@ -1646,14 +1704,24 @@ fi
 # FE-204: the real app in both generated pseudo-languages, on a scratch copy that holds them; nothing is shipped.
 if want localization; then
   R=$(arbor_mktemp_dir); F="$R/F"; L="$R/app/Arbor.app"
-  mkdir -p "$F/Sub folder" "$F/שלום עולם" "$F/dst" "$F/dst2" "$R/app" "$R/names" "$R/bad/en.lproj" "$R/bad/xx.lproj"
+  mkdir -p "$F/Sub folder" "$F/שלום עולם" "$F/dst" "$F/dst2" "$R/app" "$R/names" "$R/bad/en.lproj" "$R/bad/xx.lproj" "$R/trash"
+  mkdir -p "$R/badplural/en.lproj" "$R/badplural/xx.lproj"; echo old > "$R/trash/old notes.txt"
   echo hi > "$F/report (1).txt"; echo incoming > "$F/notes.md"; echo existing > "$F/dst/notes.md"
   head -c 5000 /dev/zero > "$F/size.txt"; dd if=/dev/urandom of="$F/big.bin" bs=1048576 count=20 2>/dev/null
   mkdir -p "$R/clash/dst/Quarterly budget review"; echo hi > "$R/clash/Quarterly budget review"
   ditto "${APP%/Contents/MacOS/Arbor}" "$L"
   RES="$L/Contents/Resources"; EN="$RES/en.lproj/Localizable.strings"
+  plural_table() {   # plural_table <file> <key> <category=form>…: a Localizable.stringsdict with one counted sentence
+    local file="$1" key="$2"; shift 2
+    { printf '<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>%s</key><dict>' "$key"
+      printf '<key>NSStringLocalizedFormatKey</key><string>%%#@count@</string><key>count</key><dict>'
+      printf '<key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string><key>NSStringFormatValueTypeKey</key><string>lld</string>'
+      for form in "$@"; do printf '<key>%s</key><string>%s</string>' "${form%%=*}" "${form#*=}"; done
+      printf '</dict></dict></dict></plist>\n'; } > "$file"
+  }
   scripts/extract-strings.sh --pseudo "$RES" > "$R/generated.txt" 2>&1
-  mkdir -p "$RES/fr.lproj"; printf '"%%@ items" = "%%@ éléments";\n' > "$RES/fr.lproj/Localizable.strings"
+  mkdir -p "$RES/fr.lproj"; printf '"Search %%@" = "Rechercher dans %%@";\n' > "$RES/fr.lproj/Localizable.strings"
+  plural_table "$RES/fr.lproj/Localizable.stringsdict" "%lld items" "one=%lld élément" "other=%lld éléments"
   plutil -replace CFBundleLocalizations -json '["en","en-XA","ar-XB","fr"]' "$L/Contents/Info.plist"
   codesign --force --sign - --preserve-metadata=entitlements,requirements,flags,runtime "$L" 2>/dev/null
   contains "the accented table is generated and valid" "$R/generated.txt" "en-XA.lproj: 0 errors, 0 strings not translated yet"
@@ -1661,10 +1729,16 @@ if want localization; then
 
   # --check refuses a translation that would crash String(format:).
   cp "$EN" "$R/bad/en.lproj/Localizable.strings"
-  printf '"%%@ items" = "%%d items";\n' > "$R/bad/xx.lproj/Localizable.strings"
+  printf '"Search %%@" = "Search %%d";\n' > "$R/bad/xx.lproj/Localizable.strings"
   scripts/extract-strings.sh --check "$R/bad" > "$R/bad.txt" 2>&1; BAD=$?
   fact "a bad translation fails the check" test "$BAD" -ne 0
   contains "and says which key" "$R/bad.txt" "format specifiers differ for"
+  # The same for a plural form, which reaches String(format:) just the same.
+  cp "$EN" "$RES/en.lproj/Localizable.stringsdict" "$R/badplural/en.lproj/"; cp "$EN" "$R/badplural/xx.lproj/"
+  plural_table "$R/badplural/xx.lproj/Localizable.stringsdict" "%lld items" "one=%lld item" "other=%d items"
+  scripts/extract-strings.sh --check "$R/badplural" > "$R/badplural.txt" 2>&1; BAD=$?
+  fact "a bad plural form fails the check" test "$BAD" -ne 0
+  contains "and says which form" "$R/badplural.txt" 'format specifiers differ in the "other" form'
 
   l10nrun() {   # l10nrun <start folder> <journal> <language> <script> [app arguments…]
     local start="$1" journal="$2" language="$3" script="$4"; shift 4
@@ -1686,6 +1760,7 @@ if want localization; then
     l10nrun "$F" "$O/j6" "$LANG_ID" "wait:1.2;opstart:copy:$F/big.bin:$F/dst2;wait:1;terminate"
     l10nrun "$F" "$O/j6" "$LANG_ID" "wait:1.5${S1}/recovery-audit.txt;quit"
     rm -f "$F/dst2/big.bin"
+    l10nrun "$F" "$O/j13" "$LANG_ID" "wait:1.2;windowsize:1180,740;plurals:$O/plurals.txt;location:trash;wait:1${S1}/trash-audit.txt;snapshot:$O/trash.png;quit"
     for f in "$O"/*-audit.txt; do contains "$LANG_ID $(basename "$f" -audit.txt): nothing plain or clipped" "$f" " 0 plain, 0 clipped"; done
     l10nrun "$F" "$O/j7" "$LANG_ID" "wait:1;menukey:cmd+a;event;wait:0.4;log:$O/keys.txt;menu:main:File:$O/menus.txt;menu:main:Edit:$O/menus.txt;menu:main:View:$O/menus.txt;menu:main:Go:$O/menus.txt;quit"
     shortcuts "$O/menus.txt" > "$O/shortcuts.txt"
@@ -1705,11 +1780,15 @@ if want localization; then
   fact "the accented language keeps every shortcut" cmp -s "$R/en/shortcuts.txt" "$R/en-XA/shortcuts.txt"
   fact "the right-to-left language keeps every shortcut" cmp -s "$R/en/shortcuts.txt" "$R/ar-XB/shortcuts.txt"
 
+  # ar-XB has Arabic's six plural categories, en-XA English's two; each pseudo form is marked with its category.
+  for form in "0=⓪" "1=①" "2=②" "3=③" "11=④" "100=⑤"; do contains "ar-XB picks the plural form for ${form%%=*}" "$R/ar-XB/plurals.txt" "$form"; done
+  for form in "0=⑤" "1=①" "2=⑤" "11=⑤"; do contains "en-XA picks the plural form for ${form%%=*}" "$R/en-XA/plurals.txt" "$form"; done
+
   contains "the accented language is left to right" "$R/en-XA/main.txt" "rtl=false language=en-XA"
   contains "the right-to-left language lays out right to left" "$R/ar-XB/main.txt" "rtl=true language=ar-XB"
 
   l10nrun "$F" "$R/j9" fr "wait:1;location:home;wait:0.8;log:$R/fr.txt;quit"
-  contains "a translated key shows the translation" "$R/fr.txt" "éléments"
+  contains "a translated plural shows the translation" "$R/fr.txt" "éléments"
   contains "a missing key shows English" "$R/fr.txt" "window title: Home"
 
   # Numbers and paths follow the locale and direction, whatever the language.

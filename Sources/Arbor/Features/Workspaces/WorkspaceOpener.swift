@@ -77,10 +77,6 @@ final class WorkspaceOpener {
     }
 
     private static func unreadableLine(_ count: Int) -> String? {
-        switch count {
-        case 0: return nil
-        case 1: return L10n.tr("1 tab has a location this version of Arbor can't open.")
-        default: return L10n.format("%d tabs have a location this version of Arbor can't open.", count)
-        }
+        count == 0 ? nil : L10n.plural(one: "%lld tab has a location this version of Arbor can't open.", other: "%lld tabs have a location this version of Arbor can't open.", count)
     }
 }

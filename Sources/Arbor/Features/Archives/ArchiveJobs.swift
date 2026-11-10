@@ -95,9 +95,10 @@ enum ArchiveJobs {
                 switch policy.check(archiveSize: archiveSize, totalBytes: plan.totalBytes, freeSpace: free) {
                 case .ok: break
                 case .tooLarge(let total):
-                    throw Failure.expansion("“\(request.archive.lastPathComponent)” would expand to \(StatusText.bytes(total)). Arbor doesn't extract archives that large.")
+                    throw Failure.expansion(L10n.format("“%@” would expand to %@. Arbor doesn't extract archives that large.", request.archive.lastPathComponent, StatusText.bytes(total)))
                 case .noSpace(let needed, let available):
-                    throw Failure.expansion("There isn't enough space to extract “\(request.archive.lastPathComponent)”. It needs \(StatusText.bytes(needed)), and \(StatusText.bytes(available)) is available.")
+                    throw Failure.expansion(L10n.format("There isn't enough space to extract “%@”. It needs %@, and %@ is available.", request.archive.lastPathComponent,
+                                                        StatusText.bytes(needed), StatusText.bytes(available)))
                 case .suspicious(let ratio):
                     // Asked in a sheet on the window; this worker waits for the answer.
                     let answered = DispatchSemaphore(value: 0)
@@ -142,14 +143,14 @@ enum ArchiveJobs {
                     try ArchiveTool.extract(request.archive, plan: plan, into: staging, process: process,
                                            rewritesBackslashes: rewritesBackslashes) { counter.increment() }
                 } catch ArchiveError.cancelled where overrun.value > 0 {
-                    throw Failure.expansion("Extracting “\(request.archive.lastPathComponent)” was stopped because it was writing far more data than the archive declares, or the disk was almost full. Archives like this are usually built to fill the disk (a “zip bomb”).")
+                    throw Failure.expansion(L10n.format("Extracting “%@” was stopped because it was writing far more data than the archive declares, or the disk was almost full. Archives like this are usually built to fill the disk (a “zip bomb”).", request.archive.lastPathComponent))
                 }
                 watchdog.cancel()
 
                 let verified = ExtractionVerifier.verify(staging: staging, base: plan.base,
                                                          quarantine: ExtractionVerifier.quarantine(of: request.archive))
                 if verified.bytes > limit {
-                    throw Failure.expansion("“\(request.archive.lastPathComponent)” contains more data than it declares, so nothing was extracted.")
+                    throw Failure.expansion(L10n.format("“%@” contains more data than it declares, so nothing was extracted.", request.archive.lastPathComponent))
                 }
 
                 let sources = placementSources(request, staging: staging)
@@ -240,7 +241,7 @@ enum ArchiveJobs {
 
     static func rejectionText(_ rejected: [(entry: ArchiveEntry, reason: ExtractionPlanner.Rejection)], header: String) -> String {
         let lines = rejected.prefix(8).map {
-            "• \($0.entry.rawPath.isEmpty ? ExtractionPlanner.unreadableName : $0.entry.rawPath): \($0.reason.text)"
+            L10n.format("• %@: %@", $0.entry.rawPath.isEmpty ? ExtractionPlanner.unreadableName : $0.entry.rawPath, $0.reason.text)
         }
         let more = rejected.count > 8 ? "\n" + L10n.format("…and %d more.", rejected.count - 8) : ""
         return header + "\n\n" + lines.joined(separator: "\n") + more
@@ -253,7 +254,7 @@ enum ArchiveJobs {
         guard !rejected.isEmpty else { return }
         let count = rejected.count
         let header = count == 1 ? L10n.tr("This item was left out for your safety:") : L10n.tr("These items were left out for your safety:")
-        let title = count == 1 ? L10n.tr("1 item wasn't extracted.") : L10n.format("%d items weren't extracted.", count)
+        let title = L10n.plural(one: "%lld item wasn't extracted.", other: "%lld items weren't extracted.", count)
         ArchiveFeature.alert(title, rejectionText(rejected, header: header), in: window)
     }
 
@@ -282,7 +283,7 @@ enum ArchiveJobs {
         OperationCenter.shared.begin(activity)
         weak let weakController = controller
         DispatchQueue.global(qos: .userInitiated).async {
-            var outcome: Result<URL, Error> = .failure(ArchiveError.toolFailed("The archive couldn't be saved in the folder."))
+            var outcome: Result<URL, Error> = .failure(ArchiveError.toolFailed(L10n.tr("The archive couldn't be saved in the folder.")))
             do {
                 let total = max(countFiles(sources, limit: 200_000), 1)
                 let counter = Counter()
@@ -314,7 +315,7 @@ enum ArchiveJobs {
                 OperationCenter.shared.end(activity)
                 switch outcome {
                 case .success(let url):
-                    registerUndoCreate(url, action: "Compress")
+                    registerUndoCreate(url, action: L10n.tr("Compress"))
                     guard let c = weakController else { return }
                     if Location.folder(folder) == c.location {
                         c.refreshSelecting([url.lastPathComponent], rename: url.lastPathComponent)
@@ -352,7 +353,7 @@ enum ArchiveJobs {
             ArchiveFeature.alert(L10n.format("Couldn't create “%@” in “%@”.", "\(name)", "\(displayName(of: folder))"), error.localizedDescription, in: controller.window)
             return
         }
-        registerUndoCreate(url, action: "New")
+        registerUndoCreate(url, action: L10n.tr("New"))
         if Location.folder(folder) == controller.location { controller.refreshSelecting([name], rename: name) }
     }
 
@@ -399,7 +400,7 @@ enum ArchiveJobs {
                     return
                 }
                 ArchiveFeature.alert(L10n.format("“%@” couldn't be mounted.", "\(image.lastPathComponent)"),
-                             (reason.isEmpty ? "The disk image may be damaged or in an unsupported format." : reason.prefix(1).uppercased() + reason.dropFirst() + ".")
+                             (reason.isEmpty ? L10n.tr("The disk image may be damaged or in an unsupported format.") : reason.prefix(1).uppercased() + reason.dropFirst() + ".")
                                 + L10n.tr("\n\nYou can also open it with DiskImageMounter from Finder."), in: weakController?.window)
             }
         }

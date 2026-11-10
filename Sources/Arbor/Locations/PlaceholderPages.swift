@@ -265,12 +265,12 @@ final class ThisMacProvider: LocationProvider {
         return urls.map { url in
             let v = try? url.resourceValues(forKeys: Set(keys))
             let kind: String
-            if v?.volumeIsLocal == false { kind = "Network drive" }
-            else if v?.volumeIsInternal == false || v?.volumeIsRemovable == true { kind = "External disk" }
-            else { kind = "Local disk" }
-            let free = v?.volumeAvailableCapacity.map { " · \(StatusText.bytes(Int64($0))) free" } ?? ""
+            if v?.volumeIsLocal == false { kind = L10n.tr("Network drive") }
+            else if v?.volumeIsInternal == false || v?.volumeIsRemovable == true { kind = L10n.tr("External disk") }
+            else { kind = L10n.tr("Local disk") }
+            let type = v?.volumeAvailableCapacity.map { L10n.format("%@ · %@ free", kind, StatusText.bytes(Int64($0))) } ?? kind
             return FileItem(url: url.standardizedFileURL, name: v?.volumeLocalizedName ?? displayName(of: url), isFolder: true,
-                            size: v?.volumeTotalCapacity.map(Int64.init), typeDescription: kind + free)
+                            size: v?.volumeTotalCapacity.map(Int64.init), typeDescription: type)
         }
     }
 }

@@ -79,7 +79,7 @@ final class SidePaneContainer: NSView {
         ])
         provider = pane
         currentID = id
-        setAccessibilityLabel(descriptor.title)
+        setAccessibilityLabel(L10n.tr(descriptor.title))
         pane.update(selection: selection, location: location)
         return true
     }
@@ -154,7 +154,7 @@ final class DetailsPane: NSView, SidePaneProvider {
             info.stringValue = lines.joined(separator: "\n")
         } else if selection.count > 1 {
             icon.image = IconProvider.shared.folderIcon(size: 64)
-            name.stringValue = L10n.format("%@ items selected", "\(selection.count)")
+            name.stringValue = L10n.plural(one: "%lld item selected", other: "%lld items selected", selection.count)
             let sizes = selection.compactMap(\.size)
             info.stringValue = sizes.count == selection.count ? L10n.format("Total size: %@", "\(StatusText.bytes(sizes.saturatingSum()))") : ""
         } else if let location {

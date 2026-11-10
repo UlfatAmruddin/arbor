@@ -806,5 +806,5 @@ final class GalleryDateRail: NSView {
 
     override func isAccessibilityElement() -> Bool { true }
     override func accessibilityRole() -> NSAccessibility.Role? { .scrollBar }
-    override func accessibilityLabel() -> String? { "Timeline" }
+    override func accessibilityLabel() -> String? { L10n.tr("Timeline") }
 }

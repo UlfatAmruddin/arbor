@@ -124,7 +124,7 @@ enum SettingsTransferFlow {
             guard response == .alertFirstButtonReturn else { return }
             SettingsTransferStore.apply(plan)
             let count = plan.changes.count
-            browser?.statusBar.setMessage(count == 1 ? L10n.tr("Imported 1 setting.") : L10n.format("Imported %d settings.", count))
+            browser?.statusBar.setMessage(L10n.plural(one: "Imported %lld setting.", other: "Imported %lld settings.", count))
         }
     }
 }

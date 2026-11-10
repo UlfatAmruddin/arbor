@@ -50,7 +50,7 @@ public struct PromiseFailure: Sendable, Equatable {
             failure.name.map { L10n.format("• %@: %@", $0, failure.explanation) } ?? "• \(failure.explanation)"
         }
         if failures.count > shown { lines.append(L10n.format("…and %d more.", failures.count - shown)) }
-        return (L10n.format("%d items couldn't be received.", failures.count), lines.joined(separator: "\n"))
+        return (L10n.plural(one: "%lld item couldn't be received.", other: "%lld items couldn't be received.", failures.count), lines.joined(separator: "\n"))
     }
 }
 

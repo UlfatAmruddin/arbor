@@ -215,7 +215,8 @@ final class PermissionsEditorSheet: NSObject {
             let verdict = SheetLabel.make(entry.allow ? L10n.tr("Allow") : L10n.tr("Deny"), bold: true)
             verdict.textColor = entry.allow ? SheetColors.success : SheetColors.failure
             verdict.widthAnchor.constraint(equalToConstant: 38).isActive = true
-            let text = SheetLabel.make("\(entry.name)\(entry.isInherited ? " (inherited)" : ""): \(entry.levelTitle(isFolder: isFolder))")
+            let text = SheetLabel.make(entry.isInherited ? L10n.format("%@ (inherited): %@", entry.name, entry.levelTitle(isFolder: isFolder))
+                                                     : L10n.format("%@: %@", entry.name, entry.levelTitle(isFolder: isFolder)))
             text.toolTip = text.stringValue
             let row = SheetListRow([image, verdict, text], height: 22)
             row.isSelected = i == selected
@@ -239,7 +240,7 @@ final class PermissionsEditorSheet: NSObject {
         removeButton.isEnabled = canEdit && !busy && selected.map { entries.indices.contains($0) && !entries[$0].isInherited } == true
         groupPopup.isEnabled = canEdit && !busy && groups.count > 1
         undoButton.isEnabled = canEdit && !busy && lastChange != nil
-        undoButton.toolTip = lastChange.map { "Undo: \($0.summary)" }
+        undoButton.toolTip = lastChange.map { L10n.format("Undo: %@", $0.summary) }
         if !canEdit {
             status.stringValue = L10n.tr("Only the owner of this item or an administrator can change its permissions, so this list is read-only.")
         }
@@ -284,17 +285,15 @@ final class PermissionsEditorSheet: NSObject {
         let level = ACLPermissionLevel.allCases[max(0, levelPopup.indexOfSelectedItem)]
         let rule = ACLRule(principal: principal, allow: verdictPopup.indexOfSelectedItem == 0, level: level,
                            inherit: isFolder && inherit.state == .on)
-        var summary = "Add: \(rule.summary)."
-        if !rule.allow {
-            summary += L10n.tr(" Deny entries win over Allow entries, also for you. You keep the right to see and change these permissions.")
-        }
+        let summary = rule.allow ? L10n.format("Add: %@.", rule.summary)
+            : L10n.format("Add: %@. Deny entries win over Allow entries, also for you. You keep the right to see and change these permissions.", rule.summary)
         stage(.add(rule), summary: summary)
     }
 
     private func stageRemove() {
         guard let i = selected, entries.indices.contains(i) else { return }
         let e = entries[i]
-        stage(.remove(i, e.name), summary: L10n.format("Remove: %@ %@ (%@): %@.", "\(e.allow ? "Allow" : "Deny")", "\(e.name)", "\(e.kind == .group ? "group" : "user")", "\(e.levelTitle(isFolder: isFolder))"))
+        stage(.remove(i, e.name), summary: L10n.format("Remove: %@.", ACLWording.rule(allow: e.allow, name: e.name, isGroup: e.kind == .group, level: e.levelTitle(isFolder: isFolder))))
     }
 
     @objc private func groupChosen() {

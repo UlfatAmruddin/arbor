@@ -87,9 +87,9 @@ public struct PermissionBits: Equatable, Sendable {
         case (false, false): text = L10n.tr("No Access")
         }
         if isFolder {
-            if !execute, read || write { text += " (can't open)" }
+            if !execute, read || write { text = L10n.format("%@ (can't open)", text) }
         } else if execute {
-            text += ", Execute"
+            text = L10n.format("%@, Execute", text)
         }
         return text
     }
@@ -163,12 +163,12 @@ public struct ACLEntry: Equatable, Sendable {
     public var isInherited: Bool { flags.contains("inherited") }
 
     public static let permissionLabels: [String: String] = [
-        "read": "Read data / List folder", "write": "Write data / Create files", "execute": "Execute / Traverse folder",
-        "delete": "Delete", "append": "Append data / Create folders", "delete_child": "Delete subfolders and files",
-        "readattr": "Read attributes", "writeattr": "Write attributes", "readextattr": "Read extended attributes",
-        "writeextattr": "Write extended attributes", "readsecurity": "Read permissions", "writesecurity": "Change permissions",
-        "chown": "Take ownership", "list": "List folder", "search": "Traverse folder", "add_file": "Create files",
-        "add_subdirectory": "Create folders",
+        "read": L10n.tr("Read data / List folder"), "write": L10n.tr("Write data / Create files"), "execute": L10n.tr("Execute / Traverse folder"),
+        "delete": L10n.tr("Delete"), "append": L10n.tr("Append data / Create folders"), "delete_child": L10n.tr("Delete subfolders and files"),
+        "readattr": L10n.tr("Read attributes"), "writeattr": L10n.tr("Write attributes"), "readextattr": L10n.tr("Read extended attributes"),
+        "writeextattr": L10n.tr("Write extended attributes"), "readsecurity": L10n.tr("Read permissions"), "writesecurity": L10n.tr("Change permissions"),
+        "chown": L10n.tr("Take ownership"), "list": L10n.tr("List folder"), "search": L10n.tr("Traverse folder"), "add_file": L10n.tr("Create files"),
+        "add_subdirectory": L10n.tr("Create folders"),
     ]
 
     public var permissionSummary: String {

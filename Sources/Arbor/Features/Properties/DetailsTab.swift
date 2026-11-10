@@ -94,9 +94,10 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
             let whereFrom = FinderMetadata.whereFroms(of: url)
             if !whereFrom.isEmpty { rows.append(MetadataRow(group: L10n.tr("Origin"), label: L10n.tr("Where from"), value: whereFrom.joined(separator: "; "))) }
             if item.isPackage, let bundle = BundleInfo.read(url) {
-                let app: [(String, String?)] = [("Product name", bundle.name), ("Product version", bundle.version), ("Build", bundle.build),
-                                                ("Bundle identifier", bundle.identifier), ("Minimum macOS", bundle.minimumSystem),
-                                                ("Architecture", bundle.architectureText), ("Copyright", bundle.copyright)]
+                let app: [(String, String?)] = [(L10n.tr("Product name"), bundle.name), (L10n.tr("Product version"), bundle.version),
+                                                (L10n.tr("Build"), bundle.build), (L10n.tr("Bundle identifier"), bundle.identifier),
+                                                (L10n.tr("Minimum macOS"), bundle.minimumSystem), (L10n.tr("Architecture"), bundle.architectureText),
+                                                (L10n.tr("Copyright"), bundle.copyright)]
                 rows += app.compactMap { label, value in value.map { MetadataRow(group: L10n.tr("Application"), label: label, value: $0) } }
             }
             rows += Self.fileRows(url: url, item: item)
@@ -115,10 +116,10 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
         let v = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey, .localizedTypeDescriptionKey])
         var attributes: [String] = []
         if let flags = try? FileFlags.read(url) {
-            if flags.isLocked { attributes.append("Locked") }
-            if flags.isHidden || url.lastPathComponent.hasPrefix(".") { attributes.append("Hidden") }
+            if flags.isLocked { attributes.append(L10n.tr("Locked")) }
+            if flags.isHidden || url.lastPathComponent.hasPrefix(".") { attributes.append(L10n.tr("Hidden")) }
         }
-        if FinderMetadata.isQuarantined(url) { attributes.append("Quarantined") }
+        if FinderMetadata.isQuarantined(url) { attributes.append(L10n.tr("Quarantined")) }
         let security = try? ItemSecurity.read(url)
         var rows: [MetadataRow] = [
             MetadataRow(group: L10n.tr("File"), label: L10n.tr("Name"), value: url.lastPathComponent),
@@ -216,7 +217,7 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
             value.toolTip = row.value
             addRow(row.label, value)
         }
-        if !rows.contains(where: { !["File", "Application", "Origin"].contains($0.group) }) {
+        if !rows.contains(where: { ![L10n.tr("File"), L10n.tr("Application"), L10n.tr("Origin")].contains($0.group) }) {
             let none = SheetLabel.wrapping(L10n.tr("This file has no embedded properties that Spotlight or ImageIO can read."), small: true)
             let r = NSView()
             r.translatesAutoresizingMaskIntoConstraints = false

@@ -25,7 +25,7 @@ public struct VolumeCapabilityReport: Equatable, Sendable {
     public var readOnlyExplanation: String? {
         guard format.isReadOnly else { return nil }
         if format.kind == .ntfs {
-            return "macOS can read NTFS drives but can't write to them, so files on this drive can't be changed, renamed or deleted here. To change them, copy them to another drive, or reformat the drive as exFAT (which erases it)."
+            return L10n.tr("macOS can read NTFS drives but can't write to them, so files on this drive can't be changed, renamed or deleted here. To change them, copy them to another drive, or reformat the drive as exFAT (which erases it).")
         }
         if format.isNetwork { return L10n.tr("The server shares this folder read-only, or your account can only read it.") }
         return L10n.tr("This drive is mounted read-only. Files can be opened and copied, but not changed.")
@@ -34,21 +34,21 @@ public struct VolumeCapabilityReport: Equatable, Sendable {
     public var rows: [(label: String, value: String)] {
         func yesNo(_ value: Bool?) -> String { value.map { $0 ? L10n.tr("Yes") : L10n.tr("No") } ?? L10n.tr("Unknown") }
         var rows: [(String, String)] = [
-            ("File system:", formatDescription.flatMap { $0.caseInsensitiveCompare(format.displayName) == .orderedSame ? nil : $0 }
+            (L10n.tr("File system:"), formatDescription.flatMap { $0.caseInsensitiveCompare(format.displayName) == .orderedSame ? nil : $0 }
                 .map { "\(format.displayName) (\($0))" } ?? format.displayName),
             (L10n.tr("Access:"), format.isReadOnly ? L10n.tr("Read-only") : L10n.tr("Read and write")),
-            ("Case-sensitive names:", yesNo(caseSensitive)),
-            ("Case-preserving names:", yesNo(casePreserving)),
-            ("Supports the Trash:", yesNo(supportsTrash)),
-            ("Extended attributes (tags, comments):", yesNo(supportsExtendedAttributes)),
-            ("File clones (instant copies):", yesNo(supportsClones)),
-            ("Hard links:", yesNo(supportsHardLinks)),
-            ("Symbolic links:", yesNo(supportsSymbolicLinks)),
-            ("Compression:", yesNo(supportsCompression)),
-            ("Encrypted:", yesNo(isEncrypted)),
-            ("Journaled:", yesNo(isJournaled)),
+            (L10n.tr("Case-sensitive names:"), yesNo(caseSensitive)),
+            (L10n.tr("Case-preserving names:"), yesNo(casePreserving)),
+            (L10n.tr("Supports the Trash:"), yesNo(supportsTrash)),
+            (L10n.tr("Extended attributes (tags, comments):"), yesNo(supportsExtendedAttributes)),
+            (L10n.tr("File clones (instant copies):"), yesNo(supportsClones)),
+            (L10n.tr("Hard links:"), yesNo(supportsHardLinks)),
+            (L10n.tr("Symbolic links:"), yesNo(supportsSymbolicLinks)),
+            (L10n.tr("Compression:"), yesNo(supportsCompression)),
+            (L10n.tr("Encrypted:"), yesNo(isEncrypted)),
+            (L10n.tr("Journaled:"), yesNo(isJournaled)),
         ]
-        rows.append(("Maximum file size:", Self.sizeText(maximumFileSize ?? format.maximumFileSize)))
+        rows.append((L10n.tr("Maximum file size:"), Self.sizeText(maximumFileSize ?? format.maximumFileSize)))
         return rows
     }
 
@@ -56,13 +56,11 @@ public struct VolumeCapabilityReport: Equatable, Sendable {
     public var notes: [String] {
         var notes: [String] = []
         if let readOnly = readOnlyExplanation { notes.append(readOnly) }
-        for note in format.notes where !(format.isReadOnly && (note.contains("read-only") || note.contains("can't write"))) {
-            notes.append(note)
-        }
+        notes += format.limitNotes
         if supportsTrash == false, !format.isNetwork {
-            notes.append("Items deleted on this drive can't go to the Trash; Arbor asks before deleting them permanently.")
+            notes.append(L10n.tr("Items deleted on this drive can't go to the Trash; Arbor asks before deleting them permanently."))
         }
-        if caseSensitive == true { notes.append("“Report.txt” and “report.txt” are different files on this drive.") }
+        if caseSensitive == true { notes.append(L10n.tr("“Report.txt” and “report.txt” are different files on this drive.")) }
         return notes
     }
 

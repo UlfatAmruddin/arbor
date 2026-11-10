@@ -61,10 +61,10 @@ enum MemberPreview {
     private static func prepare(_ ref: ArchiveItemRef, key: String) {
         guard inFlight != key else { return }
         guard inFlight == nil else { queued = (key, ref); return }   // only the latest waits
-        guard let folder = try? ArchiveJobs.freshSessionFolder() else { failures[key] = .failed("No temporary folder."); return }
+        guard let folder = try? ArchiveJobs.freshSessionFolder() else { failures[key] = .failed(L10n.tr("No temporary folder.")); return }
         inFlight = key
         let request = ArchiveJobs.ExtractRequest(archive: ref.archive, roots: [ref.innerPath], base: ref.parentPath,
-                                                 destination: folder, verb: "Preparing a preview of “\(ref.name)”")
+                                                 destination: folder, verb: L10n.format("Preparing a preview of “%@”", ref.name))
         ArchiveJobs.extract(request, window: nil) { result in
             inFlight = nil
             switch result {
@@ -73,7 +73,7 @@ enum MemberPreview {
                     ArchiveFeature.makeReadOnly(url)
                     remember(url, key: key)
                 } else {
-                    failures[key] = .failed("Nothing could be extracted.")
+                    failures[key] = .failed(L10n.tr("Nothing could be extracted."))
                 }
             case .failure(let error):
                 failures[key] = (error as? ArchiveError) == .encrypted ? .encrypted : .failed(error.localizedDescription)
@@ -162,10 +162,10 @@ final class MemberAwarePreviewPane: NSView, SidePaneProvider {
             let copy = FileItem(url: url, name: item.name, isFolder: false, size: item.size, modified: item.modified,
                                 typeDescription: item.typeDescription)
             pass([copy])
-        case .preparing: show("Preparing a preview…")
-        case .tooLarge: show("This file is too large to preview from inside the archive. Open it or extract it to see it.")
-        case .encrypted: show("This file is password protected. Extract it to preview it.")
-        case .failed(let why): show("No preview available.\n\(why)")
+        case .preparing: show(L10n.tr("Preparing a preview…"))
+        case .tooLarge: show(L10n.tr("This file is too large to preview from inside the archive. Open it or extract it to see it."))
+        case .encrypted: show(L10n.tr("This file is password protected. Extract it to preview it."))
+        case .failed(let why): show(L10n.tr("No preview available.") + "\n" + why)
         }
     }
 

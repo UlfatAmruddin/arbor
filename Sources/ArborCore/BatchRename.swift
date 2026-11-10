@@ -218,7 +218,7 @@ public enum BatchRenamer {
             let name = proposed[i]
             let status: BatchRenameStatus
             if let problem = NameRules.validate(name) {
-                status = .invalid(problem.errorDescription ?? "Invalid name")
+                status = .invalid(problem.errorDescription ?? L10n.tr("Invalid name"))
             } else if name.trimmingCharacters(in: .whitespaces).isEmpty || name.hasPrefix(".") && !item.name.hasPrefix(".") {
                 status = .invalid(name.hasPrefix(".") ? L10n.tr("Would become hidden") : L10n.tr("A name can't be empty."))
             } else if (batchKeys[item.folder]?[key(name)] ?? 0) > 1 {

@@ -198,7 +198,7 @@ extension ArchiveTool {
         if result.wasCancelled { throw ArchiveError.cancelled }
         if result.status != 0 {
             try? FileManager.default.removeItem(at: output)
-            throw ArchiveError.toolFailed(ArchiveError.summarize(result.stderr).nilIfEmpty ?? "The archive couldn't be created.")
+            throw ArchiveError.toolFailed(ArchiveError.summarize(result.stderr).nilIfEmpty ?? L10n.tr("The archive couldn't be created."))
         }
     }
 }

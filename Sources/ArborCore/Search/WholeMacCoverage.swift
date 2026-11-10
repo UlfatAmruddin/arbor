@@ -102,13 +102,11 @@ public enum WholeMacCoverage {
         }
         if findings.denied > 0 {
             status = .partial
-            sentences.append(findings.denied == 1 ? L10n.tr("macOS denied access to 1 folder.")
-                                                  : L10n.format("macOS denied access to %@ folders.", findings.denied.formatted()))
+            sentences.append(L10n.plural(one: "macOS denied access to %lld folder.", other: "macOS denied access to %lld folders.", findings.denied))
         }
         if findings.unreadable > 0 {
             status = .partial
-            sentences.append(findings.unreadable == 1 ? L10n.tr("1 folder couldn't be read.")
-                                                      : L10n.format("%@ folders couldn't be read.", findings.unreadable.formatted()))
+            sentences.append(L10n.plural(one: "%lld folder couldn't be read.", other: "%lld folders couldn't be read.", findings.unreadable))
         }
         return (status, sentences.joined(separator: " "))
     }

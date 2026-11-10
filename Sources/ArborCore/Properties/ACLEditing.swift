@@ -97,8 +97,20 @@ public struct ACLRule: Equatable, Sendable {
     }
 
     public var summary: String {
-        "\(allow ? "Allow" : "Deny") \(principal.name) (\(principal.kind == .group ? "group" : "user")): \(level.title)"
-            + (inherit ? ", also for new items inside" : "")
+        let rule = ACLWording.rule(allow: allow, name: principal.name, isGroup: principal.kind == .group, level: level.title)
+        return inherit ? L10n.format("%@, also for new items inside", rule) : rule
+    }
+}
+
+/// One access rule as a whole sentence, so a translation never assembles "Allow", the name and "group" itself.
+public enum ACLWording {
+    public static func rule(allow: Bool, name: String, isGroup: Bool, level: String) -> String {
+        switch (allow, isGroup) {
+        case (true, true): return L10n.format("Allow %@ (group): %@", name, level)
+        case (true, false): return L10n.format("Allow %@ (user): %@", name, level)
+        case (false, true): return L10n.format("Deny %@ (group): %@", name, level)
+        case (false, false): return L10n.format("Deny %@ (user): %@", name, level)
+        }
     }
 }
 
@@ -182,12 +194,13 @@ public enum ACLEditor {
         let before = try current(target)
         let entries = ACLEntry.parse(before ?? "")
         var lines = entryLines(before)
-        guard entries.indices.contains(index), lines.indices.contains(index) else { throw ACLEditError.failed("That entry isn't there anymore.") }
+        guard entries.indices.contains(index), lines.indices.contains(index) else { throw ACLEditError.failed(L10n.tr("That entry isn't there anymore.")) }
         lines.remove(at: index)
         try write(fullText(lines), to: target)
         let e = entries[index]
         return ACLChange(target: target, before: before, after: try? current(target),
-                         summary: L10n.format("Removed: %@ %@ (%@): %@", "\(e.allow ? "Allow" : "Deny")", "\(e.name)", "\(e.kind == .group ? "group" : "user")", "\(e.levelTitle(isFolder: target.isFolder))"))
+                         summary: L10n.format("Removed: %@", ACLWording.rule(allow: e.allow, name: e.name, isGroup: e.kind == .group,
+                                                                              level: e.levelTitle(isFolder: target.isFolder))))
     }
 
     /// Refuses if the list changed since `change`.
@@ -247,7 +260,7 @@ public enum ACLEditor {
     /// nil removes the whole extended list.
     private static func write(_ text: String?, to target: ACLTarget) throws {
         guard let acl = text.map({ acl_from_text($0) }) ?? acl_init(0) else {
-            throw ACLEditError.failed("The previous permissions couldn't be read back.")
+            throw ACLEditError.failed(L10n.tr("The previous permissions couldn't be read back."))
         }
         defer { acl_free(UnsafeMutableRawPointer(acl)) }
         let header = MemoryLayout<attrreference_t>.size
@@ -355,8 +368,8 @@ public enum ACLEditor {
         try withUnsafeMutableBytes(of: &group) { try set(attrgroup_t(ATTR_CMN_GRPID), $0, on: target) }
     }
 
-    public static let ownerChangeExplanation =
-        "On macOS only an administrator can give an item to another user. Arbor doesn't run with administrator rights; use Finder's Get Info (Sharing & Permissions, after unlocking with an administrator password) or `sudo chown` in Terminal."
+    public static let ownerChangeExplanation = L10n.tr(
+        "On macOS only an administrator can give an item to another user. Arbor doesn't run with administrator rights; use Finder's Get Info (Sharing & Permissions, after unlocking with an administrator password) or `sudo chown` in Terminal.")
 
     public static var canChangeOwner: Bool { getuid() == 0 }
 }

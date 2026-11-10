@@ -501,7 +501,7 @@ public final class FileTransfer: @unchecked Sendable {
             return Plan(source: source, target: folder, action: .immediate(.failed(failure.summary)), sourceIsFolder: false)
         }
         guard FileOps.exists(source) else {
-            return Plan(source: source, target: folder, action: .immediate(.failed("The item no longer exists.")), sourceIsFolder: false)
+            return Plan(source: source, target: folder, action: .immediate(.failed(L10n.tr("The item no longer exists."))), sourceIsFolder: false)
         }
         let isFolder = FileOps.isPlainFolder(source)
         var target = folder.appendingPathComponent(source.lastPathComponent)
@@ -515,7 +515,7 @@ public final class FileTransfer: @unchecked Sendable {
         }
         if intoOwnFolder {
             if kind == .move {
-                return Plan(source: source, target: target, action: .immediate(.skipped("The item is already in this folder.")),
+                return Plan(source: source, target: target, action: .immediate(.skipped(L10n.tr("The item is already in this folder."))),
                             sourceIsFolder: isFolder)
             }
             let name = NameRules.duplicateName(for: source.lastPathComponent, treatAsFolder: isFolder) {
@@ -643,7 +643,7 @@ public final class FileTransfer: @unchecked Sendable {
             return .cancelled
         case .skip:
             accountWhole(plan.source, known: known, top: top)
-            return .skipped("An item with the same name already exists.")
+            return .skipped(L10n.tr("An item with the same name already exists."))
         case .keepBoth:
             let name = NameRules.keepBothName(for: plan.source.lastPathComponent, treatAsFolder: plan.sourceIsFolder) {
                 FileOps.exists(folder.appendingPathComponent($0))
@@ -652,7 +652,7 @@ public final class FileTransfer: @unchecked Sendable {
         case .merge:
             guard kind == .folderOverFolder else {
                 accountWhole(plan.source, known: known, top: top)
-                return .skipped("Only two folders can be merged.")
+                return .skipped(L10n.tr("Only two folders can be merged."))
             }
             return merge(plan.source, into: plan.target, top: top)
         case .replace:
@@ -663,7 +663,7 @@ public final class FileTransfer: @unchecked Sendable {
             if FileOps.exists(plan.target) {
                 do { try disposeReplaced(plan.target) } catch {
                     accountWhole(plan.source, known: known, top: top)
-                    return .failed("The existing “\(plan.target.lastPathComponent)” couldn't be moved to the Trash, so it wasn't replaced. \(error.localizedDescription)")
+                    return .failed(L10n.format("The existing “%@” couldn't be moved to the Trash, so it wasn't replaced. %@", plan.target.lastPathComponent, error.localizedDescription))
                 }
             }
             return perform(plan.source, to: plan.target, top: top, known: known)
@@ -684,7 +684,7 @@ public final class FileTransfer: @unchecked Sendable {
                 .map(\.standardizedFileURL)
         } catch {
             accountWhole(source, known: nil, top: top)
-            return .failed("Couldn't read “\(source.lastPathComponent)”. \(error.localizedDescription)")
+            return .failed(L10n.format("Couldn't read “%@”. %@", source.lastPathComponent, error.localizedDescription))
         }
         let outcomes = processLevel(children, into: target, top: false, totals: [])
         if discovered { account(TransferTotals(items: 1)) }   // the folder itself
@@ -701,7 +701,7 @@ public final class FileTransfer: @unchecked Sendable {
             }
         }
         if kind == .move, !hadProblem { FileOps.removeEmptyFolder(at: source) }
-        return hadProblem ? .failed("Some items inside couldn't be merged.") : .merged(target)
+        return hadProblem ? .failed(L10n.tr("Some items inside couldn't be merged.")) : .merged(target)
     }
 
     // MARK: - Moving data
@@ -740,7 +740,7 @@ public final class FileTransfer: @unchecked Sendable {
         switch outcome {
         case .done:
             if kind == .move, FileOps.exists(source), !FileOps.isPlainFolder(source) || !FileOps.isEffectivelyEmpty(source) {
-                return .copiedButSourceRemains(target, "Copied, but the original couldn't be removed.")
+                return .copiedButSourceRemains(target, L10n.tr("Copied, but the original couldn't be removed."))
             }
             if kind == .copy, options.fingerprintCopies, top, let print = ItemFingerprint.of(target) {
                 fingerprints[target] = print

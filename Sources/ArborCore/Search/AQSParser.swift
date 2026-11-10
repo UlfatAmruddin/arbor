@@ -19,13 +19,13 @@ public struct AQSParser {
     public func parse(_ text: String) -> Result<SearchExpression, SearchSyntaxError> {
         do {
             let tokens = try Self.tokenize(text)
-            guard !tokens.isEmpty else { throw SearchSyntaxError("Type something to search for.") }
+            guard !tokens.isEmpty else { throw SearchSyntaxError(L10n.tr("Type something to search for.")) }
             try Self.checkComplexity(tokens)
             var state = State(tokens: tokens, parser: self)
             let expression = try state.parseExpression(property: nil)
             if let extra = state.peek {
-                if case .rparen = extra.kind { throw SearchSyntaxError("There's a “)” without a matching “(”.") }
-                throw SearchSyntaxError("Arbor couldn't read the search from “\(extra.text)” on.")
+                if case .rparen = extra.kind { throw SearchSyntaxError(L10n.tr("There's a “)” without a matching “(”.")) }
+                throw SearchSyntaxError(L10n.format("Arbor couldn't read the search from “%@” on.", extra.text))
             }
             return .success(expression)
         } catch let error as SearchSyntaxError {
@@ -41,7 +41,7 @@ public struct AQSParser {
 
     static func checkComplexity(_ tokens: [Token]) throws {
         guard tokens.count <= maxTerms else {
-            throw SearchSyntaxError("This search is too long. Use at most \(maxTerms) words and operators.")
+            throw SearchSyntaxError(L10n.plural(one: "This search is too long. Use at most %lld word or operator.", other: "This search is too long. Use at most %lld words and operators.", maxTerms))
         }
         var nesting = 0, nots = 0, deepest = 0
         for token in tokens {
@@ -54,7 +54,7 @@ public struct AQSParser {
             deepest = max(deepest, nesting + nots)
         }
         guard deepest <= maxNesting else {
-            throw SearchSyntaxError("This search nests too deeply. Use fewer parentheses or NOTs.")
+            throw SearchSyntaxError(L10n.tr("This search nests too deeply. Use fewer parentheses or NOTs."))
         }
     }
 
@@ -102,7 +102,7 @@ public struct AQSParser {
                 var j = i + 1
                 var value = ""
                 while j < chars.count, chars[j] != "\"", chars[j] != "”", chars[j] != "“" { value.append(chars[j]); j += 1 }
-                guard j < chars.count else { throw SearchSyntaxError("A quotation mark is missing its closing “\"”.") }
+                guard j < chars.count else { throw SearchSyntaxError(L10n.tr("A quotation mark is missing its closing “\"”.")) }
                 tokens.append(Token(kind: .phrase(value), text: String(chars[start...j]), start: start, end: j + 1, negated: negated))
                 i = j + 1
                 continue
@@ -126,7 +126,7 @@ public struct AQSParser {
                 let name = String(word[..<colon])
                 if Self.looksLikePropertyName(name) {
                     guard let property = SearchProperty.lookup(name) else {
-                        throw SearchSyntaxError("“\(name):” isn't a search property Arbor supports. Supported: name, ext, kind, type, size, datemodified, datecreated, tags, author, content, folderpath (or System.* names). To search for the text itself, put it in quotes: \"\(word)\".")
+                        throw SearchSyntaxError(L10n.format("“%@:” isn't a search property Arbor supports. Supported: name, ext, kind, type, size, datemodified, datecreated, tags, author, content, folderpath (or System.* names). To search for the text itself, put it in quotes: \"%@\".", name, word))
                     }
                     let rest = String(word[word.index(after: colon)...])
                     tokens.append(Token(kind: .property(property, rest: rest, name: name), text: raw, start: start, end: j, negated: negated))
@@ -187,18 +187,18 @@ public struct AQSParser {
 
         mutating func parseUnary(property: SearchProperty?, after op: String? = nil) throws -> SearchExpression {
             guard let token = peek else {
-                if let op { throw SearchSyntaxError("“\(op)” needs a search term after it.") }
-                throw SearchSyntaxError("Type something to search for.")
+                if let op { throw SearchSyntaxError(L10n.format("“%@” needs a search term after it.", op)) }
+                throw SearchSyntaxError(L10n.tr("Type something to search for."))
             }
             switch token.kind {
             case .not:
                 index += 1
                 return .not(try parseUnary(property: property, after: "NOT"))
             case .and, .or:
-                throw SearchSyntaxError("“\(token.text)” needs a search term before it.")
+                throw SearchSyntaxError(L10n.format("“%@” needs a search term before it.", token.text))
             case .rparen:
-                if let op { throw SearchSyntaxError("“\(op)” needs a search term after it.") }
-                throw SearchSyntaxError("There's a “)” without a matching “(”.")
+                if let op { throw SearchSyntaxError(L10n.format("“%@” needs a search term after it.", op)) }
+                throw SearchSyntaxError(L10n.tr("There's a “)” without a matching “(”."))
             default:
                 let primary = try parsePrimary(property: property)
                 return token.negated ? .not(primary) : primary
@@ -206,16 +206,16 @@ public struct AQSParser {
         }
 
         mutating func parsePrimary(property: SearchProperty?) throws -> SearchExpression {
-            guard let token = next() else { throw SearchSyntaxError("Type something to search for.") }
+            guard let token = next() else { throw SearchSyntaxError(L10n.tr("Type something to search for.")) }
             switch token.kind {
             case .lparen:
                 let inner = try parseExpression(property: property)
                 guard let close = next(), case .rparen = close.kind else {
-                    throw SearchSyntaxError("A “(” is missing its closing “)”.")
+                    throw SearchSyntaxError(L10n.tr("A “(” is missing its closing “)”."))
                 }
                 return inner
             case .property(let p, let rest, let name):
-                if property != nil { throw SearchSyntaxError("“\(name):” can't be used inside another property's value.") }
+                if property != nil { throw SearchSyntaxError(L10n.format("“%@:” can't be used inside another property's value.", name)) }
                 return try parseRestriction(p, rest: rest, name: name, token: token)
             case .word(let w):
                 if let property { return try parser.restriction(property, op: "", value: w, isPhrase: false) }
@@ -223,10 +223,10 @@ public struct AQSParser {
                 return .term(.freeText(w))
             case .phrase(let p):
                 if let property { return try parser.restriction(property, op: "", value: p, isPhrase: true) }
-                guard !p.trimmingCharacters(in: .whitespaces).isEmpty else { throw SearchSyntaxError("The quotation marks are empty.") }
+                guard !p.trimmingCharacters(in: .whitespaces).isEmpty else { throw SearchSyntaxError(L10n.tr("The quotation marks are empty.")) }
                 return .term(.freeText(p))
             case .rparen, .and, .or, .not:
-                throw SearchSyntaxError("Arbor couldn't read the search at “\(token.text)”.")
+                throw SearchSyntaxError(L10n.format("Arbor couldn't read the search at “%@”.", token.text))
             }
         }
 
@@ -241,18 +241,18 @@ public struct AQSParser {
                         return try parser.restriction(property, op: op, value: p, isPhrase: true)
                     case .lparen:
                         guard op.isEmpty else {
-                            throw SearchSyntaxError("“\(name):\(op)” can't be followed by a group. Use “\(name):(a OR b)”.")
+                            throw SearchSyntaxError(L10n.format("“%@:%@” can't be followed by a group. Use “%@:(a OR b)”.", name, op, name))
                         }
                         index += 1
                         let inner = try parseExpression(property: property)
                         guard let close = next(), case .rparen = close.kind else {
-                            throw SearchSyntaxError("A “(” is missing its closing “)”.")
+                            throw SearchSyntaxError(L10n.tr("A “(” is missing its closing “)”."))
                         }
                         return inner
                     default: break
                     }
                 }
-                throw SearchSyntaxError("Type a value right after “\(name):\(op)”, for example \(AQSParser.example(for: property)).")
+                throw SearchSyntaxError(L10n.format("Type a value right after “%@:%@”, for example %@.", name, op, AQSParser.example(for: property)))
             }
             var value = valueText
             // Two-word date keywords: `datemodified:last week`.
@@ -287,14 +287,14 @@ public struct AQSParser {
     func restriction(_ property: SearchProperty, op: String, value raw: String, isPhrase: Bool) throws -> SearchExpression {
         let value = raw.trimmingCharacters(in: .whitespaces)
         if value == "[]" {
-            guard op == "=" || op.isEmpty || op == "<>" else { throw SearchSyntaxError("“[]” (no value) only works with “:” or “:=”.") }
+            guard op == "=" || op.isEmpty || op == "<>" else { throw SearchSyntaxError(L10n.tr("“[]” (no value) only works with “:” or “:=”.")) }
             guard property.valueType == .text, property != .name else {
-                throw SearchSyntaxError("Every item has a \(property.label.lowercased()); “\(property.keyword):[]” can't match anything.")
+                throw SearchSyntaxError(L10n.format("Every item has a %@; “%@:[]” can't match anything.", property.label.lowercased(), property.keyword))
             }
             let term = SearchExpression.term(SearchTerm(property, .isEmpty))
             return op == "<>" ? .not(term) : term
         }
-        guard !value.isEmpty else { throw SearchSyntaxError("Type a value after “\(property.keyword):”.") }
+        guard !value.isEmpty else { throw SearchSyntaxError(L10n.format("Type a value after “%@:”.", property.keyword)) }
         switch property.valueType {
         case .text: return try textRestriction(property, op: op, value: value, isPhrase: isPhrase)
         case .kind:
@@ -302,7 +302,7 @@ public struct AQSParser {
             switch op {
             case "", "=": return .term(SearchTerm(property, .kind(kind)))
             case "<>": return .not(.term(SearchTerm(property, .kind(kind))))
-            default: throw SearchSyntaxError("“kind:” only supports “kind:value” or “kind:<>value”.")
+            default: throw SearchSyntaxError(L10n.tr("“kind:” only supports “kind:value” or “kind:<>value”."))
             }
         case .size:
             return try rangeRestriction(property, op: op, value: value) { text in
@@ -320,7 +320,7 @@ public struct AQSParser {
     private func textRestriction(_ property: SearchProperty, op: String, value: String, isPhrase: Bool) throws -> SearchExpression {
         var text = value
         if property == .fileExtension, text.hasPrefix("."), !text.contains("*") { text.removeFirst() }
-        guard !text.isEmpty else { throw SearchSyntaxError("Type an extension after “ext:”, for example ext:pdf.") }
+        guard !text.isEmpty else { throw SearchSyntaxError(L10n.tr("Type an extension after “ext:”, for example ext:pdf.")) }
         let hasWildcard = !isPhrase && (text.contains("*") || text.contains("?"))
         func term(_ mode: TextMatchMode) -> SearchExpression { .term(SearchTerm(property, .text(text, mode))) }
         // Extensions compare whole: `ext:doc` must not match .docx.
@@ -334,7 +334,7 @@ public struct AQSParser {
         case "~!": return .not(term(.contains))
         case "~": return term(text.contains("*") || text.contains("?") ? .wildcard : .contains)   // explicit: even in quotes
         default:
-            throw SearchSyntaxError("“\(property.keyword):\(op)” compares numbers or dates. For text, use “\(property.keyword):value”, “~<” (begins with) or “=” (exact).")
+            throw SearchSyntaxError(L10n.format("“%@:%@” compares numbers or dates. For text, use “%@:value”, “~<” (begins with) or “=” (exact).", property.keyword, op, property.keyword))
         }
     }
 
@@ -344,15 +344,15 @@ public struct AQSParser {
         var lower: Double?
         var upper: Double?
         if let dots = value.range(of: "..") {
-            guard op.isEmpty || op == "=" else { throw SearchSyntaxError("A range like “a..b” can't also have “\(op)”.") }
+            guard op.isEmpty || op == "=" else { throw SearchSyntaxError(L10n.format("A range like “a..b” can't also have “%@”.", op)) }
             let a = String(value[..<dots.lowerBound]).trimmingCharacters(in: .whitespaces)
             let b = String(value[dots.upperBound...]).trimmingCharacters(in: .whitespaces)
-            guard !a.isEmpty, !b.isEmpty else { throw SearchSyntaxError("A range needs a value on both sides of “..”, for example \(Self.example(for: property)).") }
+            guard !a.isEmpty, !b.isEmpty else { throw SearchSyntaxError(L10n.format("A range needs a value on both sides of “..”, for example %@.", Self.example(for: property))) }
             let ia = try interval(a)
             let ib = try interval(b)
             lower = ia.2 ?? ia.0
             upper = ib.2.map { $0 + 1 } ?? ib.1
-            if let l = lower, let u = upper, l >= u { throw SearchSyntaxError("The range “\(value)” ends before it starts.") }
+            if let l = lower, let u = upper, l >= u { throw SearchSyntaxError(L10n.format("The range “%@” ends before it starts.", value)) }
         } else {
             let (lo, hi, point) = try interval(value)
             switch op {
@@ -364,7 +364,7 @@ public struct AQSParser {
             case "<>":
                 return .not(makeRange(property, lo, hi))
             default:
-                throw SearchSyntaxError("“\(property.keyword):\(op)” isn't supported. Use =, <>, >, >=, <, <= or a range a..b.")
+                throw SearchSyntaxError(L10n.format("“%@:%@” isn't supported. Use =, <>, >, >=, <, <= or a range a..b.", property.keyword, op))
             }
         }
         return makeRange(property, lower, upper)
@@ -381,22 +381,23 @@ public struct AQSParser {
     static func kind(_ value: String) throws -> SearchKind {
         if let kind = SearchKind.lookup(value) { return kind }
         if let windows = SearchKind.windowsOnly[value.lowercased()] {
-            throw SearchSyntaxError("“kind:\(value)” (\(windows)) is a Windows kind with no macOS equivalent, so Arbor can't search for it.")
+            // The same Windows kind names the Kind menu shows.
+            throw SearchSyntaxError(L10n.format("“kind:%@” (%@) is a Windows kind with no macOS equivalent, so Arbor can't search for it.", value, L10n.tr(windows)))
         }
-        throw SearchSyntaxError("“kind:\(value)” isn't a kind Arbor knows. Try folder, document, picture, music, video, text, program, link, email, contact, calendar, playlist or unknown.")
+        throw SearchSyntaxError(L10n.format("“kind:%@” isn't a kind Arbor knows. Try folder, document, picture, music, video, text, program, link, email, contact, calendar, playlist or unknown.", value))
     }
 
     // MARK: Sizes
 
     /// Explorer's size bands; KB = 1,024 bytes.
     public static let sizeNames: [(name: String, title: String, lower: Int64, upper: Int64?)] = [
-        ("empty", "Empty (0 KB)", 0, 1),
-        ("tiny", "Tiny (0 – 16 KB)", 1, 16 * 1024),
-        ("small", "Small (16 KB – 1 MB)", 16 * 1024, 1 << 20),
-        ("medium", "Medium (1 – 128 MB)", 1 << 20, 128 << 20),
-        ("large", "Large (128 MB – 1 GB)", 128 << 20, 1 << 30),
-        ("huge", "Huge (1 – 4 GB)", 1 << 30, 4 << 30),
-        ("gigantic", "Gigantic (> 4 GB)", 4 << 30, nil),
+        ("empty", L10n.tr("Empty (0 KB)"), 0, 1),
+        ("tiny", L10n.tr("Tiny (0 – 16 KB)"), 1, 16 * 1024),
+        ("small", L10n.tr("Small (16 KB – 1 MB)"), 16 * 1024, 1 << 20),
+        ("medium", L10n.tr("Medium (1 – 128 MB)"), 1 << 20, 128 << 20),
+        ("large", L10n.tr("Large (128 MB – 1 GB)"), 128 << 20, 1 << 30),
+        ("huge", L10n.tr("Huge (1 – 4 GB)"), 1 << 30, 4 << 30),
+        ("gigantic", L10n.tr("Gigantic (> 4 GB)"), 4 << 30, nil),
     ]
 
     /// `500` = exactly 500 bytes; `5MB` = 5.0–5.99… MB (Explorer's “5 MB”).
@@ -414,12 +415,12 @@ public struct AQSParser {
             break
         }
         guard let n = Double(number), n >= 0, n.isFinite else {
-            throw SearchSyntaxError("“\(text)” isn't a size Arbor understands. Use a number with KB, MB or GB (like 5MB) or empty, tiny, small, medium, large, huge, gigantic.")
+            throw SearchSyntaxError(L10n.format("“%@” isn't a size Arbor understands. Use a number with KB, MB or GB (like 5MB) or empty, tiny, small, medium, large, huge, gigantic.", text))
         }
         let lower = n * multiplier
         // Beyond 1 EB converting to Int64 would trap.
         guard lower + multiplier < Double(1 << 60) else {
-            throw SearchSyntaxError("“\(text)” is larger than any file can be. Use a smaller size, like 5GB or gigantic.")
+            throw SearchSyntaxError(L10n.format("“%@” is larger than any file can be. Use a smaller size, like 5GB or gigantic.", text))
         }
         let point = Int64(lower.rounded(.up))
         if multiplier == 1 { return (point, point + 1, point) }
@@ -431,8 +432,8 @@ public struct AQSParser {
     // MARK: Dates
 
     public static let dateKeywords: [(keyword: String, title: String)] = [
-        ("today", "Today"), ("yesterday", "Yesterday"), ("this week", "This week"), ("last week", "Last week"),
-        ("this month", "This month"), ("last month", "Last month"), ("this year", "This year"), ("last year", "Last year"),
+        ("today", L10n.tr("Today")), ("yesterday", L10n.tr("Yesterday")), ("this week", L10n.tr("This week")), ("last week", L10n.tr("Last week")),
+        ("this month", L10n.tr("This month")), ("last month", L10n.tr("Last month")), ("this year", L10n.tr("This year")), ("last year", L10n.tr("Last year")),
     ]
 
     /// Relative words use the injected calendar; explicit dates are M/D/Y or ISO.
@@ -461,7 +462,7 @@ public struct AQSParser {
         default: break
         }
         if let parsed = explicitDate(t) { return parsed }
-        throw SearchSyntaxError("“\(text)” isn't a date Arbor understands. Use today, yesterday, this week, last week, this month, last month, this year, last year, or a date like 11/13/2026 or 2026-11-13.")
+        throw SearchSyntaxError(L10n.format("“%@” isn't a date Arbor understands. Use today, yesterday, this week, last week, this month, last month, this year, last year, or a date like 11/13/2026 or 2026-11-13.", text))
     }
 
     private func explicitDate(_ t: String) -> (Date?, Date?)? {

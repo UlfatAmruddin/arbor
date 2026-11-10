@@ -60,9 +60,9 @@ enum NetworkThisMac {
         for drive in center.drives.drives where match[drive.id] == nil {
             let status: String
             switch center.status(of: drive) {
-            case .connecting: status = "Connecting…"
-            case .disconnected(let reason?): status = "Unavailable — \(reason)"
-            default: status = "Disconnected"
+            case .connecting: status = L10n.tr("Connecting…")
+            case .disconnected(let reason?): status = L10n.format("Unavailable — %@", reason)
+            default: status = L10n.tr("Disconnected")
             }
             snap.disconnected.append((placeholder(for: drive), drive.label, status, drive.id, drive.address))
         }

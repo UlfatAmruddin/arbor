@@ -183,7 +183,7 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
         accessGrid.arrangedSubviews.forEach { $0.removeFromSuperview() }
         for line in security.access.lines(isFolder: security.isFolder) {
             let mark = fixedImage(NSImage(systemSymbolName: line.allowed ? "checkmark.circle.fill" : "xmark.circle.fill",
-                                          accessibilityDescription: line.allowed ? "allowed" : "not allowed"), 13)
+                                          accessibilityDescription: line.allowed ? L10n.tr("allowed") : L10n.tr("not allowed")), 13)
             mark.contentTintColor = line.allowed ? SheetColors.success : SheetColors.failure
             let item = hstack([mark, SheetLabel.make(line.label)], spacing: 4)
             accessGrid.addArrangedSubview(item)

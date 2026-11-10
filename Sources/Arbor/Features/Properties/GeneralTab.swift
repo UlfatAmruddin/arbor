@@ -68,9 +68,10 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
     private let onDiskValue = SheetLabel.make("")
     private let containsValue = SheetLabel.make("")
     private lazy var stopButton = SheetButton(L10n.tr("Stop")) { [weak self] _ in self?.stopScan() }
-    private let createdValue = SheetLabel.make("")
-    private let modifiedValue = SheetLabel.make("")
-    private let accessedValue = SheetLabel.make("")
+    // Long dates wrap: a long weekday and month in a longer language don't fit one line.
+    private let createdValue = SheetLabel.wrapping("", secondary: false)
+    private let modifiedValue = SheetLabel.wrapping("", secondary: false)
+    private let accessedValue = SheetLabel.wrapping("", secondary: false)
     private lazy var readOnly = SheetCheckbox(L10n.tr("Read-only")) { [weak self] box in self?.setLocked(box.state) }
     private lazy var hidden = SheetCheckbox(L10n.tr("Hidden")) { [weak self] box in self?.setHidden(box.state) }
     private lazy var advanced = SheetButton(L10n.tr("Advanced…")) { [weak self] _ in self?.showAdvanced() }
@@ -290,7 +291,7 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
             locationValue.stringValue = summary.locationText
         } else if let info = infos.first {
             typeValue.stringValue = model.subject == .package && info.contentType?.conforms(to: .application) == true
-                ? "Application (.\(entries[0].url.pathExtension))" : info.typeText
+                ? L10n.format("Application (.%@)", entries[0].url.pathExtension) : info.typeText
             locationValue.stringValue = BidiText.path(info.location)
             locationValue.toolTip = info.location
             if let app = info.openWith {
@@ -304,9 +305,9 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
                 versionValue.stringValue = [bundle.version, bundle.build.map { "(\($0))" }].compactMap { $0 }.joined(separator: " ")
                 if versionValue.stringValue.isEmpty { versionValue.stringValue = L10n.tr("Unknown") }
             }
-            createdValue.stringValue = info.created.map { PropertyFormat.longDate($0) } ?? "Unknown"
-            modifiedValue.stringValue = info.modified.map { PropertyFormat.longDate($0) } ?? "Unknown"
-            accessedValue.stringValue = info.accessed.map { PropertyFormat.longDate($0) } ?? "Unknown"
+            createdValue.stringValue = info.created.map { PropertyFormat.longDate($0) } ?? L10n.tr("Unknown")
+            modifiedValue.stringValue = info.modified.map { PropertyFormat.longDate($0) } ?? L10n.tr("Unknown")
+            accessedValue.stringValue = info.accessed.map { PropertyFormat.longDate($0) } ?? L10n.tr("Unknown")
             securityRow?.isHidden = !info.quarantined
             securitySeparator?.isHidden = !info.quarantined
         }
@@ -340,8 +341,7 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
             onDiskValue.stringValue = sizeText(totals.sizeOnDisk)
             var contains = PropertyFormat.filesAndFolders(files: totals.files, folders: totals.folders)
             if totals.unreadable > 0 {
-                contains = totals.unreadable == 1 ? L10n.format("%@ (1 folder couldn't be read)", contains)
-                    : L10n.format("%@ (%@ folders couldn't be read)", contains, PropertyFormat.grouped(totals.unreadable))
+                contains = L10n.plural(one: "%2$@ (%1$lld folder couldn't be read)", other: "%2$@ (%1$lld folders couldn't be read)", totals.unreadable, contains)
             }
             containsValue.stringValue = contains
             containsValue.toolTip = contains
@@ -445,8 +445,9 @@ enum AdvancedAttributesSheet {
             DispatchQueue.global(qos: .utility).async { [weak tm] in
                 guard let url = model.single?.url, let excluded = TimeMachineStatus.isExcluded(url) else { return }
                 DispatchQueue.main.async {
-                    tm?.stringValue = L10n.tr("macOS has no archive bit. Time Machine backs up changed files automatically")
-                        + (excluded ? "; this item is excluded from Time Machine backups." : "; this item is included in backups.")
+                    tm?.stringValue = excluded
+                        ? L10n.tr("macOS has no archive bit. Time Machine backs up changed files automatically; this item is excluded from Time Machine backups.")
+                        : L10n.tr("macOS has no archive bit. Time Machine backs up changed files automatically; this item is included in backups.")
                 }
             }
         }
@@ -464,8 +465,8 @@ enum OpenWithChooser {
         let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 400), styleMask: [.titled], backing: .buffered, defer: false)
         let content = ThemeBackgroundView(SheetColors.windowBackground)
         content.translatesAutoresizingMaskIntoConstraints = true
-        let ext = url.pathExtension.isEmpty ? "this file" : ".\(url.pathExtension) files"
-        let heading = SheetLabel.make(L10n.format("Select an app to open %@ from now on", "\(ext)"), bold: true)
+        let heading = SheetLabel.make(url.pathExtension.isEmpty ? L10n.tr("Select an app to open this file from now on")
+                                      : L10n.format("Select an app to open .%@ files from now on", url.pathExtension), bold: true)
         let list = SheetScrollList()
         let box = SheetBox()
         box.addSubview(list)

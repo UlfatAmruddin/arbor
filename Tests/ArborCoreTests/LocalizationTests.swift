@@ -89,7 +89,7 @@ struct FormatSpecifierTests {
     }
 
     @Test func formsTheFormatterTreatsSpeciallyAreRefused() {
-        for format in ["%P", "%[x]@", "%[:e %@", "%2147483648d", "%.99999f"] {
+        for format in ["%P", "%[x]@", "%[:e %@", "%2147483648d", "%.99999f", "%#@count@", "%1$#@count@", "%-#@count@"] {
             #expect(FormatSpecifiers.arguments(of: format) == nil, "\(format)")
         }
     }
@@ -212,6 +212,14 @@ struct StringLookupTests {
         try fx.write("\"%@ of %d\" = \"%2$d von %1$@\";\n", language: "de")
         let template = L10n.template("%@ of %d", in: try fx.bundle(language: "de"))
         #expect(String(format: template, "Akten", 3) == "3 von Akten")
+    }
+
+    @Test func aFileNameTranslationThatWouldMakeAPathFallsBackToEnglish() throws {
+        let fx = try StringFixture(english: "\"%@ - Copy\" = \"%@ - Copy\";\n\"Open\" = \"Open\";\n")
+        try fx.write("\"%@ - Copy\" = \"../%@\";\n\"Open\" = \"Ouvrir\";\n", language: "fr")
+        let bundle = try fx.bundle(language: "fr")
+        #expect(L10n.plainFormat("%@ - Copy", ["Report"], in: bundle) == "Report - Copy")
+        #expect(L10n.plainFormat("Open", [], in: bundle) == "Ouvrir")
     }
 
     @Test func englishFormatsAreUnchanged() {

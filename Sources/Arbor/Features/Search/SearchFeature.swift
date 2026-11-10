@@ -12,7 +12,7 @@ enum SearchFeature: ExplorerFeature {
         // Layouts without columns show where a result lives.
         InteractionHooks.itemDetail.register("search.result-folder") { item, location in
             guard case .search? = location else { return nil }
-            return ("Folder:", SearchColumns.folderText(item, location))
+            return (L10n.tr("Folder:"), SearchColumns.folderText(item, location))
         }
 
         // Opening a saved .arborsearch file reruns its search (FE-138).

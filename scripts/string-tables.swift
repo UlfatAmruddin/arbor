@@ -29,11 +29,14 @@ enum StringTables {
 
     private static func pseudo(base: URL, into resources: URL) throws {
         let english = try StringTableCheck.parse(base)
+        let plurals = try PluralTable.parse(base.deletingLastPathComponent().appendingPathComponent(PluralTable.tableName))
         for style in PseudoLocalization.Style.allCases {
             let folder = resources.appendingPathComponent("\(style.rawValue).lproj", isDirectory: true)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             try PseudoLocalization.table(from: english, style: style)
                 .write(to: folder.appendingPathComponent(StringTableCheck.tableName), atomically: true, encoding: .utf8)
+            try PluralTable.data(PseudoLocalization.plurals(from: plurals, style: style))
+                .write(to: folder.appendingPathComponent(PluralTable.tableName))
         }
     }
 

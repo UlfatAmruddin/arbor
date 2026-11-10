@@ -59,6 +59,8 @@ public enum FormatSpecifiers {
         guard end < bytes.count, let argument = argument(bytes[end], length: parsed.length) else {
             return written.isEmpty ? Specifier(position: nil, argument: nil, end: start) : nil
         }
+        // "%#@name@" is a stringsdict variable, not an object: inside a plural form it expands itself without end.
+        if argument == .object, written.contains(UInt8(ascii: "#")) { return nil }
         return Specifier(position: parsed.position, argument: argument, end: end + 1)
     }
 

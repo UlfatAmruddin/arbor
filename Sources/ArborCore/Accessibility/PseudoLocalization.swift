@@ -57,6 +57,25 @@ public enum PseudoLocalization {
         return "[" + out + pad(letters: letters, style: style) + "·]"
     }
 
+    /// The plural categories the style's language uses, so `ar-XB` exercises all six.
+    public static func pluralCategories(_ style: Style) -> [String] {
+        style == .rightToLeft ? PluralTable.categories : ["one", "other"]
+    }
+
+    private static let categoryMarks: [String: String] = ["zero": "⓪", "one": "①", "two": "②", "few": "③", "many": "④", "other": "⑤"]
+
+    /// Every form of the language, built from the English `one` or `other`, with a mark showing which category it is.
+    public static func plurals(from english: [String: PluralTable.Forms], style: Style) -> [String: PluralTable.Forms] {
+        english.mapValues { forms in
+            var result: PluralTable.Forms = [:]
+            for category in pluralCategories(style) {
+                let source = category == "one" ? forms["one"] ?? forms["other"] ?? "" : forms["other"] ?? ""
+                result[category] = (categoryMarks[category] ?? "") + transform(source, style: style)
+            }
+            return result
+        }
+    }
+
     /// The whole table as `.strings` text.
     public static func table(from english: [String: String], style: Style) -> String {
         english.keys.sorted().map { "\(quoted($0)) = \(quoted(transform($0, style: style)));\n" }.joined()

@@ -101,14 +101,16 @@ enum SearchCommands {
         // Kind ▸ — Windows-only kinds are disabled with the reason (DEC-019).
         let kindActive = activeValue(.kind).flatMap(SearchKind.lookup)
         let kinds: [(String, String?)] = [
-            ("Calendar", "calendar"), ("Communication", "communication"), ("Contact", "contact"), ("Document", "document"),
-            ("E-mail", "email"), ("Feed", nil), ("Folder", "folder"), ("Game", nil), ("Instant Message", nil),
-            ("Journal", nil), ("Link", "link"), ("Movie", "movie"), ("Music", "music"), ("Note", nil),
-            ("Picture", "picture"), ("Playlist", "playlist"), ("Program", "program"), ("Recorded TV", nil),
-            ("Saved search", "savedsearch"), ("Task", nil), ("Video", "video"), ("Web history", nil), ("Unknown", "unknown"),
+            (L10n.tr("Calendar"), "calendar"), (L10n.tr("Communication"), "communication"), (L10n.tr("Contact"), "contact"),
+            (L10n.tr("Document"), "document"), (L10n.tr("E-mail"), "email"), (L10n.tr("Feed"), nil), (L10n.tr("Folder"), "folder"),
+            (L10n.tr("Game"), nil), (L10n.tr("Instant Message"), nil), (L10n.tr("Journal"), nil), (L10n.tr("Link"), "link"),
+            (L10n.tr("Movie"), "movie"), (L10n.tr("Music"), "music"), (L10n.tr("Note"), nil), (L10n.tr("Picture"), "picture"),
+            (L10n.tr("Playlist"), "playlist"), (L10n.tr("Program"), "program"), (L10n.tr("Recorded TV"), nil),
+            (L10n.tr("Saved search"), "savedsearch"), (L10n.tr("Task"), nil), (L10n.tr("Video"), "video"), (L10n.tr("Web history"), nil),
+            (L10n.tr("Unknown"), "unknown"),
         ]
         items.append(submenu(L10n.tr("Kind"), kinds.map { title, keyword in
-            guard let keyword else { return disabled(title, "“\(title)” is a Windows kind with no macOS equivalent.") }
+            guard let keyword else { return disabled(title, L10n.format("“%@” is a Windows kind with no macOS equivalent.", title)) }
             let item = ClosureMenuItem(title, handler: toggle(.kind, keyword))
             item.state = kindActive != nil && kindActive == SearchKind.lookup(keyword) ? .on : .off
             return item
@@ -123,14 +125,14 @@ enum SearchCommands {
         }))
 
         // Other properties ▸ — inserts the property into the box.
-        items.append(submenu(L10n.tr("Other properties"), [("Type", "type:"), ("Name", "name:"), ("Folder path", "folderpath:"), ("Tags", "tags:")].map { title, text in
+        items.append(submenu(L10n.tr("Other properties"), [(L10n.tr("Type"), "type:"), (L10n.tr("Name"), "name:"), (L10n.tr("Folder path"), "folderpath:"), (L10n.tr("Tags"), "tags:")].map { title, text in
             ClosureMenuItem(title) { controller.insertIntoBox(text) }
         }))
 
         // Advanced options ▸
         func optionItem(_ title: String, _ option: SearchOptions, _ tip: String) -> NSMenuItem {
             if request.scope == nil, option != .contents {
-                return disabled(title, "Only for folder searches: searching This Mac uses the Spotlight index.")
+                return disabled(title, L10n.tr("Only for folder searches: searching This Mac uses the Spotlight index."))
             }
             let item = ClosureMenuItem(title) {
                 var n = request
@@ -147,9 +149,9 @@ enum SearchCommands {
         indexed.toolTip = L10n.tr("Opens System Settings ▸ Spotlight, where macOS decides what's indexed.")
         items.append(submenu(L10n.tr("Advanced options"), [
             indexed, .separator(),
-            optionItem(L10n.tr("File contents"), .contents, "Also match words inside files: text files directly, other documents through the Spotlight index."),
-            optionItem(L10n.tr("System files"), .systemFiles, "Include hidden items and the contents of apps and other packages."),
-            optionItem(L10n.tr("Zipped (compressed) folders"), .zipped, "Look inside .zip archives; a match shows the archive."),
+            optionItem(L10n.tr("File contents"), .contents, L10n.tr("Also match words inside files: text files directly, other documents through the Spotlight index.")),
+            optionItem(L10n.tr("System files"), .systemFiles, L10n.tr("Include hidden items and the contents of apps and other packages.")),
+            optionItem(L10n.tr("Zipped (compressed) folders"), .zipped, L10n.tr("Look inside .zip archives; a match shows the archive.")),
         ]))
 
         items.append(.separator())
@@ -175,7 +177,7 @@ enum SearchCommands {
     }
 
     static func scopeName(_ request: SearchRequest) -> String {
-        request.scope.map { Location.folder($0).displayName } ?? "This Mac"
+        request.scope.map { Location.folder($0).displayName } ?? L10n.tr("This Mac")
     }
 
     // MARK: Coverage (FE-144)
@@ -187,8 +189,8 @@ enum SearchCommands {
         if session.request.scope == nil {
             alert.messageText = L10n.tr("What this search covered")
         } else {
-            alert.messageText = session.coverage.isComplete ? "This search covered everything in its location."
-                                                            : "Why might some results be missing?"
+            alert.messageText = session.coverage.isComplete ? L10n.tr("This search covered everything in its location.")
+                                                            : L10n.tr("Why might some results be missing?")
         }
         alert.informativeText = coverageText(session)
         alert.addButton(withTitle: L10n.tr("OK"))
@@ -197,9 +199,10 @@ enum SearchCommands {
 
     static func coverageText(_ session: SearchSession) -> String {
         let searched = session.request.scope == nil ? L10n.tr("Searched: This Mac.")
-            : "Searched: “\(scopeName(session.request))”" + (session.request.recursive ? " and its subfolders." : " only (not subfolders).")
+            : session.request.recursive ? L10n.format("Searched: “%@” and its subfolders.", scopeName(session.request))
+            : L10n.format("Searched: “%@” only (not subfolders).", scopeName(session.request))
         var lines = [searched]
-        lines.append("Status: \(session.coverage.statusLine).")
+        lines.append(L10n.format("Status: %@.", session.coverage.statusLine))
         lines.append("")
         lines += session.coverage.details
         return lines.joined(separator: "\n")

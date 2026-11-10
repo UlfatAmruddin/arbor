@@ -146,7 +146,7 @@ public struct CodeSignatureInfo: Equatable, Sendable {
         case errSecSuccess: status = .valid
         case errSecCSUnsigned: status = .unsigned
         default:
-            let message = SecCopyErrorMessageString(check, nil) as String? ?? "error \(check)"
+            let message = SecCopyErrorMessageString(check, nil) as String? ?? L10n.format("error %d", check)
             status = .invalid(message)
         }
         let trust: Trust = status == .valid ? trust(isAdHoc: isAdHoc) { satisfies(code, $0) } : .untrusted
@@ -201,7 +201,7 @@ public struct VolumeInfo: Equatable, Sendable {
             name: v.volumeLocalizedName ?? v.volumeName ?? url.lastPathComponent,
             typeText: typeText(local: v.volumeIsLocal ?? true, isInternal: v.volumeIsInternal,
                                removable: v.volumeIsRemovable ?? false, ejectable: v.volumeIsEjectable ?? false),
-            fileSystem: v.volumeLocalizedFormatDescription ?? "Unknown",
+            fileSystem: v.volumeLocalizedFormatDescription ?? L10n.tr("Unknown"),
             capacity: capacity, free: free, availableForImportantUsage: important,
             isReadOnly: v.volumeIsReadOnly ?? false, isRoot: v.volumeIsRootFileSystem ?? false,
             canRename: v.volumeSupportsRenaming ?? false)

@@ -216,10 +216,9 @@ final class CompareDialog: FileOpsDialog, NSTableViewDataSource, NSTableViewDele
         let destination = conflicts.first.map { displayName(of: $0.destination.deletingLastPathComponent()) } ?? ""
         sourceHeader = NSButton(checkboxWithTitle: L10n.format("Files from %@", "\(source)"), target: nil, action: nil)
         existingHeader = NSButton(checkboxWithTitle: L10n.format("Files already in %@", "\(destination)"), target: nil, action: nil)
-        skipSame = NSButton(checkboxWithTitle: sameIndices.count == 1 ? L10n.tr("Skip 1 file with the same date and size")
-                                                               : L10n.format("Skip %@ files with the same date and size", "\(sameIndices.count)"),
+        skipSame = NSButton(checkboxWithTitle: L10n.plural(one: "Skip %lld file with the same date and size", other: "Skip %lld files with the same date and size", sameIndices.count),
                             target: nil, action: nil)
-        super.init(title: conflicts.count == 1 ? L10n.tr("1 File Conflict") : L10n.format("%@ File Conflicts", StatusText.number(conflicts.count)), width: 620)
+        super.init(title: L10n.plural(one: "%lld File Conflict", other: "%lld File Conflicts", conflicts.count), width: 620)
 
         let heading = FileOpsStyle.label(L10n.tr("Which files do you want to keep?"), font: FileOpsStyle.instructionFont)
         let hint = FileOpsStyle.label(L10n.tr("If you select both versions, the copied file will have a number added to its name."),
@@ -384,7 +383,7 @@ final class ConflictPairRow: NSView {
         icon.translatesAutoresizingMaskIntoConstraints = false
         icon.widthAnchor.constraint(equalToConstant: 32).isActive = true
         let date = stamp.map { newer ? L10n.format("%@ (newer)", ConflictFlow.dates.string(from: $0.modified)) : ConflictFlow.dates.string(from: $0.modified) } ?? L10n.tr("Date unavailable")
-        let size = stamp.map { StatusText.bytes($0.size) + (larger ? " (larger)" : "") } ?? ""
+        let size = stamp.map { larger ? L10n.format("%@ (larger)", StatusText.bytes($0.size)) : StatusText.bytes($0.size) } ?? ""
         let info = NSStackView(views: [FileOpsStyle.label(date, font: FileOpsStyle.captionFont),
                                        FileOpsStyle.label(size, font: FileOpsStyle.captionFont, color: Theme.secondaryText)])
         info.orientation = .vertical

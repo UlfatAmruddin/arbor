@@ -84,12 +84,12 @@ enum JobVerification {
             }
             if result.failures.isEmpty {
                 BrowserWindowController.active?.statusBar.setMessage(
-                    result.filesChecked == 1 ? L10n.tr("Verified: 1 file matches its original (size and SHA-256).") : L10n.format("Verified: %@ files match their originals (size and SHA-256).", StatusText.number(result.filesChecked)))
+                    L10n.plural(one: "Verified: %lld file matches its original (size and SHA-256).", other: "Verified: %lld files match their originals (size and SHA-256).", result.filesChecked))
                 return
             }
             let lines = result.failures.prefix(8).map { "• " + L10n.format("%@: %@", URL(fileURLWithPath: $0.path).lastPathComponent, $0.reason) }
             let more = result.failures.count > 8 ? "\n" + L10n.format("…and %d more (see Operation history).", result.failures.count - 8) : ""
-            let message = result.failures.count == 1 ? L10n.tr("1 copy doesn't match its original.") : L10n.format("%@ copies don't match their originals.", StatusText.number(result.failures.count))
+            let message = L10n.plural(one: "%lld copy doesn't match its original.", other: "%lld copies don't match their originals.", result.failures.count)
             if AppDelegate.isHeadless {
                 lastAlert = message + "\n" + lines.joined(separator: "\n")
                 return

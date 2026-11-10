@@ -221,7 +221,7 @@ public struct OperationRecord: Codable, Sendable, Equatable, Identifiable {
             case .partial?: outcome = .partial
             case .cancelled?, nil: outcome = .notDone
             }
-            let message = item.note ?? (outcome == .uncertain ? "Arbor stopped while this item was being written; the destination may hold a partial copy." : nil)
+            let message = item.note ?? (outcome == .uncertain ? L10n.tr("Arbor stopped while this item was being written; the destination may hold a partial copy.") : nil)
             return Item(source: item.source.path, outcome: outcome, destination: item.destination?.path, message: message,
                         retryFolder: destination)
         }

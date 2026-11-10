@@ -22,15 +22,13 @@ enum TransferWords {
     }
 
     static func failedTitle(_ kind: TransferKind, count: Int) -> String {
-        let number = StatusText.number(count)
-        if kind == .copy { return count == 1 ? L10n.tr("1 item couldn't be copied.") : L10n.format("%@ items couldn't be copied.", number) }
-        return count == 1 ? L10n.tr("1 item couldn't be moved.") : L10n.format("%@ items couldn't be moved.", number)
+        if kind == .copy { return L10n.plural(one: "%lld item couldn't be copied.", other: "%lld items couldn't be copied.", count) }
+        return L10n.plural(one: "%lld item couldn't be moved.", other: "%lld items couldn't be moved.", count)
     }
 
     static func succeededLine(_ kind: TransferKind, count: Int) -> String {
-        let number = StatusText.number(count)
-        if kind == .copy { return count == 1 ? L10n.tr("1 item was copied successfully.") : L10n.format("%@ items were copied successfully.", number) }
-        return count == 1 ? L10n.tr("1 item was moved successfully.") : L10n.format("%@ items were moved successfully.", number)
+        if kind == .copy { return L10n.plural(one: "%lld item was copied successfully.", other: "%lld items were copied successfully.", count) }
+        return L10n.plural(one: "%lld item was moved successfully.", other: "%lld items were moved successfully.", count)
     }
 
     static func folderBeing(_ pastVerb: String) -> String {

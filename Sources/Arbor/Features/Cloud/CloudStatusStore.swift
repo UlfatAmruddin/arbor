@@ -209,7 +209,7 @@ final class CloudStatusCell: NSTableCellView {
 
     func show(_ status: CloudStatus?) {
         glyph.image = status.map { CloudGlyph.image($0, size: 16) }
-        toolTip = status?.title ?? "Checking status…"
-        setAccessibilityLabel(status?.title ?? "Checking status")
+        toolTip = status?.title ?? L10n.tr("Checking status…")
+        setAccessibilityLabel(status?.title ?? L10n.tr("Checking status"))
     }
 }

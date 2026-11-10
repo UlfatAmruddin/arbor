@@ -62,7 +62,7 @@ public struct TimeMachineStatus: Equatable, Sendable {
         guard let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
               let list = plist["Destinations"] as? [[String: Any]] else { return [] }
         return list.map {
-            Destination(name: $0["Name"] as? String ?? "Backup disk", kind: $0["Kind"] as? String ?? "",
+            Destination(name: $0["Name"] as? String ?? L10n.tr("Backup disk"), kind: $0["Kind"] as? String ?? "",
                         mountPoint: $0["MountPoint"] as? String)
         }
     }

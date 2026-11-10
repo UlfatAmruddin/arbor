@@ -54,7 +54,7 @@ final class PreviewPane: NSView, SidePaneProvider {
         guard items.count == 1, let item = items.first, !item.isFolder else {
             showPlaceholder(items.isEmpty ? L10n.tr("Select a file to preview.")
                             : items.count == 1 ? L10n.tr("No preview for folders.")
-                            : L10n.format("%@ items selected", StatusText.number(items.count)))
+                            : L10n.plural(one: "%lld item selected", other: "%lld items selected", items.count))
             return
         }
         guard PreviewPolicy.showsPreviewHandlers.value() else {
