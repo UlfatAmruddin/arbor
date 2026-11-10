@@ -80,13 +80,13 @@ extension OperationCenter {
                     box.done = true
                     let refused = plan.changed.map(\.lastPathComponent) + failed
                     if let window = BrowserWindowController.active {
-                        window.statusBar.setMessage(trashed.isEmpty ? "Nothing was undone." :
-                            "Undo Copy: \(StatusText.items(trashed.count)) moved to the Trash.")
+                        window.statusBar.setMessage(trashed.isEmpty ? L10n.tr("Nothing was undone.") :
+                            L10n.format("Undo Copy: %@ moved to the Trash.", StatusText.items(trashed.count)))
                         window.reload()
                     }
                     if !refused.isEmpty {
-                        NSAlert.show(refused.count == 1 ? "1 copy wasn't removed." : "\(refused.count) copies weren't removed.",
-                                     "They changed after they were copied, so undoing could lose work:\n" + refused.joined(separator: ", "),
+                        NSAlert.show(refused.count == 1 ? L10n.tr("1 copy wasn't removed.") : L10n.format("%@ copies weren't removed.", StatusText.number(refused.count)),
+                                     L10n.tr("They changed after they were copied, so undoing could lose work:\n") + refused.joined(separator: ", "),
                                      in: NSApp.keyWindow)
                     }
                 }

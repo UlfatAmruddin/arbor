@@ -1,9 +1,7 @@
 import Foundation
 import Darwin
-import ImageIO
-import UniformTypeIdentifiers
 
-/// Rewrites an image's properties (FE-152): lossless copy, verified, swapped in atomically, original kept in the Trash.
+/// Rewrites a file's embedded properties (FE-152): a copy through its `EmbeddedFormat`, verified, swapped in atomically, original kept in the Trash.
 public enum EmbeddedMetadataEditor {
     /// A swap that can be reversed: `url` holds `current`, and `kept` (in the Trash) holds what it replaced.
     public struct Revert: Sendable, Equatable {
@@ -28,18 +26,15 @@ public enum EmbeddedMetadataEditor {
         guard snapshot.blocked == nil else { throw snapshot.blocked ?? .unsupportedFile }
         guard edits.keys.allSatisfy(snapshot.editable.contains) else { throw EmbeddedFailure.notEditable }
 
-        let held = try HeldOriginal(snapshot)
-        defer { close(held.descriptor) }
-        guard let source = CGImageSourceCreateWithData(held.bytes as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
-              CGImageSourceGetType(source) as String? == snapshot.typeIdentifier else { throw EmbeddedFailure.changedSinceRead }
-        try EmbeddedReader.checkPixelBudget(source)
+        guard let format = EmbeddedFormats.format(forType: snapshot.typeIdentifier) else { throw EmbeddedFailure.unsupportedFile }
+        let held = try EmbeddedHeldFile(snapshot, limit: format.maxFileBytes)
 
         let staging = try stagingFolder(for: snapshot.url)
         var keepStaging = false
         defer { if !keepStaging { try? FileManager.default.removeItem(at: staging) } }
         let staged = staging.appendingPathComponent(snapshot.url.lastPathComponent)
-        try writeCopy(of: source, with: edits, to: staged, typeIdentifier: snapshot.typeIdentifier)
-        try EmbeddedMetadataVerifier.verify(original: held.bytes, written: staged, edits: edits, type: snapshot.typeIdentifier)
+        try format.produce(edits, from: held, type: snapshot.typeIdentifier, to: staged)
+        try format.verify(edits, original: held, written: staged, type: snapshot.typeIdentifier)
         try carryFileAttributes(from: held, to: staged)
 
         guard let replacement = FileStamp(staged) else { throw EmbeddedFailure.writeFailed }
@@ -111,33 +106,8 @@ public enum EmbeddedMetadataEditor {
         } catch { throw EmbeddedFailure.writeFailed }
     }
 
-    private static func writeCopy(of source: CGImageSource, with edits: [EmbeddedField: String], to staged: URL, typeIdentifier: String) throws {
-        guard let destination = CGImageDestinationCreateWithURL(staged as CFURL, typeIdentifier as CFString, CGImageSourceGetCount(source), nil) else {
-            throw EmbeddedFailure.writeFailed
-        }
-        let metadata = CGImageMetadataCreateMutable()
-        guard edits.allSatisfy({ set($0.key, to: $0.value, in: metadata) }) else { throw EmbeddedFailure.writeFailed }
-        let options: [CFString: Any] = [kCGImageDestinationMetadata: metadata, kCGImageDestinationMergeMetadata: true]
-        var error: Unmanaged<CFError>?
-        guard CGImageDestinationCopyImageSource(destination, source, options as CFDictionary, &error) else { throw EmbeddedFailure.writeFailed }
-    }
-
-    /// Through ImageIO's own mapping, so the XMP, IPTC and Exif copies agree; an empty title or rating 0 clears it.
-    private static func set(_ field: EmbeddedField, to value: String, in metadata: CGMutableImageMetadata) -> Bool {
-        func put(_ dictionary: CFString, _ key: CFString, _ item: CFTypeRef) -> Bool {
-            CGImageMetadataSetValueMatchingImageProperty(metadata, dictionary, key, item)
-        }
-        switch field {
-        case .title: return put(kCGImagePropertyIPTCDictionary, kCGImagePropertyIPTCObjectName, value as CFString)
-        case .description: return put(kCGImagePropertyTIFFDictionary, kCGImagePropertyTIFFImageDescription, value as CFString)
-        case .rating: return put(kCGImagePropertyIPTCDictionary, kCGImagePropertyIPTCStarRating, NSNumber(value: Int(value) ?? 0))
-        case .dateTaken:
-            return put(kCGImagePropertyExifDictionary, kCGImagePropertyExifDateTimeOriginal, value.isEmpty ? kCFNull : value as CFString)
-        }
-    }
-
     /// Permissions, owner, access list, flags, tags and comments stay; the modification date honestly moves.
-    private static func carryFileAttributes(from held: HeldOriginal, to staged: URL) throws {
+    private static func carryFileAttributes(from held: EmbeddedHeldFile, to staged: URL) throws {
         let descriptor = open(staged.path, O_RDWR | O_NOFOLLOW | O_CLOEXEC)
         guard descriptor >= 0 else { throw EmbeddedFailure.writeFailed }
         defer { close(descriptor) }
@@ -151,35 +121,5 @@ public enum EmbeddedMetadataEditor {
         values.creationDate = Date(timeIntervalSince1970: TimeInterval(held.info.st_birthtimespec.tv_sec) + TimeInterval(held.info.st_birthtimespec.tv_nsec) / 1e9)
         var target = staged
         try? target.setResourceValues(values)
-    }
-
-    /// The original opened without following links and read whole, so what is verified is exactly what was stamped.
-    private struct HeldOriginal {
-        let descriptor: Int32
-        let info: stat
-        let bytes: Data
-
-        init(_ snapshot: EmbeddedSnapshot) throws {
-            let fd = open(snapshot.url.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
-            guard fd >= 0 else { throw EmbeddedFailure.changedSinceRead }
-            var ready = false
-            defer { if !ready { close(fd) } }
-            var first = stat()
-            guard fstat(fd, &first) == 0, (first.st_mode & S_IFMT) == S_IFREG, snapshot.stamp.sameState(as: FileStamp(first)) else {
-                throw EmbeddedFailure.changedSinceRead
-            }
-            guard first.st_nlink == 1 else { throw EmbeddedFailure.hardLinked }
-            guard first.st_flags & UInt32(UF_IMMUTABLE | SF_IMMUTABLE) == 0 else { throw EmbeddedFailure.locked }
-            guard Int64(first.st_size) <= EmbeddedLimits.maxFileBytes else { throw EmbeddedFailure.tooLarge }
-            let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: false)
-            guard let data = try? handle.read(upToCount: Int(first.st_size)), Int64(data.count) == Int64(first.st_size),
-                  (try? handle.read(upToCount: 1))?.isEmpty ?? true else { throw EmbeddedFailure.changedSinceRead }
-            var last = stat()
-            guard fstat(fd, &last) == 0, snapshot.stamp.sameState(as: FileStamp(last)) else { throw EmbeddedFailure.changedSinceRead }
-            descriptor = fd
-            info = first
-            bytes = data
-            ready = true
-        }
     }
 }

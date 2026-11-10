@@ -118,6 +118,7 @@ final class NameCellView: NSTableCellView {
         nameField.focusRingType = .none
         nameField.font = Theme.bodyFont
         nameField.textColor = Theme.primaryText
+        nameField.alignment = RightToLeft.resolved(.left)
         nameField.lineBreakMode = .byTruncatingMiddle   // keeps the extension visible (FE-055)
         nameField.cell?.usesSingleLineMode = true
         nameField.translatesAutoresizingMaskIntoConstraints = false
@@ -152,7 +153,7 @@ final class TextCellView: NSTableCellView {
     init(id: String, alignment: NSTextAlignment) {
         super.init(frame: .zero)
         identifier = NSUserInterfaceItemIdentifier("TextCell-\(id)")
-        label.alignment = alignment
+        label.alignment = RightToLeft.resolved(alignment)
         label.textColor = Theme.secondaryText
         label.lineBreakMode = .byTruncatingTail
         label.font = .monospacedDigitSystemFont(ofSize: 13, weight: .regular)
@@ -314,6 +315,7 @@ final class DetailsViewController: NSViewController, ItemViewController, NSTable
 
     private func addColumn(_ id: String, _ title: String, width: CGFloat, min: CGFloat, key: SortKey, alignment: NSTextAlignment = .left) {
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id))
+        let alignment = RightToLeft.resolved(alignment)
         column.title = title
         column.headerCell.alignment = alignment
         column.headerCell.attributedStringValue = NSAttributedString(string: L10n.tr(title), attributes: [

@@ -276,7 +276,7 @@ enum ArchiveJobs {
         let name = ArchiveNaming.archiveName(for: first.name, isFolder: first.isFolder, format: format) {
             FileOps.exists(folder.appendingPathComponent($0))
         }
-        let activity = OperationCenter.Activity(text: "Compressing \(items.count == 1 ? "“\(first.name)”" : StatusText.items(items.count))") {
+        let activity = OperationCenter.Activity(text: items.count == 1 ? L10n.format("Compressing “%@”", first.name) : L10n.format("Compressing %@", StatusText.items(items.count))) {
             process.cancel()
         }
         OperationCenter.shared.begin(activity)
@@ -377,7 +377,7 @@ enum ArchiveJobs {
     /// Attaches a disk image with `hdiutil` and opens its volume.
     static func mount(_ image: URL, window controller: BrowserWindowController?, fallbackToBrowse: Bool) {
         let process = ToolProcess()
-        let activity = OperationCenter.Activity(text: "Mounting “\(image.lastPathComponent)”") { process.cancel() }
+        let activity = OperationCenter.Activity(text: L10n.format("Mounting “%@”", image.lastPathComponent)) { process.cancel() }
         OperationCenter.shared.begin(activity)
         weak let weakController = controller
         DispatchQueue.global(qos: .userInitiated).async {

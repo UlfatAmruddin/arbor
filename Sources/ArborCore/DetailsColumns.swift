@@ -242,8 +242,8 @@ public enum ColumnValues {
         case .date(let d): return dateFormatter.string(from: d)
         case .bytes(let b): return ExplorerSize.detailsColumn(b)   // always KB
         case .duration(let s): return durationText(s)
-        case .bitRate(let b): return Int(checked: (b / 1000).rounded()).map { "\($0)kbps" } ?? ""
-        case .dimensions(let w, let h): return "\(w) x \(h)"
+        case .bitRate(let b): return Int(checked: (b / 1000).rounded()).map { L10n.format("%@kbps", PropertyFormat.ungrouped($0)) } ?? ""
+        case .dimensions(let w, let h): return L10n.format("%@ x %@", PropertyFormat.ungrouped(w), PropertyFormat.ungrouped(h))
         case .list(let l): return l.joined(separator: "; ")
         case .empty, .unsupported: return ""
         case .unknown: return "—"
@@ -253,8 +253,7 @@ public enum ColumnValues {
     /// hh:mm:ss, as Explorer's Length.
     public static func durationText(_ seconds: Double) -> String {
         guard seconds.isFinite, seconds >= 0, seconds < 1e12 else { return "—" }
-        let total = Int(seconds.rounded())
-        return String(format: "%02d:%02d:%02d", total / 3600, (total / 60) % 60, total % 60)
+        return PropertyFormat.clock(Int(seconds.rounded()))
     }
 
     /// For VoiceOver and tooltips.

@@ -46,6 +46,14 @@ To keep the code easy to change:
 - No disk or network work on the main thread; cancel work that has gone stale.
 - User-visible strings go through `L10n`. Comments are one line and say why, not what.
 
+## Adding a language
+A language is one data file. Copy `Resources/en.lproj/Localizable.strings` to `Resources/<language>.lproj/Localizable.strings` (for example `fr` or `pt-BR`) and translate the right-hand side of each line; keys are the English text and stay as they are. Nothing else changes: the build copies every `.lproj` and declares it, and a key you leave out shows in English.
+
+- Keep the `%` parts: the same specifiers, of the same kind, as the English. `%1$@ … %2$@` numbers let you change the order. Write a percent sign as `%%`.
+- `scripts/extract-strings.sh --check` (also run by `scripts/test.sh`) rejects unknown keys, empty values, wrong specifiers and malformed files, and reports how many strings aren't translated yet.
+- Right-to-left languages mirror the app on their own. To check your layout, use the pseudo-languages in `TESTING.md`.
+- Text that doesn't fit is a bug in Arbor rather than in the translation: report it.
+
 ## Pull requests
 - Keep each pull request to one topic, with plain, descriptive commit messages.
 - Fill in the pull request checklist. CI (`.github/workflows/ci.yml`) builds with no warnings, runs the tests and builds the disk image on every push and pull request; it must be green.

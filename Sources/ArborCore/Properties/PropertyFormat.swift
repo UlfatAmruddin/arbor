@@ -15,10 +15,9 @@ public enum PropertyFormat {
     /// Explorer's size: 1024-based, three significant digits, truncated, unit switch at 1000 ("0.99 MB").
     public static func adaptiveSize(_ bytes: Int64) -> String {
         if bytes < 1000 { return L10n.format("%@ bytes", "\(grouped(max(bytes, 0)))") }
-        let units = ["KB", "MB", "GB", "TB", "PB", "EB"]
         var value = Double(bytes) / 1024
         var unit = 0
-        while value >= 1000, unit < units.count - 1 {
+        while value >= 1000, unit < SizeUnit.last {
             value /= 1024
             unit += 1
         }
@@ -30,7 +29,7 @@ public enum PropertyFormat {
         f.minimumFractionDigits = decimals
         f.maximumFractionDigits = decimals
         f.roundingMode = .down
-        return "\(f.string(from: NSNumber(value: truncated)) ?? "\(truncated)") \(units[unit])"
+        return SizeUnit.text(f.string(from: NSNumber(value: truncated)) ?? "\(truncated)", unit: unit)
     }
 
     /// `1.23 KB (1,264 bytes)`.
@@ -51,7 +50,7 @@ public enum PropertyFormat {
         t.timeZone = timeZone
         t.dateStyle = .none
         t.timeStyle = .medium
-        return "\(d.string(from: date)), \(t.string(from: date))"
+        return L10n.format("%@, %@", d.string(from: date), t.string(from: date))
     }
 
     /// "11/7/2026 3:45 PM".
@@ -69,23 +68,45 @@ public enum PropertyFormat {
         guard let first = dates.min(), let last = dates.max() else { return nil }
         let a = shortDate(first, locale: locale, timeZone: timeZone)
         let b = shortDate(last, locale: locale, timeZone: timeZone)
-        return a == b ? a : "\(a) - \(b)"
+        return a == b ? a : L10n.format("%@ - %@", a, b)
     }
 
     /// "00:03:25".
     public static func duration(_ seconds: Double) -> String {
         guard seconds.isFinite, seconds >= 0, seconds < 1e12 else { return "" }
-        let total = Int(seconds.rounded())
-        return String(format: "%02d:%02d:%02d", total / 3600, (total / 60) % 60, total % 60)
+        return clock(Int(seconds.rounded()))
     }
 
-    public static func count(_ n: Int, _ singular: String, _ plural: String) -> String {
-        "\(grouped(n)) \(n == 1 ? singular : plural)"
+    /// hh:mm:ss in the digits of the user's locale.
+    public static func clock(_ totalSeconds: Int, locale: Locale = .current) -> String {
+        String(format: "%02d:%02d:%02d", locale: locale, totalSeconds / 3600, (totalSeconds / 60) % 60, totalSeconds % 60)
     }
+
+    /// "1 File", "12 Files", "1 Folder", "3 Folders".
+    public static func files(_ n: Int) -> String { n == 1 ? L10n.tr("1 File") : L10n.format("%@ Files", grouped(n)) }
+    public static func folders(_ n: Int) -> String { n == 1 ? L10n.tr("1 Folder") : L10n.format("%@ Folders", grouped(n)) }
 
     /// "12 Files, 3 Folders".
-    public static func filesAndFolders(files: Int, folders: Int) -> String {
-        "\(count(files, "File", "Files")), \(count(folders, "Folder", "Folders"))"
+    public static func filesAndFolders(files fileCount: Int, folders folderCount: Int) -> String {
+        L10n.format("%@, %@", files(fileCount), folders(folderCount))
+    }
+
+    private static let decimal: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.usesGroupingSeparator = false
+        return f
+    }()
+
+    /// A technical value that reads as one token ("1920 x 1080", "ISO-1600"), in the locale's digits.
+    public static func ungrouped(_ n: Int) -> String { decimal.string(from: NSNumber(value: n)) ?? "\(n)" }
+
+    /// A number with up to `significant` digits, without grouping ("44.1", "1.5").
+    public static func compact(_ value: Double, significant: Int = 6) -> String {
+        let f = decimal.copy() as? NumberFormatter ?? decimal
+        f.usesSignificantDigits = true
+        f.maximumSignificantDigits = significant
+        return f.string(from: NSNumber(value: value)) ?? "\(value)"
     }
 }
 
@@ -168,7 +189,7 @@ public struct SelectionSummary: Equatable {
 
     public var count: Int { files + folders }
     public var countText: String { PropertyFormat.filesAndFolders(files: files, folders: folders) }
-    public var selectedText: String { count == 1 ? "1 item selected" : "\(PropertyFormat.grouped(count)) items selected" }
+    public var selectedText: String { count == 1 ? L10n.tr("1 item selected") : L10n.format("%@ items selected", PropertyFormat.grouped(count)) }
 
     public var typeText: String {
         switch type {

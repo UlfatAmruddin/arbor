@@ -79,22 +79,22 @@ enum JobVerification {
         let window = job.window
         DispatchQueue.main.async {
             if result.cancelled {
-                BrowserWindowController.active?.statusBar.setMessage("Verification was cancelled. The copies weren't checked completely.")
+                BrowserWindowController.active?.statusBar.setMessage(L10n.tr("Verification was cancelled. The copies weren't checked completely."))
                 return
             }
             if result.failures.isEmpty {
                 BrowserWindowController.active?.statusBar.setMessage(
-                    "Verified: \(result.filesChecked == 1 ? "1 file matches its original" : "\(result.filesChecked) files match their originals") (size and SHA-256).")
+                    result.filesChecked == 1 ? L10n.tr("Verified: 1 file matches its original (size and SHA-256).") : L10n.format("Verified: %@ files match their originals (size and SHA-256).", StatusText.number(result.filesChecked)))
                 return
             }
-            let lines = result.failures.prefix(8).map { "• \(URL(fileURLWithPath: $0.path).lastPathComponent): \($0.reason)" }
-            let more = result.failures.count > 8 ? "\n…and \(result.failures.count - 8) more (see Operation history)." : ""
-            let message = result.failures.count == 1 ? "1 copy doesn't match its original." : "\(result.failures.count) copies don't match their originals."
+            let lines = result.failures.prefix(8).map { "• " + L10n.format("%@: %@", URL(fileURLWithPath: $0.path).lastPathComponent, $0.reason) }
+            let more = result.failures.count > 8 ? "\n" + L10n.format("…and %d more (see Operation history).", result.failures.count - 8) : ""
+            let message = result.failures.count == 1 ? L10n.tr("1 copy doesn't match its original.") : L10n.format("%@ copies don't match their originals.", StatusText.number(result.failures.count))
             if AppDelegate.isHeadless {
                 lastAlert = message + "\n" + lines.joined(separator: "\n")
                 return
             }
-            NSAlert.show(message, "Verification read each copy back and compared it with the original. The copies were kept; copy these files again or check the destination drive.\n\n"
+            NSAlert.show(message, L10n.tr("Verification read each copy back and compared it with the original. The copies were kept; copy these files again or check the destination drive.") + "\n\n"
                 + lines.joined(separator: "\n") + more, in: window)
         }
     }

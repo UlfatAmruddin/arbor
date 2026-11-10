@@ -113,6 +113,7 @@ final class AddressBar: NSView, NSTextFieldDelegate {
         field.drawsBackground = false
         field.focusRingType = .none
         field.font = Theme.bodyFont
+        RightToLeft.holdLeftToRight(field)
         field.cell?.isScrollable = true
         field.cell?.wraps = false
         field.delegate = self

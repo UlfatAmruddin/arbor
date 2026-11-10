@@ -81,7 +81,7 @@ enum PropertiesFeature: ExplorerFeature {
         }
         // proptab:Security — select a tab of the front Properties window.
         DebugScript.registerStep("proptab") { arg, _ in
-            if front()?.select(title: arg) != true { NSLog("DebugScript: no tab \(arg)") }
+            if front()?.select(title: L10n.tr(arg)) != true { NSLog("DebugScript: no tab \(arg)") }
             return 0.8
         }
         // proplog:/path — the front Properties window's title, tabs and the selected tab's values.

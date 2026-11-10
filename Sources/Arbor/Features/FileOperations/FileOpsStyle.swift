@@ -125,7 +125,34 @@ final class CommandLinkButton: NSButton {
     private var hovering = false { didSet { needsDisplay = true } }
     var onPress: (() -> Void)?
 
-    init(symbol: String, title: String, detail: String? = nil, action: (() -> Void)? = nil) {
+    private static let textInset: CGFloat = 44
+    private static let textEnd: CGFloat = 8
+
+    private static func paragraph() -> NSParagraphStyle {
+        let style = NSMutableParagraphStyle()
+        style.alignment = RightToLeft.resolved(.left)
+        return style
+    }
+
+    private static func titleAttributes() -> [NSAttributedString.Key: Any] {
+        [.font: FileOpsStyle.optionFont, .foregroundColor: Theme.primaryText, .paragraphStyle: paragraph()]
+    }
+
+    private static func detailAttributes() -> [NSAttributedString.Key: Any] {
+        [.font: FileOpsStyle.captionFont, .foregroundColor: Theme.secondaryText, .paragraphStyle: paragraph()]
+    }
+
+    /// How much taller than one line the text wraps to.
+    private static func extraHeight(of text: String, attributes: [NSAttributedString.Key: Any], width: CGFloat) -> CGFloat {
+        max(0, height(of: text, attributes: attributes, width: width) - height(of: "X", attributes: attributes, width: width))
+    }
+
+    private static func height(of text: String, attributes: [NSAttributedString.Key: Any], width: CGFloat) -> CGFloat {
+        ceil((text as NSString).boundingRect(with: NSSize(width: width, height: .greatestFiniteMagnitude),
+                                             options: [.usesLineFragmentOrigin], attributes: attributes).height)
+    }
+
+    init(symbol: String, title: String, detail: String? = nil, width: CGFloat = 430, action: (() -> Void)? = nil) {
         self.symbol = symbol
         self.detail = detail
         super.init(frame: .zero)
@@ -136,8 +163,12 @@ final class CommandLinkButton: NSButton {
         target = self
         self.action = #selector(pressed)
         translatesAutoresizingMaskIntoConstraints = false
-        heightAnchor.constraint(equalToConstant: detail == nil ? 40 : 52).isActive = true
-        setAccessibilityLabel(detail.map { "\(title). \($0)" } ?? title)
+        widthAnchor.constraint(equalToConstant: width).isActive = true
+        let textWidth = width - Self.textInset - Self.textEnd
+        let extraTitle = Self.extraHeight(of: title, attributes: Self.titleAttributes(), width: textWidth)
+        let extraDetail = detail.map { Self.extraHeight(of: $0, attributes: Self.detailAttributes(), width: textWidth) } ?? 0
+        heightAnchor.constraint(equalToConstant: (detail == nil ? 40 : 52) + extraTitle + extraDetail).isActive = true
+        setAccessibilityLabel(detail.map { L10n.format("%@. %@", title, $0) } ?? title)
     }
     required init?(coder: NSCoder) { fatalError() }
 
@@ -158,19 +189,25 @@ final class CommandLinkButton: NSButton {
             Theme.hover.setFill()
             NSBezierPath(roundedRect: bounds, xRadius: 4, yRadius: 4).fill()
         }
+        let rightToLeft = RightToLeft.isActive(self)
         let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .regular)
-        if let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(config) {
+        let name = rightToLeft ? symbol.replacingOccurrences(of: ".right", with: ".left") : symbol
+        if let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config) {
             let tinted = image.tinted(FileOpsStyle.link.resolved(for: effectiveAppearance))
             let y = detail == nil ? (bounds.height - tinted.size.height) / 2 : 9
-            tinted.draw(in: NSRect(x: 12 + (20 - tinted.size.width) / 2, y: y, width: tinted.size.width, height: tinted.size.height))
+            let iconSlot: CGFloat = rightToLeft ? bounds.width - 32 : 12
+            tinted.draw(in: NSRect(x: iconSlot + (20 - tinted.size.width) / 2, y: y, width: tinted.size.width, height: tinted.size.height))
         }
-        let titleAttrs: [NSAttributedString.Key: Any] = [.font: FileOpsStyle.optionFont, .foregroundColor: Theme.primaryText]
-        let titleSize = (title as NSString).size(withAttributes: titleAttrs)
-        let titleY = detail == nil ? (bounds.height - titleSize.height) / 2 : 7
-        (title as NSString).draw(at: NSPoint(x: 44, y: titleY), withAttributes: titleAttrs)
+        let textWidth = bounds.width - Self.textInset - Self.textEnd
+        let textX = rightToLeft ? Self.textEnd : Self.textInset
+        let titleAttrs = Self.titleAttributes()
+        let titleHeight = Self.height(of: title, attributes: titleAttrs, width: textWidth)
+        let titleY = detail == nil ? (bounds.height - titleHeight) / 2 : 7
+        (title as NSString).draw(in: NSRect(x: textX, y: titleY, width: textWidth, height: titleHeight), withAttributes: titleAttrs)
         if let detail {
-            let attrs: [NSAttributedString.Key: Any] = [.font: FileOpsStyle.captionFont, .foregroundColor: Theme.secondaryText]
-            (detail as NSString).draw(in: NSRect(x: 44, y: titleY + titleSize.height + 1, width: bounds.width - 52, height: 18), withAttributes: attrs)
+            let attrs = Self.detailAttributes()
+            let detailHeight = Self.height(of: detail, attributes: attrs, width: textWidth)
+            (detail as NSString).draw(in: NSRect(x: textX, y: titleY + titleHeight + 1, width: textWidth, height: detailHeight), withAttributes: attrs)
         }
     }
 }
@@ -400,13 +437,20 @@ class FileOpsDialog: NSObject, NSWindowDelegate {
 
 /// "Copying 3 items from <Downloads> to <Desktop>" with the folder names as links.
 func fromToLine(verb: String, count: Int, source: URL?, destination: URL?, open: @escaping (URL) -> Void) -> NSStackView {
-    var views: [NSView] = [FileOpsStyle.label(L10n.format("%@ %@ from", TransferWords.localized(verb), StatusText.items(count)), font: FileOpsStyle.captionFont, color: Theme.secondaryText)]
-    if let source {
-        views.append(FileOpsLinkButton(displayName(of: source)) { open(source) })
-    }
-    if let destination {
-        views.append(FileOpsStyle.label(L10n.tr("to"), font: FileOpsStyle.captionFont, color: Theme.secondaryText))
-        views.append(FileOpsLinkButton(displayName(of: destination)) { open(destination) })
+    let places = [source, destination].compactMap { $0 }
+    let views: [NSView] = SentenceParts.split(TransferWords.fromToTemplate(verb: verb, hasSource: source != nil, hasDestination: destination != nil)).compactMap { part in
+        func caption(_ text: String) -> NSView { FileOpsStyle.label(text, font: FileOpsStyle.captionFont, color: Theme.secondaryText) }
+        switch part {
+        case .text(let text):
+            let trimmed = text.trimmingCharacters(in: .whitespaces)
+            return trimmed.isEmpty ? nil : caption(trimmed)
+        case .argument(0):
+            return caption(StatusText.items(count))
+        case .argument(let position):
+            guard places.indices.contains(position - 1) else { return nil }
+            let place = places[position - 1]
+            return FileOpsLinkButton(displayName(of: place)) { open(place) }
+        }
     }
     for view in views { view.setContentHuggingPriority(.required, for: .horizontal) }
     let row = NSStackView(views: views)

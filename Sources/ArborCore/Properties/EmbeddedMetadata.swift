@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 /// The embedded properties Arbor can edit (FE-152).
 public enum EmbeddedField: String, CaseIterable, Sendable {
-    case title, description, rating, dateTaken
+    case title, description, rating, dateTaken, artist, album, year, track, genre, comment
 
     public var label: String {
         switch self {
@@ -13,6 +13,12 @@ public enum EmbeddedField: String, CaseIterable, Sendable {
         case .description: return L10n.tr("Description")
         case .rating: return L10n.tr("Rating")
         case .dateTaken: return L10n.tr("Date taken")
+        case .artist: return L10n.tr("Contributing artists")
+        case .album: return L10n.tr("Album")
+        case .year: return L10n.tr("Year")
+        case .track: return "#"
+        case .genre: return L10n.tr("Genre")
+        case .comment: return L10n.tr("Comments")
         }
     }
 }
@@ -24,11 +30,17 @@ public struct EmbeddedSupport: Equatable, Sendable {
     public let canRemoveDate: Bool
 
     private static let table: [String: EmbeddedSupport] = [
-        UTType.jpeg.identifier: EmbeddedSupport(fields: Set(EmbeddedField.allCases), canRemoveDate: true),
+        UTType.jpeg.identifier: EmbeddedSupport(fields: [.title, .description, .rating, .dateTaken], canRemoveDate: true),
         // The description and date live in a legacy Exif copy the lossless path leaves behind.
         UTType.heic.identifier: EmbeddedSupport(fields: [.title, .rating], canRemoveDate: false),
         UTType.tiff.identifier: EmbeddedSupport(fields: [.title, .rating, .dateTaken], canRemoveDate: false),
+        ID3Format.identifier: audio, FLACFormat.identifier: audio, M4AFormat.identifier: audio,
     ]
+
+    private static let audio = EmbeddedSupport(fields: [.title, .artist, .album, .year, .track, .genre, .comment], canRemoveDate: false)
+
+    /// Sound rather than a picture, which is all the Details tab's wording depends on.
+    public var isAudio: Bool { fields.contains(.artist) }
 
     public static func forType(_ identifier: String) -> EmbeddedSupport? { table[identifier] }
 }
@@ -36,6 +48,8 @@ public struct EmbeddedSupport: Equatable, Sendable {
 /// Bounds on what is read from a file, all of it hostile until proven otherwise.
 public enum EmbeddedLimits {
     public static let maxFileBytes: Int64 = 512 << 20
+    /// Formats that stream the file through instead of holding it; the bound is only how long a save may take.
+    public static let maxStreamedFileBytes: Int64 = 16 << 30
     public static let maxFrames = 64
     /// At most 2 GiB decoded even at 16 bits per channel; one frame at a time is held.
     public static let maxTotalPixels: Int64 = 256_000_000
@@ -46,6 +60,9 @@ public enum EmbeddedLimits {
 public enum EmbeddedFailure: Error, LocalizedError, Equatable {
     case changedSinceRead, tooLarge, tooManyPixels, unsupportedFile, locked, hardLinked, volumeCannotSwap, readOnly, manufacturerData
     case invalidValue(String), notEditable, cannotRemoveDate, verificationFailed, writeFailed, trashFailed, changedSinceSaved
+    /// `reason` says what about this file's own structure keeps it read-only.
+    case structure(String)
+    case soundUnverified, noRoomBesideMetadata
     /// Another app got in during the swap. `keptAt` is where the set-aside file stayed; nil means it reached the Trash.
     case interrupted(keptAt: String?)
 
@@ -75,13 +92,16 @@ public enum EmbeddedFailure: Error, LocalizedError, Equatable {
         case .writeFailed: return L10n.tr("The properties couldn't be written, so the file wasn't changed.")
         case .trashFailed: return L10n.tr("The original couldn't be moved to the Trash, so it wasn't replaced.")
         case .changedSinceSaved: return L10n.tr("The file or its previous version changed since the edit.")
+        case .structure(let reason): return reason
+        case .soundUnverified: return L10n.tr("The change couldn't be verified as harmless to the audio, so the file wasn't changed.")
+        case .noRoomBesideMetadata: return L10n.tr("There isn't enough free space inside this file to store that without moving its audio, so nothing was changed.")
         case .interrupted(nil): return L10n.tr("Another app changed the file while it was being replaced. The version set aside is in the Trash; check the file before relying on it.")
         case .interrupted(let path?): return L10n.format("Another app changed the file while it was being replaced, and the version set aside couldn't go to the Trash. It is at %@; copy it somewhere safe, because that folder is temporary.", path)
         }
     }
 }
 
-/// One image's embedded properties as read, and which can be edited. Off the main thread; only headers are parsed.
+/// One file's embedded properties as read, and which can be edited. Off the main thread; only headers are parsed.
 public struct EmbeddedSnapshot: Sendable {
     public let url: URL
     public let stamp: FileStamp
@@ -94,28 +114,25 @@ public struct EmbeddedSnapshot: Sendable {
     public let blocked: EmbeddedFailure?
     public let support: EmbeddedSupport
 
-    /// nil for anything that isn't a regular image file of an editable type.
+    /// nil for anything that isn't a regular file of an editable type.
     public static func read(_ url: URL) -> EmbeddedSnapshot? {
         var info = stat()
         guard lstat(url.path, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG else { return nil }
         let stamp = FileStamp(info)
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
-              let type = CGImageSourceGetType(source) as String?, let support = EmbeddedSupport.forType(type),
-              CGImageSourceGetCount(source) > 0, CGImageSourceGetPrimaryImageIndex(source) == 0 else { return nil }
-        guard let found = EmbeddedReader.values(in: source) else { return nil }
+        guard let (format, found) = EmbeddedFormats.inspect(url, info: info) else { return nil }
         guard FileStamp(url)?.sameState(as: stamp) == true else { return nil }
 
         var shown: [EmbeddedField: String] = [:]
         var plain = Set<EmbeddedField>()
-        for (field, raw) in found {
+        for (field, raw) in found.fields {
             let cleaned = EmbeddedText.clean(raw.text, limit: EmbeddedText.limit(field))
             shown[field] = cleaned.text
             if cleaned.isExact, raw.canEdit, field != .dateTaken || EmbeddedDate.isValidExif(raw.text) { plain.insert(field) }
         }
-        let blocked = blockReason(url, info, source)
-        let offered = support.fields.filter { found[$0] == nil || plain.contains($0) }
-        return EmbeddedSnapshot(url: url, stamp: stamp, typeIdentifier: type, values: shown,
-                                editable: blocked == nil ? offered : [], blocked: blocked, support: support)
+        let blocked = blockReason(url, info, limit: format.maxFileBytes, found)
+        let offered = found.support.fields.filter { found.fields[$0] == nil || plain.contains($0) }
+        return EmbeddedSnapshot(url: url, stamp: stamp, typeIdentifier: found.typeIdentifier, values: shown,
+                                editable: blocked == nil ? offered : [], blocked: blocked, support: found.support)
     }
 
     /// A rename doesn't change the file, so the stamp still identifies what was read.
@@ -124,24 +141,15 @@ public struct EmbeddedSnapshot: Sendable {
                          blocked: blocked, support: support)
     }
 
-    private static func blockReason(_ url: URL, _ info: stat, _ source: CGImageSource) -> EmbeddedFailure? {
-        if Int64(info.st_size) > EmbeddedLimits.maxFileBytes { return .tooLarge }
-        do { try EmbeddedReader.checkPixelBudget(source) } catch { return error as? EmbeddedFailure ?? .unsupportedFile }
+    private static func blockReason(_ url: URL, _ info: stat, limit: Int64, _ found: EmbeddedInspection) -> EmbeddedFailure? {
+        if Int64(info.st_size) > limit { return .tooLarge }
+        if let budget = found.budgetBlock { return budget }
         if info.st_nlink > 1 { return .hardLinked }
         if info.st_flags & UInt32(UF_IMMUTABLE | SF_IMMUTABLE) != 0 { return .locked }
         if access(url.path, W_OK) != 0 || access(url.deletingLastPathComponent().path, W_OK) != 0 { return .readOnly }
         if let mount = FileOps.mountPoint(of: url),
            VolumeCapabilities.interfaceCapability(mount, UInt32(VOL_CAP_INT_RENAME_SWAP)) == false { return .volumeCannotSwap }
-        if CGImageSourceGetType(source) as String? == UTType.jpeg.identifier, let head = fileHead(url),
-           JPEGStructure.holdsDataARewriteLoses(head: head) { return .manufacturerData }
-        return nil
-    }
-
-    /// Enough for the Exif segment and its neighbours; anything later is still caught when a save is verified.
-    private static func fileHead(_ url: URL) -> Data? {
-        let descriptor = open(url.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
-        guard descriptor >= 0 else { return nil }
-        return try? FileHandle(fileDescriptor: descriptor, closeOnDealloc: true).read(upToCount: 256 << 10)
+        return found.contentBlock
     }
 }
 
@@ -224,7 +232,7 @@ extension CGImageMetadataTag {
 /// Keeps file-supplied text from misleading the display, and tells whether showing it changed it.
 public enum EmbeddedText {
     public static func limit(_ field: EmbeddedField) -> Int {
-        field == .description ? EmbeddedLimits.maxDescriptionLength : EmbeddedLimits.maxTitleLength
+        field == .description || field == .comment ? EmbeddedLimits.maxDescriptionLength : EmbeddedLimits.maxTitleLength
     }
 
     public static func clean(_ raw: String, limit: Int) -> (text: String, isExact: Bool) {
@@ -303,10 +311,14 @@ public enum EmbeddedEdits {
 
     private static func canonical(_ text: String, _ field: EmbeddedField, _ snapshot: EmbeddedSnapshot) throws -> String {
         switch field {
-        case .title, .description:
+        case .title, .description, .artist, .album, .genre, .comment:
             guard text.count <= EmbeddedText.limit(field) else { throw EmbeddedFailure.invalidValue(L10n.format("%@ is too long.", "\(field.label)")) }
             guard !text.unicodeScalars.contains(where: EmbeddedText.isUnsafe) else {
                 throw EmbeddedFailure.invalidValue(L10n.format("%@ contains characters that can't be stored.", "\(field.label)"))
+            }
+            // ID3 reads a leading bracket or a bare number as a code from its fixed genre list.
+            if field == .genre, text != snapshot.values[.genre] ?? "", text.hasPrefix("(") || (!text.isEmpty && text.allSatisfy(\.isNumber)) {
+                throw EmbeddedFailure.invalidValue(L10n.tr("Enter the genre as a name."))
             }
             return text
         case .rating:
@@ -322,6 +334,55 @@ public enum EmbeddedEdits {
                 throw EmbeddedFailure.invalidValue(L10n.tr("Enter the date taken as YYYY-MM-DD HH:MM:SS."))
             }
             return exif
+        case .year:
+            // Stray spaces already in the file aren't the user's input.
+            if text == snapshot.values[.year] { return text }
+            let trimmed = text.trimmingCharacters(in: .whitespaces)
+            guard trimmed.isEmpty || trimmed == snapshot.values[.year] || isFourDigits(trimmed) else {
+                throw EmbeddedFailure.invalidValue(L10n.tr("Enter the year as four digits."))
+            }
+            return trimmed
+        case .track:
+            if text == snapshot.values[.track] { return text }
+            let trimmed = text.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty || trimmed == snapshot.values[.track] { return trimmed }
+            guard let track = EmbeddedTrack(trimmed) else {
+                throw EmbeddedFailure.invalidValue(L10n.tr("Enter the track as a number, or a number and a total such as 3/12."))
+            }
+            return track.text
         }
+    }
+
+    private static func isFourDigits(_ text: String) -> Bool {
+        let bytes = Array(text.utf8)
+        return bytes.count == 4 && bytes.allSatisfy { (48...57).contains($0) }
+    }
+}
+
+/// A track position: M4A stores both numbers in sixteen bits, so every format keeps to that range.
+struct EmbeddedTrack: Equatable {
+    let number: UInt16
+    /// Zero when there is none.
+    let total: UInt16
+
+    /// "3" or "3/12".
+    init?(_ text: String) {
+        let parts = text.split(separator: "/", omittingEmptySubsequences: false)
+        guard (1...2).contains(parts.count), let number = Self.number(parts[0]), number > 0 else { return nil }
+        guard parts.count == 2 else { self.init(number: number, total: 0); return }
+        guard let total = Self.number(parts[1]), total > 0 else { return nil }
+        self.init(number: number, total: total)
+    }
+
+    init(number: UInt16, total: UInt16) {
+        self.number = number
+        self.total = total
+    }
+
+    var text: String { total == 0 ? String(number) : "\(number)/\(total)" }
+
+    private static func number(_ text: Substring) -> UInt16? {
+        guard !text.isEmpty, text.utf8.allSatisfy({ (48...57).contains($0) }) else { return nil }
+        return UInt16(text)
     }
 }

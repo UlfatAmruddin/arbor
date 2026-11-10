@@ -180,32 +180,32 @@ public enum SpotlightMetadata {
             return (value as? Date).map { PropertyFormat.shortDate($0) }
         case .number:
             guard let n = number(value) else { return nil }
-            return n == n.rounded() && abs(n) < 1e15 ? PropertyFormat.grouped(Int64(n)) : String(format: "%.6g", n)
+            return n == n.rounded() && abs(n) < 1e15 ? PropertyFormat.grouped(Int64(n)) : PropertyFormat.compact(n)
         case .duration:
             return number(value).map(PropertyFormat.duration)
         case .bitRate:
             // Spotlight reports kbps; some importers report bps.
             guard let n = number(value), n > 0 else { return nil }
             let kbps = n >= 10_000 ? n / 1000 : n
-            return Int(checked: kbps.rounded()).map { "\($0)kbps" }
+            return Int(checked: kbps.rounded()).map { L10n.format("%@kbps", PropertyFormat.ungrouped($0)) }
         case .hertz:
             guard let n = number(value) else { return nil }
-            if n >= 1000 { return "\(String(format: "%g", (n / 100).rounded() / 10)) kHz" }
-            return Int(checked: n).map { "\($0) Hz" }
+            if n >= 1000 { return L10n.format("%@ kHz", PropertyFormat.compact((n / 100).rounded() / 10)) }
+            return Int(checked: n).map { L10n.format("%@ Hz", PropertyFormat.grouped($0)) }
         case .pixels:
-            return number(value).flatMap { Int(checked: $0) }.map { "\($0) pixels" }
+            return number(value).flatMap { Int(checked: $0) }.map { L10n.format("%@ pixels", PropertyFormat.ungrouped($0)) }
         case .dpi:
-            return number(value).flatMap { Int(checked: $0.rounded()) }.map { "\($0) dpi" }
+            return number(value).flatMap { Int(checked: $0.rounded()) }.map { L10n.format("%@ dpi", PropertyFormat.ungrouped($0)) }
         case .fStop:
-            return number(value).map { "f/\(String(format: "%g", ($0 * 10).rounded() / 10))" }
+            return number(value).map { L10n.format("f/%@", PropertyFormat.compact(($0 * 10).rounded() / 10)) }
         case .exposure:
             guard let n = number(value), n > 0 else { return nil }
-            if n < 1 { return Int(checked: (1 / n).rounded()).map { "1/\($0) sec." } }
-            return "\(String(format: "%g", n)) sec."
+            if n < 1 { return Int(checked: (1 / n).rounded()).map { L10n.format("1/%@ sec.", PropertyFormat.ungrouped($0)) } }
+            return L10n.format("%@ sec.", PropertyFormat.compact(n))
         case .focalLength:
-            return number(value).map { "\(String(format: "%g", ($0 * 10).rounded() / 10)) mm" }
+            return number(value).map { L10n.format("%@ mm", PropertyFormat.compact(($0 * 10).rounded() / 10)) }
         case .iso:
-            return number(value).flatMap { Int(checked: $0) }.map { "ISO-\($0)" }
+            return number(value).flatMap { Int(checked: $0) }.map { L10n.format("ISO-%@", PropertyFormat.ungrouped($0)) }
         case .flash:
             return number(value).map { $0 != 0 ? L10n.tr("Flash") : L10n.tr("No flash") }
         case .rating:
@@ -215,9 +215,9 @@ public enum SpotlightMetadata {
         case .bytes:
             return number(value).flatMap { Int(checked: $0) }.map { PropertyFormat.adaptiveSize(Int64($0)) }
         case .framesPerSecond:
-            return number(value).map { "\(String(format: "%g", $0)) frames/second" }
+            return number(value).map { L10n.format("%@ frames/second", PropertyFormat.compact($0)) }
         case .meters:
-            return number(value).map { "\(String(format: "%.1f", $0)) m" }
+            return number(value).map { L10n.format("%@ m", SizeUnit.number($0, decimals: 1)) }
         case .bool:
             return number(value).map { $0 != 0 ? L10n.tr("Yes") : L10n.tr("No") }
         }

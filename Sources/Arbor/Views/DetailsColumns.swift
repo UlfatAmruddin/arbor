@@ -102,9 +102,9 @@ enum DetailsColumns {
             for spec in layout.extras where column(spec.id, in: table) == nil {
                 let c = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(spec.id))
                 c.title = L10n.tr(spec.title)
-                // Explorer headers are always left-aligned; `alignment` applies to the values.
-                c.headerCell.alignment = .left
-                c.headerCell.attributedStringValue = DetailsColumns.headerTitle(spec.title, alignment: .left)
+                // Explorer headers always start at the leading edge; `alignment` applies to the values.
+                c.headerCell.alignment = RightToLeft.resolved(.left)
+                c.headerCell.attributedStringValue = DetailsColumns.headerTitle(spec.title, alignment: c.headerCell.alignment)
                 c.width = spec.width
                 c.minWidth = spec.minWidth
                 c.maxWidth = 2000
@@ -164,7 +164,7 @@ final class DetailsTextCell: NSTableCellView {
         if let reused = table.makeView(withIdentifier: identifier, owner: nil) as? DetailsTextCell { return reused }
         let cell = DetailsTextCell()
         cell.identifier = identifier
-        cell.label.alignment = alignment
+        cell.label.alignment = RightToLeft.resolved(alignment)
         cell.label.lineBreakMode = truncation
         return cell
     }

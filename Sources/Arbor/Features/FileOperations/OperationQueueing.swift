@@ -85,7 +85,7 @@ final class TransferQueueController {
     // MARK: Per-job controls
 
     func isWaiting(_ job: OperationCenter.Job) -> Bool { pending[job.id] != nil }
-    func reason(_ job: OperationCenter.Job) -> String { scheduler.reason(for: job.id) ?? "Waiting to start" }
+    func reason(_ job: OperationCenter.Job) -> String { scheduler.reason(for: job.id) ?? L10n.tr("Waiting to start") }
     func position(_ job: OperationCenter.Job) -> Int? { scheduler.position(of: job.id) }
     func isDeferred(_ job: OperationCenter.Job) -> Bool { scheduler.entry(job.id)?.deferred ?? false }
     func canMove(_ job: OperationCenter.Job, by offset: Int) -> Bool { scheduler.canMove(job.id, by: offset) }
@@ -198,7 +198,7 @@ final class JobPanelExtras: NSStackView {
             moveDown.isEnabled = queue.canMove(job, by: 1)
             moveUp.alphaValue = moveUp.isEnabled ? 1 : 0.4
             moveDown.alphaValue = moveDown.isEnabled ? 1 : 0.4
-            deferButton.title = queue.isDeferred(job) ? "Don't defer" : "Defer"
+            deferButton.title = queue.isDeferred(job) ? L10n.tr("Don't defer") : L10n.tr("Defer")
             deferButton.attributedTitle = NSAttributedString(string: deferButton.title,
                                                              attributes: [.font: FileOpsStyle.captionFont, .foregroundColor: FileOpsStyle.link])
         }
@@ -211,10 +211,10 @@ final class JobPanelExtras: NSStackView {
     static func statusText(for job: OperationCenter.Job) -> String? {
         if let v = JobVerification.progress(job) {
             let pct = v.total > 0 ? Int((Double(v.done) / Double(v.total) * 100).rounded(.down)) : 0
-            return "Verifying copies… \(min(pct, 100))%"
+            return L10n.format("Verifying copies… %@%%", StatusText.number(min(pct, 100)))
         }
         if TransferQueueController.shared.isWaiting(job), !job.transfer.isCancelled {
-            return TransferQueueController.shared.isDeferred(job) ? "Deferred" : "Waiting to start"
+            return TransferQueueController.shared.isDeferred(job) ? L10n.tr("Deferred") : L10n.tr("Waiting to start")
         }
         return nil
     }
@@ -247,6 +247,8 @@ final class OperationsFooterExtras: NSStackView {
         spacing = 16
         translatesAutoresizingMaskIntoConstraints = false
         setViews([options, history], in: .trailing)
+        // Longer translations widen the window instead of running into the details toggle.
+        for link in [options, history] { link.setContentCompressionResistancePriority(.required, for: .horizontal) }
         options.toolTip = L10n.tr("Beyond File Explorer: queue transfers to the same drive, limit how many run at once.")
     }
     required init?(coder: NSCoder) { fatalError() }

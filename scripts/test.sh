@@ -19,7 +19,7 @@ sweep_stale_fixtures() {
 }
 sweep_stale_fixtures
 
-# The English string table must list every routed string (FE-204).
+# The English string table must list every routed string, and every translation must be valid (FE-204).
 scripts/extract-strings.sh --check
 EXTRA=()
 if ! xcodebuild -version >/dev/null 2>&1; then

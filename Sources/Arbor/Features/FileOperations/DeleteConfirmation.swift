@@ -19,18 +19,18 @@ final class DeleteConfirmation: FileOpsDialog {
         let single = items.count == 1 ? items[0] : nil
         let title = single.map { $0.isFolder ? L10n.tr("Delete Folder") : L10n.tr("Delete File") } ?? L10n.tr("Delete Multiple Items")
         super.init(title: title, width: 470)
-        let noun = single.map { $0.isFolder ? "folder" : "file" }
+        let count = StatusText.number(items.count)
         let text: String
         switch mode {
         case .trash:
-            text = noun.map { "Are you sure you want to move this \($0) to the Trash?" }
-                ?? "Are you sure you want to move these \(items.count) items to the Trash?"
+            text = single.map { $0.isFolder ? L10n.tr("Are you sure you want to move this folder to the Trash?") : L10n.tr("Are you sure you want to move this file to the Trash?") }
+                ?? L10n.format("Are you sure you want to move these %@ items to the Trash?", count)
         case .permanent:
-            text = noun.map { "Are you sure you want to permanently delete this \($0)?" }
-                ?? "Are you sure you want to permanently delete these \(items.count) items?"
+            text = single.map { $0.isFolder ? L10n.tr("Are you sure you want to permanently delete this folder?") : L10n.tr("Are you sure you want to permanently delete this file?") }
+                ?? L10n.format("Are you sure you want to permanently delete these %@ items?", count)
         case .cannotTrash:
-            text = noun.map { "This \($0) can't be moved to the Trash. Do you want to permanently delete it?" }
-                ?? "These \(items.count) items can't be moved to the Trash. Do you want to permanently delete them?"
+            text = single.map { $0.isFolder ? L10n.tr("This folder can't be moved to the Trash. Do you want to permanently delete it?") : L10n.tr("This file can't be moved to the Trash. Do you want to permanently delete it?") }
+                ?? L10n.format("These %@ items can't be moved to the Trash. Do you want to permanently delete them?", count)
         }
         let message = FileOpsStyle.label(text, font: FileOpsStyle.bodyFont, wraps: true)
         message.preferredMaxLayoutWidth = 420

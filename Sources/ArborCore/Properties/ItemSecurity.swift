@@ -274,8 +274,8 @@ public struct EffectiveAccess: Equatable, Sendable {
 
     public func lines(isFolder: Bool) -> [(label: String, allowed: Bool)] {
         if isFolder {
-            return [("List contents", read), ("Add, rename and delete items inside", write && execute), ("Open the folder", execute)]
+            return [(L10n.tr("List contents"), read), (L10n.tr("Add, rename and delete items inside"), write && execute), (L10n.tr("Open the folder"), execute)]
         }
-        return [("Read", read), ("Modify", write), ("Run as a program", execute)]
+        return [(L10n.tr("Read"), read), (L10n.tr("Modify"), write), (L10n.tr("Run as a program"), execute)]
     }
 }

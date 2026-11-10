@@ -98,16 +98,15 @@ public enum CapacityText {
     /// Three significant digits, truncated so free space is never overstated ("15.9 GB", "512 bytes").
     /// Decimal units (1 GB = 1,000,000,000 bytes), like the rest of macOS.
     public static func size(_ bytes: Int64) -> String {
-        guard bytes >= 1000 else { return bytes == 1 ? "1 byte" : "\(max(0, bytes)) bytes" }
-        let units = ["KB", "MB", "GB", "TB", "PB", "EB"]
+        guard bytes >= 1000 else { return bytes == 1 ? L10n.tr("1 byte") : L10n.format("%@ bytes", PropertyFormat.grouped(max(0, bytes))) }
         var value = Double(bytes) / 1000
         var unit = 0
-        while value >= 1000, unit < units.count - 1 { value /= 1000; unit += 1 }
+        while value >= 1000, unit < SizeUnit.last { value /= 1000; unit += 1 }
         let decimals = value >= 100 ? 0 : (value >= 10 ? 1 : 2)
         let factor = pow(10, Double(decimals))
         // Small epsilon so 15.9 doesn't become 15.8 through binary rounding.
         let truncated = (value * factor + 1e-9).rounded(.down) / factor
-        return String(format: "%.\(decimals)f %@", truncated, units[unit])
+        return SizeUnit.text(SizeUnit.number(truncated, decimals: decimals), unit: unit)
     }
 
     /// "120 GB free of 476 GB" (Windows 11 This PC wording).

@@ -84,10 +84,21 @@ Rules of thumb:
 
 ## 3. Accessibility, keyboard and localization checks
 Steps: `axdump:/path` (accessibility tree as VoiceOver sees it), `key:shift+F10` (keys through the real keyboard path), `keyrepeat:return` (the same, as the auto-repeat of a held key), `focus:/path`, `mouse:3|4`, `swipe:back|forward`, `compose:<text>` (input-method marked text), `announcements:/path`, `contextkey:/path`, `textsize:130`,
-`l10naudit:/path` (text in every window that isn't from the string table, and clipped labels; use with `ARBOR_PSEUDO_LOC=1`),
+`l10naudit:/path` (text in every window that isn't from the string table, and clipped labels; run under a pseudo-language),
 `axaudit:/path` (controls VoiceOver would read without a name, empty rows), `composecommit:<text>`, `windowactive:0|1`.
 Address entry: `addresstype:<text>` (replaces the field's text the way typing does; use `key:` for arrows, Return and Escape), `addresscompletionready` (holds the script until no listing is pending), `addresscompletions:/path` (the list's rows, highlight and footer: `no`, `moreMatches` or `partialListing`), `addresslistsnap:/base` (the open list to `/base.png`, what VoiceOver sees to `/base.txt`), `addressclickaway` (a mouse press on the status bar, which neither takes focus nor handles it). `log:` adds an `address handoff:` line (each question a typed address asked, and its answer). `ARBOR_COMPLETION_DELAY=<seconds>`, at most 10, holds each listing back to stand in for a slow volume.
-Environment: `ARBOR_PSEUDO_LOC=1` (accented, longer strings), `ARBOR_RTL=1` (right-to-left layout), `ARBOR_CONTRAST=1`, `ARBOR_REDUCE_MOTION=1`, `ARBOR_TEXT_SIZE=150`. Keep the string table current with `scripts/extract-strings.sh` (`--check` verifies). Details: docs/features/accessibility.md.
+Environment: `ARBOR_RTL=1` (right-to-left layout with English text), `ARBOR_CONTRAST=1`, `ARBOR_REDUCE_MOTION=1`, `ARBOR_TEXT_SIZE=150`. Keep the string table current with `scripts/extract-strings.sh` (`--check` verifies it and every translation). Details: docs/features/accessibility.md.
+
+Pseudo-languages run the real path a translation takes, on a scratch copy of the app. `en-XA` lengthens text by about 40 percent with accents and non-Latin letters; `ar-XB` is right to left. Pass `-AppleLanguages` after the folder argument:
+
+```bash
+ROOT=$(mktemp -d); ditto build/Arbor.app "$ROOT/Arbor.app"
+scripts/extract-strings.sh --pseudo "$ROOT/Arbor.app/Contents/Resources"
+codesign --force --sign - "$ROOT/Arbor.app"
+ARBOR_HEADLESS=1 ARBOR_SCRIPT="wait:1;l10naudit:$ROOT/audit.txt;snapshot:$ROOT/shot.png;quit" \
+  "$ROOT/Arbor.app/Contents/MacOS/Arbor" "$HOME/Documents" -AppleLanguages '(ar-XB)'
+```
+`-AppleLocale de_DE` or `ar_SA` changes separators and digits. `scripts/behavior-checks.sh localization` does this for the main surfaces.
 
 ## 5. Acceptance scenarios
 `scripts/acceptance.sh [T01 …]` runs the task scenarios T01–T30 of docs/SPEC.md §17.5 headless, each on its own fixture,

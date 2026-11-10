@@ -2,51 +2,6 @@ import Foundation
 import Testing
 @testable import ArborCore
 
-@Suite("Pseudo-localization and string table (FE-204)")
-struct LocalizationTests {
-    @Test func accentsLettersBracketsAndPadsByAThird() {
-        let text = PseudoLocalization.transform("Open")
-        #expect(text.hasPrefix("[Öþéñ"))
-        #expect(text.hasSuffix("]"))
-        // 4 letters + 30% (2, rounded up) padding + brackets.
-        #expect(text.count == 4 + 2 + 2)
-    }
-
-    @Test func keepsFormatSpecifiersAndSymbols() {
-        let text = PseudoLocalization.transform("%@ items selected (%1$@, %lld, 50%%) ⌘⇧N")
-        #expect(text.contains("%@"))
-        #expect(text.contains("%1$@"))
-        #expect(text.contains("%lld"))
-        #expect(text.contains("%%"))
-        #expect(text.contains("⌘⇧Ñ"))
-        let filled = String(format: PseudoLocalization.transform("%@ of %d"), "3", 9)
-        #expect(filled.contains("3"))
-        #expect(filled.contains("9"))
-    }
-
-    @Test func isIdempotentAndLeavesEmptyText() {
-        let once = PseudoLocalization.transform("Copy")
-        #expect(PseudoLocalization.transform(once) == once)
-        #expect(PseudoLocalization.transform("") == "")
-    }
-
-    @Test func nonLatinTextIsPaddedButNotChanged() {
-        let text = PseudoLocalization.transform("ファイル")
-        #expect(text.contains("ファイル"))
-        #expect(text.count > "ファイル".count + 2)
-    }
-
-    @Test func lookupFallsBackToTheEnglishKey() {
-        let saved = L10n.pseudo
-        defer { L10n.pseudo = saved }
-        L10n.pseudo = false
-        #expect(L10n.tr("Navigation pane") == "Navigation pane")
-        #expect(L10n.format("%@ items selected", "12") == "12 items selected")
-        L10n.pseudo = true
-        #expect(L10n.tr("Cut").hasPrefix("[Çüţ"))
-    }
-}
-
 @Suite("Focus regions (FE-062, FE-199)")
 struct FocusCycleTests {
     let all = Set(FocusRegion.allCases)

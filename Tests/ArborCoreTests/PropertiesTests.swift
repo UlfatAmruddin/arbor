@@ -357,6 +357,11 @@ private func unlockAll(_ root: URL) {
         #expect(SpotlightMetadata.format(["Ana", "Lee"], .list) == "Ana; Lee")
         #expect(SpotlightMetadata.format(NSNumber(value: 205), .duration) == "00:03:25")
         #expect(SpotlightMetadata.format(NSNumber(value: 100), .iso) == "ISO-100")
+        #expect(SpotlightMetadata.format(NSNumber(value: 1600), .iso) == "ISO-1600")
+        #expect(SpotlightMetadata.format(NSNumber(value: 1920), .pixels) == "1920 pixels")
+        #expect(SpotlightMetadata.format(NSNumber(value: 1200), .dpi) == "1200 dpi")
+        #expect(SpotlightMetadata.format(NSNumber(value: 0.001), .exposure) == "1/1000 sec.")
+        #expect(SpotlightMetadata.format(NSNumber(value: 1411), .bitRate) == "1411kbps")
     }
 
     @Test func groupsRowsInExplorerOrder() {

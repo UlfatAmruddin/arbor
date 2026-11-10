@@ -11,7 +11,7 @@ Code: `Sources/Arbor/Features/Properties/` (UI) and `Sources/ArborCore/Propertie
 | FE-148 | Details pane | implemented | Replaces the core "details" pane: large preview (`ThumbnailPolicy.panePreview`: QuickLook thumbnail for pictures and videos, a page with a hairline border for PDF, office, iWork and e-book documents, the type icon for text, source code, CSV, JSON, Markdown and logs, whose thumbnail was a nearly blank page; "Always show icons" shows icons; cancelled on change; unit tests `PanePreviewTests`, `log` line `preview:`, snapshots light/dark), name, type, property list, multi-select summary ("3 items selected", size of files, date range), folder summary when nothing is selected, availability (local / iCloud / network) and sharing (iCloud shared). Stale loads dropped by generation token. Scripted log + snapshots |
 | FE-150 | General properties | implemented | Name (editable), type with extension, Opens with + Change… (sets the default app for the type), location, Size and Size on disk (allocated blocks), "Contains: N Files, M Folders" scanned in the background with live updates, Stop, cancel on close; Created/Modified/Accessed in Explorer's long format; multi-selection "2 Files, 1 Folder", "All of type …"/"Multiple types", "All in …". Unit + scripted |
 | FE-151 | Detailed metadata | implemented | Details tab: Spotlight attributes grouped like Explorer (Description, Origin, Image, Camera, GPS, Media, Audio, Video, Content, File) with Explorer formatting; ImageIO fallback for unindexed images; app bundle info. Unit + scripted |
-| FE-152 | Metadata editing/removal | partial | Details tab edits title, description, rating and date taken inside images, per type as audited below; other embedded fields and other file kinds stay read-only. Written by lossless copy, verified, swapped in atomically; the previous version goes to the Trash and Undo brings it back. Unit: `EmbeddedMetadataTests` (generated images, one round trip per type, refusals, hostile values, undo). Scripted: `behavior-checks.sh embedded-metadata`. "Remove Properties and Personal Information" is offered for JPEG/PNG/HEIC/TIFF only, as Explorer's "Create a copy with all possible properties removed": lossless copy, orientation kept, original untouched. Unit test checks EXIF/GPS gone, pixels and orientation kept |
+| FE-152 | Metadata editing/removal | partial | Details tab edits title, description, rating and date taken inside images, and title, artist, album, year, track, genre and comment inside MP3, FLAC and M4A files, per type as audited below; other embedded fields and other file kinds stay read-only. Written by lossless copy, verified, swapped in atomically; the previous version goes to the Trash and Undo brings it back. Unit: `EmbeddedMetadataTests` (generated images, one round trip per type, refusals, hostile values, undo) and `AudioMetadataTests`, `AudioMetadataSafetyTests` (hand-built and afconvert audio, hostile sizes, truncation, a verifier that refuses tampered files, a memory bound while streaming). Scripted: `behavior-checks.sh embedded-metadata`, `behavior-checks.sh audio-metadata`. "Remove Properties and Personal Information" is offered for JPEG/PNG/HEIC/TIFF only, as Explorer's "Create a copy with all possible properties removed": lossless copy, orientation kept, original untouched. Unit test checks EXIF/GPS gone, pixels and orientation kept |
 | FE-153 | Security | implemented | Owner/group/everyone with POSIX bits as Allow check boxes (editable when you own the item; Deny disabled with explanation), ACL entries with Allow/Deny, mode in octal/symbolic, and **effective access tested with faccessat(AT_EACCESS)**. **Edit…** ("Permissions for <name>", `PermissionsEditorSheet.swift`): add (user or group, Allow/Deny, Full control · Modify · Read & execute · Read · Write, inheritance for folders) and remove access-list entries, change the group to one of the owner's groups; each change is shown as a summary to confirm, applied at once, and the last change can be undone (refused if the list changed since). Owner change is explained (administrator only). Unit tests: real ACL via `chmod +a`, Locked file reports no write despite mode 644, add/remove/undo/refusal, inheritance, group change; headless Edit… run with sheet snapshots |
 | FE-154 | Sharing / Customize | implemented (boundary for sharing) | Customize: "Optimize this folder for" + "Also apply to all subfolders" persisted per folder (API below); folder icon change/restore via `NSWorkspace.setIcon`. Sharing tab hands off to System Settings › Sharing |
 | FE-155 | Previous Versions | implemented | Document versions (`NSFileVersion`) with Open (read-only temp copy, removed when the app showing it quits), Restore (current kept as a version first, confirmed) and Restore To… (never overwrites; Save panel's replace moves the old item to Trash). Time Machine status and local snapshot dates via `tmutil` (read-only verbs, args array, timeout); "Browse in Time Machine" reveals the item in Finder then opens Time Machine; empty states say so. **Copies in Time Machine backups** (`TimeMachineVersionsView.swift`): the item's distinct copies in `tmutil listbackups` folders, newest first; Open (read-only temporary copy, removed when the app showing it quits; folders open in a new tab) and Restore… (confirmed, then a normal copy job into the item's folder, so Replace / Skip / Keep both is asked). Without Full Disk Access this is explained with a "Privacy Settings…" button. Unit tests on a fake backup tree; headless runs with `ARBOR_TM_BACKUPS` / `ARBOR_TM_ACCESS=denied` |
@@ -26,7 +26,7 @@ Code: `Sources/Arbor/Features/Properties/` (UI) and `Sources/ArborCore/Propertie
 Scripted steps added (TESTING.md style): `propertiesof:<path>`, `proptab:<title>`, `proplog:<file>`, `propsnapshot:<png>`,
 `propsheetsnapshot:<png>`, `propbutton:<title>`, `propset:<field>=<value>` (name, locked, hidden, mode, tags, comment,
 template=Name:0|1), `propexternal:comment|hidden|name=…` (simulates another app), `propprincipal:<n>`,
-`propremovemeta`, `propapply`, `propok`, `propcancel`, `paneedit:tags=…|comment=…|save`, `propembedded:title|description|rating|date=<value>`
+`propremovemeta`, `propapply`, `propok`, `propcancel`, `paneedit:tags=…|comment=…|save`, `propembedded:title|description|rating|date|artist|album|year|track|genre|comment=<value>`
 and `propembedded:touch=1` (another app changed the file). The window logger adds the
 Details pane's contents and the number of open Properties windows.
 
@@ -69,6 +69,42 @@ MakerNote must be byte-identical and every tag in the main, Exif and GPS directo
 
 **Undo** (Edit ▸ Undo, `OperationCenter`'s stack) exchanges the Trash copy back; Redo exchanges again. Each refuses if either file changed since (FE-129).
 
+## Writable properties per file type (FE-152)
+
+The audit behind what the Details tab offers. "Writable" means the change is verified and every other byte is proven intact; anything else is read-only, and a file of a writable type can still be refused for one of the reasons below.
+
+| Type | Writable inside the file | Why the rest isn't |
+|---|---|---|
+| JPEG | Title, description, rating, date taken | ImageIO's lossless copy, audited above. Files holding data it drops stay read-only |
+| HEIC | Title, rating | The copy leaves the Exif and TIFF description and date behind |
+| TIFF | Title, rating, date taken (can't be removed) | The description edit isn't applied |
+| PNG, GIF, BMP, WebP, JPEG 2000, AVIF, TGA, EXR, RAW | Nothing | ImageIO has no lossless copy for them, or drops edits |
+| MP3 with an ID3v2.3 or 2.4 tag | Title, artist, album, year, track, genre, comment | See below for what makes a tag read-only. MP3 without an ID3v2 tag isn't offered: there is no tag to edit, and adding one is a separate decision |
+| FLAC with a VORBIS_COMMENT block | Title, artist, album, year, track, genre, comment | A file without exactly one such block stays read-only |
+| M4A (MPEG-4 audio with an iTunes-style metadata list) | Title, artist, album, year, track, genre, comment | Only when the audio doesn't move, see below |
+| WAV, AIFF | Nothing | Their tags (RIFF INFO, ID3 chunks) have no audited lossless writer here yet |
+| MP4 and MOV video | Nothing | Video atoms are not audited; a file with a video track is never treated as M4A |
+| PDF | Nothing | Later work |
+| Office documents | Nothing | Later work |
+| Plain text | Nothing | Has no place inside the file for properties; Finder tags and comments are alongside it |
+
+## Editing properties inside audio files (FE-152)
+
+Code: `EmbeddedFormat.swift` (the one protocol a format implements: what it can edit, read fields, produce new bytes, verify, and `EmbeddedFormats.all`, the list), `ImageEmbeddedFormat.swift`,
+`TagRegionFormat.swift` (formats whose metadata sits in one region: parsing and streaming shared by audio), `TagRegionVerifier.swift` (the proof), `ID3Format.swift`, `FLACFormat.swift`, `M4AFormat.swift`. A later format is one new file and one line in that list.
+
+**Same safety model as images.** Written beside the original in an `itemReplacementDirectory`, verified, attributes carried over, exchanged with `renamex_np(RENAME_SWAP)`, the original to the Trash for Undo, and refused if the file changed meanwhile.
+
+**Streaming.** No format holds a file in memory: the parsers read headers through `EmbeddedFileReader` (checked offsets, at most 17 MiB in one read, used only for a whole FLAC comment block), pictures and other kept frames are copied by range, and the audio payload is streamed in 1 MiB chunks, both when writing and when comparing. Files up to 16 GiB are editable. Online-only files aren't opened at all.
+
+**MP3.** Only `TIT2`, `TPE1`, `TALB`, `TYER` (2.3) or `TDRC` (2.4), `TRCK`, `TCON` and the `COMM` frame with no description (iTunes keeps its own data in described ones) change. Every other frame stays byte for byte, in order, as do the audio and any ID3v1 trailer. New text is ASCII or UTF-16 in 2.3 and UTF-8 in 2.4. A tag keeps its size when the new frames fit, so the audio doesn't move at all. A file counts as an MP3 only when MPEG audio follows a well-formed tag, so text, FLAC or AAC that merely begins with `ID3` isn't offered. The whole file is read-only, with the reason shown, for: an unsynchronised tag, an extended header, a footer, any compressed or encrypted frame (or 2.4's per-frame unsynchronisation and length prefix), more than one tag (also a `SEEK` frame or a trailing `3DI`), other ID3 versions, or a tag that can't be walked exactly. A single field stays read-only for a repeated frame, several values, a frame marked read-only or grouped, undecodable text, a genre mixing codes with text, or a year stored in the other version's frame.
+
+**FLAC.** Only comments for the seven fields change (`TITLE`, `ARTIST`, `ALBUM`, `DATE` or `YEAR`, `TRACKNUMBER`, `GENRE`, `COMMENT` or `DESCRIPTION`), keeping each key's own spelling. Other comments, the vendor string, every other block and all frames are kept. Repeated keys are multiple values and stay read-only.
+
+**M4A.** Only items in `moov/udta/meta/ilst` change, and unknown atoms are kept. The change must not move `mdat` or need any chunk offset rewritten, so it is possible only when `moov` comes after all media, or when enough `free` space sits directly beside `ilst` or `moov` to absorb the difference. If there is none at all the file is read-only with the reason; if there is some but too little for a particular value, that save is refused. A `free` atom always keeps its header, so the next edit still has somewhere to go. Fragmented files, a video track, QuickTime brands and a `meta` that isn't iTunes-style are read-only or not offered. A file too broken to examine its tracks is called damaged only when its brand is `M4A ` or `M4B `; with a brand video shares it isn't offered.
+
+**Verification** knows nothing of how a file was written. It parses the original and the staged file afresh and refuses unless: both parse cleanly; every byte before and after the edited region is identical (compared streamed); nothing after the region moved if something there can't move; every kept frame, comment or atom inside the region is byte-identical and in the same order; and the re-parse shows exactly the requested values, compared by bytes, and every other field as it was. Any doubt leaves the file untouched.
+
 ## Folder template API (for Folder Options / views)
 
 `FolderTemplateStore(defaults: Prefs.store)` in ArborCore. Key `folderTemplates`: dictionary keyed by the standardized
@@ -94,6 +130,9 @@ folder URL) and `Prefs.changed` with `key == "folderTemplates"`. Choosing "Gener
   the Trash can both bring it back. If it can't reach the Trash, the exchange is undone and the edit refused.
 - **DEC-properties-12** Only fields whose audited write reads back are offered; the rest are shown read-only, and the audit
   stays honest through a unit test round-tripping each type. Apply's slow step (`PropertiesModel.slowApplier`) runs after the fast ones and off the main thread.
+- **DEC-properties-13** Audio metadata is edited only where the file already has the tag, comment block or metadata list. Adding one to a file with none (an MP3 with no ID3v2 tag, say) is a separate decision, not a side effect of an edit.
+- **DEC-properties-14** Year and track accept four digits and N or N/M; a fuller date already in a file (`2001-05-06`) is kept until it is changed. Track numbers are limited to M4A's sixteen bits for every format.
+- **DEC-properties-15** The Details tab uses Explorer's labels for audio: Contributing artists, Album, Year, #, Genre and Comments.
 - **DEC-properties-5** Finder comments are written to the `com.apple.metadata:kMDItemFinderComment` attribute (what
   Spotlight reads). No AppleScript to Finder (it would need Automation permission).
 - **DEC-properties-6** Previous Versions = NSFileVersion document versions + Time Machine status; per-file Time Machine
@@ -114,8 +153,8 @@ folder URL) and `Prefs.changed` with `key == "folderTemplates"`. Choosing "Gener
 - Volume rename of the startup disk may be refused by macOS (error is shown). Time Machine backups (as opposed to local
   snapshots) can't be listed without Full Disk Access (the tab says so); local snapshots are counted, not browsed
   (mounting them needs root). Backup copies were checked on a fake backup tree, not a real Time Machine disk.
-- Embedded properties beyond title, description, rating and date taken, and those of audio, video and documents, are read-only. The Details pane doesn't
-  edit them. HEIC and TIFF can't store a date or description change losslessly (audit above). Spotlight may show the old value until it reindexes.
+- Embedded properties beyond the audited fields, and those of video and documents, are read-only. The Details pane doesn't
+  edit them. An MP3 with no ID3v2 tag, FLAC with no comment block and M4A with no metadata list aren't given one; an ID3v1 trailer is never read or changed, so it can disagree with an edited tag. ID3 genre codes past the original 80 are shown as numbers and left alone. HEIC and TIFF can't store a date or description change losslessly (audit above). Spotlight may show the old value until it reindexes.
   JPEG segments are checked byte for byte; HEIC containers can't be, beyond their frames, auxiliary data and properties. Folder "Read-only" doesn't mimic Windows'
   "only applies to files in folder" tri-state; it locks the folder itself, as explained in the window.
 - Context-menu "Properties" for the Home/This Mac pages' own items depends on those pages exposing a selection.

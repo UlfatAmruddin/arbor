@@ -47,8 +47,8 @@ final class ExplorerSearchController: SearchController {
     func placeholder(for location: Location) -> String {
         syncProgress(location)
         if case .search(let r) = location {
-            if let origin = r.origin { return L10n.tr("Search ") + Self.title(of: origin) }
-            return L10n.tr("Search ") + (r.scope.map { Self.title(of: .folder($0)) } ?? "This Mac")
+            if let origin = r.origin { return L10n.format("Search %@", Self.title(of: origin)) }
+            return L10n.format("Search %@", r.scope.map { Self.title(of: .folder($0)) } ?? L10n.tr("This Mac"))
         }
         return L10n.format("Search %@", "\(Self.title(of: location))")
     }

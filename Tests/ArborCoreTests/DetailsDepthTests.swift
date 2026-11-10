@@ -492,6 +492,8 @@ struct ColumnSetTests {
         #expect(ColumnValues.text(.duration(3725)) == "01:02:05")
         #expect(ColumnValues.text(.dimensions(width: 640, height: 480)) == "640 x 480")
         #expect(ColumnValues.text(.bitRate(128_000)) == "128kbps")
+        #expect(ColumnValues.text(.dimensions(width: 1920, height: 1080)) == "1920 x 1080")
+        #expect(ColumnValues.text(.bitRate(1_411_000)) == "1411kbps")
         #expect(ColumnValues.text(.list(["Red", "Work"])) == "Red; Work")
         #expect(ColumnValues.text(.number(2024), column: .year) == "2024")
     }

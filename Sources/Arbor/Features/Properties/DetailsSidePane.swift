@@ -61,7 +61,7 @@ final class DetailsSidePane: NSView, SidePaneProvider {
         thumbnail.setAccessibleName(L10n.tr("Thumbnail"))
         nameLabel.font = .systemFont(ofSize: 15, weight: .semibold)
         nameLabel.textColor = Theme.primaryText
-        nameLabel.alignment = .left
+        nameLabel.alignment = RightToLeft.resolved(.left)
         nameLabel.maximumNumberOfLines = 3
         nameLabel.lineBreakMode = .byCharWrapping
         typeLabel.font = Theme.bodyFont

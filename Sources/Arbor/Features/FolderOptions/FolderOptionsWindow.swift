@@ -399,7 +399,7 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
         resetFoldersButton.isEnabled = FolderViews.shared.hasSavedViews
         if let info {
             let type = info.chosen ? L10n.format("%@ (set in Properties)", "\(info.template.title)") : L10n.format("%@ folder type", "\(info.template.title)")
-            let source = info.source == .template(info.template, applied: false) ? "default view for this type" : info.source.description
+            let source = info.source == .template(info.template, applied: false) ? L10n.tr("default view for this type") : info.source.description
             folderInfo.stringValue = L10n.format("This folder: “%@” · %@ · %@", "\(info.name)", "\(type)", "\(source)")
         } else {
             folderInfo.stringValue = L10n.tr("Open Folder Options from a folder window to apply its view to similar folders.")

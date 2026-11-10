@@ -13,9 +13,9 @@ public struct GroupBucket: Hashable, Sendable {
     }
 
     /// No value (e.g. folders by Size); always last.
-    public static let unspecified = GroupBucket(id: "~unspecified", title: "Unspecified", rank: .infinity)
+    public static let unspecified = GroupBucket(id: "~unspecified", title: L10n.tr("Unspecified"), rank: .infinity)
     /// Metadata still loading; always last.
-    public static let loading = GroupBucket(id: "~loading", title: "Loading…", rank: .infinity)
+    public static let loading = GroupBucket(id: "~loading", title: L10n.tr("Loading…"), rank: .infinity)
 
     /// Sorted last whatever the direction.
     public var isTrailing: Bool { id.hasPrefix("~") }
@@ -52,18 +52,18 @@ public enum Buckets {
 
         func b(_ id: String, _ title: String, _ rank: Double) -> GroupBucket { GroupBucket(id: id, title: title, rank: rank) }
         if date >= tomorrow {
-            if date < thisWeek.end { return b("date.laterThisWeek", "Later this week", 10) }
-            if date < nextWeekEnd { return b("date.nextWeek", "Next week", 11) }
-            return b("date.future", "In the future", 12)
+            if date < thisWeek.end { return b("date.laterThisWeek", L10n.tr("Later this week"), 10) }
+            if date < nextWeekEnd { return b("date.nextWeek", L10n.tr("Next week"), 11) }
+            return b("date.future", L10n.tr("In the future"), 12)
         }
-        if date >= today { return b("date.today", "Today", 9) }
-        if date >= yesterday { return b("date.yesterday", "Yesterday", 8) }
-        if date >= thisWeek.start { return b("date.earlierThisWeek", "Earlier this week", 7) }
-        if date >= lastWeekStart { return b("date.lastWeek", "Last week", 6) }
-        if date >= thisMonth.start { return b("date.earlierThisMonth", "Earlier this month", 5) }
-        if date >= lastMonthStart { return b("date.lastMonth", "Last month", 4) }
-        if date >= thisYear.start { return b("date.earlierThisYear", "Earlier this year", 3) }
-        return b("date.longAgo", "A long time ago", 2)
+        if date >= today { return b("date.today", L10n.tr("Today"), 9) }
+        if date >= yesterday { return b("date.yesterday", L10n.tr("Yesterday"), 8) }
+        if date >= thisWeek.start { return b("date.earlierThisWeek", L10n.tr("Earlier this week"), 7) }
+        if date >= lastWeekStart { return b("date.lastWeek", L10n.tr("Last week"), 6) }
+        if date >= thisMonth.start { return b("date.earlierThisMonth", L10n.tr("Earlier this month"), 5) }
+        if date >= lastMonthStart { return b("date.lastMonth", L10n.tr("Last month"), 4) }
+        if date >= thisYear.start { return b("date.earlierThisYear", L10n.tr("Earlier this year"), 3) }
+        return b("date.longAgo", L10n.tr("A long time ago"), 2)
     }
 
     // MARK: Sizes
@@ -76,13 +76,13 @@ public enum Buckets {
         guard let bytes else { return .unspecified }
         func b(_ id: String, _ title: String, _ rank: Double) -> GroupBucket { GroupBucket(id: "size.\(id)", title: title, rank: rank) }
         switch bytes {
-        case ...0: return b("empty", "Empty (0 KB)", 0)
-        case ...(16 * kb): return b("tiny", "Tiny (0 – 16 KB)", 1)
-        case ...mb: return b("small", "Small (16 KB – 1 MB)", 2)
-        case ...(128 * mb): return b("medium", "Medium (1 – 128 MB)", 3)
-        case ...gb: return b("large", "Large (128 MB – 1 GB)", 4)
-        case ...(4 * gb): return b("huge", "Huge (1 – 4 GB)", 5)
-        default: return b("gigantic", "Gigantic (> 4 GB)", 6)
+        case ...0: return b("empty", L10n.tr("Empty (0 KB)"), 0)
+        case ...(16 * kb): return b("tiny", L10n.tr("Tiny (0 – 16 KB)"), 1)
+        case ...mb: return b("small", L10n.tr("Small (16 KB – 1 MB)"), 2)
+        case ...(128 * mb): return b("medium", L10n.tr("Medium (1 – 128 MB)"), 3)
+        case ...gb: return b("large", L10n.tr("Large (128 MB – 1 GB)"), 4)
+        case ...(4 * gb): return b("huge", L10n.tr("Huge (1 – 4 GB)"), 5)
+        default: return b("gigantic", L10n.tr("Gigantic (> 4 GB)"), 6)
         }
     }
 
@@ -96,14 +96,14 @@ public enum Buckets {
         func b(_ id: String, _ title: String, _ rank: Double) -> GroupBucket { GroupBucket(id: "name.\(id)", title: title, rank: rank) }
         if let scalar = folded.unicodeScalars.first, folded.unicodeScalars.count == 1 {
             switch scalar {
-            case "a"..."h": return b("ah", "A – H", 0)
-            case "i"..."p": return b("ip", "I – P", 1)
-            case "q"..."z": return b("qz", "Q – Z", 2)
-            case "0"..."9": return b("digits", "0 – 9", 3)
+            case "a"..."h": return b("ah", L10n.tr("A – H"), 0)
+            case "i"..."p": return b("ip", L10n.tr("I – P"), 1)
+            case "q"..."z": return b("qz", L10n.tr("Q – Z"), 2)
+            case "0"..."9": return b("digits", L10n.tr("0 – 9"), 3)
             default: break
             }
         }
-        return b("other", "Other", 4)
+        return b("other", L10n.tr("Other"), 4)
     }
 
     // MARK: Durations
@@ -113,11 +113,11 @@ public enum Buckets {
         guard let seconds else { return .unspecified }
         func b(_ id: String, _ title: String, _ rank: Double) -> GroupBucket { GroupBucket(id: "length.\(id)", title: title, rank: rank) }
         switch seconds {
-        case ..<60: return b("veryShort", "Very short (under 1 minute)", 0)
-        case ..<300: return b("short", "Short (1 – 5 minutes)", 1)
-        case ..<1800: return b("medium", "Medium (5 – 30 minutes)", 2)
-        case ..<3600: return b("long", "Long (30 – 60 minutes)", 3)
-        default: return b("veryLong", "Very long (over 60 minutes)", 4)
+        case ..<60: return b("veryShort", L10n.tr("Very short (under 1 minute)"), 0)
+        case ..<300: return b("short", L10n.tr("Short (1 – 5 minutes)"), 1)
+        case ..<1800: return b("medium", L10n.tr("Medium (5 – 30 minutes)"), 2)
+        case ..<3600: return b("long", L10n.tr("Long (30 – 60 minutes)"), 3)
+        default: return b("veryLong", L10n.tr("Very long (over 60 minutes)"), 4)
         }
     }
 

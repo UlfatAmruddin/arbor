@@ -32,6 +32,9 @@ their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
   question. Anything typed after the word is refused, and typed text is never passed on.
 - Cloud folders: sync failures show the provider's own message and offer to open its app; accounts are labelled Personal or
   Work/School where the folder name says so; a signed-out provider says so; commands a provider doesn't support explain why.
+- Properties: edit the title, artist, album, year, track, genre and comment inside MP3, FLAC and M4A files. The audio isn't
+  touched, the original goes to the Trash for Undo, and files that can't be changed safely stay read-only.
+- Long and right-to-left languages: layouts, numbers, sizes and paths now adapt, ready for translations.
 
 ### Removed
 - Properties no longer offers Unblock on downloaded files. It still says a file came from another computer, and

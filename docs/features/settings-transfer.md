@@ -12,7 +12,7 @@ proposed improvement, and nothing here claims parity.
 
 | FE | What | Status | How verified |
 |---|---|---|---|
-| FE-208 | Export and import preferences as one portable file | Implemented | Unit tests for the allowlist, the file format, the reader and the plan; app tests that an import reaches the preferences their owners read with the same defaults, and that the preview list scrolls from the keyboard; scripted checks for export, preview, keyboard focus, Page Down, Return, Escape, Cancel, Import and refused or crafted files; preview snapshots at normal length and pseudo-localized, `l10naudit` with `ARBOR_PSEUDO_LOC=1` and `ARBOR_TEXT_SIZE=150`, `axaudit`. The open and save panels aren't drivable headless (see Known gaps) |
+| FE-208 | Export and import preferences as one portable file | Implemented | Unit tests for the allowlist, the file format, the reader and the plan; app tests that an import reaches the preferences their owners read with the same defaults, and that the preview list scrolls from the keyboard; scripted checks for export, preview, keyboard focus, Page Down, Return, Escape, Cancel, Import and refused or crafted files; preview snapshots at normal length and pseudo-localized, `l10naudit` under a pseudo-language and with `ARBOR_TEXT_SIZE=150`, `axaudit`. The open and save panels aren't drivable headless (see Known gaps) |
 
 ## What a file can hold
 

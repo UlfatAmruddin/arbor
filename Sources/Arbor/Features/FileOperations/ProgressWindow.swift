@@ -131,7 +131,9 @@ final class OperationsWindow: NSObject, NSWindowDelegate {
         root.addSubview(top)
         root.addSubview(footer)
         NSLayoutConstraint.activate([
-            root.widthAnchor.constraint(equalToConstant: 460),
+            root.widthAnchor.constraint(greaterThanOrEqualToConstant: 460),
+            root.widthAnchor.constraint(equalToConstant: 460).withPriority(.defaultLow),
+            extras.leadingAnchor.constraint(greaterThanOrEqualTo: toggle.trailingAnchor, constant: 16),
             top.topAnchor.constraint(equalTo: root.topAnchor),
             top.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             top.trailingAnchor.constraint(equalTo: root.trailingAnchor),
@@ -188,8 +190,8 @@ final class OperationsWindow: NSObject, NSWindowDelegate {
         if headerBox.isHidden == many { changedLayout = true }
         headerBox.isHidden = !many
         let waiting = jobs.filter { TransferQueueController.shared.isWaiting($0) }.count
-        let summary = waiting == 0 ? "\(jobs.count) operations running"
-            : "\(jobs.count - waiting) running, \(waiting) waiting"   // queue controls (FE-127)
+        let summary = waiting == 0 ? L10n.format("%@ operations running", StatusText.number(jobs.count))
+            : L10n.format("%@ running, %@ waiting", StatusText.number(jobs.count - waiting), StatusText.number(waiting))   // queue controls (FE-127)
         header.stringValue = many ? summary : ""
         window.title = many ? summary : panels[ObjectIdentifier(jobs[0])]?.windowTitle ?? ""
         if changedLayout || force { fit() }
@@ -338,7 +340,7 @@ final class JobPanelView: NSView {
         if job.monitor.isCancelling || job.transfer.isCancelled { return L10n.tr("Cancelling…") }
         if let status = JobPanelExtras.statusText(for: job) { return job.transfer.isPaused ? L10n.format("Paused - %@", "\(status)") : status }
         if p.phase == .discovering { return L10n.tr("Discovering items…") }
-        let pct = L10n.format("%@%% complete", "\(Int(((p.fraction ?? 0) * 100).rounded(.down)))")
+        let pct = L10n.format("%@%% complete", StatusText.number(Int(((p.fraction ?? 0) * 100).rounded(.down))))
         if job.transfer.isPaused { return L10n.format("Paused - %@", "\(pct)") }
         return pct
     }
@@ -347,7 +349,7 @@ final class JobPanelView: NSView {
         let p = job.progress
         if let status = JobPanelExtras.statusText(for: job) { return status }
         if p.phase == .discovering { return L10n.tr("Discovering items…") }
-        return L10n.format("%@%% complete", "\(Int(((p.fraction ?? 0) * 100).rounded(.down)))")
+        return L10n.format("%@%% complete", StatusText.number(Int(((p.fraction ?? 0) * 100).rounded(.down))))
     }
 
     func refresh() {
@@ -380,7 +382,7 @@ final class JobPanelView: NSView {
                 itemsValue.stringValue = "\(max(0, p.total - p.completed).formatted())"
             }
         }
-        setAccessibilityLabel(L10n.format("%@ %@", TransferWords.localized(job.transfer.kind.progressVerb), percentText))
+        setAccessibilityLabel((job.transfer.kind == .copy ? L10n.format("Copying, %@", percentText) : L10n.format("Moving, %@", percentText)))
     }
 
     var debugText: String {

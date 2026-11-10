@@ -86,7 +86,7 @@ public struct NetworkDevice: Hashable, Sendable, Identifiable {
 
     public var subtitle: String {
         switch category {
-        case .computer: return protocols.isEmpty ? L10n.tr("Computer") : L10n.tr("Shared folders (") + protocols.joined(separator: ", ") + ")"
+        case .computer: return protocols.isEmpty ? L10n.tr("Computer") : L10n.format("Shared folders (%@)", protocols.joined(separator: ", "))
         case .mediaDevices: return L10n.tr("Media device")
         case .infrastructure: return L10n.tr("Network device")
         }

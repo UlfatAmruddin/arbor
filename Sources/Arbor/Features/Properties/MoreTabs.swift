@@ -169,12 +169,14 @@ final class PreviousVersionsTab: PropertiesTab, PropertiesTabDebug {
         if let status, status.available {
             if let dest = status.destinations.first {
                 text = L10n.format("Backing up to “%@”.", "\(dest.name)")
-                if status.destinations.count > 1 { text += " (\(status.destinations.count) backup disks)" }
+                if status.destinations.count > 1 { text += " " + L10n.format("(%@ backup disks)", PropertyFormat.grouped(status.destinations.count)) }
             } else {
                 text = L10n.tr("Time Machine isn't set up on this Mac.")
             }
             if let latest = status.localSnapshotDates.first {
-                text += L10n.format(" This disk has %@; the newest is from %@.", "\(PropertyFormat.count(status.localSnapshotDates.count, "local snapshot", "local snapshots"))", "\(PropertyFormat.shortDate(latest))")
+                let newest = PropertyFormat.shortDate(latest), count = status.localSnapshotDates.count
+                text += " " + (count == 1 ? L10n.format("This disk has 1 local snapshot; the newest is from %@.", newest)
+                    : L10n.format("This disk has %@ local snapshots; the newest is from %@.", PropertyFormat.grouped(count), newest))
             }
             if status.isConfigured || !status.localSnapshotDates.isEmpty {
                 text += L10n.tr(" To see older copies of this item, browse it in Time Machine.")

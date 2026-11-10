@@ -1,7 +1,28 @@
 import Foundation
+import UniformTypeIdentifiers
 
 /// Explorer's size wording (reference §5.2): Details uses whole KB rounded up ("1 KB" for 1 byte);
 /// elsewhere sizes are adaptive (`PropertyFormat.adaptiveSize`).
+/// Size units as words a translation can place around the number.
+public enum SizeUnit {
+    public static let last = 5
+
+    public static func text(_ number: String, unit: Int) -> String {
+        switch unit {
+        case 0: return L10n.format("%@ KB", number)
+        case 1: return L10n.format("%@ MB", number)
+        case 2: return L10n.format("%@ GB", number)
+        case 3: return L10n.format("%@ TB", number)
+        case 4: return L10n.format("%@ PB", number)
+        default: return L10n.format("%@ EB", number)
+        }
+    }
+
+    public static func number(_ value: Double, decimals: Int, locale: Locale = .current) -> String {
+        value.formatted(.number.locale(locale).grouping(.automatic).precision(.fractionLength(decimals)))
+    }
+}
+
 public enum ExplorerSize {
     private static let grouped: NumberFormatter = {
         let f = NumberFormatter()
@@ -19,7 +40,7 @@ public enum ExplorerSize {
 
     /// "0 KB", "1 KB", "12,345 KB".
     public static func detailsColumn(_ bytes: Int64) -> String {
-        "\(grouped.string(from: NSNumber(value: kilobytes(bytes))) ?? "\(kilobytes(bytes))") KB"
+        SizeUnit.text(grouped.string(from: NSNumber(value: kilobytes(bytes))) ?? "\(kilobytes(bytes))", unit: 0)
     }
 
     public static func adaptive(_ bytes: Int64) -> String { PropertyFormat.adaptiveSize(bytes) }
@@ -78,6 +99,7 @@ public enum ExplorerMenuWording {
 public enum ExplorerTypeName {
     /// Finder alias, the Mac counterpart of a .lnk shortcut.
     public static let aliasTypeIdentifier = "com.apple.alias-file"
+    private static let aliasKindNames: Set<String> = Set(["Alias", UTType.aliasFile.localizedDescription].compactMap { $0 })
     public static var shortcut: String { L10n.tr("Shortcut") }
     public static var symbolicLink: String { L10n.tr("Symbolic link") }
 
@@ -89,11 +111,11 @@ public enum ExplorerTypeName {
         if typeIdentifier == aliasTypeIdentifier { return shortcut }
         if isSymbolicLink {
             // Explorer types a link by its target.
-            if let target = targetDescription, !target.isEmpty, target != "Alias" { return target }
-            return isFolder ? "Folder" : symbolicLink
+            if let target = targetDescription, !target.isEmpty, !aliasKindNames.contains(target) { return target }
+            return isFolder ? L10n.tr("Folder") : symbolicLink
         }
-        // The identifier isn't always fetched, so match the word "Alias" too.
-        if localized == "Alias" { return shortcut }
+        // The identifier isn't always fetched, so match the system's word for an alias too.
+        if let localized, aliasKindNames.contains(localized) { return shortcut }
         if let windowsShortcut { return windowsShortcut.typeName }
         if let localized, !localized.isEmpty { return localized }
         return isFolder ? L10n.tr("Folder") : L10n.tr("Document")

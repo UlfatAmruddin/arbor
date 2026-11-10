@@ -218,7 +218,7 @@ extension DetailsViewController {
     func makeColumn(_ id: ColumnID) -> NSTableColumn {
         let d = ColumnCatalog.descriptor(id)
         let title = d?.title ?? id.rawValue
-        let alignment: NSTextAlignment = .left   // Explorer headers are left-aligned; numeric values align right in cells
+        let alignment = RightToLeft.resolved(.left)   // Explorer headers start at the leading edge; numeric values align at the end in cells
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id.rawValue))
         column.title = title
         column.headerCell.alignment = alignment

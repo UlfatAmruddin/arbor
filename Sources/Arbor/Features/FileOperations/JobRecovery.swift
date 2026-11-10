@@ -53,23 +53,26 @@ final class RecoverySheet: NSObject, NSTableViewDataSource, NSTableViewDelegate 
 
     private func build() {
         let root = FillView(FileOpsStyle.background)
-        let verb = job.kind == .copy ? "copying" : "moving"
         let waiting = job.wasWaiting
-        let title = FileOpsStyle.label(waiting ? "A file operation was waiting to start" : "A file operation didn't finish",
+        let title = FileOpsStyle.label(waiting ? L10n.tr("A file operation was waiting to start") : L10n.tr("A file operation didn't finish"),
                                        font: FileOpsStyle.instructionFont)
         let started = DateFormatter.localizedString(from: job.header.started, dateStyle: .medium, timeStyle: .short)
-        let intro = FileOpsStyle.label(
-            waiting
-                ? "When Arbor quit, \(verb) \(StatusText.items(job.items.count)) to “\(displayName(of: job.destination))” was waiting in the queue (added \(started)). Nothing of it was done yet."
-                : "Arbor stopped while \(verb) \(StatusText.items(job.items.count)) to “\(displayName(of: job.destination))” (started \(started)).",
-            wraps: true)
+        let items = StatusText.items(job.items.count), place = displayName(of: job.destination)
+        let introText: String
+        switch (waiting, job.kind == .copy) {
+        case (true, true): introText = L10n.format("When Arbor quit, copying %@ to “%@” was waiting in the queue (added %@). Nothing of it was done yet.", items, place, started)
+        case (true, false): introText = L10n.format("When Arbor quit, moving %@ to “%@” was waiting in the queue (added %@). Nothing of it was done yet.", items, place, started)
+        case (false, true): introText = L10n.format("Arbor stopped while copying %@ to “%@” (started %@).", items, place, started)
+        case (false, false): introText = L10n.format("Arbor stopped while moving %@ to “%@” (started %@).", items, place, started)
+        }
+        let intro = FileOpsStyle.label(introText, wraps: true)
         intro.preferredMaxLayoutWidth = 516
         let counts = FileOpsStyle.label(
-            "Completed: \(job.completed.count)    Not done: \(job.notDone.count)    Uncertain: \(job.uncertain.count)",
+            L10n.format("Completed: %@    Not done: %@    Uncertain: %@", StatusText.number(job.completed.count), StatusText.number(job.notDone.count), StatusText.number(job.uncertain.count)),
             font: .systemFont(ofSize: 13, weight: .semibold))
 
         let table = NSTableView()
-        for (id, title, width) in [("name", "Name", 190.0), ("status", "Status", 150.0), ("where", "Location", 170.0)] {
+        for (id, title, width) in [("name", L10n.tr("Name"), 190.0), ("status", L10n.tr("Status"), 150.0), ("where", L10n.tr("Location"), 170.0)] {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id))
             column.title = title
             column.width = width
@@ -87,15 +90,17 @@ final class RecoverySheet: NSObject, NSTableViewDataSource, NSTableViewDelegate 
 
         let explain = FileOpsStyle.label(
             waiting
-                ? "Start puts the operation back in the queue with the items that still exist. Arbor checks each destination again and asks before replacing anything."
-                : "“Uncertain” items were being written when Arbor stopped, so the destination may hold a partial copy. Retry remaining \(job.kind == .copy ? "copies" : "moves") the items that aren't completed. Arbor checks each destination again and asks before replacing anything.",
+                ? L10n.tr("Start puts the operation back in the queue with the items that still exist. Arbor checks each destination again and asks before replacing anything.")
+                : job.kind == .copy
+                    ? L10n.tr("“Uncertain” items were being written when Arbor stopped, so the destination may hold a partial copy. Retry remaining copies the items that aren't completed. Arbor checks each destination again and asks before replacing anything.")
+                    : L10n.tr("“Uncertain” items were being written when Arbor stopped, so the destination may hold a partial copy. Retry remaining moves the items that aren't completed. Arbor checks each destination again and asks before replacing anything."),
             font: FileOpsStyle.captionFont, color: Theme.secondaryText, wraps: true)
         explain.preferredMaxLayoutWidth = 516
 
         let retryable = job.retryableSources
-        let retry = WinButton(waiting ? "Start" : "Retry remaining", accent: true) { [weak self] in self?.retry() }
+        let retry = WinButton(waiting ? L10n.tr("Start") : L10n.tr("Retry remaining"), accent: true) { [weak self] in self?.retry() }
         retry.isEnabled = !retryable.isEmpty && FileOps.isPlainFolder(job.destination)
-        let dismiss = WinButton("Dismiss") { [weak self] in self?.finish() }
+        let dismiss = WinButton(L10n.tr("Dismiss")) { [weak self] in self?.finish() }
         let spacer = NSView()
         let buttons = NSStackView(views: [spacer, retry, dismiss])
         buttons.spacing = 8
@@ -137,12 +142,12 @@ final class RecoverySheet: NSObject, NSTableViewDataSource, NSTableViewDelegate 
         case "name": text = item.source.lastPathComponent
         case "status":
             switch item.status {
-            case .completed: text = item.state == .skipped ? "Skipped" : (item.state == .sourceRemains ? "Copied; original kept" : "Completed")
+            case .completed: text = item.state == .skipped ? L10n.tr("Skipped") : (item.state == .sourceRemains ? L10n.tr("Copied; original kept") : L10n.tr("Completed"))
             case .notDone:
-                text = job.wasWaiting ? "Waiting to start" : item.state == .failed ? "Not done (failed)" : "Not done"
+                text = job.wasWaiting ? L10n.tr("Waiting to start") : item.state == .failed ? L10n.tr("Not done (failed)") : L10n.tr("Not done")
                 color = Theme.secondaryText
             case .uncertain:
-                text = "Uncertain"
+                text = L10n.tr("Uncertain")
                 color = .systemOrange
             }
         default:

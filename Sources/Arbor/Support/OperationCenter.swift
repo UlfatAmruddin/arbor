@@ -41,15 +41,15 @@ final class OperationCenter {
     var statusLine: (text: String, fraction: Double)? {
         guard let job = jobs.first else { return activities.first.map { ($0.text, $0.fraction) } }
         let p = job.progress
-        var text = "\(job.transfer.kind.progressVerb) \(StatusText.items(p.total))"
+        var parts = [job.transfer.kind == .copy ? L10n.format("Copying %@", StatusText.items(p.total)) : L10n.format("Moving %@", StatusText.items(p.total))]
         if p.phase == .discovering {
-            text += " · Discovering items…"
+            parts.append(L10n.tr("Discovering items…"))
         } else {
-            text += " · \(Int(((p.fraction ?? 0) * 100).rounded(.down)))% complete"
-            if job.transfer.isPaused { text += " · Paused" }
+            parts.append(L10n.format("%@%% complete", StatusText.number(Int(((p.fraction ?? 0) * 100).rounded(.down)))))
+            if job.transfer.isPaused { parts.append(L10n.tr("Paused")) }
         }
-        if jobs.count > 1 { text += " (+\(jobs.count - 1) more)" }
-        return (text, p.fraction ?? 0)
+        let text = parts.joined(separator: " · ")
+        return (jobs.count > 1 ? L10n.format("%@ (+%@ more)", text, StatusText.number(jobs.count - 1)) : text, p.fraction ?? 0)
     }
 
     // MARK: - Hooks (Features/FileOperations: queue, verification, history)
@@ -190,16 +190,15 @@ final class OperationCenter {
         if !problems.isEmpty, !isQuitting {
             let lines = problems.prefix(8).map { result -> String in
                 switch result.outcome {
-                case .failed(let why), .copiedButSourceRemains(_, let why), .partial(_, let why): return "• \(result.source.lastPathComponent): \(why)"
+                case .failed(let why), .copiedButSourceRemains(_, let why), .partial(_, let why): return "• " + L10n.format("%@: %@", result.source.lastPathComponent, why)
                 default: return "• \(result.source.lastPathComponent)"
                 }
             }
-            let more = problems.count > 8 ? "\n…and \(problems.count - 8) more." : ""
+            let more = problems.count > 8 ? "\n" + L10n.format("…and %d more.", problems.count - 8) : ""
             let done = report.committed.count
             NSAlert.show(
-                problems.count == 1 ? "1 item couldn't be \(report.kind.pastVerb)." : "\(problems.count) items couldn't be \(report.kind.pastVerb).",
-                (done > 0 ? "\(StatusText.items(done)) \(done == 1 ? "was" : "were") \(report.kind.pastVerb) successfully.\n\n" : "")
-                    + lines.joined(separator: "\n") + more,
+                TransferWords.failedTitle(report.kind, count: problems.count),
+                (done > 0 ? TransferWords.succeededLine(report.kind, count: done) + "\n\n" : "") + lines.joined(separator: "\n") + more,
                 in: job.window)
         }
         completion(report)
@@ -217,14 +216,14 @@ final class OperationCenter {
                 let restored = try Renamer.rename(current, to: oldName)
                 center.registerUndoRename(from: restored, back: newName)
             } catch {
-                center.report("Couldn't undo the rename.", error.localizedDescription)
+                center.report(L10n.tr("Couldn't undo the rename."), error.localizedDescription)
             }
         }
-        undoManager.setActionName("Rename")
+        undoManager.setActionName(L10n.tr("Rename"))
     }
 
     /// `actionName` labels Edit ▸ Undo/Redo for this step and every later round of it, not just the first.
-    func registerUndoTrash(_ pairs: [(original: URL, trashed: URL)], actionName: String = "Move to Trash") {
+    func registerUndoTrash(_ pairs: [(original: URL, trashed: URL)], actionName: String = L10n.tr("Move to Trash")) {
         undoManager.registerUndo(withTarget: self) { center in
             var restored: [URL] = []
             var skipped: [String] = []
@@ -238,8 +237,8 @@ final class OperationCenter {
                 } catch { skipped.append(pair.original.lastPathComponent) }
             }
             if !skipped.isEmpty {
-                center.report("Some items couldn't be put back.",
-                              "Their original location is taken or they're no longer in the Trash:\n" + skipped.joined(separator: ", "))
+                center.report(L10n.tr("Some items couldn't be put back."),
+                              L10n.tr("Their original location is taken or they're no longer in the Trash:\n") + skipped.joined(separator: ", "))
             }
             center.undoManager.registerUndo(withTarget: center) { c in c.trashAgain(restored, actionName: actionName) }
             center.undoManager.setActionName(actionName)
@@ -258,21 +257,21 @@ final class OperationCenter {
     /// Undo moves items back (cross-volume via a move job, see `UndoMoveBack.swift`); Redo moves them again.
     func registerUndoMove(_ pairs: [(source: URL, destination: URL)]) {
         registerMoveStep { pairs.map { MoveBack.Item(from: $0.destination, to: $0.source) } }
-        undoManager.setActionName("Move")
+        undoManager.setActionName(L10n.tr("Move"))
     }
 
     func registerUndoNewFolder(_ url: URL) {
         undoManager.registerUndo(withTarget: self) { center in
             guard FileOps.exists(url) else { return }
             guard FileOps.isEffectivelyEmpty(url) else {
-                center.report("“\(url.lastPathComponent)” isn't empty anymore, so it wasn't removed.", "")
+                center.report(L10n.format("“%@” isn't empty anymore, so it wasn't removed.", url.lastPathComponent), "")
                 return
             }
             if let trashed = try? SystemTrash.trash(url) {
-                center.registerUndoTrash([(url, trashed)], actionName: "New Folder")
+                center.registerUndoTrash([(url, trashed)], actionName: L10n.tr("New Folder"))
             }
         }
-        undoManager.setActionName("New Folder")
+        undoManager.setActionName(L10n.tr("New Folder"))
     }
 
     func report(_ message: String, _ info: String) {

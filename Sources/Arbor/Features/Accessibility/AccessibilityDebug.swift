@@ -100,7 +100,7 @@ enum AccessibilityDebug {
             "accessibility: focus=\(FocusRegions.current(in: c)?.rawValue ?? "none") textSize=\(TextSize.level.rawValue)"
                 + " typeSelect=\(listTextInput(c)?.debugText ?? "-")"
                 + ((c.window?.firstResponder as? FileTableView).map { " detailsFocus=\($0.focusRow.map(String.init) ?? "-")" } ?? "")
-                + " contrast=\(Theme.increasedContrast) rtl=\(NSApp.userInterfaceLayoutDirection == .rightToLeft) pseudo=\(L10n.pseudo)"
+                + " contrast=\(Theme.increasedContrast) rtl=\(NSApp.userInterfaceLayoutDirection == .rightToLeft) language=\(L10n.language)"
         }
     }
 

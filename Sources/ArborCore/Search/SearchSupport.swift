@@ -206,21 +206,21 @@ public struct SearchCoverage: Equatable, Sendable {
     /// Reasons the results may be incomplete, most important first.
     public var gaps: [String] {
         var out: [String] = []
-        if let scope = scopeUnavailable { out.append("“\(scope)” isn't available (moved, deleted or disconnected)") }
-        if phase == .stopped { out.append("the search was stopped before it finished") }
-        if let limit = resultLimit { out.append("only the first \(limit.formatted()) results are shown") }
+        if let scope = scopeUnavailable { out.append(L10n.format("“%@” isn't available (moved, deleted or disconnected)", scope)) }
+        if phase == .stopped { out.append(L10n.tr("the search was stopped before it finished")) }
+        if let limit = resultLimit { out.append(L10n.format("only the first %@ results are shown", limit.formatted())) }
         if let leftOut = leftOutSummary { out.append(leftOut) }
-        if deniedCount > 0 { out.append(deniedCount == 1 ? "1 folder couldn't be opened (access denied)" : "\(deniedCount.formatted()) folders couldn't be opened (access denied)") }
-        if unreadableCount > 0 { out.append(unreadableCount == 1 ? "1 folder couldn't be read" : "\(unreadableCount.formatted()) folders couldn't be read") }
-        if indexUnavailable { out.append("this location isn't indexed, so contents of documents and authors weren't searched") }
-        if indexTimedOut { out.append("the Spotlight index didn't respond in time") }
-        if indexOnly { out.append(locations.isEmpty ? "only places in the Spotlight index were searched" : L10n.tr("the Spotlight index may not cover every folder")) }
+        if deniedCount > 0 { out.append(deniedCount == 1 ? L10n.tr("1 folder couldn't be opened (access denied)") : L10n.format("%@ folders couldn't be opened (access denied)", deniedCount.formatted())) }
+        if unreadableCount > 0 { out.append(unreadableCount == 1 ? L10n.tr("1 folder couldn't be read") : L10n.format("%@ folders couldn't be read", unreadableCount.formatted())) }
+        if indexUnavailable { out.append(L10n.tr("this location isn't indexed, so contents of documents and authors weren't searched")) }
+        if indexTimedOut { out.append(L10n.tr("the Spotlight index didn't respond in time")) }
+        if indexOnly { out.append(locations.isEmpty ? L10n.tr("only places in the Spotlight index were searched") : L10n.tr("the Spotlight index may not cover every folder")) }
         if contentUnchecked > 0, !contentFromIndex {
-            out.append(contentUnchecked == 1 ? "1 file's contents couldn't be checked" : "\(contentUnchecked.formatted()) files' contents couldn't be checked")
+            out.append(contentUnchecked == 1 ? L10n.tr("1 file's contents couldn't be checked") : L10n.format("%@ files' contents couldn't be checked", contentUnchecked.formatted()))
         }
-        if archivesUnreadable > 0 { out.append(archivesUnreadable == 1 ? "1 archive couldn't be read" : "\(archivesUnreadable.formatted()) archives couldn't be read") }
-        if !skippedVolumes.isEmpty { out.append("other disks inside this folder weren't searched (\(skippedVolumes.joined(separator: ", ")))") }
-        if mayBeStale { out.append("files changed faster than Arbor could follow; Refresh to update") }
+        if archivesUnreadable > 0 { out.append(archivesUnreadable == 1 ? L10n.tr("1 archive couldn't be read") : L10n.format("%@ archives couldn't be read", archivesUnreadable.formatted())) }
+        if !skippedVolumes.isEmpty { out.append(L10n.format("other disks inside this folder weren't searched (%@)", skippedVolumes.joined(separator: ", "))) }
+        if mayBeStale { out.append(L10n.tr("files changed faster than Arbor could follow; Refresh to update")) }
         return out
     }
 

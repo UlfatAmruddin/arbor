@@ -510,7 +510,7 @@ public final class FileTransfer: @unchecked Sendable {
         let intoOwnFolder = target.standardizedFileURL == source || FileOps.isSameEntry(target, source)
         if isFolder && !intoOwnFolder && FileOps.isSameOrInsideOnDisk(folder, source) {
             return Plan(source: source, target: folder,
-                        action: .immediate(.failed("The destination folder is inside the folder being \(kind.pastVerb).")),
+                        action: .immediate(.failed(kind == .copy ? L10n.tr("The destination folder is inside the folder being copied.") : L10n.tr("The destination folder is inside the folder being moved."))),
                         sourceIsFolder: isFolder)
         }
         if intoOwnFolder {
@@ -658,7 +658,7 @@ public final class FileTransfer: @unchecked Sendable {
         case .replace:
             if FileOps.isSameOrInsideOnDisk(plan.source, plan.target) {
                 accountWhole(plan.source, known: known, top: top)
-                return .failed("Can't replace a folder that contains the item being \(self.kind.pastVerb).")
+                return .failed(self.kind == .copy ? L10n.tr("Can't replace a folder that contains the item being copied.") : L10n.tr("Can't replace a folder that contains the item being moved."))
             }
             if FileOps.exists(plan.target) {
                 do { try disposeReplaced(plan.target) } catch {
@@ -747,13 +747,13 @@ public final class FileTransfer: @unchecked Sendable {
             }
             return .succeeded(target)
         case .partial:
-            return .partial(target, "Some items inside couldn't be \(kind.pastVerb).")
+            return .partial(target, kind == .copy ? L10n.tr("Some items inside couldn't be copied.") : L10n.tr("Some items inside couldn't be moved."))
         case .skipped(let why):
             return .skipped(why)
         case .failed(let why):
             return .failed(why)
         case .cancelled(let leftContent):
-            return leftContent ? .partial(target, "Stopped before everything was \(kind.pastVerb).") : .cancelled
+            return leftContent ? .partial(target, kind == .copy ? L10n.tr("Stopped before everything was copied.") : L10n.tr("Stopped before everything was moved.")) : .cancelled
         }
     }
 }

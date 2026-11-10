@@ -21,9 +21,9 @@ extension BrowserWindowController {
                 self.navigate(to: self.location, select: landedHere.map(\.lastPathComponent))
             }
             if report.wasCancelled {
-                self.statusBar.setMessage(L10n.format("Transfer cancelled. Items already %@ were kept.", TransferWords.localized(report.kind.pastVerb)))
+                self.statusBar.setMessage(report.kind == .copy ? L10n.tr("Transfer cancelled. Items already copied were kept.") : L10n.tr("Transfer cancelled. Items already moved were kept."))
             } else if report.problems.isEmpty, !report.committed.isEmpty {
-                self.statusBar.setMessage(L10n.format("%@ %@ to “%@”.", "\(StatusText.items(report.committed.count))", TransferWords.localized(report.kind.pastVerb), "\(displayName(of: report.destination))"))
+                self.statusBar.setMessage(report.kind == .copy ? L10n.format("%@ copied to “%@”.", StatusText.items(report.committed.count), displayName(of: report.destination)) : L10n.format("%@ moved to “%@”.", StatusText.items(report.committed.count), displayName(of: report.destination)))
             }
         }
     }

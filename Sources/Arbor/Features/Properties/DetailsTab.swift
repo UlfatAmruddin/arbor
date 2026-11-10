@@ -132,8 +132,8 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
         if !item.isFolder && !item.isPackage {
             rows.append(MetadataRow(group: L10n.tr("File"), label: L10n.tr("Size"), value: PropertyFormat.adaptiveSize(SizeScanner.entrySizes(url).size)))
         }
-        rows.append(MetadataRow(group: L10n.tr("File"), label: L10n.tr("Attributes"), value: attributes.isEmpty ? "None" : attributes.joined(separator: ", ")))
-        if let s = security { rows.append(MetadataRow(group: L10n.tr("File"), label: L10n.tr("Owner"), value: "\(s.ownerName) (\(s.groupName))")) }
+        rows.append(MetadataRow(group: L10n.tr("File"), label: L10n.tr("Attributes"), value: attributes.isEmpty ? L10n.tr("None") : attributes.joined(separator: ", ")))
+        if let s = security { rows.append(MetadataRow(group: L10n.tr("File"), label: L10n.tr("Owner"), value: L10n.format("%@ (%@)", s.ownerName, s.groupName))) }
         rows.append(MetadataRow(group: L10n.tr("File"), label: L10n.tr("Computer"), value: Host.current().localizedName ?? "This Mac"))
         return rows
     }
@@ -189,7 +189,7 @@ final class DetailsTab: PropertiesTab, PropertiesTabDebug {
             list.add(row)
         }
         // Finder's own metadata first: it is what the user can edit here.
-        addGroup("Finder tags and comments")
+        addGroup(L10n.tr("Finder tags and comments"))
         addRow(L10n.tr("Tags"), tagsField)
         addRow(L10n.tr("Comments"), commentField)
         func addNote(_ text: String) {

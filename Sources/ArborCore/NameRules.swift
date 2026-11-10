@@ -59,11 +59,14 @@ public enum NameRules {
 
     /// "New folder", then "New folder (2)".
     public static func newFolderName(isTaken: (String) -> Bool) -> String {
-        if !isTaken("New folder") { return L10n.tr("New folder") }
+        let first = L10n.tr("New folder")
+        if !isTaken(first) { return first }
         var n = 2
-        while isTaken("New folder (\(n))") { n += 1 }
-        return L10n.format("New folder (%@)", "\(n)")
+        while isTaken(numberedNewFolder(n)) { n += 1 }
+        return numberedNewFolder(n)
     }
+
+    private static func numberedNewFolder(_ number: Int) -> String { L10n.plainFormat("New folder (%@)", "\(number)") }
 
     public static func validate(_ name: String) -> NameValidationError? {
         if name.isEmpty { return .empty }

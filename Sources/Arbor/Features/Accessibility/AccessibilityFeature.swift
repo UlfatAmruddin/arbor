@@ -25,10 +25,10 @@ enum AccessibilityFeature: ExplorerFeature {
     }
 }
 
-/// `ARBOR_RTL=1` forces a right-to-left layout to check mirroring and truncation (FE-204).
+/// A right-to-left translation lays the app out right to left; `ARBOR_RTL=1` forces it with English text (FE-204).
 enum LayoutDirection {
     static func applyEnvironment() {
-        guard Automation.environment["ARBOR_RTL"] == "1" else { return }
+        guard L10n.isRightToLeft || Automation.environment["ARBOR_RTL"] == "1" else { return }
         var arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
         arguments["NSForceRightToLeftWritingDirection"] = true
         arguments["AppleTextDirection"] = true

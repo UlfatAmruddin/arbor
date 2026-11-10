@@ -58,7 +58,7 @@ import Testing
     // MARK: The audit, kept honest
 
     @Test func auditMatchesWhatEachTypeStores() {
-        #expect(EmbeddedSupport.forType(UTType.jpeg.identifier)?.fields == Set(EmbeddedField.allCases))
+        #expect(EmbeddedSupport.forType(UTType.jpeg.identifier)?.fields == [.title, .description, .rating, .dateTaken])
         #expect(EmbeddedSupport.forType(UTType.jpeg.identifier)?.canRemoveDate == true)
         #expect(EmbeddedSupport.forType(UTType.heic.identifier)?.fields == [.title, .rating])
         #expect(EmbeddedSupport.forType(UTType.tiff.identifier)?.fields == [.title, .rating, .dateTaken])

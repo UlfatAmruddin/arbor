@@ -86,6 +86,6 @@ public struct TransferRateEstimator: Sendable {
     /// "45.2 MB/s", "812 KB/s": Explorer's adaptive 1024-based units with three significant digits.
     public static func describeSpeed(_ bytesPerSecond: Double) -> String {
         // A claimed size near Int64.max can push the rate past what Int64 holds.
-        ExplorerSize.adaptive(Int64(Int(checked: bytesPerSecond.rounded()) ?? (bytesPerSecond > 0 ? .max : 0))) + "/s"
+        L10n.format("%@/s", ExplorerSize.adaptive(Int64(Int(checked: bytesPerSecond.rounded()) ?? (bytesPerSecond > 0 ? .max : 0))))
     }
 }

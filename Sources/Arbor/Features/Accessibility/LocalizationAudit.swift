@@ -1,7 +1,7 @@
 import AppKit
 import ArborCore
 
-/// Localization check (FE-204), with `ARBOR_PSEUDO_LOC=1`: `l10naudit:/path` appends visible text not
+/// Localization check (FE-204), under a pseudo-language: `l10naudit:/path` appends visible text not
 /// from the string table and text that doesn't fit its frame. File names are skipped (never translated).
 ///
 ///     plain: NSTextField "Size on disk:"
@@ -36,6 +36,7 @@ enum LocalizationAudit {
             }
         FileManager.default.homeDirectoryForCurrentUser.pathComponents.forEach { names.insert($0) }
         names.insert(NSFullUserName())
+        names.insert(NSUserName())
 
         var audit = Audit(names: names)
         let windows = NSApp.windows.filter { window in
@@ -44,7 +45,9 @@ enum LocalizationAudit {
         }
         for window in windows {
             if !window.title.isEmpty { audit.check(window.title, source: "window title") }
-            if let content = window.contentView { audit.walk(content) }
+            guard let content = window.contentView else { continue }
+            content.layoutSubtreeIfNeeded()   // frames are stale between a change and the next display
+            audit.walk(content)
         }
         var lines = audit.findings
         lines.append("l10naudit: \(windows.count) windows, \(audit.seen) strings, \(audit.plainCount) plain, \(audit.clippedCount) clipped")
@@ -103,9 +106,10 @@ enum LocalizationAudit {
         }
 
         mutating func checkClipping(_ control: NSControl, text: String, kind: String) {
-            guard !text.isEmpty, let cell = control.cell, control.bounds.width > 0 else { return }
-            // Paths, names and table cells shorten with an ellipsis by design (DEC-013); that isn't clipping.
-            if control is NSTextField, [.byTruncatingHead, .byTruncatingMiddle, .byTruncatingTail].contains(cell.lineBreakMode) { return }
+            guard !text.isEmpty, let cell = control.cell, control.bounds.width > 0, !(control.superview is NSTableCellView) else { return }   // columns resize
+            // Paths and names shorten with an ellipsis by design (DEC-013), even inside a sentence; other translated text must fit.
+            if control is NSTextField, [.byTruncatingHead, .byTruncatingMiddle, .byTruncatingTail].contains(cell.lineBreakMode),
+               !text.contains("·]") || names.contains(where: { $0.count > 3 && text.contains($0) }) { return }
             let wraps = cell.wraps || (control as? NSTextField)?.maximumNumberOfLines != 1 && cell.lineBreakMode == .byWordWrapping
             if wraps {
                 let needed = cell.cellSize(forBounds: NSRect(x: 0, y: 0, width: control.bounds.width, height: .greatestFiniteMagnitude)).height
@@ -124,7 +128,7 @@ enum LocalizationAudit {
 
         /// Text with Latin letters outside pseudo-localized segments, that isn't a name, path or number.
         static func hasPlainText(_ text: String, names: Set<String>) -> Bool {
-            var rest = text
+            var rest = text.replacingOccurrences(of: "[\u{200E}\u{200F}\u{2066}-\u{2069}]", with: "", options: .regularExpression)
             // Remove "[…·]" segments (pseudo-localized text) and quoted names (“…”).
             for pattern in [#"\[[^\[\]]*·\]"#, #"“[^”]*”"#, #""[^"]*""#] {
                 rest = rest.replacingOccurrences(of: pattern, with: " ", options: .regularExpression)
@@ -141,6 +145,7 @@ enum LocalizationAudit {
             for word in rest.split(whereSeparator: { $0.isWhitespace }) {
                 let token = String(word)
                 if token.contains("/") || token.contains("\\") || token.contains("@") { continue }   // paths, addresses
+                if token.range(of: #"^\(?(\.[A-Za-z0-9]+|[rwxsStT-]{9,10})\)?$"#, options: .regularExpression) != nil { continue }   // extensions, permissions
                 if token.range(of: #"[A-Za-z]{2,}"#, options: .regularExpression) == nil { continue }
                 if Self.allowed.contains(token.trimmingCharacters(in: .punctuationCharacters)) { continue }
                 return true
@@ -153,6 +158,6 @@ enum LocalizationAudit {
         /// Units, file-system, format and product names that stay as they are in every language.
         static let allowed: Set<String> = ["KB", "MB", "GB", "TB", "PB", "APFS", "HFS", "ExFAT", "FAT32", "SMB", "AFP", "NFS", "WebDAV",
                                            "Arbor", "macOS", "iCloud", "AirDrop", "ZIP", "TAR", "ACL", "POSIX", "AM", "PM", "px",
-                                           "gzip", "xz", "BZip2", "LZMA", "LZMA2", "TextEdit"]
+                                           "gzip", "xz", "BZip2", "LZMA", "LZMA2", "TextEdit", "wheel", "staff", "admin"]
     }
 }

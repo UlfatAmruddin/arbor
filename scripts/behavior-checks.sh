@@ -1533,6 +1533,60 @@ if want embedded-metadata; then
   discard embedded-metadata "$R"
 fi
 
+# FE-152: properties inside MP3, FLAC and M4A files: written, kept byte for byte around the edit, refused when unsafe, undone. docs/features/properties.md.
+if want audio-metadata; then
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/work"
+  mp3() {   # mp3 <tag flags> <path>: a small ID3v2.3 tag with one private frame, then MPEG frames and an ID3v1 trailer.
+    perl -e 'binmode STDOUT; my ($flags) = @ARGV;
+      my $f = sub { my ($id, $b) = @_; $id . pack("N", length $b) . "\0\0" . $b };
+      my $body = $f->("TIT2", "\0Old title") . $f->("PRIV", "owner\0\1\2\3") . ("\0" x 40);
+      print "ID3\3\0" . chr($flags) . pack("C4", 0, 0, 0, length $body) . $body . ("\xFF\xFB\x90\0" . ("\x55" x 413)) x 20 . "TAG" . ("A" x 125)' "$1" > "$2"
+  }
+  mp3 0 "$R/F/song.mp3"; cp "$R/F/song.mp3" "$R/work/song.orig"
+  mp3 0 "$R/F/kept.mp3"; cp "$R/F/kept.mp3" "$R/work/kept.orig"
+  mp3 0 "$R/F/late.mp3"
+  mp3 128 "$R/F/unsync.mp3"
+  # A generated tone; afconvert makes real FLAC and AAC from it.
+  perl -e 'binmode STDOUT; my $n = 44100; print "RIFF" . pack("V", 36 + $n * 4) . "WAVEfmt " . pack("VvvVVvv", 16, 1, 2, 44100, 176400, 4, 16) . "data" . pack("V", $n * 4);
+    print pack("vv", int(9000 * sin($_ / 20)) & 0xFFFF, int(7000 * sin($_ / 31)) & 0xFFFF) for 1..$n' > "$R/work/tone.wav"
+  afconvert -f flac -d flac "$R/work/tone.wav" "$R/F/tone.flac"
+  afconvert -f m4af -d aac -b 64000 "$R/work/tone.wav" "$R/F/tone.m4a"
+  afconvert -f caff -d LEI16 "$R/F/tone.flac" "$R/work/flac-before.caf"
+  afconvert -f caff -d LEI16 "$R/F/tone.m4a" "$R/work/m4a-before.caf"
+  S="wait:1;propertiesof:$R/F/song.mp3;proptab:Details;wait:0.8;proplog:$R/before.txt;propsnapshot:$R/details.png"
+  S+=";propembedded:title=A new title;propembedded:artist=Someone;propembedded:album=An album;propembedded:year=2021;propembedded:track=3/12;propembedded:genre=Rock;propembedded:comment=Noted"
+  S+=";proplog:$R/pending.txt;propapply;wait:1.2;proplog:$R/saved.txt;propsnapshot:$R/saved.png;propcancel"
+  S+=";wait:0.5;action:undo:;event;wait:1;propertiesof:$R/F/song.mp3;proptab:Details;wait:0.8;proplog:$R/undone.txt;propcancel"
+  S+=";wait:0.5;propertiesof:$R/F/kept.mp3;proptab:Details;wait:0.8;propembedded:title=Kept;propapply;wait:1.2;propcancel"
+  S+=";wait:0.5;propertiesof:$R/F/tone.flac;proptab:Details;wait:0.8;propembedded:title=FLAC title 写;propembedded:artist=Someone;propapply;wait:1.2;proplog:$R/flac.txt;propcancel"
+  S+=";wait:0.5;propertiesof:$R/F/tone.m4a;proptab:Details;wait:0.8;propembedded:title=M4A title 写;propembedded:track=2/9;propapply;wait:1.2;proplog:$R/m4a.txt;propcancel"
+  S+=";wait:0.5;propertiesof:$R/F/late.mp3;proptab:Details;wait:0.8;propembedded:title=Too late;propembedded:touch=1;propapply;wait:1;proplog:$R/refused.txt;propbutton:OK;wait:0.8;proplog:$R/reloaded.txt;propcancel"
+  S+=";wait:0.5;propertiesof:$R/F/unsync.mp3;proptab:Details;wait:0.8;proplog:$R/unsync.txt;quit"
+  run "$R" "$R/F" "$S"
+  contains "an MP3 offers the audio fields" "$R/before.txt" "embedded editable: title,artist,album,year,track,genre,comment"
+  contains "the old title is read" "$R/before.txt" "embedded title: Old title"
+  contains "pending edits enable Apply" "$R/pending.txt" "apply enabled: true"
+  contains "the title is written" "$R/saved.txt" "embedded title: A new title"
+  contains "the artist is written" "$R/saved.txt" "embedded artist: Someone"
+  contains "the year is written" "$R/saved.txt" "embedded year: 2021"
+  contains "the track is written" "$R/saved.txt" "embedded track: 3/12"
+  contains "undo reads the earlier title" "$R/undone.txt" "embedded title: Old title"
+  fact "undo restores the MP3 byte for byte" cmp -s "$R/F/song.mp3" "$R/work/song.orig"
+  fact "the audio and trailer survive an edit" sh -c "test \"\$(tail -c 8468 '$R/F/kept.mp3' | shasum)\" = \"\$(tail -c 8468 '$R/work/kept.orig' | shasum)\""
+  fact "the private frame survives an edit" grep -q owner "$R/F/kept.mp3"
+  contains "FLAC is written" "$R/flac.txt" "embedded title: FLAC title 写"
+  contains "M4A is written" "$R/m4a.txt" "embedded title: M4A title 写"
+  contains "M4A stores the track" "$R/m4a.txt" "embedded track: 2/9"
+  afconvert -f caff -d LEI16 "$R/F/tone.flac" "$R/work/flac-after.caf"
+  afconvert -f caff -d LEI16 "$R/F/tone.m4a" "$R/work/m4a-after.caf"
+  fact "the FLAC sound is unchanged" cmp -s "$R/work/flac-before.caf" "$R/work/flac-after.caf"
+  fact "the M4A sound is unchanged" cmp -s "$R/work/m4a-before.caf" "$R/work/m4a-after.caf"
+  lacks "a file changed meanwhile keeps its properties" "$R/reloaded.txt" "embedded title: Too late"
+  contains "an unsynchronised tag is read-only with its reason" "$R/unsync.txt" "unsynchronised"
+  contains "and offers nothing" "$R/unsync.txt" "embedded editable: "
+  discard audio-metadata "$R"
+fi
+
 # FE-158: a downloaded file is described, and Properties never clears its quarantine flag.
 if want quarantine; then
   R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F"
@@ -1587,6 +1641,84 @@ if want clipboard; then
   fact "nothing moved by itself" test -f "$F/own.txt"
   for f in foreign copied moved undone remote mixed disk arbor-copy arbor-cut; do check "nothing opened: $f" "$R/$f.txt" "system open: none"; done
   discard clipboard "$R"
+fi
+
+# FE-204: the real app in both generated pseudo-languages, on a scratch copy that holds them; nothing is shipped.
+if want localization; then
+  R=$(arbor_mktemp_dir); F="$R/F"; L="$R/app/Arbor.app"
+  mkdir -p "$F/Sub folder" "$F/שלום עולם" "$F/dst" "$F/dst2" "$R/app" "$R/names" "$R/bad/en.lproj" "$R/bad/xx.lproj"
+  echo hi > "$F/report (1).txt"; echo incoming > "$F/notes.md"; echo existing > "$F/dst/notes.md"
+  head -c 5000 /dev/zero > "$F/size.txt"; dd if=/dev/urandom of="$F/big.bin" bs=1048576 count=20 2>/dev/null
+  mkdir -p "$R/clash/dst/Quarterly budget review"; echo hi > "$R/clash/Quarterly budget review"
+  ditto "${APP%/Contents/MacOS/Arbor}" "$L"
+  RES="$L/Contents/Resources"; EN="$RES/en.lproj/Localizable.strings"
+  scripts/extract-strings.sh --pseudo "$RES" > "$R/generated.txt" 2>&1
+  mkdir -p "$RES/fr.lproj"; printf '"%%@ items" = "%%@ éléments";\n' > "$RES/fr.lproj/Localizable.strings"
+  plutil -replace CFBundleLocalizations -json '["en","en-XA","ar-XB","fr"]' "$L/Contents/Info.plist"
+  codesign --force --sign - --preserve-metadata=entitlements,requirements,flags,runtime "$L" 2>/dev/null
+  contains "the accented table is generated and valid" "$R/generated.txt" "en-XA.lproj: 0 errors, 0 strings not translated yet"
+  contains "the right-to-left table is generated and valid" "$R/generated.txt" "ar-XB.lproj: 0 errors, 0 strings not translated yet"
+
+  # --check refuses a translation that would crash String(format:).
+  cp "$EN" "$R/bad/en.lproj/Localizable.strings"
+  printf '"%%@ items" = "%%d items";\n' > "$R/bad/xx.lproj/Localizable.strings"
+  scripts/extract-strings.sh --check "$R/bad" > "$R/bad.txt" 2>&1; BAD=$?
+  fact "a bad translation fails the check" test "$BAD" -ne 0
+  contains "and says which key" "$R/bad.txt" "format specifiers differ for"
+
+  l10nrun() {   # l10nrun <start folder> <journal> <language> <script> [app arguments…]
+    local start="$1" journal="$2" language="$3" script="$4"; shift 4
+    env ARBOR_HEADLESS=1 ARBOR_TEST_TRASH="$R/trash" ARBOR_JOURNAL_DIR="$journal" ARBOR_HISTORY_FILE="$R/history.json" ARBOR_TRANSFER_THROTTLE=2000000 \
+      ARBOR_SCRIPT="$script" perl -e 'alarm shift; exec @ARGV' 120 "$L/Contents/MacOS/Arbor" "$start" -AppleLanguages "($language)" "$@" >/dev/null 2>&1
+  }
+  # The shortcuts a menu shows; a pseudo-translated title ends in "·]" and is not one.
+  shortcuts() { perl -ne 'print "$1\n" if /\[([^\[\]]*[^·\]])\](?: \(disabled\))?$/' "$1"; }
+
+  for LANG_ID in en-XA ar-XB; do
+    O="$R/$LANG_ID"; mkdir -p "$O"; S1=";l10naudit:$O"
+    l10nrun "$F" "$O/j1" "$LANG_ID" "wait:1.2;windowsize:1180,740;wait:0.6;view:details;wait:0.6;select:report (1).txt;log:$O/main.txt${S1}/main-audit.txt;snapshot:$O/main.png;windowsize:720,520;wait:0.6${S1}/narrow-audit.txt;snapshot:$O/narrow.png;location:home;wait:1${S1}/home-audit.txt;snapshot:$O/home.png;quit"
+    l10nrun "$F" "$O/j2" "$LANG_ID" "wait:1.2;folderoptions:general;wait:0.6${S1}/fo1-audit.txt;fosnapshot:$O/fo1.png;fotab:view;wait:0.6${S1}/fo2-audit.txt;fosnapshot:$O/fo2.png;fotab:search;wait:0.6${S1}/fo3-audit.txt;fosnapshot:$O/fo3.png;quit"
+    l10nrun "$F" "$O/j3" "$LANG_ID" "wait:1.2;propertiesof:$F/size.txt;wait:0.8${S1}/p1-audit.txt;propsnapshot:$O/p1.png;proptab:Security;wait:0.6${S1}/p2-audit.txt;propsnapshot:$O/p2.png;proptab:Details;wait:0.6${S1}/p3-audit.txt;propsnapshot:$O/p3.png;quit"
+    l10nrun "$F" "$O/j4" "$LANG_ID" "wait:1.2;opstart:copy:$F/notes.md:$F/dst;wait:1.5${S1}/conflict-audit.txt;opsnap:dialog:$O/conflict.png;quit"
+    l10nrun "$R/clash" "$O/j12" "$LANG_ID" "wait:1.2;opstart:copy:$R/clash/Quarterly budget review:$R/clash/dst;wait:1.5${S1}/clash-audit.txt;opsnap:dialog:$O/clash.png;quit"
+    l10nrun "$F" "$O/j5" "$LANG_ID" "wait:1.2;opstart:copy:$F/big.bin:$F/dst2;wait:1.5;opshow;wait:0.8${S1}/progress-audit.txt;opsnap:progress:$O/progress.png;opdetails:on;wait:1${S1}/progress2-audit.txt;opsnap:progress:$O/progress2.png;opcancel;wait:1;quit"
+    rm -f "$F/dst2/big.bin"
+    l10nrun "$F" "$O/j6" "$LANG_ID" "wait:1.2;opstart:copy:$F/big.bin:$F/dst2;wait:1;terminate"
+    l10nrun "$F" "$O/j6" "$LANG_ID" "wait:1.5${S1}/recovery-audit.txt;quit"
+    rm -f "$F/dst2/big.bin"
+    for f in "$O"/*-audit.txt; do contains "$LANG_ID $(basename "$f" -audit.txt): nothing plain or clipped" "$f" " 0 plain, 0 clipped"; done
+    l10nrun "$F" "$O/j7" "$LANG_ID" "wait:1;menukey:cmd+a;event;wait:0.4;log:$O/keys.txt;menu:main:File:$O/menus.txt;menu:main:Edit:$O/menus.txt;menu:main:View:$O/menus.txt;menu:main:Go:$O/menus.txt;quit"
+    shortcuts "$O/menus.txt" > "$O/shortcuts.txt"
+    contains "$LANG_ID: a shortcut still acts" "$O/keys.txt" "selected: dst | dst2"
+    l10nrun "$R/names" "$O/j8" "$LANG_ID" "wait:1;click:file.newFolder;event;wait:0.8;enter;event;wait:0.5;click:file.newFolder;event;wait:0.8;enter;event;wait:0.5;log:$O/names.txt;quit"
+    fact "$LANG_ID: two new folders" test "$(ls "$R/names" | wc -l | tr -d ' ')" = 2
+    fact "$LANG_ID: names on disk carry no direction marks" test -z "$(ls "$R/names" | LC_ALL=C grep -F "$(printf '\342\201\250')")"
+    rm -rf "$R/names"; mkdir "$R/names"
+  done
+
+  mkdir -p "$R/en"
+  env ARBOR_HEADLESS=1 ARBOR_TEST_TRASH="$R/trash" ARBOR_JOURNAL_DIR="$R/en/j" ARBOR_HISTORY_FILE="$R/history.json" \
+    ARBOR_SCRIPT="wait:1;menu:main:File:$R/en/menus.txt;menu:main:Edit:$R/en/menus.txt;menu:main:View:$R/en/menus.txt;menu:main:Go:$R/en/menus.txt;quit" \
+    perl -e 'alarm shift; exec @ARGV' 120 "$L/Contents/MacOS/Arbor" "$F" -AppleLanguages "(en)" >/dev/null 2>&1
+  shortcuts "$R/en/menus.txt" > "$R/en/shortcuts.txt"
+  fact "shortcuts are read" test -s "$R/en/shortcuts.txt"
+  fact "the accented language keeps every shortcut" cmp -s "$R/en/shortcuts.txt" "$R/en-XA/shortcuts.txt"
+  fact "the right-to-left language keeps every shortcut" cmp -s "$R/en/shortcuts.txt" "$R/ar-XB/shortcuts.txt"
+
+  contains "the accented language is left to right" "$R/en-XA/main.txt" "rtl=false language=en-XA"
+  contains "the right-to-left language lays out right to left" "$R/ar-XB/main.txt" "rtl=true language=ar-XB"
+
+  l10nrun "$F" "$R/j9" fr "wait:1;location:home;wait:0.8;log:$R/fr.txt;quit"
+  contains "a translated key shows the translation" "$R/fr.txt" "éléments"
+  contains "a missing key shows English" "$R/fr.txt" "window title: Home"
+
+  # Numbers and paths follow the locale and direction, whatever the language.
+  l10nrun "$F" "$R/j10" en-XA "wait:1;propertiesof:$F/size.txt;wait:0.8;proplog:$R/de.txt;quit" -AppleLocale de_DE
+  contains "sizes use the locale's decimal separator" "$R/de.txt" "4,88"
+  l10nrun "$F" "$R/j11" ar-XB "wait:1;propertiesof:$F/size.txt;wait:0.8;proplog:$R/ar.txt;quit" -AppleLocale ar_SA
+  contains "sizes use the locale's digits" "$R/ar.txt" "٤٫٨٨"
+  contains "a path reads left to right inside a right-to-left line" "$R/ar.txt" "location: $(printf '\342\201\246')/"
+  discard localization "$R"
 fi
 
 exit $FAILED

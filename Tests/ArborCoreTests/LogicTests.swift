@@ -248,6 +248,8 @@ struct NameRulesTests {
     @Test func newFolderNames() {
         #expect(NameRules.newFolderName { _ in false } == "New folder")
         #expect(NameRules.newFolderName { ["New folder", "New folder (2)"].contains($0) } == "New folder (3)")
+        // Whatever the language, the name is plain text: no direction marks reach the disk.
+        #expect(!NameRules.newFolderName { $0 == "New folder" }.unicodeScalars.contains { (0x2066...0x2069).contains($0.value) })
     }
 
     @Test func validation() {

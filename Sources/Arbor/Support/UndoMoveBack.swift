@@ -15,10 +15,10 @@ extension OperationCenter {
         undoManager.registerUndo(withTarget: self) { center in
             let result = MoveStepResult()
             center.registerMoveStep { result.done ? result.moved.map { MoveBack.Item(from: $0.to, to: $0.from) } : nil }
-            center.undoManager.setActionName("Move")
+            center.undoManager.setActionName(L10n.tr("Move"))
             guard let list = items() else {
                 result.done = true
-                center.report("The previous Undo or Redo is still moving items.", "Wait until it has finished, then try again.")
+                center.report(L10n.tr("The previous Undo or Redo is still moving items."), L10n.tr("Wait until it has finished, then try again."))
                 return
             }
             center.moveBack(list) { moved in
@@ -52,7 +52,7 @@ extension OperationCenter {
                                     let now = fixed.first { $0.from == pair.destination }?.to ?? pair.destination
                                     if let item { moved.append(MoveBack.Item(from: item.from, to: now)) }
                                 }
-                                refused += unfixed.map { "\($0.from.lastPathComponent) (back in its folder, but “\($0.to.lastPathComponent)” is taken)" }
+                                refused += unfixed.map { L10n.format("%@ (back in its folder, but “%@” is taken)", $0.from.lastPathComponent, $0.to.lastPathComponent) }
                                 group.leave()
                             }
                         }
@@ -60,8 +60,8 @@ extension OperationCenter {
                 }
                 group.notify(queue: .main) {
                     if !refused.isEmpty {
-                        self.report("Some items couldn't be moved back.",
-                                    "They were changed or their original location is taken:\n" + refused.joined(separator: ", "))
+                        self.report(L10n.tr("Some items couldn't be moved back."),
+                                    L10n.tr("They were changed or their original location is taken:\n") + refused.joined(separator: ", "))
                     }
                     completion(moved)
                 }

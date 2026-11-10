@@ -49,12 +49,16 @@ final class MetadataLossDialog: FileOpsDialog {
     /// Names the drive, its format and what can't be kept, in plain words.
     static func explanation(_ loss: MetadataLoss) -> String {
         let caps = loss.capabilities
-        let drive = caps.volumeName.map { "“\($0)”" } ?? "The destination"
-        let format = caps.formatName.isEmpty ? "" : " (\(caps.formatName))"
-        var text = "\(drive)\(format) can't store this item's \(loss.lost.description)."
+        var text: String
+        switch (caps.volumeName, caps.formatName.isEmpty) {
+        case (let name?, false): text = L10n.format("“%@” (%@) can't store this item's %@.", name, caps.formatName, loss.lost.description)
+        case (let name?, true): text = L10n.format("“%@” can't store this item's %@.", name, loss.lost.description)
+        case (nil, false): text = L10n.format("The destination (%@) can't store this item's %@.", caps.formatName, loss.lost.description)
+        case (nil, true): text = L10n.format("The destination can't store this item's %@.", loss.lost.description)
+        }
         let attributes = loss.lost.subtracting(.accessList)
         if !attributes.isEmpty {
-            text += " macOS keeps Mac-only properties in hidden “._” files there, which Windows and other devices ignore or delete."
+            text += " " + L10n.tr("macOS keeps Mac-only properties in hidden “._” files there, which Windows and other devices ignore or delete.")
         }
         if loss.lost.contains(.accessList) { text += L10n.tr(" Access-list permissions are left out.") }
         return text

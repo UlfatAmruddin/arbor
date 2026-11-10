@@ -4,6 +4,28 @@ import AppKit
 enum RightToLeft {
     static func isActive(_ view: NSView) -> Bool { view.userInterfaceLayoutDirection == .rightToLeft }
 
+    /// Explorer's left and right mean start and end: right-aligned columns stay at the end of the line.
+    static func resolved(_ alignment: NSTextAlignment) -> NSTextAlignment {
+        guard NSApp.userInterfaceLayoutDirection == .rightToLeft else { return alignment }
+        switch alignment {
+        case .left: return .right
+        case .right: return .left
+        default: return alignment
+        }
+    }
+
+    /// Rows of tabs laid out from the left, as a right-to-left layout places them.
+    static func mirrored(_ rects: [NSRect], in view: NSView) -> [NSRect] {
+        guard isActive(view) else { return rects }
+        return rects.map { NSRect(x: view.bounds.width - $0.maxX, y: $0.minY, width: $0.width, height: $0.height) }
+    }
+
+    /// For a path someone types or reads: the root stays on the left whatever the interface direction.
+    static func holdLeftToRight(_ field: NSTextField) {
+        guard isActive(field) else { return }
+        field.baseWritingDirection = .leftToRight
+    }
+
     /// Mirrors `views` inside `container`, and `nested` inside `contents` (a scroll view's document).
     static func mirror(_ container: NSView, _ views: [NSView], contents: NSView? = nil, _ nested: [[NSView]] = []) {
         guard isActive(container) else { return }

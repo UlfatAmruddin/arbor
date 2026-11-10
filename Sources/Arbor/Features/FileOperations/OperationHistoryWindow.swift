@@ -257,13 +257,13 @@ final class OperationHistoryWindow: NSObject, NSWindowDelegate, NSOutlineViewDat
                 job: node, destination: item.destination))
         }
         if record.omittedItems > 0 {
-            node.children.append(ItemNode(name: "…", place: "", result: "\(record.omittedItems) more items not listed", detail: "",
+            node.children.append(ItemNode(name: "…", place: "", result: L10n.format("%@ more items not listed", StatusText.number(record.omittedItems)), detail: "",
                                           isProblem: false, job: node, destination: nil))
         }
         for failure in record.verification?.failures ?? [] {
             let url = URL(fileURLWithPath: failure.path)
             node.children.append(ItemNode(name: url.lastPathComponent, place: Self.name(url.deletingLastPathComponent().path),
-                                          result: "Didn't verify", detail: failure.reason, isProblem: true, job: node, destination: nil))
+                                          result: L10n.tr("Didn't verify"), detail: failure.reason, isProblem: true, job: node, destination: nil))
         }
         return node
     }
@@ -278,15 +278,19 @@ final class OperationHistoryWindow: NSObject, NSWindowDelegate, NSOutlineViewDat
     private static func name(_ path: String) -> String { displayName(of: URL(fileURLWithPath: path)) }
 
     static func title(_ record: OperationRecord) -> String {
-        let verb = record.kind == .copy ? L10n.tr("Copied") : L10n.tr("Moved")
         let n = record.sources.count
-        let what = n == 1 ? "“\(URL(fileURLWithPath: record.sources[0]).lastPathComponent)”" : StatusText.items(n)
-        return record.wasInterrupted ? "\(verb.dropLast()) \(what) (interrupted)" : "\(verb) \(what)"
+        let what = n == 1 ? L10n.format("“%@”", URL(fileURLWithPath: record.sources[0]).lastPathComponent) : StatusText.items(n)
+        switch (record.kind == .copy, record.wasInterrupted) {
+        case (true, true): return L10n.format("Copy %@ (interrupted)", what)
+        case (true, false): return L10n.format("Copied %@", what)
+        case (false, true): return L10n.format("Move %@ (interrupted)", what)
+        case (false, false): return L10n.format("Moved %@", what)
+        }
     }
 
     static func result(_ record: OperationRecord) -> String {
         var text = record.countsText
-        if record.wasCancelled, !record.wasInterrupted { text = L10n.tr("Cancelled · ") + text }
+        if record.wasCancelled, !record.wasInterrupted { text = L10n.format("Cancelled · %@", text) }
         switch record.verification?.state {
         case .verified?: text += " · Verified"
         case .failed?: text += " · Verification failed (\(record.verification?.failures.count ?? 0))"

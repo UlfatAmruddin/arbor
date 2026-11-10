@@ -111,11 +111,13 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
         header.addSubview(icon)
         header.addSubview(headerValue)
         headerValue.translatesAutoresizingMaskIntoConstraints = false
+        let headerLeading = headerValue.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: form.labelWidth + 4)
+        form.followColumn { headerLeading.constant = $0 + 4 }
         NSLayoutConstraint.activate([
             header.heightAnchor.constraint(equalToConstant: 38),
             icon.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: 2),
             icon.centerYAnchor.constraint(equalTo: header.centerYAnchor),
-            headerValue.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: form.labelWidth + 4),
+            headerLeading,
             headerValue.trailingAnchor.constraint(equalTo: header.trailingAnchor),
             headerValue.centerYAnchor.constraint(equalTo: header.centerYAnchor),
         ])
@@ -201,10 +203,12 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
         let box = NSView()
         box.translatesAutoresizingMaskIntoConstraints = false
         box.addSubview(v)
+        let leading = v.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: form.labelWidth + 4)
+        form.followColumn { leading.constant = $0 + 4 }
         NSLayoutConstraint.activate([
             v.topAnchor.constraint(equalTo: box.topAnchor),
             v.bottomAnchor.constraint(equalTo: box.bottomAnchor),
-            v.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: form.labelWidth + 4),
+            leading,
             v.trailingAnchor.constraint(equalTo: box.trailingAnchor),
         ])
         return box
@@ -287,7 +291,7 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
         } else if let info = infos.first {
             typeValue.stringValue = model.subject == .package && info.contentType?.conforms(to: .application) == true
                 ? "Application (.\(entries[0].url.pathExtension))" : info.typeText
-            locationValue.stringValue = info.location
+            locationValue.stringValue = BidiText.path(info.location)
             locationValue.toolTip = info.location
             if let app = info.openWith {
                 openWithIcon.image = NSWorkspace.shared.icon(forFile: app.path)
@@ -328,11 +332,17 @@ final class GeneralTab: PropertiesTab, PropertiesTabDebug {
 
     private func showSizes(stopped: Bool = false) {
         if needsScan {
-            let suffix = scanning ? "" : (stopped ? " (stopped)" : "")
-            sizeValue.stringValue = PropertyFormat.propertiesSize(totals.size) + suffix
-            onDiskValue.stringValue = PropertyFormat.propertiesSize(totals.sizeOnDisk) + suffix
+            let wasStopped = !scanning && stopped
+            let sizeText: (Int64) -> String = { bytes in
+                wasStopped ? L10n.format("%@ (stopped)", PropertyFormat.propertiesSize(bytes)) : PropertyFormat.propertiesSize(bytes)
+            }
+            sizeValue.stringValue = sizeText(totals.size)
+            onDiskValue.stringValue = sizeText(totals.sizeOnDisk)
             var contains = PropertyFormat.filesAndFolders(files: totals.files, folders: totals.folders)
-            if totals.unreadable > 0 { contains += " (\(PropertyFormat.count(totals.unreadable, "folder", "folders")) couldn't be read)" }
+            if totals.unreadable > 0 {
+                contains = totals.unreadable == 1 ? L10n.format("%@ (1 folder couldn't be read)", contains)
+                    : L10n.format("%@ (%@ folders couldn't be read)", contains, PropertyFormat.grouped(totals.unreadable))
+            }
             containsValue.stringValue = contains
             containsValue.toolTip = contains
             stopButton.isHidden = !scanning

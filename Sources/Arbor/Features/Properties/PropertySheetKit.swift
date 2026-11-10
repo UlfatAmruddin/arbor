@@ -30,7 +30,7 @@ enum SheetColors {
 
 enum SheetLabel {
     static func make(_ text: String, secondary: Bool = false, bold: Bool = false, selectable: Bool = false) -> NSTextField {
-        let label = NSTextField(labelWithString: text)
+        let label = selectable ? PlainCopyLabel(labelWithString: text) : NSTextField(labelWithString: text)
         label.font = bold ? SheetColors.boldFont : SheetColors.font
         label.textColor = secondary ? Theme.secondaryText : Theme.primaryText
         label.lineBreakMode = .byTruncatingMiddle
@@ -302,7 +302,22 @@ final class SheetSeparator: NSView {
 /// Builds the label/value grid used by General tabs.
 final class SheetForm {
     let stack = NSStackView()
-    let labelWidth: CGFloat
+    private(set) var labelWidth: CGFloat
+    private var columnFollowers: [(CGFloat) -> Void] = []
+    private static let widestCaption: CGFloat = 200
+
+    /// Runs now and whenever a longer caption widens the column, so everything aligned to it stays aligned.
+    func followColumn(_ apply: @escaping (CGFloat) -> Void) {
+        columnFollowers.append(apply)
+        apply(labelWidth)
+    }
+
+    private func fitColumn(to label: NSTextField) {
+        let width = min(ceil(label.intrinsicContentSize.width), Self.widestCaption)
+        guard width > labelWidth else { return }
+        labelWidth = width
+        columnFollowers.forEach { $0(width) }
+    }
 
     init(labelWidth: CGFloat = 92) {
         self.labelWidth = labelWidth
@@ -321,10 +336,17 @@ final class SheetForm {
         row.addSubview(l)
         row.addSubview(value)
         value.translatesAutoresizingMaskIntoConstraints = false
+        fitColumn(to: l)
+        let captionWidth = l.widthAnchor.constraint(equalToConstant: labelWidth)
+        let valueLeading = value.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: labelWidth + 4)
+        followColumn { width in
+            captionWidth.constant = width
+            valueLeading.constant = width + 4
+        }
         var constraints = [
             l.leadingAnchor.constraint(equalTo: row.leadingAnchor),
-            l.widthAnchor.constraint(equalToConstant: labelWidth),
-            value.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: labelWidth + 4),
+            captionWidth,
+            valueLeading,
             value.trailingAnchor.constraint(lessThanOrEqualTo: row.trailingAnchor),
             value.topAnchor.constraint(greaterThanOrEqualTo: row.topAnchor),
             value.bottomAnchor.constraint(lessThanOrEqualTo: row.bottomAnchor),
@@ -420,11 +442,12 @@ final class SheetTabBar: NSView {
 
     private func frames() -> [NSRect] {
         var x: CGFloat = 0
-        return titles.map { title in
-            let w = ceil((title as NSString).size(withAttributes: [.font: SheetColors.font]).width) + 16
+        let natural = titles.map { ceil(($0 as NSString).size(withAttributes: [.font: SheetColors.font]).width) + 16 }
+        let rects = TabRowFit.widths(natural, padding: 16, available: bounds.width).map { w -> NSRect in
             defer { x += w }
             return NSRect(x: x, y: 0, width: w, height: bounds.height)
         }
+        return RightToLeft.mirrored(rects, in: self)
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -452,10 +475,13 @@ final class SheetTabBar: NSView {
             path.stroke()
         }
         for (i, rect) in rects.enumerated() {
-            let attrs: [NSAttributedString.Key: Any] = [.font: SheetColors.font, .foregroundColor: Theme.primaryText]
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .center
+            paragraph.lineBreakMode = .byTruncatingTail
+            let attrs: [NSAttributedString.Key: Any] = [.font: SheetColors.font, .foregroundColor: Theme.primaryText, .paragraphStyle: paragraph]
             let size = (titles[i] as NSString).size(withAttributes: attrs)
             let y = (bounds.height - size.height) / 2 + (i == selectedIndex ? 0 : 1)
-            (titles[i] as NSString).draw(at: NSPoint(x: rect.minX + (rect.width - size.width) / 2, y: y), withAttributes: attrs)
+            (titles[i] as NSString).draw(in: NSRect(x: rect.minX + 2, y: y, width: rect.width - 4, height: size.height), withAttributes: attrs)
         }
     }
 }

@@ -114,17 +114,17 @@ public struct TransferFailure: Sendable, Equatable {
     /// Explorer's dialog title for this failure (windows11-reference §9.6, RECALL).
     public var title: String {
         switch kind {
-        case .inUse: return source.hasDirectoryPath || FileOps.isPlainFolder(source) ? "Folder In Use" : "File In Use"
-        case .accessDenied, .locked: return FileOps.isPlainFolder(source) ? "Folder Access Denied" : "File Access Denied"
-        case .destinationAccessDenied, .readOnlyVolume: return "Destination Folder Access Denied"
-        case .diskFull: return "Not Enough Space"
-        case .notFound: return "Item Not Found"
-        case .invalidName: return "Invalid File Name"
+        case .inUse: return source.hasDirectoryPath || FileOps.isPlainFolder(source) ? L10n.tr("Folder In Use") : L10n.tr("File In Use")
+        case .accessDenied, .locked: return FileOps.isPlainFolder(source) ? L10n.tr("Folder Access Denied") : L10n.tr("File Access Denied")
+        case .destinationAccessDenied, .readOnlyVolume: return L10n.tr("Destination Folder Access Denied")
+        case .diskFull: return L10n.tr("Not Enough Space")
+        case .notFound: return L10n.tr("Item Not Found")
+        case .invalidName: return L10n.tr("Invalid File Name")
         case .pathTooLong: return L10n.tr("Path Too Long")
         case .destinationLocked: return L10n.tr("Destination Folder Locked")
         case .volumeUnavailable: return L10n.tr("Location Not Available")
         case .fileTooLarge: return L10n.tr("File Too Large")
-        case .other: return "Interrupted Action"
+        case .other: return L10n.tr("Interrupted Action")
         }
     }
 
@@ -133,24 +133,34 @@ public struct TransferFailure: Sendable, Equatable {
         let name = source.lastPathComponent
         switch kind {
         case .inUse:
-            return "The action can't be completed because the file is open in another app."
+            return L10n.tr("The action can't be completed because the file is open in another app.")
         case .accessDenied:
             return stage == .removingSource || stage == .moving
-                ? "You don't have permission to remove “\(name)” from its folder."
-                : "You don't have permission to read “\(name)”."
+                ? L10n.format("You don't have permission to remove “%@” from its folder.", name)
+                : L10n.format("You don't have permission to read “%@”.", name)
         case .locked:
-            return "“\(name)” is locked. Unlock it in Get Info, then try again."
+            return L10n.format("“%@” is locked. Unlock it in Get Info, then try again.", name)
         case .destinationAccessDenied:
-            return "You don't have permission to \(verb) to this folder."
+            return verb == "copy" ? L10n.tr("You don't have permission to copy to this folder.") : L10n.tr("You don't have permission to move to this folder.")
         case .readOnlyVolume:
-            return "The destination\(volumeName.map { " “\($0)”" } ?? "") is read-only, so nothing can be \(verb == "copy" ? "copied" : "moved") to it."
+            if let volumeName {
+                return verb == "copy" ? L10n.format("The destination “%@” is read-only, so nothing can be copied to it.", volumeName)
+                    : L10n.format("The destination “%@” is read-only, so nothing can be moved to it.", volumeName)
+            }
+            return verb == "copy" ? L10n.tr("The destination is read-only, so nothing can be copied to it.")
+                : L10n.tr("The destination is read-only, so nothing can be moved to it.")
         case .diskFull:
-            let needed = bytesNeeded.map { " \(StatusText.bytes($0)) is needed to \(verb) these items." } ?? ""
-            return "There is not enough space on \(volumeName.map { "“\($0)”" } ?? "the destination").\(needed) Delete or move files so you have enough space."
+            var sentences = [volumeName.map { L10n.format("There is not enough space on “%@”.", $0) } ?? L10n.tr("There is not enough space on the destination.")]
+            if let bytesNeeded {
+                let size = StatusText.bytes(bytesNeeded)
+                sentences.append(verb == "copy" ? L10n.format("%@ is needed to copy these items.", size) : L10n.format("%@ is needed to move these items.", size))
+            }
+            sentences.append(L10n.tr("Delete or move files so you have enough space."))
+            return sentences.joined(separator: " ")
         case .notFound:
-            return "Could not find this item. This is no longer located in \(source.deletingLastPathComponent().path). Verify the item's location and try again."
+            return L10n.format("Could not find this item. This is no longer located in %@. Verify the item's location and try again.", BidiText.path(source.deletingLastPathComponent().path))
         case .invalidName:
-            return "The name “\(name)” isn't valid at the destination. Rename it, then try again."
+            return L10n.format("The name “%@” isn't valid at the destination. Rename it, then try again.", name)
         case .pathTooLong:
             return L10n.format("The name or location of “%@” would be too long, or nested too deeply, at the destination. Use a shorter name or a folder nearer the top of the disk, then try again.", name)
         case .destinationLocked:
@@ -166,15 +176,17 @@ public struct TransferFailure: Sendable, Equatable {
         case .fileTooLarge:
             return L10n.format("“%@” is too large for the format of the destination.", name)
         case .other:
-            return "An unexpected error is keeping you from \(verb == "copy" ? "copying" : "moving") the file. If you continue to receive this error, you can use the error code to search for help with this problem."
+            return verb == "copy"
+                ? L10n.tr("An unexpected error is keeping you from copying the file. If you continue to receive this error, you can use the error code to search for help with this problem.")
+                : L10n.tr("An unexpected error is keeping you from moving the file. If you continue to receive this error, you can use the error code to search for help with this problem.")
         }
     }
 
     /// The second line: "Close the file and try again." / "Error 5: Input/output error".
     public var hint: String {
         switch kind {
-        case .inUse: return "Close the file and try again."
-        case .other: return "Error \(code): \(systemMessage)"
+        case .inUse: return L10n.tr("Close the file and try again.")
+        case .other: return L10n.format("Error %d: %@", code, systemMessage)
         default: return systemMessage
         }
     }
@@ -191,14 +203,14 @@ public struct TransferFailure: Sendable, Equatable {
     /// A short form for summaries and the journal.
     public var summary: String {
         switch kind {
-        case .inUse: return "The file is open in another app."
-        case .accessDenied: return "Access denied."
-        case .locked: return "The item is locked."
-        case .destinationAccessDenied: return "The destination folder can't be written to."
-        case .readOnlyVolume: return "The destination is read-only."
-        case .diskFull: return "There isn't enough space at the destination."
-        case .notFound: return "The item no longer exists."
-        case .invalidName: return "The name isn't valid at the destination."
+        case .inUse: return L10n.tr("The file is open in another app.")
+        case .accessDenied: return L10n.tr("Access denied.")
+        case .locked: return L10n.tr("The item is locked.")
+        case .destinationAccessDenied: return L10n.tr("The destination folder can't be written to.")
+        case .readOnlyVolume: return L10n.tr("The destination is read-only.")
+        case .diskFull: return L10n.tr("There isn't enough space at the destination.")
+        case .notFound: return L10n.tr("The item no longer exists.")
+        case .invalidName: return L10n.tr("The name isn't valid at the destination.")
         case .pathTooLong: return L10n.tr("The path is too long or nested too deeply.")
         case .destinationLocked:
             if let folder = faultySubfolder?.lastPathComponent { return L10n.format("The folder “%@” is locked.", folder) }
@@ -207,7 +219,7 @@ public struct TransferFailure: Sendable, Equatable {
             if let folder = faultySubfolder?.lastPathComponent { return L10n.format("The folder “%@” is no longer at the destination.", folder) }
             return L10n.tr("The location is no longer available.")
         case .fileTooLarge: return L10n.tr("The file is too large for the destination.")
-        case .other: return "Error \(code): \(systemMessage)"
+        case .other: return L10n.format("Error %d: %@", code, systemMessage)
         }
     }
 }

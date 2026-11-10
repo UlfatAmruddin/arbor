@@ -1,4 +1,5 @@
 import AppKit
+import ArborCore
 
 /// Colors and metrics for Windows-style property sheets, with original shapes. Dark is our own variant.
 enum DialogStyle {
@@ -94,11 +95,12 @@ final class DialogTabBar: NSView {
 
     private func tabRects() -> [NSRect] {
         var x: CGFloat = 0
-        return titles.map { title in
-            let width = ceil((title as NSString).size(withAttributes: [.font: DialogStyle.font]).width) + 22
+        let natural = titles.map { ceil(($0 as NSString).size(withAttributes: [.font: DialogStyle.font]).width) + 22 }
+        let rects = TabRowFit.widths(natural, padding: 22, available: bounds.width).map { width -> NSRect in
             defer { x += width - 1 }
             return NSRect(x: x, y: 3, width: width, height: bounds.height - 3)
         }
+        return RightToLeft.mirrored(rects, in: self)
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -120,9 +122,12 @@ final class DialogTabBar: NSView {
             DialogStyle.pageBorder.setStroke()
             path.lineWidth = 1
             path.stroke()
-            let attrs: [NSAttributedString.Key: Any] = [.font: DialogStyle.font, .foregroundColor: Theme.primaryText]
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .center
+            paragraph.lineBreakMode = .byTruncatingTail
+            let attrs: [NSAttributedString.Key: Any] = [.font: DialogStyle.font, .foregroundColor: Theme.primaryText, .paragraphStyle: paragraph]
             let size = (title as NSString).size(withAttributes: attrs)
-            (title as NSString).draw(at: NSPoint(x: r.midX - size.width / 2, y: r.midY - size.height / 2 + (isSelected ? -1 : 0)), withAttributes: attrs)
+            (title as NSString).draw(in: NSRect(x: r.minX + 2, y: r.midY - size.height / 2 + (isSelected ? -1 : 0), width: r.width - 4, height: size.height), withAttributes: attrs)
         }
         // The page's top border, interrupted under the selected tab.
         DialogStyle.pageBorder.setFill()

@@ -50,14 +50,14 @@ public struct TransferScheduler: Sendable, Equatable {
     /// Why a waiting job hasn't started, in plain words.
     public func reason(for id: UUID) -> String? {
         guard let e = entry(id), e.state == .waiting else { return nil }
-        if e.deferred { return "Deferred until other operations finish" }
+        if e.deferred { return L10n.tr("Deferred until other operations finish") }
         if queueSameDrive, entries.contains(where: { $0.state == .running && !$0.drives.isDisjoint(with: e.drives) }) {
-            return "Waiting for another operation on the same drive"
+            return L10n.tr("Waiting for another operation on the same drive")
         }
         if concurrencyLimit > 0, running.count >= concurrencyLimit {
-            return concurrencyLimit == 1 ? "Waiting: one operation at a time" : "Waiting: \(concurrencyLimit) operations at a time"
+            return concurrencyLimit == 1 ? L10n.tr("Waiting: one operation at a time") : L10n.format("Waiting: %d operations at a time", concurrencyLimit)
         }
-        return "Waiting to start"
+        return L10n.tr("Waiting to start")
     }
 
     /// Adds a job; returns the jobs that may start now (possibly including it).

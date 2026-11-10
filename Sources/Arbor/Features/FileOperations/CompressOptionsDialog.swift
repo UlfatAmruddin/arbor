@@ -64,6 +64,7 @@ final class CompressOptionsDialog: FileOpsDialog {
                                          font: FileOpsStyle.instructionFont, wraps: true)
         heading.preferredMaxLayoutWidth = 480
         destinationField.stringValue = folder.path
+        RightToLeft.holdLeftToRight(destinationField)
         destinationField.font = FileOpsStyle.bodyFont
         destinationField.lineBreakMode = .byTruncatingMiddle
         destinationField.target = self
@@ -232,7 +233,7 @@ final class CompressOptionsDialog: FileOpsDialog {
         weak let browser = self.browser
         dismiss()
         let process = ToolProcess()
-        let activity = OperationCenter.Activity(text: "Compressing \(sources.count == 1 ? "“\(sources[0].lastPathComponent)”" : StatusText.items(sources.count))") {
+        let activity = OperationCenter.Activity(text: sources.count == 1 ? L10n.format("Compressing “%@”", sources[0].lastPathComponent) : L10n.format("Compressing %@", StatusText.items(sources.count))) {
             process.cancel()
         }
         OperationCenter.shared.begin(activity)

@@ -277,7 +277,7 @@ editing another feature's files. The full list with every contribution in run or
 | `scripts/core-checks.sh`, `scripts/behavior-checks.sh [group…]` | headless regression checks for fixed bugs |
 | `scripts/acceptance.sh [Txx…]` | the task scenarios T01–T30 of SPEC.md §17.5, headless; results in docs/ACCEPTANCE.md |
 | `scripts/bench.sh [--check]` | memory and responsiveness workloads; `--check` compares with `scripts/bench-budgets.txt` (docs/PERFORMANCE.md) |
-| `scripts/extract-strings.sh [--check]` | regenerates `Resources/en.lproj/Localizable.strings` |
+| `scripts/extract-strings.sh [--check]` | regenerates `Resources/en.lproj/Localizable.strings`; `--check` also validates every translation; `--pseudo <dir>` writes the test pseudo-languages |
 | `scripts/list-extension-points.sh [--markdown FILE]` | every extension point with its contributions in run order, the feature order; fails on registration errors |
 | `scripts/make-dmg.sh`, `scripts/sign-and-notarize.sh` | release packaging (docs/RELEASING.md) |
 

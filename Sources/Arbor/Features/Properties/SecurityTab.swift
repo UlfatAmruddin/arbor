@@ -93,6 +93,7 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
         let header = NSView()
         header.translatesAutoresizingMaskIntoConstraints = false
         for v in [permissionsTitle, allowHeader, denyHeader] { header.addSubview(v) }
+        for v in [allowHeader, denyHeader] { v.setContentCompressionResistancePriority(.required, for: .horizontal) }
         NSLayoutConstraint.activate([
             header.heightAnchor.constraint(equalToConstant: 18),
             permissionsTitle.leadingAnchor.constraint(equalTo: header.leadingAnchor),
@@ -143,7 +144,7 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
 
     func reload() {
         guard let entry = model.single else { return }
-        objectName.stringValue = entry.url.path
+        objectName.stringValue = BidiText.path(entry.url.path)
         objectName.toolTip = entry.url.path
         if let security, entry.edited.mode != security.permissions.mode || entry.original.mode != security.permissions.mode {
             // Edited permissions show immediately; apply reloads from disk.
@@ -209,8 +210,8 @@ final class SecurityTab: PropertiesTab, PropertiesTabDebug {
         case .role(let role, _):
             denyHeader.isHidden = false
             let bits = editedPermissions[role]
-            let labels = security.isFolder ? ["List folder contents", "Add, rename and delete items", "Open folder (traverse)"]
-                                           : ["Read", "Write", "Execute (run as a program)"]
+            let labels = security.isFolder ? [L10n.tr("List folder contents"), L10n.tr("Add, rename and delete items"), L10n.tr("Open folder (traverse)")]
+                                           : [L10n.tr("Read"), L10n.tr("Write"), L10n.tr("Execute (run as a program)")]
             let values = [bits.read, bits.write, bits.execute]
             for (i, label) in labels.enumerated() {
                 let allow = SheetCheckbox("")

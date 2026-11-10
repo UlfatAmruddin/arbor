@@ -114,7 +114,7 @@ final class ReplaceOrSkipDialog: FileOpsDialog {
                                 source: job.presentedAs?.source ?? conflicts.first?.source.deletingLastPathComponent(),
                                 destination: conflicts.first?.destination.deletingLastPathComponent(), open: ConflictFlow.open)
         let instruction = FileOpsStyle.label(
-            many ? L10n.format("The destination has %@ files with the same names", "\(conflicts.count)")
+            many ? L10n.format("The destination has %@ files with the same names", StatusText.number(conflicts.count))
                  : L10n.format("The destination already has a file named “%@”", "\(conflicts[0].destination.lastPathComponent)"),
             font: FileOpsStyle.instructionFont, wraps: true)
         instruction.preferredMaxLayoutWidth = 430
@@ -137,17 +137,16 @@ final class ReplaceOrSkipDialog: FileOpsDialog {
         details.spacing = 3
         details.isHidden = true
         for conflict in conflicts.prefix(6) {
-            let text = "\(conflict.destination.lastPathComponent): incoming \(Self.describe(conflict.sourceStamp)); existing \(Self.describe(conflict.destinationStamp))"
+            let text = L10n.format("%@: incoming %@; existing %@", conflict.destination.lastPathComponent, Self.describe(conflict.sourceStamp), Self.describe(conflict.destinationStamp))
             details.addArrangedSubview(FileOpsStyle.label(text, font: FileOpsStyle.captionFont, color: Theme.secondaryText))
         }
         if conflicts.count > 6 {
-            details.addArrangedSubview(FileOpsStyle.label(L10n.format("…and %@ more", "\(conflicts.count - 6)"), font: FileOpsStyle.captionFont, color: Theme.secondaryText))
+            details.addArrangedSubview(FileOpsStyle.label(L10n.format("…and %@ more", StatusText.number(conflicts.count - 6)), font: FileOpsStyle.captionFont, color: Theme.secondaryText))
         }
         let options = NSStackView(views: [replace, skip, decide])
         options.orientation = .vertical
         options.spacing = 2
         options.alignment = .leading
-        for option in [replace, skip, decide] { option.widthAnchor.constraint(equalToConstant: 430).isActive = true }
         let body = setBody([header, instruction, options, applyAll, details], spacing: 10)
         body.setCustomSpacing(16, after: instruction)
         let toggle = DetailsToggle()
@@ -220,7 +219,7 @@ final class CompareDialog: FileOpsDialog, NSTableViewDataSource, NSTableViewDele
         skipSame = NSButton(checkboxWithTitle: sameIndices.count == 1 ? L10n.tr("Skip 1 file with the same date and size")
                                                                : L10n.format("Skip %@ files with the same date and size", "\(sameIndices.count)"),
                             target: nil, action: nil)
-        super.init(title: conflicts.count == 1 ? "1 File Conflict" : "\(conflicts.count) File Conflicts", width: 620)
+        super.init(title: conflicts.count == 1 ? L10n.tr("1 File Conflict") : L10n.format("%@ File Conflicts", StatusText.number(conflicts.count)), width: 620)
 
         let heading = FileOpsStyle.label(L10n.tr("Which files do you want to keep?"), font: FileOpsStyle.instructionFont)
         let hint = FileOpsStyle.label(L10n.tr("If you select both versions, the copied file will have a number added to its name."),
@@ -384,7 +383,7 @@ final class ConflictPairRow: NSView {
         let icon = NSImageView(image: ConflictFlow.icon(for: url, isFolder: false, size: 32))
         icon.translatesAutoresizingMaskIntoConstraints = false
         icon.widthAnchor.constraint(equalToConstant: 32).isActive = true
-        let date = stamp.map { ConflictFlow.dates.string(from: $0.modified) + (newer ? " (newer)" : "") } ?? "Date unavailable"
+        let date = stamp.map { newer ? L10n.format("%@ (newer)", ConflictFlow.dates.string(from: $0.modified)) : ConflictFlow.dates.string(from: $0.modified) } ?? L10n.tr("Date unavailable")
         let size = stamp.map { StatusText.bytes($0.size) + (larger ? " (larger)" : "") } ?? ""
         let info = NSStackView(views: [FileOpsStyle.label(date, font: FileOpsStyle.captionFont),
                                        FileOpsStyle.label(size, font: FileOpsStyle.captionFont, color: Theme.secondaryText)])
@@ -420,7 +419,7 @@ final class FolderMergeDialog: FileOpsDialog {
             wraps: true)
         explain.preferredMaxLayoutWidth = 430
         let existing = Self.folderRow(conflict.destination, conflict.destinationStamp, caption: L10n.tr("Existing folder"))
-        let incoming = Self.folderRow(conflict.source, conflict.sourceStamp, caption: L10n.format("Folder being %@", TransferWords.localized(job.presentedAs?.pastVerb ?? job.transfer.kind.pastVerb)))
+        let incoming = Self.folderRow(conflict.source, conflict.sourceStamp, caption: TransferWords.folderBeing(job.presentedAs?.pastVerb ?? job.transfer.kind.pastVerb))
         applyAll.font = FileOpsStyle.bodyFont
         let body = setBody([instruction, explain, existing, incoming, applyAll], spacing: 10)
         body.setCustomSpacing(16, after: explain)
@@ -445,9 +444,9 @@ final class FolderMergeDialog: FileOpsDialog {
         icon.translatesAutoresizingMaskIntoConstraints = false
         icon.widthAnchor.constraint(equalToConstant: 32).isActive = true
         icon.heightAnchor.constraint(equalToConstant: 32).isActive = true
-        let date = stamp.map { "Date modified: \(ConflictFlow.dates.string(from: $0.modified))" } ?? ""
+        let date = stamp.map { L10n.format("Date modified: %@", ConflictFlow.dates.string(from: $0.modified)) } ?? ""
         let text = NSStackView(views: [
-            FileOpsStyle.label("\(caption): \(url.lastPathComponent)", font: FileOpsStyle.bodyFont),
+            FileOpsStyle.label(L10n.format("%@: %@", caption, url.lastPathComponent), font: FileOpsStyle.bodyFont),
             FileOpsStyle.label(date, font: FileOpsStyle.captionFont, color: Theme.secondaryText),
         ])
         text.orientation = .vertical
@@ -492,12 +491,11 @@ final class NameClashDialog: FileOpsDialog {
         let newName = NameRules.keepBothName(for: conflict.source.lastPathComponent, treatAsFolder: !existingIsFolder) { _ in false }
         let keep = CommandLinkButton(symbol: "plus.square.on.square", title: L10n.tr("Keep both"),
                                      detail: existingIsFolder
-                                         ? L10n.format("The file being %@ will be named “%@”.", TransferWords.localized(job.presentedAs?.pastVerb ?? job.transfer.kind.pastVerb), newName)
-                                         : L10n.format("The folder being %@ will be named “%@”.", TransferWords.localized(job.presentedAs?.pastVerb ?? job.transfer.kind.pastVerb), newName)) { [weak self] in
+                                         ? TransferWords.fileWillBeNamed(job.presentedAs?.pastVerb ?? job.transfer.kind.pastVerb, newName)
+                                         : TransferWords.folderWillBeNamed(job.presentedAs?.pastVerb ?? job.transfer.kind.pastVerb, newName)) { [weak self] in
             self?.answer(.keepBoth)
         }
         let skip = CommandLinkButton(symbol: "arrowshape.turn.up.right", title: L10n.tr("Skip this item")) { [weak self] in self?.answer(.skip) }
-        for option in [keep, skip] { option.widthAnchor.constraint(equalToConstant: 430).isActive = true }
         applyAll.font = FileOpsStyle.bodyFont
         setBody([header, instruction, explain, keep, skip, applyAll], spacing: 8)
         setButtons([WinButton(L10n.tr("Cancel")) { [weak self] in self?.answer(.cancel) }])

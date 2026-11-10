@@ -54,6 +54,7 @@ final class ExtractWizard: NSWindowController, NSTextFieldDelegate {
         prompt.textColor = Theme.primaryText
 
         pathField.stringValue = ArchiveNaming.extractionFolder(for: archive).path
+        RightToLeft.holdLeftToRight(pathField)
         pathField.font = Theme.bodyFont
         pathField.lineBreakMode = .byTruncatingHead
         pathField.cell?.usesSingleLineMode = true
