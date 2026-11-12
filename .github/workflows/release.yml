@@ -12,6 +12,11 @@ on:
 permissions:
   contents: write   # create the release
 
+# One release run per tag at a time; a second push waits instead of making a second draft.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: macos-26   # Xcode 26 toolchain, the same Swift the project is developed with
@@ -21,15 +26,27 @@ jobs:
       HAS_UPDATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY != '' }}
       UPDATE_PUBLIC_KEY: ${{ vars.SPARKLE_ED_PUBLIC_KEY }}   # not secret: it ships in every app
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0   # full history: the build number is the commit count
+          persist-credentials: false   # no step needs the token in .git/config; gh uses GH_TOKEN
 
-      - name: Check that the tag matches VERSION
+      - name: Check the tag, VERSION, CHANGELOG and existing releases
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           expected="v$(tr -d '[:space:]' < VERSION)"
           if [ "$GITHUB_REF_NAME" != "$expected" ]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match VERSION ($expected)"
+            exit 1
+          fi
+          # The release notes and the update feed are this version's CHANGELOG section; fail now, not after the build.
+          if ! grep -qxF "## ${GITHUB_REF_NAME#v}" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no section '## ${GITHUB_REF_NAME#v}'"
+            exit 1
+          fi
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::A release for $GITHUB_REF_NAME already exists; delete that draft before running again"
             exit 1
           fi
 
@@ -57,6 +74,26 @@ jobs:
             export ARBOR_UPDATE_PUBLIC_KEY="$UPDATE_PUBLIC_KEY"
           fi
           scripts/build-app.sh release --universal
+
+      - name: Check the build number goes up
+        if: env.HAS_UPDATE_KEY == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Sparkle offers an update only when its build number is higher. The build number is the commit
+          # count, so rewriting the public history would lower it and silently stop every update.
+          current="$(plutil -extract CFBundleVersion raw build/Arbor.app/Contents/Info.plist)"
+          previous_dir="$RUNNER_TEMP/previous-feed"
+          if gh release download --repo "$GITHUB_REPOSITORY" --pattern appcast.xml --dir "$previous_dir" 2>/dev/null; then
+            previous="$(sed -nE 's#.*<sparkle:version>([0-9]+)</sparkle:version>.*#\1#p' "$previous_dir/appcast.xml" | head -n 1)"
+            if [ -z "$previous" ] || [ "$current" -le "$previous" ]; then
+              echo "::error::Build $current is not above the latest release's build ${previous:-(unreadable)}; installed copies would never update"
+              exit 1
+            fi
+            echo "Build $current follows build $previous"
+          else
+            echo "::notice::The latest release has no update feed; build $current is the first"
+          fi
 
       - name: Import Developer ID certificate
         if: env.HAS_CERTIFICATE == 'true'
@@ -114,7 +151,7 @@ jobs:
           { echo; awk -v v="## $version" '$0 == v { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md; } >> "$notes"
           assets=("build/Arbor-$version.dmg" "build/Arbor-$version.dmg.sha256")
           if [ "$HAS_UPDATE_KEY" = "true" ]; then assets+=("build/Arbor-$version.zip" "build/appcast.xml"); fi
-          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" --verify-tag \
             --draft --title "Arbor $version" --notes-file "$notes"
 
       - name: Remove signing keychain

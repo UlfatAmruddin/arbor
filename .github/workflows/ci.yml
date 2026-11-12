@@ -24,8 +24,9 @@ jobs:
     runs-on: macos-26   # Xcode 26 toolchain, the same Swift the project is developed with
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          persist-credentials: false
           fetch-depth: 0   # full history: the build number is the commit count
 
       - name: Show toolchain
@@ -46,7 +47,7 @@ jobs:
         run: scripts/make-dmg.sh --universal
 
       - name: Upload disk image
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: Arbor-unsigned-${{ github.sha }}
           path: build/Arbor-*.dmg
@@ -61,8 +62,9 @@ jobs:
       ARBOR_KEEP_FAILED: ${{ github.workspace }}/build/failed   # folders of failing checks, uploaded below
       ARBOR_LOCK_WAIT: "0"   # the suites run one after another here; a busy lock would be a bug
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Show toolchain and session
@@ -99,7 +101,7 @@ jobs:
 
       - name: Upload logs and snapshots of failing checks
         if: failure()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: app-checks-failures-${{ github.sha }}
           path: |
@@ -128,8 +130,9 @@ jobs:
       BENCH_TOLERANCE_FOR: "idle.idle.cpu_ms_per_s=12 idle.idle.main_wakeups_per_s=25"
       BENCH_SAMPLE_IDLE: "1"   # the idle run logs CPU per thread and stacks of busy threads (uploaded)
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Benchmarks (quick fixtures) against the budgets
@@ -139,7 +142,7 @@ jobs:
 
       - name: Upload benchmark results
         if: ${{ !cancelled() }}   # also on success: the numbers are what the tolerances are tuned from
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: bench-${{ github.sha }}
           path: |

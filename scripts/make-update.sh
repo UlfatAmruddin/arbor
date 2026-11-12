@@ -31,6 +31,10 @@ while [ $# -gt 0 ]; do
   shift
 done
 [ -n "$URL" ] || { usage >&2; exit 2; }
+# The key is read first, so no other tool below can read it from standard input.
+KEY="$(cat)"
+[ -n "$KEY" ] || { echo "make-update.sh: no private key on standard input" >&2; exit 1; }
+exec </dev/null
 [ -d "$APP" ] || { echo "make-update.sh: $APP not found; build and sign it first" >&2; exit 1; }
 mkdir -p "$OUT"
 PLIST="$APP/Contents/Info.plist"
@@ -45,8 +49,6 @@ swift package --disable-keychain resolve >/dev/null
 SIGN_UPDATE="$(find .build/artifacts -type f -perm -u+x -path '*/Sparkle/bin/sign_update' | head -n 1)"
 [ -n "$SIGN_UPDATE" ] || { echo "make-update.sh: sign_update not found in the Sparkle package" >&2; exit 1; }
 
-KEY="$(cat)"
-[ -n "$KEY" ] || { echo "make-update.sh: no private key on standard input" >&2; exit 1; }
 # printf is a shell builtin, so the key never appears in a process's arguments.
 sign() { printf '%s' "$KEY" | "$SIGN_UPDATE" --ed-key-file - "$@"; }
 

@@ -118,7 +118,10 @@ process in [SECURITY.md](../SECURITY.md) works.
 ## Checklist for each release
 
 1. [ ] `main` is green in CI and `docs/FEATURE-STATUS.md` describes what ships.
-2. [ ] Bump `VERSION` (semantic versioning: `MAJOR.MINOR.PATCH`) and commit: "Release 0.3.0".
+2. [ ] Bump `VERSION` (semantic versioning: `MAJOR.MINOR.PATCH`), rename `## Unreleased` in CHANGELOG.md to
+   `## <version>` (the release notes and the update feed are that section) and commit: "Release 0.3.0".
+   Never rewrite the public history: the build number is its commit count, and a lower build number than
+   the last release means installed copies never see the update (the Release workflow stops if it would).
 3. [ ] Local check:
    ```bash
    scripts/test.sh

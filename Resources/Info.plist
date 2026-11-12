@@ -10,7 +10,7 @@
 	<key>CFBundlePackageType</key><string>APPL</string>
 	<!-- The next three values are replaced at build time by scripts/build-app.sh: the version from VERSION,
 	     the build number from the commit count, and the minimum macOS from Package.swift. -->
-	<key>CFBundleShortVersionString</key><string>0.3.1</string>
+	<key>CFBundleShortVersionString</key><string>0.4.0</string>
 	<key>CFBundleVersion</key><string>1</string>
 	<key>CFBundleIconFile</key><string>AppIcon</string>
 	<key>LSMinimumSystemVersion</key><string>14.0</string>
@@ -28,6 +28,7 @@
 	<key>SUAllowsAutomaticUpdates</key><false/>
 	<key>SUEnableSystemProfiling</key><false/>
 	<key>SURequireSignedFeed</key><true/>
+	<key>SUSignedFeedFailureExpirationInterval</key><integer>0</integer>
 	<key>SUVerifyUpdateBeforeExtraction</key><true/>
 	<key>CFBundleDocumentTypes</key>
 	<array>

@@ -86,6 +86,7 @@ Code: `Sources/ArborCore/Updates/` (configuration, button state, release notes, 
 | `SUAutomaticallyUpdate`, `SUAllowsAutomaticUpdates` | NO | The user clicks; Sparkle never offers silent installs |
 | `SUEnableSystemProfiling` | NO | No system profile is ever sent |
 | `SURequireSignedFeed` | YES | A feed without a valid signature is refused |
+| `SUSignedFeedFailureExpirationInterval` | 0 | Never falls back to reading an unsigned feed (Sparkle's "safe mode" for key changes, which ad-hoc releases can't use) |
 | `SUVerifyUpdateBeforeExtraction` | YES | The zip's signature is checked before anything is unpacked |
 
 ## Privacy and security

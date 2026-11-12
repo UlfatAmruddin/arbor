@@ -3,7 +3,7 @@
 All notable user-visible changes. Versions follow `VERSION`; requirement IDs refer to [docs/SPEC.md](docs/SPEC.md) and
 their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 
-## Unreleased
+## 0.4.0
 
 ### New
 - In-app updates: when a newer signed release exists, a small "Update" button appears at the right end of the tab
