@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Headless regression checks for undo/redo, selection identity, window-modal alerts, sheet queueing,
-# recovery of queued jobs, headless safety, breadcrumb drops and middle-clicks, and explained refusals
-# (docs/features/qa-core.md, qa-places.md, file-operations.md, item-actions.md, cloud.md).
+# recovery of queued jobs, headless safety, breadcrumb drops and middle-clicks, explained refusals and the
+# Update button (docs/features/qa-core.md, qa-places.md, file-operations.md, item-actions.md, cloud.md, updates.md).
 # Usage: scripts/build-app.sh debug && scripts/behavior-checks.sh [name…]   (no names = all groups)
 #   ARBOR_KEEP_FAILED=<dir>   move the folder (logs, fixture) of each group with a failure into <dir>
 #   Stale-bundle guard, one-suite-at-a-time lock, ARBOR_REBUILD: scripts/lib/app-bundle.sh
@@ -1703,6 +1703,37 @@ if want clipboard; then
   fact "and doesn't rename half-typed" test -f "$F/own.txt" -a ! -e "$F/half.txt"
   for f in foreign copied moved undone remote mixed disk arbor-copy arbor-cut; do check "nothing opened: $f" "$R/$f.txt" "system open: none"; done
   discard clipboard "$R"
+fi
+
+# FE-259: the quiet Update button, driven without a feed; no updater without one, nor in any headless run.
+if want updates; then
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F/a"
+  # 720 pt wide with seven tabs: the row overflows, and the button must still sit clear of the tabs and New tab.
+  S="wait:1;windowsize:720,520;wait:0.5;log:$R/start.txt;menu:main:Arbor:$R/menu.txt;folderoptions:general;wait:0.6;log:$R/settings.txt"
+  S+=";updatestate:available:0.4.0;wait:0.5;log:$R/shown.txt;newtab;newtab;newtab;newtab;newtab;newtab;wait:1;log:$R/narrow.txt"
+  S+=";key:F6;wait:0.3;key:end;wait:0.4;focus:$R/focus.txt"
+  S+=";updatestate:available:0.4.0$(printf '\342\200\256')x;wait:0.5;log:$R/odd.txt;updatestate:none;wait:0.5;log:$R/gone.txt;quit"
+  run "$R" "$R/F" "$S"
+  check "no feed: no updater, no menu item" "$R/start.txt" "updates: updater=off (headless) menu=absent settings=not open windows=0"
+  check "no button before an update is found" "$R/start.txt" "update button: none"
+  lacks "Arbor menu has no Check for Updates" "$R/menu.txt" "Check for Updates"
+  check "no switch in Settings without a feed" "$R/settings.txt" "updates: updater=off (headless) menu=absent settings=absent windows=0"
+  check "a found update shows the button" "$R/shown.txt" "update button: shown title=Update tooltip=Arbor 0.4.0 is available. Click to see what's new and install it. label=Update to Arbor 0.4.0 overlap=false keyboard=true"
+  contains "the row overflows at this width" "$R/narrow.txt" "tab strip: overflow=true"
+  contains "the button stays clear of tabs and New tab" "$R/narrow.txt" "label=Update to Arbor 0.4.0 overlap=false keyboard=true"
+  contains "End in the tab row reaches the button" "$R/focus.txt" "region=tabs view=ChromeButton \"Update to Arbor 0.4.0\""
+  check "an odd version text isn't shown" "$R/odd.txt" "update button: shown title=Update tooltip=A new version of Arbor is available. Click to see what's new and install it. label=Update Arbor overlap=false keyboard=true"
+  check "the button goes when the update is dealt with" "$R/gone.txt" "update button: none"
+  # A complete configuration (feed and key in Info.plist, and a debug test feed) still starts nothing headless.
+  K="$R/Keyed.app"; ditto "${APP%/Contents/MacOS/Arbor}" "$K"
+  plutil -replace SUFeedURL -string "https://example.invalid/appcast.xml" "$K/Contents/Info.plist"
+  plutil -replace SUPublicEDKey -string "$(head -c 32 /dev/urandom | base64)" "$K/Contents/Info.plist"
+  codesign --force --sign - --preserve-metadata=entitlements,requirements,flags,runtime "$K" 2>/dev/null
+  env ARBOR_HEADLESS=1 ARBOR_TEST_TRASH="$R/trash" ARBOR_JOURNAL_DIR="$R/journal" ARBOR_HISTORY_FILE="$R/history.json" \
+    ARBOR_UPDATE_FEED="http://127.0.0.1:9/appcast.xml" ARBOR_SCRIPT="wait:3;folderoptions:general;wait:0.6;log:$R/keyed.txt;quit" \
+    perl -e 'alarm shift; exec @ARGV' 120 "$K/Contents/MacOS/Arbor" "$R/F" >/dev/null 2>&1
+  check "headless: no updater even with a feed and key" "$R/keyed.txt" "updates: updater=off (headless) menu=absent settings=absent windows=0"
+  discard updates "$R"
 fi
 
 # FE-204: the real app in both generated pseudo-languages, on a scratch copy that holds them; nothing is shipped.

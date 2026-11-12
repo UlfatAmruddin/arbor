@@ -9,6 +9,9 @@ Read this before adding a feature. Goal: each feature lives in **its own files**
 |---|---|
 | `Sources/ArborCore` | UI-free, unit-tested logic: `Location`, `NavigationHistory`, `ViewMode`, listing, sorting, paths, names, transfers, journals, history, queue, verification. Subfolders per area: `Search/` (AQS parser, evaluator, Spotlight translation, direct scan), `Archives/` (ZIP reader, bsdtar listing, safety planner), `Properties/`, `FolderOptions/`, `Consistency/`, `Accessibility/` (string table, key names), `Performance/` (budgets, background sort, stall recorder), `PortableSettings/` (settings file allowlist, format and import plan) |
 | `Sources/ArborCore` | UI-free, unit-tested logic: `Location`, `NavigationHistory`, `ViewMode`, listing, sorting, paths, names, transfers, journals, history, queue, verification. Subfolders per area: `Search/` (AQS parser, evaluator, Spotlight translation, direct scan), `Archives/` (ZIP reader, bsdtar listing, safety planner), `Properties/`, `FolderOptions/`, `Consistency/`, `Accessibility/` (string table, key names), `Performance/` (budgets, background sort, stall recorder), `Workspaces/` (saved tab sets) |
+| `Sources/ArborCore/Updates/` | In-app updates without UI (FE-259): whether this run gets an updater, the Update button's state, release notes from CHANGELOG.md, the update feed and its signature check |
+| `Features/Updates/` | In-app updates: the only code that uses Sparkle (`AppUpdater`), the Update button in the tab row, Check for Updates…, the Settings switch (docs/features/updates.md) |
+| `Sources/ArborAppcast` | Release tool, not part of the app: writes a release's update feed for `scripts/make-update.sh` from ArborCore's logic |
 | `Window/` | `BrowserWindowController` (one per window, split by area into `BrowserWindowController+*.swift`), `TabState` (one per tab), tab strip and tear-off, address bar and breadcrumbs, navigation row, search box, command bar, status bar, `WindowHooks` |
 | `Views/` | `ItemViewController` protocol + `ViewModeRegistry`, `DetailsViewController`, `DetailsColumns` (per-location column layouts), `IconProvider`, `ItemBadges`, row and tile styling |
 | `Commands/` | `ExplorerCommand`, `CommandRegistry`, menu building, core commands, menu bar |
@@ -266,6 +269,7 @@ editing another feature's files. The full list with every contribution in run or
 | `DetailsColumns.register`, `ColumnCatalog.register` | `Views/DetailsColumns.swift`, ArborCore | per-location column layouts (Trash, search, ZIP, cloud) and extra columns |
 | `Breadcrumbs.register`, `LocationRegistry.registerOpenHandler` | `Window/`, `Locations/` | breadcrumbs for new location kinds; opening a file as a location (archives, saved searches); open handlers may run off the main thread, thread-safe state only |
 | `CommandRegistry.override` & co. | `Commands/ExplorerCommand.swift` | another feature's command behaving differently in your place |
+| `FolderOptionsWindowController.generalGroups` | `Features/FolderOptions/FolderOptionsWindow.swift` | a group of settings at the end of Folder Options' General page (Updates) |
 | `OperationCenter`, `TransferPreflight`, `SystemTrash.observers` | `Support/`, ArborCore | job preparation, admission (queue), verification, history; questions before a copy; the Trash journal |
 
 ## Scripts
@@ -280,6 +284,7 @@ editing another feature's files. The full list with every contribution in run or
 | `scripts/extract-strings.sh [--check]` | regenerates `Resources/en.lproj/Localizable.strings`; `--check` also validates every translation; `--pseudo <dir>` writes the test pseudo-languages |
 | `scripts/list-extension-points.sh [--markdown FILE]` | every extension point with its contributions in run order, the feature order; fails on registration errors |
 | `scripts/make-dmg.sh`, `scripts/sign-and-notarize.sh` | release packaging (docs/RELEASING.md) |
+| `scripts/make-update.sh`, `scripts/update-e2e.sh` | a release's signed update zip and feed; the end-to-end update check at the Mac (docs/features/updates.md) |
 
 ## Testing your feature
 

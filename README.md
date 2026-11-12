@@ -122,8 +122,11 @@ From Terminal, `/Applications/Arbor.app/Contents/MacOS/Arbor ~/Projects` opens a
 
 ## Privacy
 
-Arbor has no telemetry, no analytics and no crash reporter, and makes no network connections of its own. It connects
-only to servers you open (network shares) and reads cloud status that macOS already provides locally. Recent files and
+Arbor has no telemetry, no analytics and no crash reporter. Its one network request of its own is the update check
+of release builds: about once a day it asks github.com for the release feed, sending nothing but that request, and it
+downloads an update only when you install one. Turn it off in Folder Options ▸ General ▸ Updates; local, CI and fork
+builds make no request ([in-app updates](docs/features/updates.md)). Otherwise Arbor connects only to servers you open
+(network shares) and reads cloud status that macOS already provides locally. Recent files and
 frequent folders stay on your Mac and can be turned off or cleared in Folder Options.
 
 ## Documentation

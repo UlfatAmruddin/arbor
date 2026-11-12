@@ -83,6 +83,8 @@ enum Features {
 
         SettingsTransferFeature.self,   // export and import of preferences
         WindowsShortcutsFeature.self,   // reads Windows .lnk and .url files
+
+        UpdatesFeature.self,   // in-app updates
     ]
 
     /// The dependency graph of `all` ("core" is added to every other feature's requirements).

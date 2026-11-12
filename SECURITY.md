@@ -25,8 +25,9 @@ Examples of things to report privately:
   user chose (path traversal when extracting archives, for example).
 - Running a command or program from file names, typed addresses, archive contents or network
   shares.
-- Leaking file names, paths or contents off the Mac (Arbor has no telemetry and makes no network
-  connections of its own, except to servers the user connects to).
+- Leaking file names, paths or contents off the Mac (Arbor has no telemetry; apart from servers the
+  user connects to, its only request is the release builds' daily update check on github.com, which
+  sends nothing but that request and can be turned off; see docs/features/updates.md).
 - Problems with the signed release itself (signature, notarization, the update or download path).
 - An imported settings file changing anything outside the list in docs/features/settings-transfer.md.
 

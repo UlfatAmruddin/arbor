@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Entitlements for release builds (Developer ID or ad-hoc), signed with the hardened runtime (scripts/sign-and-notarize.sh).
+  Entitlements for Developer ID release builds, signed with the hardened runtime (scripts/sign-and-notarize.sh).
+  Ad-hoc releases use Arbor-adhoc.entitlements: these plus the library validation exception for Sparkle.
 
   Intentionally empty:
   - Arbor is not sandboxed (DEC-004): a file manager needs to reach any folder the user opens, so

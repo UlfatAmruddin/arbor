@@ -4,6 +4,10 @@ import ArborCore
 /// Folder Options dialog (FE-042, FE-043) with Windows' pages, order and wording. Values live in `Prefs`.
 final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate {
     static private(set) var shared: FolderOptionsWindowController?
+    /// Built once with the dialog; such a group applies its own setting at once, like Clear.
+    static let generalGroups = Pipeline<[NSView], Void>(
+        "FolderOptionsWindowController.generalGroups", "Groups other features add at the end of Folder Options' General page.",
+        signature: "(groups) -> groups")
 
     /// Opens (or brings forward) the dialog. `origin` is the window whose folder "Apply to Folders" uses.
     static func show(tab: FolderOptionsTab = .general, from origin: BrowserWindowController?) {
@@ -239,7 +243,7 @@ final class FolderOptionsWindowController: NSWindowController, NSWindowDelegate 
         privacy.content.addArrangedSubview(clearRow)
         privacy.content.setCustomSpacing(10, after: privacy.content.arrangedSubviews[privacy.content.arrangedSubviews.count - 2])
 
-        return pageStack([openRow, browse, click, privacy], restoreTab: .general)
+        return pageStack([openRow, browse, click, privacy] + Self.generalGroups.apply([]), restoreTab: .general)
     }
 
     private func buildView() -> NSView {

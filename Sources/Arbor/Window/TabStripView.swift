@@ -47,6 +47,24 @@ final class TabStripView: NSView {
     /// The tab being dragged keeps its own frame during the drag.
     fileprivate var draggingIndex: Int?
     private(set) var isOverflowing = false
+    /// A button at the trailing end of the row, such as Update (FE-259); tabs shrink so they never run under it.
+    /// Set `needsLayout` after showing or hiding it.
+    var trailingAccessory: ChromeButton? {
+        didSet {
+            oldValue?.removeFromSuperview()
+            if let trailingAccessory {
+                trailingAccessory.translatesAutoresizingMaskIntoConstraints = true
+                addSubview(trailingAccessory)
+            }
+            needsLayout = true
+        }
+    }
+    /// Keyboard stops after the tabs, in order (arrow keys move along them).
+    var trailingStops: [NSView] { [plusButton] + [trailingAccessory].compactMap { $0 }.filter { !$0.isHidden } }
+    private var accessoryRoom: CGFloat {
+        guard let accessory = trailingAccessory, !accessory.isHidden else { return 0 }
+        return ceil(accessory.intrinsicContentSize.width) + 12
+    }
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -194,7 +212,7 @@ final class TabStripView: NSView {
 
     /// Width every tab gets now.
     fileprivate var tabWidth: CGFloat {
-        let available = bounds.width - leadingInset - 8 - plusButton.fixedWidth! - 4
+        let available = bounds.width - leadingInset - 8 - plusButton.fixedWidth! - 4 - accessoryRoom
         guard !items.isEmpty else { return Theme.tabMaxWidth }
         return min(Theme.tabMaxWidth, max(Theme.tabMinWidth, floor(available / CGFloat(items.count))))
     }
@@ -207,7 +225,7 @@ final class TabStripView: NSView {
         (window as? BrowserWindow)?.layoutTrafficLights()
         let width = tabWidth
         let total = width * CGFloat(items.count)
-        var available = max(0, bounds.width - leadingInset - 8 - plusButton.fixedWidth! - 4)
+        var available = max(0, bounds.width - leadingInset - 8 - plusButton.fixedWidth! - 4 - accessoryRoom)
         isOverflowing = total > available + 0.5
         let arrow = Theme.tabScrollButtonWidth
         if isOverflowing { available = max(0, available - arrow * 2) }
@@ -226,7 +244,14 @@ final class TabStripView: NSView {
         scrollRightButton.frame = NSRect(x: scroll.frame.maxX - Self.feet, y: buttonY, width: arrow, height: 28)
         let plusX = (isOverflowing ? scrollRightButton.frame.maxX : scroll.frame.maxX - Self.feet) + 2
         plusButton.frame = NSRect(x: plusX, y: buttonY, width: plusButton.fixedWidth!, height: 28)
-        RightToLeft.mirror(self, [scroll, plusButton, scrollLeftButton, scrollRightButton], contents: document, [tabViews])   // FE-204
+        var edgeViews: [NSView] = [scroll, plusButton, scrollLeftButton, scrollRightButton]
+        if let accessory = trailingAccessory {
+            let size = accessory.intrinsicContentSize
+            accessory.frame = NSRect(x: bounds.width - 8 - ceil(size.width), y: top + (Theme.tabHeight - size.height) / 2 - 1,
+                                     width: ceil(size.width), height: size.height)
+            edgeViews.append(accessory)
+        }
+        RightToLeft.mirror(self, edgeViews, contents: document, [tabViews])   // FE-204
         if RightToLeft.isActive(self) {
             // Swap the arrows back after mirroring so they point the way they scroll.
             let left = scrollLeftButton.frame

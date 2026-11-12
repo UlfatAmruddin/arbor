@@ -1,7 +1,7 @@
 # Feature status
 
 The single status list for every requirement in [SPEC.md](SPEC.md): one row each, none left out (FE-234).
-IDs run to FE-258 with gaps; SPEC.md section 20 lists the retired ones. Statuses were taken from the area documents in [docs/features/](features/) and checked against the code;
+IDs run to FE-259 with gaps; SPEC.md section 20 lists the retired ones. Statuses were taken from the area documents in [docs/features/](features/) and checked against the code;
 where a claim couldn't be confirmed it was lowered. Scenario results (T01–T30) are in [ACCEPTANCE.md](ACCEPTANCE.md).
 
 **Status:** *implemented* = works as the requirement asks on macOS · *partial* = part of it works (the note says
@@ -17,11 +17,11 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 
 | Status | Requirements |
 |---|---|
-| implemented | 232 |
+| implemented | 233 |
 | partial | 2 |
 | macOS boundary | 3 |
 | not done | 7 |
-| **total** | **244** |
+| **total** | **245** |
 
 | Area | Implemented | Partial | macOS boundary | Not done |
 |---|---|---|---|---|
@@ -41,7 +41,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | Accessibility, localization and preferences | 10 | 0 | 0 | 0 |
 | System integration and expansion boundary | 9 | 0 | 0 | 2 |
 | Reliability and acceptance coverage | 10 | 0 | 0 | 2 |
-| Additional research requirements (§21) | 22 | 1 | 0 | 1 |
+| Additional research requirements (§21) | 23 | 1 | 0 | 1 |
 
 ## Known limitations
 
@@ -337,7 +337,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-219 | Launch URLs and CLI entry | implemented | headless (path argument) | [qa-core](features/qa-core.md) | `Arbor <path>`; documents opened from Finder |
 | FE-220 | Signed, notarized universal releases | implemented | build checks; CI | [distribution](features/distribution.md) | Universal app and disk image, ad-hoc signed with the hardened runtime, released from a tag; no Developer ID by decision (DEC-027), so macOS asks once on first launch |
 | FE-221 | Public open-source governance | implemented | — | [distribution](features/distribution.md) | MIT license, README, CONTRIBUTING, SECURITY, templates; this file is the roadmap |
-| FE-222 | Privacy by default | implemented | code review (no telemetry, no own network calls) | — | No crash reporter |
+| FE-222 | Privacy by default | implemented | code review (no telemetry, no own network calls but the update check) | — | No crash reporter; release builds check the release feed on github.com about once a day and send nothing but that request; off in Folder Options ▸ General ▸ Updates; local, CI and fork builds make no request ([updates](features/updates.md)) |
 
 ## Reliability and acceptance coverage
 
@@ -384,3 +384,4 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-256 | Promise completion vs partial output | implemented | unit (`PromiseReceptionTests`) | [promised-files](features/promised-files.md) |  |
 | FE-257 | Progress callbacks vs pause capability | implemented | unit | [file-operations](features/file-operations.md) |  |
 | FE-258 | Incomplete file-promise preflight metadata | implemented | code review | [archives](features/archives.md) | Drops accept promises without names; nothing is received before the drop |
+| FE-259 | In-app updates | implemented | unit (`UpdatesTests`); behavior-checks `updates`; `update-e2e.sh` (manual) | [updates](features/updates.md) | Needs the release key set up (docs/RELEASING.md); builds without it have no updater |

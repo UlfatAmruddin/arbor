@@ -18,6 +18,8 @@ final class ChromeButton: NSControl {
     var fixedHeight: CGFloat = Theme.controlHeight { didSet { invalidate() } }
     var fixedWidth: CGFloat? { didSet { invalidate() } }
     var cornerRadius: CGFloat = Theme.cornerRadius
+    /// Fill at rest, for a button that should read as a pill (Update, FE-259); hover and press draw over it.
+    var restingFill: NSColor? { didSet { needsDisplay = true } }
     /// Runs on mouse-up inside, or on VoiceOver press.
     var onClick: ((ChromeButton) -> Void)?
     /// Runs on mouse-down instead of `onClick` (menus open on press).
@@ -81,6 +83,7 @@ final class ChromeButton: NSControl {
         if isDropTarget {
             drawDropHighlight(in: rect)
         } else if isEnabled {
+            if let restingFill { fillRounded(rect, radius: cornerRadius, restingFill) }
             if isPressed { fillRounded(rect, radius: cornerRadius, Theme.pressed) }
             else if isHovered { fillRounded(rect, radius: cornerRadius, Theme.hover) }
             else if isToggled { fillRounded(rect, radius: cornerRadius, Theme.toggled) }

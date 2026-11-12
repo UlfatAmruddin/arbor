@@ -66,7 +66,7 @@ Sentences with a count ("3 items were copied") are in `Resources/en.lproj/Locali
 Maintainers follow [docs/RELEASING.md](docs/RELEASING.md). The version lives in `VERSION`; don't change it in a feature pull request.
 
 ## Privacy
-No telemetry, analytics or network calls. Never log file names or paths outside the user's own machine.
+No telemetry, analytics or network calls of Arbor's own, apart from the update check of release builds (FE-259), which sends nothing but the request for the feed. Never log file names or paths outside the user's own machine.
 
 ## License
 By contributing, you agree that your contribution is licensed under the MIT License ([LICENSE](LICENSE)).

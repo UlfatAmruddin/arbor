@@ -9,7 +9,8 @@
 # Environment:
 #   DEVELOPER_ID_APPLICATION  signing identity, e.g. "Developer ID Application: Jane Doe (TEAMID1234)"
 #                             (must be in the keychain). Without it the app is ad-hoc signed only
-#                             (still with the hardened runtime), and a warning says so.
+#                             (still with the hardened runtime, plus the library validation exception in
+#                             Resources/Arbor-adhoc.entitlements for Sparkle), and a warning says so.
 #   Notarization, either:
 #     NOTARY_KEYCHAIN_PROFILE  a profile saved with `xcrun notarytool store-credentials`
 #   or all of:
@@ -21,12 +22,13 @@
 # See docs/RELEASING.md.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+. scripts/lib/codesign-app.sh
 
 DMG_ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --format) DMG_ARGS+=(--format "${2:?--format needs ULFO or UDZO}"); shift ;;
-    -h|--help) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "sign-and-notarize.sh: unknown argument '$1'" >&2; exit 2 ;;
   esac
   shift
@@ -34,6 +36,8 @@ done
 
 APP="build/Arbor.app"
 ENTITLEMENTS="Resources/Arbor.entitlements"
+# Ad-hoc signatures have no Team ID, so the embedded Sparkle.framework needs the library validation exception.
+ADHOC_ENTITLEMENTS="Resources/Arbor-adhoc.entitlements"
 [ -d "$APP" ] || { echo "sign-and-notarize.sh: $APP not found; run scripts/build-app.sh release --universal first" >&2; exit 1; }
 VERSION="$(plutil -extract CFBundleShortVersionString raw "$APP/Contents/Info.plist")"
 DMG="build/Arbor-$VERSION.dmg"
@@ -43,10 +47,12 @@ IDENTITY="${DEVELOPER_ID_APPLICATION:-}"
 plutil -replace ArborDistribution -bool YES "$APP/Contents/Info.plist"
 
 require_hardened_runtime() {
-  local info
-  info="$(codesign --display --verbose=1 "$APP" 2>&1)"
-  grep -q '^CodeDirectory .*flags=.*runtime' <<< "$info" \
-    || { echo "sign-and-notarize.sh: $APP is not signed with the hardened runtime" >&2; exit 1; }
+  local code info
+  while IFS= read -r code; do
+    info="$(codesign --display --verbose=1 "$code" 2>&1)"
+    grep -q '^CodeDirectory .*flags=.*runtime' <<< "$info" \
+      || { echo "sign-and-notarize.sh: $code is not signed with the hardened runtime" >&2; exit 1; }
+  done < <(arbor_signed_code "$APP")
 }
 
 # --- Ad-hoc path -------------------------------------------------------------------------------
@@ -55,8 +61,7 @@ if [ -z "$IDENTITY" ]; then
   echo "WARNING: $WARNING" >&2
   if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::warning::$WARNING"; fi
   # Hardened runtime even ad-hoc, so DYLD_* injection cannot borrow Arbor's privacy grants.
-  codesign --force --options runtime --entitlements "$ENTITLEMENTS" --sign - "$APP"
-  codesign --verify --strict "$APP"
+  ARBOR_ENTITLEMENTS="$ADHOC_ENTITLEMENTS" arbor_codesign_app "$APP" - --options runtime
   require_hardened_runtime
   scripts/make-dmg.sh --skip-build ${DMG_ARGS[@]+"${DMG_ARGS[@]}"}
   cat <<EOF
@@ -86,8 +91,8 @@ if ! security find-identity -v -p codesigning | grep -qF "\"$IDENTITY\""; then
   exit 1
 fi
 
-echo "Signing $APP with hardened runtime"
-codesign --force --options runtime --timestamp --entitlements "$ENTITLEMENTS" --sign "$IDENTITY" "$APP"
+echo "Signing $APP and the code inside it with hardened runtime"
+ARBOR_ENTITLEMENTS="$ENTITLEMENTS" arbor_codesign_app "$APP" "$IDENTITY" --options runtime --timestamp
 codesign --verify --strict --verbose=2 "$APP"
 require_hardened_runtime
 

@@ -22,14 +22,47 @@ and Intel, macOS 14+) and a link to `/Applications`. See DEC-003, DEC-004 and DE
 |---|---|
 | `scripts/build-app.sh release --universal` | `build/Arbor.app` for arm64 + x86_64 (each built separately, joined with `lipo`; no Xcode needed) |
 | `scripts/make-dmg.sh [--universal] [--skip-build]` | `build/Arbor-<version>.dmg` (LZFSE-compressed, `--format UDZO` for zlib), with a drawn background and a fixed window layout. Mounts the result privately and checks its contents |
-| `scripts/sign-and-notarize.sh` | Marks the app for distribution (`ArborDistribution` in Info.plist, which turns off the `ARBOR_*` test hooks), signs it with the hardened runtime and `Resources/Arbor.entitlements` (Developer ID, or ad-hoc with a warning when no identity is set), makes the disk image, signs it, notarizes it with `xcrun notarytool` and staples the ticket. `--rehearsal` stops short of Apple's services (CI only needs it) |
+| `scripts/sign-and-notarize.sh` | Marks the app for distribution (`ArborDistribution` in Info.plist, which turns off the `ARBOR_*` test hooks), signs Sparkle's nested code first and then the app, inside out through `scripts/lib/codesign-app.sh`, with the hardened runtime (Developer ID with `Resources/Arbor.entitlements`, or ad-hoc with a warning and `Resources/Arbor-adhoc.entitlements` when no identity is set, DEC-028), makes the disk image, signs it, notarizes it with `xcrun notarytool` and staples the ticket. `--rehearsal` stops short of Apple's services (CI only needs it) |
 | `scripts/ci-import-certificate.sh` | Workflows only: puts a `.p12` in a new keychain. Refuses to run outside a GitHub-hosted runner |
+| `scripts/make-update.sh <zip URL> < key` | The in-app update (FE-259): `build/Arbor-<version>.zip` of the signed app and `build/appcast.xml`, both signed with the EdDSA private key read from standard input. Checks the zip's signature against the app's public key first |
+| `scripts/update-e2e.sh` | At the Mac, not CI: an older copy installs a newer one from a feed on 127.0.0.1 and relaunches, and badly signed updates are refused (docs/features/updates.md) |
 
 ## One-time setup
 
 ### Without an Apple Developer account
 Nothing to set up. Releases are ad-hoc signed; the release notes and the README tell people how to
 open an ad-hoc signed app the first time.
+
+### In-app updates (once)
+
+Testers get later releases through Arbor's Update button (FE-259, docs/features/updates.md). Updates are
+accepted only when they are signed with your EdDSA key, so the key pair is made once and kept for good: if the
+private key is lost or changed, apps already installed can't update any more and need one manual install.
+
+1. Make the key pair with Sparkle's own tool, from the package this repository pins (no download from elsewhere):
+   ```bash
+   swift package --disable-keychain resolve
+   GENERATE_KEYS="$(find .build/artifacts -type f -path '*/Sparkle/bin/generate_keys' | head -n 1)"
+   "$GENERATE_KEYS"            # stores the private key in your login keychain and prints the public key
+   "$GENERATE_KEYS" -p         # prints the public key again whenever you need it
+   ```
+2. Put the public key (44 characters, ending in `=`) in a repository **variable**, not a secret: it ships inside
+   every app. The Release workflow writes it into Info.plist.
+   ```bash
+   gh variable set SPARKLE_ED_PUBLIC_KEY --body "<the public key>"
+   ```
+3. Store the private key as a repository **secret**, straight from the keychain export, and delete the export:
+   ```bash
+   "$GENERATE_KEYS" -x private-key.txt
+   gh secret set SPARKLE_ED_PRIVATE_KEY < private-key.txt
+   ```
+4. Keep an offline backup of `private-key.txt` (for example on an encrypted USB drive or in a password manager),
+   then delete the file: `rm private-key.txt`. Never commit it, paste it into an issue or put it in a script.
+   `"$GENERATE_KEYS" -f private-key.txt` brings a backup back into a keychain.
+5. Set both or neither. With neither, releases work as before, the Release workflow notes that no update feed
+   was made, and the app has no updater. With only one, the Release workflow stops with an error.
+
+The feed address is never written in the repository: the workflow builds it from the repository's own name.
 
 ### If a Developer ID is ever added (signed and notarized releases)
 
@@ -98,7 +131,10 @@ process in [SECURITY.md](../SECURITY.md) works.
    `arch -x86_64 build/Arbor.app/Contents/MacOS/Arbor` checks the Intel half.
 4. [ ] Tag and push: `git tag v0.3.0 && git push origin v0.3.0`. The **Release** workflow checks the
    tag matches `VERSION`, runs the tests, builds, signs and notarizes (when the secrets are set) and
-   creates a **draft** release with the disk image and its `.sha256`.
+   creates a **draft** release with the disk image and its `.sha256`. With the update key set up, the draft
+   also has `Arbor-<version>.zip` (the update) and `appcast.xml` (the feed, whose notes are this version's
+   CHANGELOG.md section). Don't rename, replace or edit them: both are signed, and testers' copies check the
+   feed as soon as the draft is published.
    (To release from your own Mac instead: `scripts/build-app.sh release --universal`, then
    `DEVELOPER_ID_APPLICATION=… NOTARY_KEYCHAIN_PROFILE=arbor-notary scripts/sign-and-notarize.sh`,
    and upload `build/Arbor-<version>.dmg` to a new release.)
@@ -106,7 +142,9 @@ process in [SECURITY.md](../SECURITY.md) works.
    - signed builds: `spctl --assess --type open --context context:primary-signature -v Arbor-<version>.dmg`
      says "accepted, source=Notarized Developer ID", and the app opens without warnings;
    - ad-hoc signed builds: the README's first-launch steps work.
-6. [ ] Edit the release notes (what's new, known issues, signed or not) and publish the draft.
+6. [ ] Edit the release notes (what's new, known issues, signed or not) and publish the draft. Publishing
+   makes it the latest release, so testers' Update button offers it within about a day (Arbor ▸ Check for
+   Updates… at once). The page's notes don't reach the update window; its notes come from CHANGELOG.md.
 7. [ ] Homebrew: update `version` and `sha256` in `packaging/homebrew/arbor.rb` (the `.sha256`
    file attached to the release has the checksum) and copy it to the tap (see the comments in
    that file).
@@ -118,8 +156,12 @@ process in [SECURITY.md](../SECURITY.md) works.
   An app copied out of it is checked online by Gatekeeper the first time it opens.
 - Every release, ad-hoc ones included, has the hardened runtime, so `DYLD_*` variables cannot load code into Arbor; the script fails if the signature lacks it.
 - After `sign-and-notarize.sh`, `build/Arbor.app` ignores `ARBOR_*`; rebuild it before running the scripted suites.
-- Entitlements are intentionally empty: Arbor is not sandboxed and needs no hardened-runtime
-  exceptions. Add a key only with a comment naming the feature that needs it.
+- `Resources/Arbor.entitlements` is intentionally empty: Arbor is not sandboxed. Ad-hoc releases use
+  `Resources/Arbor-adhoc.entitlements`, which adds one hardened-runtime exception, library validation, so the
+  embedded Sparkle.framework loads without a Team ID (DEC-028). Add a key only with a comment naming the feature
+  that needs it.
+- `scripts/build-app.sh` and `scripts/sign-and-notarize.sh` sign the code inside Sparkle.framework, then the framework,
+  then the app (`scripts/lib/codesign-app.sh`), never with `codesign --deep`.
 - The disk image layout is written directly (`scripts/dmg-layout.swift`), not by scripting
   Finder, so it builds on CI and headless Macs. If Finder ever ignores it, `make-dmg.sh --plain`
   makes a plain image.

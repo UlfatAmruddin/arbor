@@ -3,6 +3,14 @@
 All notable user-visible changes. Versions follow `VERSION`; requirement IDs refer to [docs/SPEC.md](docs/SPEC.md) and
 their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 
+## Unreleased
+
+### New
+- In-app updates: when a newer signed release exists, a small "Update" button appears at the right end of the tab
+  row. Clicking it shows the release notes and installs the update in place. Arbor checks about once a day, sends
+  nothing but that request, and "Check for updates automatically" in Folder Options turns it off. Arbor ▸ Check for
+  Updates… checks at any time. Versions before this one need to be installed by hand once.
+
 ## 0.3.1
 
 ### Fixed

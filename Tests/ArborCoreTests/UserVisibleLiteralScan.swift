@@ -29,9 +29,9 @@ enum UserVisibleLiteralScan {
     /// `\(…)` can't be a table key, so it never reaches a translation.
     static let interpolatedParameters: Set<String> = ["title", "tooltip", "info", "verb"]
 
-    /// Debug output and scripted checks compare fixed English, and developer diagnostics are for contributors.
+    /// Debug output and scripted checks compare fixed English, and developer diagnostics (the release tool's) are for contributors.
     static func isExcluded(_ path: String) -> Bool {
-        ["Debug", "Script", "Audit", "FakeNetwork", "ExtensionCatalog", "ExtensionPoint", "FeatureGraph", "/Performance/"]
+        ["Debug", "Script", "Audit", "FakeNetwork", "ExtensionCatalog", "ExtensionPoint", "FeatureGraph", "/Performance/", "/ArborAppcast/"]
             .contains { path.contains($0) }
     }
 

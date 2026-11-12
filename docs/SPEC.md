@@ -1174,6 +1174,7 @@ These append to, and refine, existing IDs rather than silently changing their me
 | FE-256 | FE-102; FE-120 | Promise completion versus partial output | R38 | Check readiness/error and partial-file state; an existing destination URL cannot by itself mark a promise successful. |
 | FE-257 | FE-115 | Progress callbacks versus pause capability | R37 | Do not infer pause/resume support from timer method names; specify and prove engine/provider support. |
 | FE-258 | FE-102; FE-113 | Incomplete file-promise preflight metadata | R39 | Allow unknown promised names/types before acceptance; do not start reception merely to populate a hover preview. |
+| FE-259 | FE-220 | In-app updates | Proposed improvement | A quiet Update button when a signed newer release exists; install and relaunch in place; no system profiling; updates must be signed. |
 
 
 ## 22. Final review record

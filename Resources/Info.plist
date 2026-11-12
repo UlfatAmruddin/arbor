@@ -19,6 +19,16 @@
 	<key>NSHighResolutionCapable</key><true/>
 	<key>NSSupportsAutomaticTermination</key><false/>
 	<key>NSHumanReadableCopyright</key><string>© 2026 Arbor contributors. MIT License.</string>
+	<!-- In-app updates (FE-259, DEC-028). They take effect only in builds that scripts/build-app.sh gives a
+	     SUFeedURL and SUPublicEDKey; other builds have no updater. A daily check that sends nothing but the
+	     feed request, the user installs, the feed and the archive must both carry Sparkle's EdDSA signature. -->
+	<key>SUEnableAutomaticChecks</key><true/>
+	<key>SUScheduledCheckInterval</key><integer>86400</integer>
+	<key>SUAutomaticallyUpdate</key><false/>
+	<key>SUAllowsAutomaticUpdates</key><false/>
+	<key>SUEnableSystemProfiling</key><false/>
+	<key>SURequireSignedFeed</key><true/>
+	<key>SUVerifyUpdateBeforeExtraction</key><true/>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

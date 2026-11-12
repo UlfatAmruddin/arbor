@@ -30,4 +30,4 @@ if ! xcodebuild -version >/dev/null 2>&1; then
          -Xlinker -rpath -Xlinker "$CLT/Frameworks"
          -Xlinker -rpath -Xlinker "$CLT/usr/lib")
 fi
-swift test ${EXTRA[@]+"${EXTRA[@]}"} "$@"
+swift test --disable-keychain ${EXTRA[@]+"${EXTRA[@]}"} "$@"

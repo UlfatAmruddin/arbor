@@ -1,5 +1,7 @@
 # Pushing a tag such as v0.3.0 builds the universal app, makes the disk image, signs and notarizes
-# it when the signing secrets are set, and attaches it to a draft GitHub Release.
+# it when the signing secrets are set, and attaches it to a draft GitHub Release. When the
+# SPARKLE_ED_PRIVATE_KEY secret and the SPARKLE_ED_PUBLIC_KEY variable are set, the app gets an
+# update feed and the release gets the in-app update: a signed zip and appcast.xml (FE-259).
 # See docs/RELEASING.md for the secrets and the full checklist.
 name: Release
 
@@ -16,6 +18,8 @@ jobs:
     timeout-minutes: 90
     env:
       HAS_CERTIFICATE: ${{ secrets.DEVELOPER_ID_CERTIFICATE_P12 != '' }}
+      HAS_UPDATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY != '' }}
+      UPDATE_PUBLIC_KEY: ${{ vars.SPARKLE_ED_PUBLIC_KEY }}   # not secret: it ships in every app
     steps:
       - uses: actions/checkout@v4.2.2
         with:
@@ -29,11 +33,30 @@ jobs:
             exit 1
           fi
 
+      - name: Check the update keys
+        run: |
+          if [ "$HAS_UPDATE_KEY" = "true" ] && [ -z "$UPDATE_PUBLIC_KEY" ]; then
+            echo "::error::SPARKLE_ED_PRIVATE_KEY is set but the SPARKLE_ED_PUBLIC_KEY variable is not (docs/RELEASING.md)"
+            exit 1
+          fi
+          if [ "$HAS_UPDATE_KEY" != "true" ] && [ -n "$UPDATE_PUBLIC_KEY" ]; then
+            echo "::error::SPARKLE_ED_PUBLIC_KEY is set but the SPARKLE_ED_PRIVATE_KEY secret is not (docs/RELEASING.md)"
+            exit 1
+          fi
+
       - name: Unit tests
         run: scripts/test.sh
 
       - name: Build universal app
-        run: scripts/build-app.sh release --universal
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          # The feed is this repository's latest published release, so drafts never reach testers.
+          if [ "$HAS_UPDATE_KEY" = "true" ]; then
+            export ARBOR_UPDATE_FEED_URL="https://github.com/$REPOSITORY/releases/latest/download/appcast.xml"
+            export ARBOR_UPDATE_PUBLIC_KEY="$UPDATE_PUBLIC_KEY"
+          fi
+          scripts/build-app.sh release --universal
 
       - name: Import Developer ID certificate
         if: env.HAS_CERTIFICATE == 'true'
@@ -51,6 +74,21 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: scripts/sign-and-notarize.sh
+
+      - name: In-app update (signed zip and feed)
+        if: env.HAS_UPDATE_KEY == 'true'
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # The key goes in on standard input only; the script and its tools don't inherit it.
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | env -u SPARKLE_ED_PRIVATE_KEY scripts/make-update.sh \
+            "https://github.com/$REPOSITORY/releases/download/$GITHUB_REF_NAME/Arbor-$version.zip"
+
+      - name: No in-app update
+        if: env.HAS_UPDATE_KEY != 'true'
+        run: echo "::notice::SPARKLE_ED_PRIVATE_KEY is not set, so no update feed was made and this app has no updater"
 
       - name: Checksum
         run: |
@@ -74,8 +112,9 @@ jobs:
           fi
           # This version's section of CHANGELOG.md.
           { echo; awk -v v="## $version" '$0 == v { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md; } >> "$notes"
-          gh release create "$GITHUB_REF_NAME" \
-            "build/Arbor-$version.dmg" "build/Arbor-$version.dmg.sha256" \
+          assets=("build/Arbor-$version.dmg" "build/Arbor-$version.dmg.sha256")
+          if [ "$HAS_UPDATE_KEY" = "true" ]; then assets+=("build/Arbor-$version.zip" "build/appcast.xml"); fi
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
             --draft --title "Arbor $version" --notes-file "$notes"
 
       - name: Remove signing keychain

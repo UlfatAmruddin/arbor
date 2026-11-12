@@ -233,9 +233,9 @@ enum FocusRegions {
         }
         switch region {
         case .tabs:
-            // Tabs first, then the New tab button.
+            // Tabs first, then the New tab button and what follows it (Update).
             var stops: [NSView] = tabViews(in: c)
-            stops.append(c.tabStrip.plusButton)
+            stops += c.tabStrip.trailingStops
             guard let index = stops.firstIndex(where: { $0 === view }) else { return false }
             let target = step == Int.min ? 0 : (step == Int.max ? stops.count - 1 : min(max(index + step, 0), stops.count - 1))
             if target == index { NSSound.beep(); return true }

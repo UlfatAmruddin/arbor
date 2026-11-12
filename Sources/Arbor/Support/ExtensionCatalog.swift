@@ -38,7 +38,8 @@ enum ExtensionCatalog {
             OperationCenter.jobCancelled, TransferPreflight.checks, SystemTrash.observers,
         ]),
         ("Settings and scripted checks", [
-            FolderOptionsHistory.clearers, PerformanceDebug.extraMemoryFields, DebugScript.loggers,
+            FolderOptionsHistory.clearers, FolderOptionsWindowController.generalGroups, PerformanceDebug.extraMemoryFields,
+            DebugScript.loggers,
         ]),
     ]
 

@@ -140,6 +140,7 @@
 "A long time ago" = "A long time ago";
 "A name can't be empty." = "A name can't be empty.";
 "A name can't contain “/”." = "A name can't contain “/”.";
+"A new version of Arbor is available. Click to see what's new and install it." = "A new version of Arbor is available. Click to see what's new and install it.";
 "A place in “%@” isn't responding" = "A place in “%@” isn't responding";
 "A quotation mark is missing its closing “\"”." = "A quotation mark is missing its closing “\"”.";
 "A range like “a..b” can't also have “%@”." = "A range like “a..b” can't also have “%@”.";
@@ -159,6 +160,7 @@
 "About %@ hours and 1 minute" = "About %@ hours and 1 minute";
 "About 1 hour and %@ minutes" = "About 1 hour and %@ minutes";
 "About 1 hour and 1 minute" = "About 1 hour and 1 minute";
+"About once a day. A newer version shows an Update button beside the tabs; nothing is installed until you choose." = "About once a day. A newer version shows an Update button beside the tabs; nothing is installed until you choose.";
 "Access denied." = "Access denied.";
 "Access-list entries:" = "Access-list entries:";
 "Access-list entry" = "Access-list entry";
@@ -234,6 +236,7 @@
 "Apply Anyway" = "Apply Anyway";
 "Apply this change?" = "Apply this change?";
 "Apply to Folders" = "Apply to Folders";
+"Arbor %@ is available. Click to see what's new and install it." = "Arbor %@ is available. Click to see what's new and install it.";
 "Arbor Settings" = "Arbor Settings";
 "Arbor addition, not part of File Explorer" = "Arbor addition, not part of File Explorer";
 "Arbor can receive at most %d promised items in one drop." = "Arbor can receive at most %d promised items in one drop.";
@@ -373,6 +376,8 @@
 "Change…" = "Change…";
 "Channels" = "Channels";
 "Check" = "Check";
+"Check for Updates…" = "Check for Updates…";
+"Check for updates automatically" = "Check for updates automatically";
 "Check the name and that the computer is on, or ask the person who manages it." = "Check the name and that the computer is on, or ask the person who manages it.";
 "Checking Time Machine…" = "Checking Time Machine…";
 "Checking names in the folder…" = "Checking names in the folder…";
@@ -1939,6 +1944,10 @@
 "Up (⌘↑)" = "Up (⌘↑)";
 "Up to the parent folder (⌘↑)" = "Up to the parent folder (⌘↑)";
 "Up to “%@” (⌘↑)" = "Up to “%@” (⌘↑)";
+"Update" = "Update";
+"Update Arbor" = "Update Arbor";
+"Update to Arbor %@" = "Update to Arbor %@";
+"Updates" = "Updates";
 "Use .%@" = "Use .%@";
 "Use Different Credentials…" = "Use Different Credentials…";
 "Use Sharing Wizard (Recommended)" = "Use Sharing Wizard (Recommended)";

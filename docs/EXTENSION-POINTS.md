@@ -46,6 +46,7 @@ Registered in this order (each after what it requires; "core" is required by all
 | `acceptance-steps` | — |
 | `settings-transfer` | — |
 | `windows-shortcuts` | `item-actions`, `properties`, `archives` |
+| `updates` | `folder-options` |
 
 ## Interactions in item views
 
@@ -69,7 +70,7 @@ Registered in this order (each after what it requires; "core" is required by all
 
 | Point | Kind | For | Contributions, in run order |
 |---|---|---|---|
-| `WindowHooks.didCreate` | Observers | A browser window finished building. `(window)` | `folder-options.status-bar`, `folder-options.recover-placement`, `accessibility.chrome-labels`, `consistency.page-hover`, `address-entry.completion`, `workspaces.load` |
+| `WindowHooks.didCreate` | Observers | A browser window finished building. `(window)` | `folder-options.status-bar`, `folder-options.recover-placement`, `accessibility.chrome-labels`, `consistency.page-hover`, `address-entry.completion`, `workspaces.load`, `updates.pill` |
 | `WindowHooks.willDisplay` | Observers | A tab's content loaded, before it is drawn (may set view mode and sort). `(window, tab, location, changed)` | `details-depth.close-stale-filter`, `folder-options.provider-notice`, `folder-options.folder-views`, `accessibility.announce-location`, `accessibility.keep-focus`, `consistency.relevance-order`, `performance.first-content`, `performance.displayed-token` |
 | `WindowHooks.didDisplay` | Observers | The active tab's items were put on screen. `(window, tab)` | `details-depth.close-stale-filter`, `folder-options.dialog-info`, `folder-options.hover-underline`, `accessibility.chrome-labels`, `accessibility.keep-focus` |
 | `WindowHooks.selectionChanged` | Observers | The active tab's selection changed. `(window)` | `accessibility.announce-selection` |
@@ -147,8 +148,9 @@ Registered in this order (each after what it requires; "core" is required by all
 | Point | Kind | For | Contributions, in run order |
 |---|---|---|---|
 | `FolderOptionsHistory.clearers` | Pipeline | Clears a feature's history for "Clear Arbor history"; adds the count removed. `(removed) -> removed` | `folder-options.home-history` |
+| `FolderOptionsWindowController.generalGroups` | Pipeline | Groups other features add at the end of Folder Options' General page. `(groups) -> groups` | — |
 | `PerformanceDebug.extraMemoryFields` | Pipeline | More key=value fields for the memlog script step. `(line) -> line` | — |
-| `DebugScript.loggers` | Pipeline | Lines the log: script step appends. `(text, window) -> text` | `icon-views.log`, `details-depth.log`, `details-depth.marquee-log`, `home.log`, `this-mac.log`, `search.log`, `file-operations.log`, `properties.log`, `archives.log`, `network.log`, `trash.log`, `trash.log-2`, `cloud.log`, `cloud-providers.log`, `finder-tags.log`, `folder-options.log`, `gallery-libraries.log`, `item-actions.log`, `item-actions.log-2`, `accessibility.log`, `visual-parity.log`, `visual-parity.log-2`, `consistency.log`, `consistency.log-2`, `file-operations-extras.log`, `file-operations-extras.log-2`, `performance.log`, `address-entry.handoff`, `services.log`, `promised-files.log`, `promised-files.interop-log`, `clipboard-interop.log`, `reliability.log`, `reliability.command-bar-tooltips`, `workspaces.log`, `acceptance-steps.log`, `settings-transfer.log`, `windows-shortcuts.log` |
+| `DebugScript.loggers` | Pipeline | Lines the log: script step appends. `(text, window) -> text` | `icon-views.log`, `details-depth.log`, `details-depth.marquee-log`, `home.log`, `this-mac.log`, `search.log`, `file-operations.log`, `properties.log`, `archives.log`, `network.log`, `trash.log`, `trash.log-2`, `cloud.log`, `cloud-providers.log`, `finder-tags.log`, `folder-options.log`, `gallery-libraries.log`, `item-actions.log`, `item-actions.log-2`, `accessibility.log`, `visual-parity.log`, `visual-parity.log-2`, `consistency.log`, `consistency.log-2`, `file-operations-extras.log`, `file-operations-extras.log-2`, `performance.log`, `address-entry.handoff`, `services.log`, `promised-files.log`, `promised-files.interop-log`, `clipboard-interop.log`, `reliability.log`, `reliability.command-bar-tooltips`, `workspaces.log`, `acceptance-steps.log`, `settings-transfer.log`, `windows-shortcuts.log`, `updates.log` |
 
 ## Per-command overrides
 
