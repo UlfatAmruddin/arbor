@@ -3,6 +3,12 @@
 All notable user-visible changes. Versions follow `VERSION`; requirement IDs refer to [docs/SPEC.md](docs/SPEC.md) and
 their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 
+## Unreleased
+
+### Fixed
+- Details: turning Increase contrast (or another display option) on or off keeps the selection, so Delete and
+  other commands still act on it, and leaves an open rename open instead of keeping the half-typed name.
+
 ## 0.4.0
 
 ### New

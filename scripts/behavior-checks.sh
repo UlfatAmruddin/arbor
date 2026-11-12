@@ -125,7 +125,16 @@ if want selection; then
   run "$R2" "$R2/P" "wait:1;search:readme;event;enter;wait:3;log:$R2/d0.txt;duptab;wait:3;log:$R2/d1.txt;quit"
   check "one same-named result selected" "$R2/d0.txt" "selected: readme.txt"
   check "a duplicated tab keeps one same-named item" "$R2/d1.txt" "selected: readme.txt"
-  discard selection "$R" "$R2"
+  # A display option change (Increase contrast) redraws the list without dropping the selection or a rename.
+  R3=$(arbor_mktemp_dir); mkdir -p "$R3/trash" "$R3/F"; for n in a b c; do echo "$n" > "$R3/F/$n.txt"; done
+  S="wait:1;view:details;wait:0.5;select:b.txt;displayoptions;log:$R3/o1.txt;click:file.trash;event;wait:1;log:$R3/o2.txt"
+  S+=";select:a.txt;click:file.rename;event;wait:0.3;type:half.txt;displayoptions;log:$R3/o3.txt;escape;wait:0.5;quit"
+  run "$R3" "$R3/F" "$S"
+  check "a display option change keeps the selection" "$R3/o1.txt" "selected: b.txt"
+  fact "and the next command acts on it" test ! -e "$R3/F/b.txt"
+  contains "a display option change leaves a rename open" "$R3/o3.txt" "rename field: editing “half.txt”"
+  fact "and doesn't rename half-typed" test -f "$R3/F/a.txt" -a ! -e "$R3/F/half.txt"
+  discard selection "$R" "$R2" "$R3"
 fi
 
 # Rename prompts are window-modal sheets that scripts can answer.

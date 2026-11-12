@@ -13,6 +13,7 @@ import ArborCore
 ///     announcements:/path   append VoiceOver announcements made so far
 ///     contextkey:/path      append the last menu the context-menu key opened
 ///     textsize:130          set View ▸ Text size
+///     displayoptions        what a change of Increase contrast (or another display option) redraws
 enum AccessibilityDebug {
     static func register() {
         DebugScript.registerStep("axdump") { path, c in
@@ -95,6 +96,10 @@ enum AccessibilityDebug {
         DebugScript.registerStep("textsize") { arg, _ in
             if let level = Int(arg).flatMap(TextSizeLevel.init) { TextSize.level = level }
             return 0.8
+        }
+        DebugScript.registerStep("displayoptions") { _, _ in
+            DisplayOptions.redrawAll()
+            return 0.5
         }
         DebugScript.registerLogger("accessibility.log") { c in
             "accessibility: focus=\(FocusRegions.current(in: c)?.rawValue ?? "none") textSize=\(TextSize.level.rawValue)"

@@ -117,8 +117,12 @@ enum DisplayOptions {
         }
     }
 
-    /// Increase contrast changed: colors resolve at draw time, so a redraw picks them up.
+    /// Increase contrast changed: colors resolve at draw time, so a redraw picks them up. Rows are redrawn in
+    /// place: a full `reloadData()` drops a table's selection without a selection-change notification, which
+    /// left the status bar describing items that were no longer selected and the next command acting on none.
     static func redrawAll() {
+        // The file list goes through its controller, which also waits for an open rename.
+        for c in (NSApp.delegate as? AppDelegate)?.controllers ?? [] { c.itemView?.reloadRows() }
         for window in NSApp.windows {
             guard let root = window.contentView?.superview ?? window.contentView else { continue }
             invalidate(root)
@@ -127,7 +131,10 @@ enum DisplayOptions {
 
     private static func invalidate(_ view: NSView) {
         view.needsDisplay = true
-        (view as? NSTableView)?.reloadData()
+        if let table = view as? NSTableView, !(table is FileTableView), table.numberOfRows > 0, table.numberOfColumns > 0 {
+            table.reloadData(forRowIndexes: IndexSet(integersIn: 0..<table.numberOfRows),
+                             columnIndexes: IndexSet(integersIn: 0..<table.numberOfColumns))
+        }
         view.subviews.forEach(invalidate)
     }
 
