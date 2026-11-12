@@ -3,7 +3,7 @@
 All notable user-visible changes. Versions follow `VERSION`; requirement IDs refer to [docs/SPEC.md](docs/SPEC.md) and
 their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 
-## Unreleased
+## 0.4.1
 
 ### Fixed
 - Details: turning Increase contrast (or another display option) on or off keeps the selection, so Delete and

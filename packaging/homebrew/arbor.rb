@@ -14,7 +14,7 @@
 #   - homebrew/cask (the main repository) only accepts apps that are signed with a Developer ID and
 #     notarized, and that meet its notability rules. Submit there once releases are notarized.
 cask "arbor" do
-  version "0.4.0"
+  version "0.4.1"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
 
   url "https://github.com/OWNER/arbor/releases/download/v#{version}/Arbor-#{version}.dmg"
