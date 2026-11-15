@@ -301,9 +301,20 @@ public final class FileTransfer: @unchecked Sendable {
     private func work(progress: @escaping @Sendable (TransferProgress) -> Void,
                       conflicts: @escaping ConflictBatchResolver,
                       failures: FailureResolver?) -> TransferReport {
-        progressSink = progress
-        conflictResolver = conflicts
-        failureResolver = failures
+        lock.withLock {
+            progressSink = progress
+            conflictResolver = conflicts
+            failureResolver = failures
+        }
+        // The handlers usually capture whatever holds this transfer (the app's Job, a test's job), so keeping
+        // them after the run would keep both alive for good. Declared before the onChange defer, so it runs after it.
+        defer {
+            lock.withLock {
+                progressSink = nil
+                conflictResolver = nil
+                failureResolver = nil
+            }
+        }
         destinationMount = FileOps.mountPoint(of: destination)
         journal?.markRunning()   // from here the job isn't "waiting to start" any more
         control.onChange = { [weak self] in self?.emit(force: true) }
@@ -365,12 +376,13 @@ public final class FileTransfer: @unchecked Sendable {
 
     private func emit(force: Bool = false) {
         let now = ProcessInfo.processInfo.systemUptime
-        let progress: TransferProgress? = lock.withLock {
-            guard force || now - lastEmit >= options.progressInterval else { return nil }
+        // Pause and resume emit from the UI thread, so the sink is read under the lock, like it is set and cleared.
+        let pending: (progress: TransferProgress, sink: @Sendable (TransferProgress) -> Void)? = lock.withLock {
+            guard let sink = progressSink, force || now - lastEmit >= options.progressInterval else { return nil }
             lastEmit = now
-            return snapshot()
+            return (snapshot(), sink)
         }
-        if let progress { progressSink?(progress) }
+        if let pending { pending.sink(pending.progress) }
     }
 
     private func account(_ totals: TransferTotals) {
@@ -448,14 +460,14 @@ public final class FileTransfer: @unchecked Sendable {
     }
 
     private func ask(_ conflicts: [Conflict]) -> [ConflictDecision] {
-        guard let resolver = conflictResolver else { return conflicts.map { _ in ConflictDecision(.cancel) } }
+        guard let resolver = lock.withLock({ conflictResolver }) else { return conflicts.map { _ in ConflictDecision(.cancel) } }
         let answers = waiting { block { await resolver(conflicts) } }
         return conflicts.indices.map { answers.indices.contains($0) ? answers[$0] : ConflictDecision(.cancel) }
     }
 
     private func askFailure(_ failure: TransferFailure) -> FailureDecision {
         if skipFailures.contains(failure.kind), failure.allowsSkip { return FailureDecision(.skip) }
-        guard let resolver = failureResolver else { return FailureDecision(.skip) }
+        guard let resolver = lock.withLock({ failureResolver }) else { return FailureDecision(.skip) }
         let decision = waiting { block { await resolver(failure) } }
         if decision.choice == .skip, decision.applyToRemaining { skipFailures.insert(failure.kind) }
         return decision

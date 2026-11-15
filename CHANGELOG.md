@@ -3,6 +3,12 @@
 All notable user-visible changes. Versions follow `VERSION`; requirement IDs refer to [docs/SPEC.md](docs/SPEC.md) and
 their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 
+## Unreleased
+
+### Fixed
+- Copy, move and other file jobs no longer stay in memory after they finish, so a long session of copying
+  doesn't make Arbor use more and more memory.
+
 ## 0.5.0
 
 ### New

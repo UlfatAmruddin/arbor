@@ -192,6 +192,24 @@ struct TransferProgressTests {
         #expect(try sameContents(fx.url("src/big.bin"), fx.url("dst/big.bin")))
     }
 
+    @Test func aFinishedJobLetsGoOfItsHandlers() async throws {
+        let fx = try Fixture()
+        try fx.file("src/a.txt", "a")
+        try fx.file("dst/a.txt", "old")
+        weak var finished: FileTransfer?
+        do {
+            // Like the app's jobs: every handler refers back to the transfer, which used to keep it alive for good.
+            let transfer = fx.job(.copy, ["src/a.txt"], to: "dst")
+            finished = transfer
+            let report = await transfer.run(progress: { _ in _ = transfer.isPaused },
+                                            resolveConflict: { _ in _ = transfer.isPaused; return ConflictDecision(.skip) },
+                                            resolveFailure: { _ in _ = transfer.isPaused; return FailureDecision(.skip) })
+            #expect(fx.read("dst/a.txt") == "old", "the conflict was asked and skipped")
+            #expect(report.results.count == 1)
+        }
+        #expect(finished == nil, "the transfer and everything its handlers capture are released")
+    }
+
     @Test func cancelWhilePausedStops() async throws {
         let fx = try Fixture()
         try writeDense(fx.url("src/big.bin"), size: 32 * MB)
