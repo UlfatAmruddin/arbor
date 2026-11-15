@@ -275,7 +275,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-168 | Archive compression options | implemented | unit; snapshots | [archives](features/archives.md) | No Zstandard writer |
 | FE-169 | Encrypted archive behavior | implemented | unit | [archives](features/archives.md) | Detected and refused with an explanation, like Windows |
 | FE-170 | Archive safety | implemented | unit; acceptance T25 | [archives](features/archives.md) |  |
-| FE-171 | Mount and eject ISO | implemented | headless | [archives](features/archives.md) |  |
+| FE-171 | Mount and eject ISO | implemented | unit; behavior-checks `diskimages` | [archives](features/archives.md) | Every disk image mounts and opens in the window; only license agreements go to macOS |
 | FE-173 | Archive metadata portability | implemented | unit | [archives](features/archives.md) |  |
 
 ## Drives, devices, network and sharing

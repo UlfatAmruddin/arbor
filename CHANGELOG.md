@@ -3,6 +3,13 @@
 All notable user-visible changes. Versions follow `VERSION`; requirement IDs refer to [docs/SPEC.md](docs/SPEC.md) and
 their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 
+## Unreleased
+
+### New
+- Disk images: double-clicking a .dmg (or .iso, .img, .sparseimage…) mounts it and shows its contents in the same
+  Arbor window, without a Finder window. One that is already mounted opens where it is. macOS still asks for a
+  disk image's password; an image with a license agreement shows it through macOS, then opens in Arbor.
+
 ## 0.4.1
 
 ### Fixed

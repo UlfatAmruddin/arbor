@@ -1844,4 +1844,92 @@ if want localization; then
   discard localization "$R"
 fi
 
+# archives.md (FE-171): opening a disk image mounts it and shows its volume here, never through Finder. An image that
+# needs a password or a license agreement goes to macOS's own prompt, and its volume opens here once macOS mounts it.
+# Every image is made here; volumes are hidden from Finder and detached afterwards.
+if want diskimages; then
+  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/D/src"
+  # Item paths come out resolved (/private/var/…); the folder line keeps $R/D as Arbor shows it.
+  D=$(cd "$R/D" && pwd -P)
+  V="ArborCheck$$"
+  echo hi > "$D/src/readme.txt"
+  detach_check_volumes() {
+    local v; for v in /Volumes/"$V"*; do [ -d "$v" ] && hdiutil detach -force -quiet "$v" >/dev/null 2>&1; done; true
+  }
+  if hdiutil create -quiet -fs HFS+ -volname "${V}P" -srcfolder "$D/src" -format UDZO "$D/plain.dmg" && \
+     printf 'check' | hdiutil create -quiet -fs HFS+ -volname "${V}L" -srcfolder "$D/src" -format UDZO \
+       -encryption AES-128 -stdinpass "$D/locked.dmg" && \
+     hdiutil makehybrid -quiet -iso -joliet -default-volume-name "${V}I" -o "$D/disc.iso" "$D/src"; then
+    # Text, so no disk image class (not even a raw device image) accepts it.
+    printf 'not a disk image' > "$D/broken.dmg"
+
+    # Double-click mounts and opens the volume in the same window; a second open finds it where it is.
+    run "$R" "$D" "wait:1;openitem:plain.dmg;wait:4;log:$R/p1.txt;location:$D;wait:1;openitem:plain.dmg;wait:4;log:$R/p2.txt;quit"
+    check "a disk image opens its volume here" "$R/p1.txt" "folder: /Volumes/${V}P"
+    check "its contents are listed" "$R/p1.txt" "rows: readme.txt"
+    contains "it mounts without a Finder window" "$R/p1.txt" "attach $D/plain.dmg (no Finder window)"
+    lacks "macOS isn't asked to open it" "$R/p1.txt" "open $D/plain.dmg"
+    check "an image already mounted opens where it is" "$R/p2.txt" "folder: /Volumes/${V}P"
+    fact "it is mounted once" test "$(hdiutil info | grep -c "$V"P)" -le 1
+    fact "the second open doesn't attach it again" test "$(grep '^system open:' "$R/p2.txt" | grep -o "attach $D/plain.dmg" | wc -l)" -eq 1
+    detach_check_volumes
+
+    # An ISO mounts the same way.
+    run "$R" "$D" "wait:1;openitem:disc.iso;wait:4;log:$R/i1.txt;quit"
+    check "an ISO opens its volume here" "$R/i1.txt" "folder: /Volumes/${V}I"
+    detach_check_volumes
+
+    # A damaged image says so, and nothing is handed to macOS.
+    run "$R" "$D" "wait:1;openitem:broken.dmg;wait:4;log:$R/b1.txt;quit"
+    contains "a damaged image explains why" "$R/b1.txt" "alert=“broken.dmg” couldn't be mounted."
+    lacks "a damaged image isn't handed to macOS" "$R/b1.txt" "handoff="
+    check "the window stays in its folder" "$R/b1.txt" "folder: $R/D"
+
+    # A password-protected image: macOS asks during the attach, so scripted runs never attach it (no prompt on
+    # screen). Only `isencrypted` reads it, which never asks.
+    run "$R" "$D" "wait:1;openitem:locked.dmg;wait:4;log:$R/l1.txt;quit"
+    contains "a password-protected image is recognized without asking" "$R/l1.txt" "handoff=password not asked $D/locked.dmg"
+    lacks "it isn't attached in a scripted run" "$R/l1.txt" "attach $D/locked.dmg"
+    lacks "it isn't handed to macOS" "$R/l1.txt" "open $D/locked.dmg"
+    fact "nothing was mounted" test ! -d "/Volumes/${V}L"
+
+    # After a hand-off, the volume opens here once macOS has mounted it (the check mounts it in macOS's place). A
+    # mount before the hand-off is registered (a slow launch) is found too, as the hand-off looks once when it starts.
+    run "$R" "$D" "wait:1;mounthandoff:$D/plain.dmg;wait:8;log:$R/h1.txt;quit" &
+    ARBOR_RUN=$!
+    sleep 4
+    hdiutil attach -quiet -nobrowse -noautoopen "$D/plain.dmg" </dev/null >/dev/null 2>&1
+    wait "$ARBOR_RUN"
+    check "the handed-off volume opens here once mounted" "$R/h1.txt" "folder: /Volumes/${V}P"
+    detach_check_volumes
+
+    # A license agreement goes to macOS too. hdiutil can still add one (udifrez is deprecated): skipped once it can't.
+    cp "$D/plain.dmg" "$D/license.dmg"
+    python3 -I - "$R/license.plist" <<'EOF'
+import plistlib, struct, sys
+def pstr(s): b = s.encode('mac_roman'); return bytes([len(b)]) + b
+words = ["English", "Agree", "Disagree", "Print", "Save...", "If you agree, click Agree."]
+resource = lambda data, name: [{'Attributes': '0x0000', 'Data': data, 'ID': '5000', 'Name': name}]
+plistlib.dump({
+    'LPic': resource(struct.pack('>HHHHH', 0, 1, 0, 0, 0), ''),
+    'STR#': resource(struct.pack('>H', len(words)) + b''.join(pstr(w) for w in words), 'English'),
+    'TEXT': resource(b"Check licence.\r", 'English SLA'),
+}, open(sys.argv[1], 'wb'))
+EOF
+    if hdiutil udifrez -xml "$R/license.plist" '' "$D/license.dmg" >/dev/null 2>&1; then
+      run "$R" "$D" "wait:1;openitem:license.dmg;wait:4;log:$R/s1.txt;quit"
+      contains "an image with a license agreement goes to macOS's prompt" "$R/s1.txt" "handoff=license $D/license.dmg"
+      contains "macOS is asked to open it" "$R/s1.txt" "open $D/license.dmg"
+      lacks "it isn't attached first" "$R/s1.txt" "attach $D/license.dmg"
+      check "nothing was mounted without the agreement" "$R/s1.txt" "folder: $R/D"
+    else
+      echo "skip  license agreement: hdiutil can no longer add one"
+    fi
+    detach_check_volumes
+  else
+    echo "skip  disk images: hdiutil couldn't create them"
+  fi
+  discard diskimages "$R"
+fi
+
 exit $FAILED

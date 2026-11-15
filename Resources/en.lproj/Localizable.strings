@@ -2122,6 +2122,7 @@
 "“%@” doesn't exist or is no longer available." = "“%@” doesn't exist or is no longer available.";
 "“%@” doesn't exist or isn't connected." = "“%@” doesn't exist or isn't connected.";
 "“%@” doesn't share folders." = "“%@” doesn't share folders.";
+"“%@” has a license agreement. macOS shows it, then the drive opens here." = "“%@” has a license agreement. macOS shows it, then the drive opens here.";
 "“%@” is a Windows drive path. Macs don't use drive letters; other disks appear under /Volumes." = "“%@” is a Windows drive path. Macs don't use drive letters; other disks appear under /Volumes.";
 "“%@” is a Windows kind with no macOS equivalent." = "“%@” is a Windows kind with no macOS equivalent.";
 "“%@” is a file. Choose a folder." = "“%@” is a file. Choose a folder.";
@@ -2161,6 +2162,7 @@
 "“%@” was changed by another app while this window was open." = "“%@” was changed by another app while this window was open.";
 "“%@” was changed by another app." = "“%@” was changed by another app.";
 "“%@” was disconnected." = "“%@” was disconnected.";
+"“%@” wasn't mounted. If it has a license agreement, open it from Finder." = "“%@” wasn't mounted. If it has a license agreement, open it from Finder.";
 "“%@” wasn't searched" = "“%@” wasn't searched";
 "“%@” would expand to %@." = "“%@” would expand to %@.";
 "“%@” would expand to %@. Arbor doesn't extract archives that large." = "“%@” would expand to %@. Arbor doesn't extract archives that large.";

@@ -144,8 +144,9 @@ enum SystemOpen {
     }
 
     /// Headless runs attach without a Finder window or sidebar entry.
+    /// Arbor shows the volume itself, so Finder never opens a window for it.
     static func attachArguments(for image: URL) -> [String] {
-        suppressed("attach \(image.path) (no Finder window)") ? ["-nobrowse", "-noautoopen"] : []
+        suppressed("attach \(image.path) (no Finder window)") ? ["-nobrowse", "-noautoopen"] : ["-noautoopen"]
     }
 
     // MARK: Quick Look

@@ -9,6 +9,8 @@ enum ArchiveFeature: ExplorerFeature {
     static var lastAlert: String?
     static var lastExtraction: URL?
     static var lastMount: URL?
+    /// The last disk image handed to macOS's own prompt ("password /path"), for scripted checks.
+    static var lastHandOff: String?
 
     /// Alerts from archive jobs; headless runs record them instead of showing a sheet.
     static func alert(_ message: String, _ info: String = "", in window: NSWindow?) {
@@ -70,13 +72,14 @@ enum ArchiveFeature: ExplorerFeature {
         CommandRegistry.shared.hide("file.sendTo", "archives.no-send-to", when: inArchive)
     }
 
-    /// Members open from a temporary copy; an ISO mounts (or is browsed if it can't be).
+    /// Members open from a temporary copy; a disk image mounts and opens here, like Explorer (an ISO that can't be
+    /// mounted is browsed instead).
     static func openFile(_ file: FileItem, in window: BrowserWindowController) -> Bool {
         if let ref = ArchiveCatalog.ref(for: file.url) {
             openMember(ref, in: window)
             return true
         }
-        if file.url.pathExtension.lowercased() == "iso" {
+        if DiskImage.isDiskImage(file.url) {
             ArchiveJobs.mount(file.url, window: window, fallbackToBrowse: true)
             return true
         }
@@ -295,6 +298,11 @@ enum ArchiveFeature: ExplorerFeature {
     // MARK: - Script steps (TESTING.md)
 
     private static func registerDebugSteps() {
+        // mounthandoff:/image.dmg — wait for the image's volume as after a license hand-off; the check mounts it.
+        DebugScript.registerStep("mounthandoff") { path, window in
+            MountHandOff.openWhenMounted(URL(fileURLWithPath: path), in: window)
+            return 0.2
+        }
         // archivesheet:/out.png — render the Extract All sheet.
         DebugScript.registerStep("archivesheet") { path, window in
             guard let sheet = window?.window?.attachedSheet, let view = sheet.contentView else { return 0.5 }
@@ -350,6 +358,7 @@ enum ArchiveFeature: ExplorerFeature {
             if let lastAlert { parts.append("alert=\(lastAlert.replacingOccurrences(of: "\n", with: " / "))") }
             if let lastExtraction { parts.append("extracted=\(lastExtraction.path)") }
             if let lastMount { parts.append("mounted=\(lastMount.path)") }
+            if let lastHandOff { parts.append("handoff=\(lastHandOff)") }
             parts.append("clipboard=" + FileClipboard.shared.readURLs().map(\.lastPathComponent).joined(separator: ","))
             return "archive: " + parts.joined(separator: "  ")
         }

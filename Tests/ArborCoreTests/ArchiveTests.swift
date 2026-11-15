@@ -392,6 +392,48 @@ struct TestZip {
         #expect(DiskImage.mountPoints(fromPlist: Data(plist.utf8)) == [URL(fileURLWithPath: "/Volumes/CD")])
         #expect(DiskImage.isDiskImage(URL(fileURLWithPath: "/a/b.DMG")))
     }
+
+    /// `hdiutil info -plist`: only the asked-for image's mount points, with links in its path resolved.
+    @Test func hdiutilInfoMountPoints() throws {
+        let fx = try Fixture()
+        let image = try fx.file("dl/app.dmg")
+        let link = fx.url("link")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: fx.url("dl"))
+        func info(_ path: String) -> Data {
+            Data("""
+            <?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>images</key><array>
+            <dict><key>image-path</key><string>/elsewhere/other.dmg</string><key>system-entities</key><array>
+            <dict><key>mount-point</key><string>/Volumes/Other</string></dict></array></dict>
+            <dict><key>image-path</key><string>\(path)</string><key>system-entities</key><array>
+            <dict><key>dev-entry</key><string>/dev/disk9</string></dict>
+            <dict><key>mount-point</key><string>/Volumes/App</string></dict></array></dict>
+            </array></dict></plist>
+            """.utf8)
+        }
+        #expect(DiskImage.mountPoints(of: image, inInfoPlist: info(image.path)) == [URL(fileURLWithPath: "/Volumes/App")])
+        #expect(DiskImage.mountPoints(of: link.appendingPathComponent("app.dmg"), inInfoPlist: info(image.path))
+                == [URL(fileURLWithPath: "/Volumes/App")])
+        #expect(DiskImage.mountPoints(of: fx.url("dl/none.dmg"), inInfoPlist: info(image.path)).isEmpty)
+        #expect(DiskImage.mountPoints(of: image, inInfoPlist: Data("not a plist".utf8)).isEmpty)
+    }
+
+    /// What decides how an image is mounted: a password (macOS asks during the attach) or a license agreement
+    /// (handed to macOS). Anything unreadable counts as neither, so a damaged image shows its error.
+    @Test func diskImagePasswordAndLicense() {
+        func plist(_ body: String) -> Data {
+            Data("<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\"><dict>\(body)</dict></plist>".utf8)
+        }
+        #expect(DiskImage.isEncrypted(fromPlist: plist("<key>encrypted</key><true/><key>passphrase-count</key><integer>1</integer>")))
+        #expect(!DiskImage.isEncrypted(fromPlist: plist("<key>encrypted</key><false/>")))
+        #expect(!DiskImage.isEncrypted(fromPlist: plist("<key>encrypted</key><string>yes</string>")))
+        #expect(!DiskImage.isEncrypted(fromPlist: Data()))
+        #expect(!DiskImage.isEncrypted(fromPlist: nil))
+        #expect(DiskImage.hasLicenseAgreement(fromPlist: plist("<key>Properties</key><dict><key>Software License Agreement</key><true/></dict>")))
+        #expect(!DiskImage.hasLicenseAgreement(fromPlist: plist("<key>Properties</key><dict><key>Software License Agreement</key><false/></dict>")))
+        #expect(!DiskImage.hasLicenseAgreement(fromPlist: plist("<key>Software License Agreement</key><true/>")))
+        #expect(!DiskImage.hasLicenseAgreement(fromPlist: Data("x".utf8)))
+        #expect(!DiskImage.hasLicenseAgreement(fromPlist: nil))
+    }
 }
 
 /// End-to-end with the system's bsdtar and ditto, in disposable folders.

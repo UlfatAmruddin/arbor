@@ -375,22 +375,50 @@ enum ArchiveJobs {
 
     // MARK: - Disk images (FE-171)
 
-    /// Attaches a disk image with `hdiutil` and opens its volume.
+    /// Attaches a disk image with `hdiutil` and opens its volume in this window, without a Finder window. An image
+    /// that is already attached opens where it is. Each image is asked about once at most: macOS shows its own
+    /// password prompt during the attach, and an image with a license agreement (which `hdiutil` can't show) goes
+    /// to macOS's DiskImageMounter, after which its volume opens here.
     static func mount(_ image: URL, window controller: BrowserWindowController?, fallbackToBrowse: Bool) {
         let process = ToolProcess()
         let activity = OperationCenter.Activity(text: L10n.format("Mounting “%@”", image.lastPathComponent)) { process.cancel() }
         OperationCenter.shared.begin(activity)
         weak let weakController = controller
         DispatchQueue.global(qos: .userInitiated).async {
-            let args = ["attach", "-plist"] + SystemOpen.attachArguments(for: image) + [image.path]
-            let output = try? process.run("/usr/bin/hdiutil", args)
-            DispatchQueue.main.async {
-                OperationCenter.shared.end(activity)
-                guard let output, !output.wasCancelled else { return }
-                let mounts = DiskImage.mountPoints(fromPlist: output.stdout)
-                if output.status == 0, let mount = mounts.first {
+            // None of these questions shows a prompt. An image that is already mounted opens where it is, without
+            // asking anything again; imageinfo would ask for an encrypted image's password, so it comes after isencrypted.
+            if let mount = mountPoint(of: image, process: process) {
+                return DispatchQueue.main.async {
+                    OperationCenter.shared.end(activity)
+                    guard !process.isCancelled else { return }
                     ArchiveFeature.lastMount = mount
                     weakController?.navigate(to: .folder(mount))
+                }
+            }
+            let encrypted = DiskImage.isEncrypted(fromPlist: (try? process.run(hdiutil, ["isencrypted", "-plist", image.path]))?.stdout)
+            let license = !encrypted && DiskImage.hasLicenseAgreement(fromPlist: (try? process.run(hdiutil, ["imageinfo", "-plist", image.path]))?.stdout)
+            // Scripted runs never put a password prompt on screen.
+            let passwordRefused = encrypted && !SystemOpen.allowsSystemDialogs
+            let output = license || passwordRefused ? nil
+                : try? process.run(hdiutil, ["attach", "-plist"] + SystemOpen.attachArguments(for: image) + [image.path])
+            DispatchQueue.main.async {
+                OperationCenter.shared.end(activity)
+                guard !process.isCancelled else { return }
+                if license { return handOff(image, window: weakController) }
+                if passwordRefused {
+                    ArchiveFeature.lastHandOff = "password not asked \(image.path)"
+                    return
+                }
+                guard let output else { return }
+                if output.status == 0, let mount = DiskImage.mountPoints(fromPlist: output.stdout).first {
+                    ArchiveFeature.lastMount = mount
+                    weakController?.navigate(to: .folder(mount))
+                    return
+                }
+                if encrypted {
+                    // The password prompt was cancelled: no second prompt and no error. hdiutil cancels the same way
+                    // when the image also has a license agreement, which only Finder's DiskImageMounter can show.
+                    weakController?.statusBar.setMessage(L10n.format("“%@” wasn't mounted. If it has a license agreement, open it from Finder.", image.lastPathComponent))
                     return
                 }
                 let reason = ArchiveError.summarize(output.stderr).replacingOccurrences(of: "hdiutil: attach failed - ", with: "")
@@ -404,6 +432,71 @@ enum ArchiveJobs {
                                 + L10n.tr("\n\nYou can also open it with DiskImageMounter from Finder."), in: weakController?.window)
             }
         }
+    }
+
+    static let hdiutil = "/usr/bin/hdiutil"
+
+    /// Where `image` is mounted now, from `hdiutil info` (which never asks anything). Off the main thread.
+    static func mountPoint(of image: URL, process: ToolProcess = ToolProcess()) -> URL? {
+        (try? process.run(hdiutil, ["info", "-plist"])).flatMap { DiskImage.mountPoints(of: image, inInfoPlist: $0.stdout).first }
+    }
+
+    /// DiskImageMounter shows the agreement; the volume then opens in `controller` (FE-171). Finder may open it as
+    /// well, since that is DiskImageMounter's own behavior.
+    private static func handOff(_ image: URL, window controller: BrowserWindowController?) {
+        MountHandOff.openWhenMounted(image, in: controller)
+        SystemOpen.open(image)
+        ArchiveFeature.lastHandOff = "license \(image.path)"
+        controller?.statusBar.setMessage(L10n.format("“%@” has a license agreement. macOS shows it, then the drive opens here.", image.lastPathComponent))
+    }
+}
+
+/// Opens a disk image's volume in a window once macOS has mounted it after its own prompt. Each hand-off waits
+/// for a limited time, and the window is held weakly: a closed window or a declined prompt leaves nothing behind.
+final class MountHandOff {
+    static let waitLimit: TimeInterval = 300
+    private static var pending: [MountHandOff] = []
+
+    private let image: URL
+    private weak var controller: BrowserWindowController?
+    private var observer: NSObjectProtocol?
+
+    private init(image: URL, controller: BrowserWindowController?) {
+        self.image = image
+        self.controller = controller
+    }
+
+    static func openWhenMounted(_ image: URL, in controller: BrowserWindowController?) {
+        // A second hand-off of the same image replaces the first, so the volume opens once.
+        pending.filter { $0.image == image }.forEach { $0.finish() }
+        let handOff = MountHandOff(image: image, controller: controller)
+        pending.append(handOff)
+        handOff.observer = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didMountNotification, object: nil, queue: .main) { [weak handOff] _ in handOff?.check() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + waitLimit) { [weak handOff] in handOff?.finish() }
+        // Mounted before the observer existed (macOS was quick, or it already was): open it now.
+        handOff.check()
+    }
+
+    /// A volume appeared, or the hand-off just started: look up this image's mount point off the main thread.
+    private func check() {
+        let image = image
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let mount = ArchiveJobs.mountPoint(of: image)
+            DispatchQueue.main.async {
+                guard let self, let mount, self.observer != nil else { return }
+                let controller = self.controller
+                self.finish()
+                ArchiveFeature.lastMount = mount
+                controller?.navigate(to: .folder(mount))
+            }
+        }
+    }
+
+    private func finish() {
+        if let observer { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
+        observer = nil
+        Self.pending.removeAll { $0 === self }
     }
 }
 

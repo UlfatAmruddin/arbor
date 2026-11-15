@@ -89,9 +89,37 @@ public enum DiskImage {
 
     /// Mount points from `hdiutil attach -plist` output.
     public static func mountPoints(fromPlist data: Data) -> [URL] {
-        guard let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-              let entities = plist["system-entities"] as? [[String: Any]] else { return [] }
-        return entities.compactMap { $0["mount-point"] as? String }.map { URL(fileURLWithPath: $0) }
+        guard let entities = dictionary(data)?["system-entities"] as? [[String: Any]] else { return [] }
+        return mountPoints(entities)
+    }
+
+    /// Mount points of `image` in `hdiutil info -plist` output, matched after resolving links (/tmp, /private/tmp).
+    public static func mountPoints(of image: URL, inInfoPlist data: Data) -> [URL] {
+        guard let images = dictionary(data)?["images"] as? [[String: Any]] else { return [] }
+        let wanted = image.resolvingSymlinksInPath().path
+        return images
+            .filter { ($0["image-path"] as? String).map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path } == wanted }
+            .flatMap { mountPoints($0["system-entities"] as? [[String: Any]] ?? []) }
+    }
+
+    /// `hdiutil isencrypted -plist`, which never asks for the password. Attaching such an image shows macOS's
+    /// password prompt (as does `imageinfo`), so it is checked first.
+    public static func isEncrypted(fromPlist data: Data?) -> Bool {
+        data.flatMap(dictionary)?["encrypted"] as? Bool == true
+    }
+
+    /// `hdiutil imageinfo -plist`: a license agreement, which `hdiutil attach` can't show (it cancels the attach)
+    /// but macOS's DiskImageMounter can.
+    public static func hasLicenseAgreement(fromPlist data: Data?) -> Bool {
+        (data.flatMap(dictionary)?["Properties"] as? [String: Any])?["Software License Agreement"] as? Bool == true
+    }
+
+    private static func mountPoints(_ entities: [[String: Any]]) -> [URL] {
+        entities.compactMap { $0["mount-point"] as? String }.map { URL(fileURLWithPath: $0) }
+    }
+
+    private static func dictionary(_ data: Data) -> [String: Any]? {
+        try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
     }
 }
 
