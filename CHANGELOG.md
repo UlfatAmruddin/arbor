@@ -3,7 +3,7 @@
 All notable user-visible changes. Versions follow `VERSION`; requirement IDs refer to [docs/SPEC.md](docs/SPEC.md) and
 their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 
-## Unreleased
+## 0.5.0
 
 ### New
 - Disk images: double-clicking a .dmg (or .iso, .img, .sparseimage…) mounts it and shows its contents in the same
