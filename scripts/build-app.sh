@@ -86,16 +86,22 @@ MIN_MACOS="$MIN_MAJOR.${MIN_MINOR:-0}"
 if [ "$UNIVERSAL" = 1 ]; then
   # `swift build --arch arm64 --arch x86_64` needs full Xcode, so build each architecture on its
   # own (this works with just the Command Line Tools) and join the two with lipo.
+  # Each slice is copied out as soon as it's built: newer SwiftPM (the swiftbuild build system, Swift 6.4) writes
+  # every triple to the same output folder, so the next build would replace it.
+  mkdir -p build
   SLICES=()
   for ARCH in arm64 x86_64; do
     TRIPLE="$ARCH-apple-macosx$MIN_MACOS"
     swift build --disable-keychain -c "$CONFIG" --product BetterExplorer --triple "$TRIPLE"
-    SLICES+=("$(swift build --disable-keychain -c "$CONFIG" --triple "$TRIPLE" --show-bin-path)/BetterExplorer")
+    BIN_DIR="$(swift build --disable-keychain -c "$CONFIG" --triple "$TRIPLE" --show-bin-path)"
+    cp "$BIN_DIR/BetterExplorer" "build/BetterExplorer-$ARCH"
+    SLICES+=("build/BetterExplorer-$ARCH")
   done
-  mkdir -p build
   BIN="build/BetterExplorer-universal"
   lipo -create "${SLICES[@]}" -output "$BIN"
-  FRAMEWORK="$(dirname "${SLICES[0]}")/Sparkle.framework"
+  rm -f "${SLICES[@]}"
+  # Sparkle's framework is one universal binary artifact, the same in either output folder.
+  FRAMEWORK="$BIN_DIR/Sparkle.framework"
 else
   swift build --disable-keychain -c "$CONFIG" --product BetterExplorer
   BIN="$(swift build --disable-keychain -c "$CONFIG" --show-bin-path)/BetterExplorer"

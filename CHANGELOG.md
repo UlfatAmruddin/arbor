@@ -3,7 +3,7 @@
 All notable user-visible changes. Versions follow `VERSION`; requirement IDs refer to [docs/SPEC.md](docs/SPEC.md) and
 their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 
-## Unreleased
+## 0.6.0
 
 ### Changed
 - Arbor is now called **Better Explorer**: the app, its menus and messages, and the release downloads
