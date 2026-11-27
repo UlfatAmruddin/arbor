@@ -1,4 +1,4 @@
-# Windows 11 File Explorer — behavior and appearance reference for Arbor
+# Windows 11 File Explorer — behavior and appearance reference for Better Explorer
 
 Version 0.1 · Compiled November 7, 2026 · Companion to `SPEC.md` (evidence rules in its §2, open questions in §18, source register in §19).
 
@@ -274,7 +274,7 @@ Libraries are hidden in the navigation pane by default (§2.1). A library is a v
 | Libraries context menu: "Restore default libraries" | Re-creates missing defaults | RECALL-m |
 | Default columns and view per template | As §5.1 | RECALL (§5.1) |
 
-Windows refuses some locations because of indexing; Arbor reads folders directly and has no such refusal. An offline folder is reported as partial coverage.
+Windows refuses some locations because of indexing; Better Explorer reads folders directly and has no such refusal. An offline folder is reported as partial coverage.
 
 ## 4. Context menus (Windows 11 modern menu, 24H2/25H2)
 

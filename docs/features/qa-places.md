@@ -3,11 +3,11 @@
 Acceptance pass over Home, This Mac, Gallery, Libraries, Network, Trash, cloud status, search, archives,
 disk images, Properties, Folder Options and the copy conflict dialogs, using spec §17.5 (T18–T26) and
 §16.1 as the checklist. Every bug found got a regression test (unit test in
-`Tests/ArborCoreTests/QAPlacesTests.swift`, or a headless scripted run where only the UI shows it) and a
+`Tests/BetterExplorerCoreTests/QAPlacesTests.swift`, or a headless scripted run where only the UI shows it) and a
 minimal fix in the owning feature's files.
 
-How the runs were made: `scripts/build-app.sh debug`, then `ARBOR_HEADLESS=1` with `ARBOR_TEST_TRASH`,
-`ARBOR_STATE_DIR`, `ARBOR_FAKE_NETWORK=1` or `ARBOR_TEST_CLOUD_ROOT/STATUS` as needed, fixtures in fresh
+How the runs were made: `scripts/build-app.sh debug`, then `BETTER_EXPLORER_HEADLESS=1` with `BETTER_EXPLORER_TEST_TRASH`,
+`BETTER_EXPLORER_STATE_DIR`, `BETTER_EXPLORER_FAKE_NETWORK=1` or `BETTER_EXPLORER_TEST_CLOUD_ROOT/STATUS` as needed, fixtures in fresh
 temporary folders, results read from `log:` / `crumbs:` / `proplog:` / `sheetlog:` output and PNG snapshots.
 A disk image (`hdiutil create`, 8 MB HFS+) was attached and detached while tabs showed it.
 
@@ -23,7 +23,7 @@ Priority order: data safety, crash, wrong behavior, visual.
 | 4 | Search | A pasted query of thousands of `(`, `NOT`s or `OR`s overflowed the stack (recursive parser and matcher) | Crash | Fixed: at most 256 words/operators and 32 levels of nesting, each with a plain error | `AQSRobustnessTests` |
 | 4b | Archives | Several archive tools running at once (extract, compress, list) could hang forever: each run blocked a shared dispatch thread while its pipe readers waited for a thread from the same pool. Seen as a full test-suite hang (8 runs stuck in `ToolProcess.run`, no child processes left) | Hang | Fixed: pipes are drained on dedicated threads | `OddNameArchiveTests` + `ArchiveToolTests` run in parallel; full suite run three times |
 | 5 | Network / address bar | `smb://`, `smb:///share`, `afp://` (no server) and `\\\share` were accepted and handed to the system connect flow (Finder's Connect to Server) | Wrong behavior | Fixed in `PathResolver`: an address without a server is "isn't a valid address" | `AddressInputTests` |
-| 6 | Archives | An archive opened from inside another (nested.zip ▸ inner.zip) showed a breadcrumb through the temporary folder (`… > T > Arbor Archives > session-… > UUID > inner.zip`), and Up went into that temporary folder | Wrong behavior | Fixed: `NestedArchives` remembers each temporary copy's origin; `Location.parent()` and the archive breadcrumb continue the outer archive (`fx > nested.zip > inner.zip`); Up selects the inner archive | `NestedArchiveTests`; headless crumbs/Up log |
+| 6 | Archives | An archive opened from inside another (nested.zip ▸ inner.zip) showed a breadcrumb through the temporary folder (`… > T > Better Explorer Archives > session-… > UUID > inner.zip`), and Up went into that temporary folder | Wrong behavior | Fixed: `NestedArchives` remembers each temporary copy's origin; `Location.parent()` and the archive breadcrumb continue the outer archive (`fx > nested.zip > inner.zip`); Up selects the inner archive | `NestedArchiveTests`; headless crumbs/Up log |
 | 7 | Archives / dialogs | Extract All conflicts said "Moving 1 item from **top** to top": the source was the hidden staging folder (a link to a temporary folder that is deleted) | Wrong behavior | Fixed: `OperationCenter.Job.presentedAs` lets extraction show "Extracting 1 item from **good.zip** to top" in Replace or Skip, Compare, folder-merge and name-clash dialogs | Headless conflict snapshot; Skip kept the user's changed file |
 | 8 | Archives | A damaged archive's alert listed every extracted name before the error ("x top/ / x top/sub/ / …") | Wrong behavior | Fixed: `ArchiveError.summarize` drops bsdtar `-v` progress lines unless they carry an error | `ArchiveErrorTextTests`; headless corrupt.zip alert |
 | 9 | Gallery | A photo whose file dates were all implausible (before 1900 or in the future) was silently left out of Gallery | Wrong behavior | Fixed: it is filed under its earliest date instead of dropped | `GalleryDateEdgeTests` |
@@ -63,7 +63,7 @@ Priority order: data safety, crash, wrong behavior, visual.
 
 ## Other areas checked
 
-- **Trash**: three items trashed by Arbor plus one placed in the Trash directly. Restore all: conflict asked Keep Both (`a (2).txt`), missing parent recreated, item of unknown origin explained ("Arbor only knows where items came from…") and left in place.
+- **Trash**: three items trashed by Better Explorer plus one placed in the Trash directly. Restore all: conflict asked Keep Both (`a (2).txt`), missing parent recreated, item of unknown origin explained ("Better Explorer only knows where items came from…") and left in place.
 - **Properties**: rename to an existing name refused, nothing overwritten; file renamed externally while the sheet was open → Apply did not touch the moved file; mode 0400 + Read-only applied; multi-select Hidden applied to both; folder Security tab lists owner/group/everyone with the real mode.
 - **Folder Options**: Show hidden files, Hide extensions, Full path in title bar, Status bar off → Apply honored at once; Restore Defaults + OK reverted all four; Cancel discarded an "own window" change.
 - **This Mac**: 8 MB disk image attached, browsed in two tabs, detached externally: tabs go to This Mac, the volume disappears, no hang.
@@ -82,11 +82,11 @@ Priority order: data safety, crash, wrong behavior, visual.
 
 ## Shared files touched (small, additive)
 
-- `ArborCore/Location.swift`: `parent()` asks `NestedArchives` for archives opened from inside another archive.
+- `BetterExplorerCore/Location.swift`: `parent()` asks `NestedArchives` for archives opened from inside another archive.
 - `Window/BrowserWindowController.swift` (`goUp`): selects the inner archive when leaving it.
-- `ArborCore/NavigationHistory.swift`: `NavigationEntry.selectedURLs`, `saveState(selectedNames:selectedURLs:topVisibleName:)` (default keeps old callers).
+- `BetterExplorerCore/NavigationHistory.swift`: `NavigationEntry.selectedURLs`, `saveState(selectedNames:selectedURLs:topVisibleName:)` (default keeps old callers).
 - `Window/BrowserWindowController.swift` (`request`): saves and restores the selected URLs with Back/Forward.
 - `Window/SearchController.swift`, `FolderOptions/ItemClickBehavior.swift`: select one item with main's `select(urls:)`.
 - `Search/ExplorerSearchController.swift`: placeholder uses the provider's title.
 - `Support/OperationCenter.swift`: `Job.presentedAs` (new `Support/PresentedJob.swift`); `FileOperations/ConflictDialogs.swift` reads it.
-- `ArborCore/PathResolver.swift`, `Search/AQSParser.swift`, `Archives/ArchiveSafety.swift`, `ArchiveEntry.swift`, `ArchiveTool.swift`, `GalleryTimeline.swift`: the fixes above; `ArchiveTool.swift` also drains tool pipes on dedicated threads.
+- `BetterExplorerCore/PathResolver.swift`, `Search/AQSParser.swift`, `Archives/ArchiveSafety.swift`, `ArchiveEntry.swift`, `ArchiveTool.swift`, `GalleryTimeline.swift`: the fixes above; `ArchiveTool.swift` also drains tool pipes on dedicated threads.

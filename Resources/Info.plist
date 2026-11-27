@@ -2,11 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleName</key><string>Arbor</string>
+	<!-- The app's name: scripts/lib/product.sh reads it from here and Product.name must match it (a unit test checks).
+	     The bundle identifier keeps the first name, Arbor: settings, saved searches, Services and updates depend on it. -->
+	<key>CFBundleName</key><string>Better Explorer</string>
 	<key>CFBundleDevelopmentRegion</key><string>en</string>
-	<key>CFBundleDisplayName</key><string>Arbor</string>
+	<key>CFBundleDisplayName</key><string>Better Explorer</string>
 	<key>CFBundleIdentifier</key><string>io.github.arbor-files.Arbor</string>
-	<key>CFBundleExecutable</key><string>Arbor</string>
+	<key>CFBundleExecutable</key><string>BetterExplorer</string>
 	<key>CFBundlePackageType</key><string>APPL</string>
 	<!-- The next three values are replaced at build time by scripts/build-app.sh: the version from VERSION,
 	     the build number from the commit count, and the minimum macOS from Package.swift. -->
@@ -18,7 +20,7 @@
 	<key>NSPrincipalClass</key><string>NSApplication</string>
 	<key>NSHighResolutionCapable</key><true/>
 	<key>NSSupportsAutomaticTermination</key><false/>
-	<key>NSHumanReadableCopyright</key><string>© 2026 Arbor contributors. MIT License.</string>
+	<key>NSHumanReadableCopyright</key><string>© 2026 Better Explorer contributors. MIT License.</string>
 	<!-- In-app updates (FE-259, DEC-028). They take effect only in builds that scripts/build-app.sh gives a
 	     SUFeedURL and SUPublicEDKey; other builds have no updater. A daily check that sends nothing but the
 	     feed request, the user installs, the feed and the archive must both carry Sparkle's EdDSA signature. -->
@@ -39,7 +41,7 @@
 			<key>LSItemContentTypes</key><array><string>public.folder</string></array>
 		</dict>
 		<dict>
-			<key>CFBundleTypeName</key><string>Arbor Saved Search</string>
+			<key>CFBundleTypeName</key><string>Better Explorer Saved Search</string>
 			<key>CFBundleTypeRole</key><string>Viewer</string>
 			<key>LSHandlerRank</key><string>Owner</string>
 			<key>CFBundleTypeIconFile</key><string>AppIcon</string>
@@ -51,7 +53,7 @@
 	<array>
 		<dict>
 			<key>UTTypeIdentifier</key><string>io.github.arbor-files.saved-search</string>
-			<key>UTTypeDescription</key><string>Arbor Saved Search</string>
+			<key>UTTypeDescription</key><string>Better Explorer Saved Search</string>
 			<key>UTTypeIconFile</key><string>AppIcon</string>
 			<key>UTTypeConformsTo</key><array><string>public.json</string></array>
 			<key>UTTypeTagSpecification</key>
@@ -63,21 +65,21 @@
 	<key>NSServices</key>
 	<array>
 		<dict>
-			<key>NSMenuItem</key><dict><key>default</key><string>Open in Arbor</string></dict>
-			<key>NSMessage</key><string>openInArbor</string>
-			<key>NSPortName</key><string>Arbor</string>
+			<key>NSMenuItem</key><dict><key>default</key><string>Open in Better Explorer</string></dict>
+			<key>NSMessage</key><string>openInBetterExplorer</string>
+			<key>NSPortName</key><string>BetterExplorer</string>
 			<key>NSSendFileTypes</key><array><string>public.item</string></array>
 			<!-- Empty on purpose: no filter applies. Kept so the service can be on by default; docs/features/qa-core.md has the manual check. -->
 			<key>NSRequiredContext</key><dict/>
 			<key>NSForbiddenContext</key><dict><key>NSApplicationIdentifier</key><string>io.github.arbor-files.Arbor</string></dict>
 		</dict>
 	</array>
-	<key>NSDesktopFolderUsageDescription</key><string>Arbor shows the files in your Desktop folder when you open it.</string>
-	<key>NSDocumentsFolderUsageDescription</key><string>Arbor shows the files in your Documents folder when you open it.</string>
-	<key>NSDownloadsFolderUsageDescription</key><string>Arbor shows the files in your Downloads folder when you open it.</string>
-	<key>NSRemovableVolumesUsageDescription</key><string>Arbor shows the files on removable drives when you open them.</string>
-	<key>NSNetworkVolumesUsageDescription</key><string>Arbor shows the files on network shares when you open them.</string>
-	<key>NSLocalNetworkUsageDescription</key><string>Arbor looks for computers and file servers on your network to show them in Network, and connects to the shared folders you open.</string>
+	<key>NSDesktopFolderUsageDescription</key><string>Better Explorer shows the files in your Desktop folder when you open it.</string>
+	<key>NSDocumentsFolderUsageDescription</key><string>Better Explorer shows the files in your Documents folder when you open it.</string>
+	<key>NSDownloadsFolderUsageDescription</key><string>Better Explorer shows the files in your Downloads folder when you open it.</string>
+	<key>NSRemovableVolumesUsageDescription</key><string>Better Explorer shows the files on removable drives when you open them.</string>
+	<key>NSNetworkVolumesUsageDescription</key><string>Better Explorer shows the files on network shares when you open them.</string>
+	<key>NSLocalNetworkUsageDescription</key><string>Better Explorer looks for computers and file servers on your network to show them in Network, and connects to the shared folders you open.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_smb._tcp</string>

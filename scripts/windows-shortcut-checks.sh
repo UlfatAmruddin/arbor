@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Headless checks for opening Windows .lnk and .url files (FE-215, docs/features/windows-shortcuts.md).
 # Usage: scripts/build-app.sh debug && scripts/windows-shortcut-checks.sh
-#   ARBOR_KEEP_FAILED=<dir>   move the logs and fixture into <dir> after a failure
-#   Stale-bundle guard, one-suite-at-a-time lock, ARBOR_REBUILD: scripts/lib/app-bundle.sh
+#   BETTER_EXPLORER_KEEP_FAILED=<dir>   move the logs and fixture into <dir> after a failure
+#   Stale-bundle guard, one-suite-at-a-time lock, BETTER_EXPLORER_REBUILD: scripts/lib/app-bundle.sh
 set -uo pipefail
 cd "$(dirname "$0")/.."
 . scripts/lib/app-bundle.sh
-arbor_prepare_app windows-shortcut-checks.sh debug
+better_explorer_prepare_app windows-shortcut-checks.sh debug
 FAILED=0
 
 contains() {   # contains <name> <file> <fixed text>
@@ -21,7 +21,7 @@ lacks() {   # lacks <name> <file> <fixed text>
     echo "FAIL  $1: did not expect “$3”"; FAILED=1; fi
 }
 
-R=$(arbor_mktemp_dir)
+R=$(better_explorer_mktemp_dir)
 F="$R/F"
 mkdir -p "$R/trash" "$F/sub" "$F/sub2" "$F/next.js"
 
@@ -104,8 +104,8 @@ S+=";select:$MANY;click:file.open;event;$answer;log:$R/many.txt"
 for n in 1 2 3 4 5 6 7 8; do S+=";button:Cancel;wait:0.4"; done
 S+=";wait:0.5;log:$R/many-done.txt"
 S+=";location:home;wait:1.5;log:$R/home.txt;quit"
-env ARBOR_HEADLESS=1 ARBOR_TEST_TRASH="$R/trash" ARBOR_JOURNAL_DIR="$R/journal" ARBOR_HISTORY_FILE="$R/history.json" \
-  ARBOR_SCRIPT="$S" perl -e 'alarm shift; exec @ARGV' 240 "$ARBOR_APP_BIN" "$F" >/dev/null 2>&1
+env BETTER_EXPLORER_HEADLESS=1 BETTER_EXPLORER_TEST_TRASH="$R/trash" BETTER_EXPLORER_JOURNAL_DIR="$R/journal" BETTER_EXPLORER_HISTORY_FILE="$R/history.json" \
+  BETTER_EXPLORER_SCRIPT="$S" perl -e 'alarm shift; exec @ARGV' 240 "$BETTER_EXPLORER_APP_BIN" "$F" >/dev/null 2>&1
 
 contains ".url asks first"                 "$R/url-prompt.txt" "Open this web address?"
 contains ".url shows the real address"     "$R/url-prompt.txt" "https://example.com/"
@@ -147,8 +147,8 @@ contains ".lnk tab says why not"           "$R/prop-lnk.txt"   "On this Mac:"
 contains ".url tab shows the address"      "$R/prop-url.txt"   "Address: https://example.com/"
 contains "Shortcut tab follows General"    "$R/prop-url.txt"   "tabs: General | Shortcut"
 
-if [ "$FAILED" = 1 ] && [ -n "${ARBOR_KEEP_FAILED:-}" ]; then
-  mkdir -p "$ARBOR_KEEP_FAILED"; mv "$R" "$ARBOR_KEEP_FAILED/windows-shortcuts"; echo "kept  windows-shortcuts → $ARBOR_KEEP_FAILED/windows-shortcuts"
+if [ "$FAILED" = 1 ] && [ -n "${BETTER_EXPLORER_KEEP_FAILED:-}" ]; then
+  mkdir -p "$BETTER_EXPLORER_KEEP_FAILED"; mv "$R" "$BETTER_EXPLORER_KEEP_FAILED/windows-shortcuts"; echo "kept  windows-shortcuts → $BETTER_EXPLORER_KEEP_FAILED/windows-shortcuts"
 else
   rm -rf "$R"
 fi

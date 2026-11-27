@@ -1,13 +1,13 @@
 // Draws the disk image background and writes the Finder window layout (.DS_Store) for the
-// Arbor disk image, without driving Finder. Used by scripts/make-dmg.sh.
+// app's disk image, without driving Finder. Used by scripts/make-dmg.sh, which passes the app's name.
 //
-//   swift scripts/dmg-layout.swift background <folder>
+//   swift scripts/dmg-layout.swift background <folder> <app name>
 //       Writes background.png (640x400) and background@2x.png into <folder>.
-//   swift scripts/dmg-layout.swift dsstore <volume root> <background file inside the volume>
+//   swift scripts/dmg-layout.swift dsstore <volume root> <background file inside the volume> <app bundle name>
 //       Writes <volume root>/.DS_Store: window size, icon view, icon positions and background.
 //
 // .DS_Store format: a "buddy allocator" file holding one B-tree ("DSDB") of records keyed by
-// file name and a four-character code. Arbor's tree is small enough for a single leaf node.
+// file name and a four-character code. This tree is small enough for a single leaf node.
 import AppKit
 
 // MARK: - Layout shared by the background and the Finder window
@@ -24,7 +24,7 @@ enum Layout {
 
 // MARK: - Background
 
-func drawBackground(scale: CGFloat) -> Data {
+func drawBackground(scale: CGFloat, appName: String) -> Data {
     let w = Int(Layout.width * scale), h = Int(Layout.height * scale)
     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h, bitsPerSample: 8,
                                samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
@@ -76,7 +76,7 @@ func drawBackground(scale: CGFloat) -> Data {
     // Instruction under the icon labels.
     let style = NSMutableParagraphStyle()
     style.alignment = .center
-    let text = NSAttributedString(string: "To install Arbor, drag it onto the Applications folder.", attributes: [
+    let text = NSAttributedString(string: "To install \(appName), drag it onto the Applications folder.", attributes: [
         .font: NSFont.systemFont(ofSize: 15),
         .foregroundColor: NSColor(calibratedWhite: 0.22, alpha: 1),
         .paragraphStyle: style,
@@ -148,7 +148,7 @@ func iconLocation(_ p: CGPoint) -> Data {
     return w.data
 }
 
-func writeDSStore(volume: URL, background: URL) throws {
+func writeDSStore(volume: URL, background: URL, appBundle: String) throws {
     let size = (Layout.width, Layout.height)
     let windowSettings: [String: Any] = [
         "WindowBounds": "{{\(Int(Layout.windowOrigin.x)), \(Int(Layout.windowOrigin.y))}, {\(Int(size.0)), \(Int(size.1))}}",
@@ -168,7 +168,7 @@ func writeDSStore(volume: URL, background: URL) throws {
         Record(name: ".", code: "bwsp", value: .blob(binaryPlist(windowSettings))),
         Record(name: ".", code: "vSrn", value: .long(1)),
         Record(name: "Applications", code: "Iloc", value: .blob(iconLocation(Layout.applications))),
-        Record(name: "Arbor.app", code: "Iloc", value: .blob(iconLocation(Layout.app))),
+        Record(name: appBundle, code: "Iloc", value: .blob(iconLocation(Layout.app))),
     ]
     if let alias = aliasRecord(for: background.path) {
         iconView["backgroundType"] = 2
@@ -204,7 +204,7 @@ func writeDSStore(volume: URL, background: URL) throws {
     leafNode.u32(0)                        // 0 = leaf (no child pointer)
     leafNode.u32(UInt32(records.count))
     for r in records { r.encode(into: &leafNode) }
-    guard leafNode.data.count <= 4096 else { throw NSError(domain: "dmg-layout", code: 1, userInfo: [NSLocalizedDescriptionKey: "layout records do not fit one node"]) }
+    guard leafNode.data.count <= 4096 else { throw NSError(domain: "dmg-layout", code: 1, userInfo: [NSLocalizedDescriptionKey: "the layout records take \(leafNode.data.count) bytes, over the 4096 of one node (is the volume mounted at a long path?)"]) }
     leafNode.pad(to: 4096)
 
     var info = Writer()
@@ -247,15 +247,20 @@ func writeDSStore(volume: URL, background: URL) throws {
 // MARK: - Main
 
 let args = Array(CommandLine.arguments.dropFirst())
-switch (args.first, args.count) {
-case ("background", 2):
-    let folder = URL(fileURLWithPath: args[1])
-    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-    try drawBackground(scale: 1).write(to: folder.appendingPathComponent("background.png"))
-    try drawBackground(scale: 2).write(to: folder.appendingPathComponent("background@2x.png"))
-case ("dsstore", 3):
-    try writeDSStore(volume: URL(fileURLWithPath: args[1]), background: URL(fileURLWithPath: args[2]))
-default:
-    FileHandle.standardError.write(Data("usage: dmg-layout.swift background <folder> | dsstore <volume root> <background file>\n".utf8))
-    exit(2)
+do {
+    switch (args.first, args.count) {
+    case ("background", 3):
+        let folder = URL(fileURLWithPath: args[1])
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try drawBackground(scale: 1, appName: args[2]).write(to: folder.appendingPathComponent("background.png"))
+        try drawBackground(scale: 2, appName: args[2]).write(to: folder.appendingPathComponent("background@2x.png"))
+    case ("dsstore", 4):
+        try writeDSStore(volume: URL(fileURLWithPath: args[1]), background: URL(fileURLWithPath: args[2]), appBundle: args[3])
+    default:
+        FileHandle.standardError.write(Data("usage: dmg-layout.swift background <folder> <app name> | dsstore <volume root> <background file> <app bundle name>\n".utf8))
+        exit(2)
+    }
+} catch {
+    FileHandle.standardError.write(Data("dmg-layout: \(error.localizedDescription)\n".utf8))
+    exit(1)
 }

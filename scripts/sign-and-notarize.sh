@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Signs build/Arbor.app, packages it into build/Arbor-<version>.dmg, and (when credentials are
-# available) notarizes and staples the disk image.
+# Signs the app (build/<name>.app, scripts/lib/product.sh), packages it into build/<Name-With-Dashes>-<version>.dmg,
+# and (when credentials are available) notarizes and staples the disk image.
 #
 # Usage: scripts/sign-and-notarize.sh [--format ULFO|UDZO]
 #
@@ -10,7 +10,7 @@
 #   DEVELOPER_ID_APPLICATION  signing identity, e.g. "Developer ID Application: Jane Doe (TEAMID1234)"
 #                             (must be in the keychain). Without it the app is ad-hoc signed only
 #                             (still with the hardened runtime, plus the library validation exception in
-#                             Resources/Arbor-adhoc.entitlements for Sparkle), and a warning says so.
+#                             Resources/BetterExplorer-adhoc.entitlements for Sparkle), and a warning says so.
 #   Notarization, either:
 #     NOTARY_KEYCHAIN_PROFILE  a profile saved with `xcrun notarytool store-credentials`
 #   or all of:
@@ -23,6 +23,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . scripts/lib/codesign-app.sh
+. scripts/lib/product.sh
 
 DMG_ARGS=()
 while [ $# -gt 0 ]; do
@@ -34,17 +35,17 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-APP="build/Arbor.app"
-ENTITLEMENTS="Resources/Arbor.entitlements"
+APP="$PRODUCT_APP"
+ENTITLEMENTS="Resources/BetterExplorer.entitlements"
 # Ad-hoc signatures have no Team ID, so the embedded Sparkle.framework needs the library validation exception.
-ADHOC_ENTITLEMENTS="Resources/Arbor-adhoc.entitlements"
+ADHOC_ENTITLEMENTS="Resources/BetterExplorer-adhoc.entitlements"
 [ -d "$APP" ] || { echo "sign-and-notarize.sh: $APP not found; run scripts/build-app.sh release --universal first" >&2; exit 1; }
 VERSION="$(plutil -extract CFBundleShortVersionString raw "$APP/Contents/Info.plist")"
-DMG="build/Arbor-$VERSION.dmg"
+DMG="build/$PRODUCT_FILES-$VERSION.dmg"
 IDENTITY="${DEVELOPER_ID_APPLICATION:-}"
 
-# Distribution builds ignore the ARBOR_* test hooks (ArborCore/Automation.swift); ad-hoc ones have no Team ID to tell.
-plutil -replace ArborDistribution -bool YES "$APP/Contents/Info.plist"
+# Distribution builds ignore the BETTER_EXPLORER_* test hooks (BetterExplorerCore/Automation.swift); ad-hoc ones have no Team ID to tell.
+plutil -replace BetterExplorerDistribution -bool YES "$APP/Contents/Info.plist"
 
 require_hardened_runtime() {
   local code info
@@ -52,7 +53,7 @@ require_hardened_runtime() {
     info="$(codesign --display --verbose=1 "$code" 2>&1)"
     grep -q '^CodeDirectory .*flags=.*runtime' <<< "$info" \
       || { echo "sign-and-notarize.sh: $code is not signed with the hardened runtime" >&2; exit 1; }
-  done < <(arbor_signed_code "$APP")
+  done < <(better_explorer_signed_code "$APP")
 }
 
 # --- Ad-hoc path -------------------------------------------------------------------------------
@@ -60,8 +61,8 @@ if [ -z "$IDENTITY" ]; then
   WARNING="DEVELOPER_ID_APPLICATION is not set: $DMG will be ad-hoc signed, NOT Developer ID signed or notarized"
   echo "WARNING: $WARNING" >&2
   if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::warning::$WARNING"; fi
-  # Hardened runtime even ad-hoc, so DYLD_* injection cannot borrow Arbor's privacy grants.
-  ARBOR_ENTITLEMENTS="$ADHOC_ENTITLEMENTS" arbor_codesign_app "$APP" - --options runtime
+  # Hardened runtime even ad-hoc, so DYLD_* injection cannot borrow the app's privacy grants.
+  BETTER_EXPLORER_ENTITLEMENTS="$ADHOC_ENTITLEMENTS" better_explorer_codesign_app "$APP" - --options runtime
   require_hardened_runtime
   scripts/make-dmg.sh --skip-build ${DMG_ARGS[@]+"${DMG_ARGS[@]}"}
   cat <<EOF
@@ -75,11 +76,11 @@ To make a signed, notarized release:
   2. Install it in your login keychain and find its exact name:
        security find-identity -v -p codesigning
   3. Save notarization credentials once (stored in your keychain):
-       xcrun notarytool store-credentials arbor-notary \\
+       xcrun notarytool store-credentials better-explorer-notary \\
          --apple-id you@example.com --team-id TEAMID1234 --password <app-specific password>
   4. Run:
        DEVELOPER_ID_APPLICATION="Developer ID Application: Your Name (TEAMID1234)" \\
-       NOTARY_KEYCHAIN_PROFILE=arbor-notary scripts/sign-and-notarize.sh
+       NOTARY_KEYCHAIN_PROFILE=better-explorer-notary scripts/sign-and-notarize.sh
 EOF
   exit 0
 fi
@@ -92,7 +93,7 @@ if ! security find-identity -v -p codesigning | grep -qF "\"$IDENTITY\""; then
 fi
 
 echo "Signing $APP and the code inside it with hardened runtime"
-ARBOR_ENTITLEMENTS="$ENTITLEMENTS" arbor_codesign_app "$APP" "$IDENTITY" --options runtime --timestamp
+BETTER_EXPLORER_ENTITLEMENTS="$ENTITLEMENTS" better_explorer_codesign_app "$APP" "$IDENTITY" --options runtime --timestamp
 codesign --verify --strict --verbose=2 "$APP"
 require_hardened_runtime
 
@@ -116,7 +117,7 @@ if [ ${#NOTARY[@]} -eq 0 ]; then
 fi
 
 echo "Submitting $DMG for notarization (this usually takes a few minutes)"
-SUBMIT_LOG="$(mktemp "${TMPDIR:-/tmp}/arbor-notary.XXXXXX")"
+SUBMIT_LOG="$(mktemp "${TMPDIR:-/tmp}/better-explorer-notary.XXXXXX")"
 if ! xcrun notarytool submit "$DMG" "${NOTARY[@]}" --wait --output-format plist > "$SUBMIT_LOG"; then
   cat "$SUBMIT_LOG" >&2
   exit 1

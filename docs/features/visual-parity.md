@@ -3,8 +3,8 @@
 Spec: DEC-017/DEC-018 (Windows 11 look with original artwork), FE-011, FE-017–FE-021, FE-094. Reference:
 docs/research/windows11-reference.md §1 (layout, navigation row, command bar, menus), §2.3 (tabs), §4 (context
 menus), §5.2 (Details values), §9 (operation dialogs), §15 (visual tokens).
-Code: `Sources/Arbor/Features/VisualParity/`, `Sources/Arbor/Window/TabTearOff.swift`,
-`Sources/ArborCore/ExplorerFormat.swift`, `Sources/ArborCore/RecentLocations.swift`, plus small additive edits listed
+Code: `Sources/BetterExplorer/Features/VisualParity/`, `Sources/BetterExplorer/Window/TabTearOff.swift`,
+`Sources/BetterExplorerCore/ExplorerFormat.swift`, `Sources/BetterExplorerCore/RecentLocations.swift`, plus small additive edits listed
 under "Shared files touched".
 
 ## Status
@@ -31,8 +31,8 @@ under "Shared files touched".
 | Search | "Advanced options ▸ Zipped (compressed) folders" (was "files") | Implemented | `searchmenu:` dump |
 | Audit | Every screen in light and dark (list below) | Done | Headless snapshots read one by one |
 | Selection | One rule for every list (Details, icon layouts, navigation pane, Home / This Mac / Gallery / Network tiles): accent tint while the list has keyboard focus in the active window, neutral grey otherwise; the navigation pane's current-location pill and accent bar turn grey in an inactive window | Implemented | Headless `windowactive:0` / `windowactive:1` + `log` (`selection emphasis:` line), snapshots light/dark of Details and Large icons in both states |
-| FE-055 | Long names in Details: one line shortened in the middle by default; Folder Options › View › Details view › **Wrap long file names** (off by default, an Arbor addition with no Explorer counterpart claimed) lets each name take up to 3 lines. The extension is never split across lines and survives shortening; the full name stays in the tooltip, rename edits the whole name, and rows, the band, the keyboard, right-to-left layouts, compact view and text size follow the taller rows | Implemented | Unit tests `NameWrapTests`; `scripts/behavior-checks.sh namewrap`; snapshot |
-| FE-204 | Right-to-left tabs: icon and title start at the right, ✕ and separator on the left; a tab dragged along the row lands in the slot counted from the right edge | Implemented | `ARBOR_RTL=1` snapshots light/dark (also pseudo-localized), `dragtab:1:-260` + `log` (`window tabs:`), unit tests `TabStripGeometryTests` |
+| FE-055 | Long names in Details: one line shortened in the middle by default; Folder Options › View › Details view › **Wrap long file names** (off by default, a Better Explorer addition with no Explorer counterpart claimed) lets each name take up to 3 lines. The extension is never split across lines and survives shortening; the full name stays in the tooltip, rename edits the whole name, and rows, the band, the keyboard, right-to-left layouts, compact view and text size follow the taller rows | Implemented | Unit tests `NameWrapTests`; `scripts/behavior-checks.sh namewrap`; snapshot |
+| FE-204 | Right-to-left tabs: icon and title start at the right, ✕ and separator on the left; a tab dragged along the row lands in the slot counted from the right edge | Implemented | `BETTER_EXPLORER_RTL=1` snapshots light/dark (also pseudo-localized), `dragtab:1:-260` + `log` (`window tabs:`), unit tests `TabStripGeometryTests` |
 
 ## Audit: screens checked (light and dark)
 
@@ -99,7 +99,7 @@ status bar `N items | n item selected size |` with Details / Large icons toggles
 - **DEC-parity-5** Tab widths 100–240 pt follow WinUI TabView's defaults (RECALL-m); overflow uses arrow buttons
   rather than a menu, like TabView.
 - **DEC-parity-6** Tear-off places the new window so the dragged tab stays under the pointer; merging targets only
-  the frontmost Arbor window at the pointer (a tab row hidden behind another window, or another app's window,
+  the frontmost Better Explorer window at the pointer (a tab row hidden behind another window, or another app's window,
   never captures the drop).
 - **DEC-parity-8** Selection emphasis (`SelectionEmphasis`): accent while the list has keyboard focus in the active
   window, `Theme.selectionInactive` grey otherwise, for every list and tile view; check boxes keep the accent. Headless
@@ -128,9 +128,9 @@ three protocol methods with default implementations), `Window/BrowserWindowContr
 `adoptTab`, one call to `updateNavigationTooltips`), `Window/CommandBarView.swift` (New ▾ enabled state),
 `Commands/ExplorerCommand.swift` (`menuTitleHook`, per-slot `sectionRanks`), `Support/Theme.swift` (tab and nav
 metrics), `Views/DetailsColumns.swift` (left-aligned layout headers), `Views/DetailsViewController.swift` (KB size),
-`ArborCore/FileItem.swift` (type name), `ArborCore/TransferIntent.swift`, `ArborCore/TransferRate.swift`,
-`ArborCore/DetailsColumns.swift` (size formats), `ArborCore/Archives/ZipDirectory.swift` (bounded read),
-`ArborCore/Search/ContentReaders.swift` and `DirectSearch.swift` (second reader removed), one-line edits in the
+`BetterExplorerCore/FileItem.swift` (type name), `BetterExplorerCore/TransferIntent.swift`, `BetterExplorerCore/TransferRate.swift`,
+`BetterExplorerCore/DetailsColumns.swift` (size formats), `BetterExplorerCore/Archives/ZipDirectory.swift` (bounded read),
+`BetterExplorerCore/Search/ContentReaders.swift` and `DirectSearch.swift` (second reader removed), one-line edits in the
 Archives (column widths, KB), Properties (type name), Item actions (overlay size) and Search (option wording) files.
 Name wrapping (FE-055): `Views/DetailsViewController.swift` (one property each on the cell and the controller, five call
 sites), `DetailsViewController+Depth.swift` (row height, column resize), `FolderOptionsCatalog.swift`,

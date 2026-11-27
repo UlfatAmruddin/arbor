@@ -1,8 +1,8 @@
 # Details view depth: grouping, column filters, columns
 
 Slot: "grouping and column filters" (`DetailsDepth.register()` in `Features.swift`).
-Code: `Sources/ArborCore/{DetailsColumns,Grouping,MetadataReader}.swift`, `Sources/Arbor/Features/DetailsDepth/`,
-plus row-model changes in `Views/DetailsViewController.swift`. Tests: `Tests/ArborCoreTests/DetailsDepthTests.swift`.
+Code: `Sources/BetterExplorerCore/{DetailsColumns,Grouping,MetadataReader}.swift`, `Sources/BetterExplorer/Features/DetailsDepth/`,
+plus row-model changes in `Views/DetailsViewController.swift`. Tests: `Tests/BetterExplorerCoreTests/DetailsDepthTests.swift`.
 
 ## Status
 
@@ -33,7 +33,7 @@ plus row-model changes in `Views/DetailsViewController.swift`. Tests: `Tests/Arb
   pass through except on the ▾. Header clicks sort through `tableView(_:didClick:)`; the table keeps no sort descriptors so
   the Mac triangle isn't drawn.
 
-- **Date filters.** `DayRange` (ArborCore) is a run of whole local days. `ColumnFilters` stores it per column next to the
+- **Date filters.** `DayRange` (BetterExplorerCore) is a run of whole local days. `ColumnFilters` stores it per column next to the
   checked buckets. `DateRangeFilterView` edits it and is shown for any column whose descriptor has `groupStyle == .date`.
   Dropdown changes apply live; calendar changes go through `DetailsDepth.scheduleRefresh`, so a drag doesn't re-sort per day.
 - **"› Filtered".** `FilterAddressAnnotation` contributes to `AddressBar.annotationProviders`. It reads
@@ -55,7 +55,7 @@ range and buckets with "or".
 
 ## Using grouping from other view layouts (icon views)
 
-The grouped model is plain ArborCore data, so an icon/list/tiles view can adopt it:
+The grouped model is plain BetterExplorerCore data, so an icon/list/tiles view can adopt it:
 
 ```swift
 // In your ItemViewController.display(_ update:):
@@ -96,8 +96,8 @@ filterable columns, groups, table rows (headers in brackets), focused rows, and 
 Example (fixture made with `touch -t` dates, `sips` images, `say`/`afconvert` audio):
 
 ```bash
-ARBOR_HEADLESS=1 ARBOR_APPEARANCE=dark ARBOR_SCRIPT="wait:1.5;groupby:dateModified;groupdir:desc;log:$OUT/log.txt;snapshot:$OUT/g.png;quit" \
-  build/Arbor.app/Contents/MacOS/Arbor "$FX"
+BETTER_EXPLORER_HEADLESS=1 BETTER_EXPLORER_APPEARANCE=dark BETTER_EXPLORER_SCRIPT="wait:1.5;groupby:dateModified;groupdir:desc;log:$OUT/log.txt;snapshot:$OUT/g.png;quit" \
+  "build/Better Explorer.app/Contents/MacOS/BetterExplorer" "$FX"
 ```
 
 ## Decisions

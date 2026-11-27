@@ -70,8 +70,8 @@ jobs:
         run: |
           # The feed is this repository's latest published release, so drafts never reach testers.
           if [ "$HAS_UPDATE_KEY" = "true" ]; then
-            export ARBOR_UPDATE_FEED_URL="https://github.com/$REPOSITORY/releases/latest/download/appcast.xml"
-            export ARBOR_UPDATE_PUBLIC_KEY="$UPDATE_PUBLIC_KEY"
+            export BETTER_EXPLORER_UPDATE_FEED_URL="https://github.com/$REPOSITORY/releases/latest/download/appcast.xml"
+            export BETTER_EXPLORER_UPDATE_PUBLIC_KEY="$UPDATE_PUBLIC_KEY"
           fi
           scripts/build-app.sh release --universal
 
@@ -82,7 +82,8 @@ jobs:
         run: |
           # Sparkle offers an update only when its build number is higher. The build number is the commit
           # count, so rewriting the public history would lower it and silently stop every update.
-          current="$(plutil -extract CFBundleVersion raw build/Arbor.app/Contents/Info.plist)"
+          . scripts/lib/product.sh
+          current="$(plutil -extract CFBundleVersion raw "$PRODUCT_APP/Contents/Info.plist")"
           previous_dir="$RUNNER_TEMP/previous-feed"
           if gh release download --repo "$GITHUB_REPOSITORY" --pattern appcast.xml --dir "$previous_dir" 2>/dev/null; then
             previous="$(sed -nE 's#.*<sparkle:version>([0-9]+)</sparkle:version>.*#\1#p' "$previous_dir/appcast.xml" | head -n 1)"
@@ -118,10 +119,11 @@ jobs:
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
           REPOSITORY: ${{ github.repository }}
         run: |
+          . scripts/lib/product.sh
           version="${GITHUB_REF_NAME#v}"
           # The key goes in on standard input only; the script and its tools don't inherit it.
           printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | env -u SPARKLE_ED_PRIVATE_KEY scripts/make-update.sh \
-            "https://github.com/$REPOSITORY/releases/download/$GITHUB_REF_NAME/Arbor-$version.zip"
+            "https://github.com/$REPOSITORY/releases/download/$GITHUB_REF_NAME/$PRODUCT_FILES-$version.zip"
 
       - name: No in-app update
         if: env.HAS_UPDATE_KEY != 'true'
@@ -129,13 +131,16 @@ jobs:
 
       - name: Checksum
         run: |
+          . scripts/lib/product.sh
+          dmg="$PRODUCT_FILES-${GITHUB_REF_NAME#v}.dmg"
           cd build
-          shasum -a 256 Arbor-*.dmg | tee "Arbor-${GITHUB_REF_NAME#v}.dmg.sha256"
+          shasum -a 256 "$dmg" | tee "$dmg.sha256"
 
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          . scripts/lib/product.sh
           version="${GITHUB_REF_NAME#v}"
           notes="$RUNNER_TEMP/notes.md"
           if [ "$HAS_CERTIFICATE" = "true" ]; then
@@ -143,16 +148,16 @@ jobs:
           else
             {
               echo "**First launch:** this build isn't signed with an Apple Developer ID, so macOS blocks it the first time."
-              echo "Open Arbor once, then go to System Settings → Privacy & Security and click **Open Anyway**."
-              echo "On macOS 14 you can instead Control-click Arbor in Applications and choose **Open**."
+              echo "Open $PRODUCT_NAME once, then go to System Settings → Privacy & Security and click **Open Anyway**."
+              echo "On macOS 14 you can instead Control-click $PRODUCT_NAME in Applications and choose **Open**."
             } > "$notes"
           fi
           # This version's section of CHANGELOG.md.
           { echo; awk -v v="## $version" '$0 == v { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md; } >> "$notes"
-          assets=("build/Arbor-$version.dmg" "build/Arbor-$version.dmg.sha256")
-          if [ "$HAS_UPDATE_KEY" = "true" ]; then assets+=("build/Arbor-$version.zip" "build/appcast.xml"); fi
+          assets=("build/$PRODUCT_FILES-$version.dmg" "build/$PRODUCT_FILES-$version.dmg.sha256")
+          if [ "$HAS_UPDATE_KEY" = "true" ]; then assets+=("build/$PRODUCT_FILES-$version.zip" "build/appcast.xml"); fi
           gh release create "$GITHUB_REF_NAME" "${assets[@]}" --verify-tag \
-            --draft --title "Arbor $version" --notes-file "$notes"
+            --draft --title "$PRODUCT_NAME $version" --notes-file "$notes"
 
       - name: Remove signing keychain
         if: always() && env.HAS_CERTIFICATE == 'true'

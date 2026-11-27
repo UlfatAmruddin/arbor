@@ -1,8 +1,8 @@
-# Arbor — product vision and behavioral specification
+# Better Explorer — product vision and behavioral specification
 
 Version 0.3 · Research and review date: November 7, 2026
 
-**Audience:** contributors to Arbor, an open-source macOS file manager modeled on Windows 11 File Explorer.
+**Audience:** contributors to Better Explorer, an open-source macOS file manager modeled on Windows 11 File Explorer.
 
 **Status:** product specification and behavioral research record. Implementation is underway; see `docs/FEATURE-STATUS.md` and `docs/features/`.
 

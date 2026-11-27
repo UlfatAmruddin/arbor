@@ -1,8 +1,8 @@
 # Address entry (FE-006, FE-213)
 
-Code: `Sources/Arbor/Features/AddressEntry/`, core logic in `Sources/ArborCore/PathCompletion.swift`, `PathListingQueue.swift`,
+Code: `Sources/BetterExplorer/Features/AddressEntry/`, core logic in `Sources/BetterExplorerCore/PathCompletion.swift`, `PathListingQueue.swift`,
 `ShellAddress.swift`, `AddressHandoff.swift`, `DirectoryLister.boundedEntries`, `MountPoints.volumeClass`, `PathResolver.localPath`, `RecentLocations.swift`, `AddressHistoryFile.swift`, `AddressHistoryStore.swift`, `PathCompletionHistory.swift`
-(tests: `Tests/ArborCoreTests/PathCompletionTests.swift`, `AddressHistoryTests.swift`, `ShellAddressTests.swift`, `AddressHandoffTests.swift`, `Tests/ArborTests/AddressEntryAuditTests.swift`;
+(tests: `Tests/BetterExplorerCoreTests/PathCompletionTests.swift`, `AddressHistoryTests.swift`, `ShellAddressTests.swift`, `AddressHandoffTests.swift`, `Tests/BetterExplorerTests/AddressEntryAuditTests.swift`;
 headless: `scripts/behavior-checks.sh address addresshistory addresshandoff`).
 
 ## Status
@@ -15,7 +15,7 @@ built follows the published API behavior in `docs/research/windows11-reference.m
 | FE-006 | Path completion and history | **Partial.** Completion is built: a dropdown of up to 12 rows under the field, only for plain local path forms, never changing the text unless a row is picked. History is built: typed and visited places are remembered across launches and feed the ▾ list and the dropdown. No parity claim until the Windows audit | Unit tests; headless `address` and `addresshistory` groups; list snapshots and `axdump` in light and dark; `l10naudit` and `axaudit` with pseudo-localization |
 | FE-213 | Address commands and shell names | **Built (macOS boundary).** `shell:` names and Windows command words go to a Mac place, get a specific message, or, for the fixed table below, open a Mac tool after a visible question. Typed text is never passed to anything | Unit tests of every table row, the argument refusal and the routes; audit test forbidding `Process`, `NSWorkspace` and `SystemOpen` in the parsing files and text in the launcher; headless `address` and `addresshandoff` groups |
 
-FE-079 keeps its boundary: device nodes have no Mac counterpart, and Control Panel and printers are hand-offs to System Settings, not Arbor pages.
+FE-079 keeps its boundary: device nodes have no Mac counterpart, and Control Panel and printers are hand-offs to System Settings, not Better Explorer pages.
 
 ## How completion stays safe
 
@@ -56,11 +56,11 @@ Every address that opened arrives as a visit, so a typed one is recorded like an
 - **Writes are coalesced.** A save follows 1 second after the last visit, and any pending one is written at exit. A visit before the load finishes is kept ahead of what was loaded, and nothing is written until then.
 - **Missing folders are hidden, not forgotten.** A check runs off the main thread after a save and when ▾ opens, one at a time, on a queue of its own. Only paths the mount table calls local get an `lstat`; network and automount paths are never asked about. A hidden place returns when its drive does, and the check's result reaches the list only after it finishes, so a folder removed a moment ago can show once more.
 - **Clear history** (Folder Options and Home) removes the file, cancels any pending save and drops a load or check already running.
-- **Headless runs** have no file unless `ARBOR_STATE_DIR` is set, and then it is in that folder.
+- **Headless runs** have no file unless `BETTER_EXPLORER_STATE_DIR` is set, and then it is in that folder.
 
 ## `shell:` names
 
-Names Arbor accepts (`ShellAddress.table`, one row per entry), not a claim about Windows. Typed text never forms a URL or an argument. Asked only after the resolver failed, so a real item with the same name wins.
+Names Better Explorer accepts (`ShellAddress.table`, one row per entry), not a claim about Windows. Typed text never forms a URL or an argument. Asked only after the resolver failed, so a real item with the same name wins.
 
 | Name | Goes to |
 |---|---|
@@ -91,8 +91,8 @@ The whole inventory (`AddressHandoffTarget.table` and `ShellAddress`, exact matc
 
 | Typed | Answer |
 |---|---|
-| `notepad`, `calc`, `mspaint`, `regedit`, `explorer`, or any bare name ending `.exe`, `.bat`, `.cmd`, `.ps1`, `.msi` | Refused with the message that Arbor doesn't run commands |
-| A hand-off word followed by anything (`cmd /c x`, `control foo`) | Refused: Arbor doesn't pass typed text to other apps. Starts nothing, asks nothing |
+| `notepad`, `calc`, `mspaint`, `regedit`, `explorer`, or any bare name ending `.exe`, `.bat`, `.cmd`, `.ps1`, `.msi` | Refused with the message that Better Explorer doesn't run commands |
+| A hand-off word followed by anything (`cmd /c x`, `control foo`) | Refused: Better Explorer doesn't pass typed text to other apps. Starts nothing, asks nothing |
 | A `shell:` name followed by anything (`shell:fonts x`) | Unknown name, so it is refused like any other |
 
 - **Nothing typed gets through.** `AddressHandoffTarget` is a closed enum with no text in it; every bundle identifier and settings address is a constant in `AddressHandoff.swift`. The parsing files can't launch (audit test). `AddressHandoffLauncher`, in `Handoff/`, takes only the target and the window.
@@ -123,7 +123,7 @@ The whole inventory (`AddressHandoffTarget.table` and `ShellAddress`, exact matc
 
 - **Two things the owner will notice.** Typing into `~/Documents/`, Desktop, Downloads, a network or removable volume can show the system's one-time privacy prompt, because listing is what triggers it; macOS can't report ahead of time whether access is granted. macOS 14 and later can also prompt for other apps' containers under `~/Library`.
 - **Needs its own requirement.** `submitAddress` runs `PathResolver.resolve` and `onDiskSpelling` on the main thread on Return, so Return on a hung share can stall the window. That breaks the "no disk work on the main thread" rule. It predates this work and isn't made worse by it.
-- **Not verified here:** a real hung SMB server and a real iCloud placeholder (simulated with `ARBOR_COMPLETION_DELAY` and a unit check of the I/O policy), and any comparison with real Explorer.
+- **Not verified here:** a real hung SMB server and a real iCloud placeholder (simulated with `BETTER_EXPLORER_COMPLETION_DELAY` and a unit check of the I/O policy), and any comparison with real Explorer.
 - A listing is not rescanned while the same folder is being typed. After a partial or stale listing, names the scan didn't reach can't appear until editing starts over, and a prefix that only such names match closes the list as if nothing matched.
 - A thread blocked in the kernel on a hung mount can't be interrupted; work is limited by the lane caps, not killed.
 - History keeps recording when Home's "Show recently used files" is off, as the session list did; that switch governs Home's lists. Whether it should also govern this is the owner's call.

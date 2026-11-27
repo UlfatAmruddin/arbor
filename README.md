@@ -1,22 +1,22 @@
-# Arbor
+# Better Explorer
 
 **A free, open-source file manager for macOS that works like Windows 11 File Explorer.** Tabs in the title bar, a
 folder tree beside the file list, a breadcrumb address bar you can type into, a command bar, Details and icon views,
 real cut and paste, and a status bar: the layout and habits Windows users already know, built natively for the Mac.
 
-Arbor is released under the MIT license. It is an independent project.
+Better Explorer is released under the MIT license. It is an independent project.
 
 It is an early preview: some Explorer features are missing or only partly done ([full list](docs/FEATURE-STATUS.md)).
 
-> **Trademarks.** Arbor isn't affiliated with, endorsed by or sponsored by Microsoft. "Windows" and "File Explorer"
-> are trademarks of Microsoft Corporation and are used here only to describe the behavior Arbor follows. Arbor uses
-> its own artwork and the system font; no Microsoft icons, fonts or logos are included.
+> **Trademarks.** Better Explorer isn't affiliated with, endorsed by or sponsored by Microsoft. "Windows" and "File Explorer"
+> are trademarks of Microsoft Corporation and are used here only to describe the behavior Better Explorer follows. Better
+> Explorer uses its own artwork and the system font; no Microsoft icons, fonts or logos are included.
 
 <p align="center">
-  <img src="docs/images/details-light.png" width="820" alt="Arbor showing a folder in Details view with the Preview pane, light appearance">
+  <img src="docs/images/details-light.png" width="820" alt="Better Explorer showing a folder in Details view with the Preview pane, light appearance">
 </p>
 <p align="center">
-  <img src="docs/images/icons-dark.png" width="820" alt="Arbor showing a folder of pictures in Large icons, dark appearance">
+  <img src="docs/images/icons-dark.png" width="820" alt="Better Explorer showing a folder of pictures in Large icons, dark appearance">
 </p>
 
 ## Features
@@ -46,9 +46,9 @@ It is an early preview: some Explorer features are missing or only partly done (
 - **Accessibility.** Every action works from the keyboard (F6 between regions, ⇧F10 for context menus); every control
   has a VoiceOver name; text size, increased contrast and right-to-left layouts are supported.
 
-## Keyboard (Windows → Arbor)
+## Keyboard (Windows → Better Explorer)
 
-| Windows | Arbor | Does |
+| Windows | Better Explorer | Does |
 |---|---|---|
 | Enter | Return | Open |
 | Ctrl+Enter | ⌘Return | Open in a new tab |
@@ -90,20 +90,20 @@ macOS 14 Sonoma or later, on Apple silicon or Intel Macs (one universal app).
 
 ### Download
 
-When a release is available, download `Arbor-<version>.dmg` from this repository's [Releases](../../releases) page,
-open it and drag **Arbor** onto **Applications**. Each release lists a SHA-256 checksum; check it with
-`shasum -a 256 Arbor-<version>.dmg`.
+When a release is available, download `Better-Explorer-<version>.dmg` from this repository's [Releases](../../releases) page,
+open it and drag **Better Explorer** onto **Applications**. Each release lists a SHA-256 checksum; check it with
+`shasum -a 256 Better-Explorer-<version>.dmg`.
 
 **Unsigned builds and Gatekeeper.** Until releases are signed with an Apple Developer ID and notarized (the release
-notes say which you have), macOS blocks the first launch because it can't verify the developer. To open Arbor anyway,
+notes say which you have), macOS blocks the first launch because it can't verify the developer. To open Better Explorer anyway,
 once:
 
-- Try to open Arbor, then go to **System Settings → Privacy & Security**, scroll to Security, click **Open Anyway** next
-  to the message about Arbor and confirm.
-- On macOS 14 you can also Control-click Arbor in Applications, choose **Open**, then **Open** again.
+- Try to open Better Explorer, then go to **System Settings → Privacy & Security**, scroll to Security, click **Open Anyway** next
+  to the message about Better Explorer and confirm.
+- On macOS 14 you can also Control-click Better Explorer in Applications, choose **Open**, then **Open** again.
 
 Only do this for a download you trust (this repository's Releases page). The first time you open Desktop, Documents or
-Downloads, macOS asks whether Arbor may access them; Arbor only asks for what you open.
+Downloads, macOS asks whether Better Explorer may access them; Better Explorer only asks for what you open.
 
 ### Build from source
 
@@ -112,20 +112,23 @@ Needs only Apple's free Command Line Tools (Xcode is optional):
 ```bash
 xcode-select --install          # once, if the tools aren't installed
 git clone <this repository's URL> arbor && cd arbor
-scripts/build-app.sh            # builds build/Arbor.app for this Mac
-open build/Arbor.app
+scripts/build-app.sh            # builds build/Better Explorer.app for this Mac
+open "build/Better Explorer.app"
 ```
 
-Drag `build/Arbor.app` into `/Applications` to keep it. `scripts/build-app.sh release --universal` builds one app for
+Drag `build/Better Explorer.app` into `/Applications` to keep it. `scripts/build-app.sh release --universal` builds one app for
 both Apple silicon and Intel, and `scripts/make-dmg.sh` makes the disk image ([docs/RELEASING.md](docs/RELEASING.md)).
-From Terminal, `/Applications/Arbor.app/Contents/MacOS/Arbor ~/Projects` opens a given folder.
+From Terminal, `"/Applications/Better Explorer.app/Contents/MacOS/BetterExplorer" ~/Projects` opens a given folder.
+
+Better Explorer was called Arbor before 0.6. The repository, the bundle identifier and the settings folder keep that name,
+so existing settings, saved searches and updates carry over ([DEC-029](docs/DECISIONS.md)).
 
 ## Privacy
 
-Arbor has no telemetry, no analytics and no crash reporter. Its one network request of its own is the update check
+Better Explorer has no telemetry, no analytics and no crash reporter. Its one network request of its own is the update check
 of release builds: about once a day it asks github.com for the release feed, sending nothing but that request, and it
 downloads an update only when you install one. Turn it off in Folder Options ▸ General ▸ Updates; local, CI and fork
-builds make no request ([in-app updates](docs/features/updates.md)). Otherwise Arbor connects only to servers you open
+builds make no request ([in-app updates](docs/features/updates.md)). Otherwise Better Explorer connects only to servers you open
 (network shares) and reads cloud status that macOS already provides locally. Recent files and
 frequent folders stay on your Mac and can be turned off or cleared in Folder Options.
 
@@ -140,7 +143,7 @@ frequent folders stay on your Mac and can be turned off or cleared in Folder Opt
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Code layout, registries and hooks for adding features |
 | [docs/features/](docs/features/) | One document per feature area: status, decisions, known gaps |
 | [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Memory and responsiveness budgets and measurements |
-| [docs/research/windows11-reference.md](docs/research/windows11-reference.md) | The Explorer behavior Arbor follows, with sources |
+| [docs/research/windows11-reference.md](docs/research/windows11-reference.md) | The Explorer behavior Better Explorer follows, with sources |
 | [TESTING.md](TESTING.md) | Unit tests and headless scripted checks |
 | [docs/RELEASING.md](docs/RELEASING.md) | Building, signing and publishing releases |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each version |

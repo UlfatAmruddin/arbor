@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Makes the in-app update of build/Arbor.app (FE-259, DEC-028): build/Arbor-<version>.zip and
+# Makes the in-app update of the app (FE-259, DEC-028): build/<Name-With-Dashes>-<version>.zip and
 # build/appcast.xml, both signed with Sparkle's EdDSA private key.
 #
-# Usage: scripts/make-update.sh [--app <Arbor.app>] [--out <folder>] <download URL of the zip> < private-key
+# Usage: scripts/make-update.sh [--app <app bundle>] [--out <folder>] <download URL of the zip> < private-key
 #
-#   --app   the app to publish (default build/Arbor.app; relative paths start at the repository root)
+#   --app   the app to publish (default build/<name>.app, scripts/lib/product.sh; relative paths start at the repository root)
 #   --out   where the zip and appcast.xml go (default build)
 #
 # The private key, as Sparkle's generate_keys exports it, is read from standard input only, never from an
@@ -15,9 +15,10 @@
 # the zip's signature is checked against the app's SUPublicEDKey before the feed is written.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+. scripts/lib/product.sh
 
 usage() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; }
-APP="build/Arbor.app"
+APP="$PRODUCT_APP"
 OUT="build"
 URL=""
 while [ $# -gt 0 ]; do
@@ -39,10 +40,10 @@ exec </dev/null
 mkdir -p "$OUT"
 PLIST="$APP/Contents/Info.plist"
 plutil -extract SUFeedURL raw "$PLIST" >/dev/null 2>&1 \
-  || { echo "make-update.sh: $APP has no update feed; build it with ARBOR_UPDATE_FEED_URL and ARBOR_UPDATE_PUBLIC_KEY" >&2; exit 1; }
+  || { echo "make-update.sh: $APP has no update feed; build it with BETTER_EXPLORER_UPDATE_FEED_URL and BETTER_EXPLORER_UPDATE_PUBLIC_KEY" >&2; exit 1; }
 VERSION="$(plutil -extract CFBundleShortVersionString raw "$PLIST")"
 BUILD_NUMBER="$(plutil -extract CFBundleVersion raw "$PLIST")"
-ZIP="$OUT/Arbor-$VERSION.zip"
+ZIP="$OUT/$PRODUCT_FILES-$VERSION.zip"
 FEED="$OUT/appcast.xml"
 
 swift package --disable-keychain resolve >/dev/null
@@ -53,10 +54,10 @@ SIGN_UPDATE="$(find .build/artifacts -type f -perm -u+x -path '*/Sparkle/bin/sig
 sign() { printf '%s' "$KEY" | "$SIGN_UPDATE" --ed-key-file - "$@"; }
 
 rm -f "$ZIP" "$FEED"
-# ditto keeps Sparkle.framework's symlinks; --keepParent puts Arbor.app at the top of the zip.
+# ditto keeps Sparkle.framework's symlinks; --keepParent puts the app at the top of the zip.
 ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
 SIGNATURE="$(sign -p "$ZIP")"
-swift run --disable-keychain --quiet ArborAppcast --app "$APP" --archive "$ZIP" --signature "$SIGNATURE" --url "$URL" \
+swift run --disable-keychain --quiet BetterExplorerAppcast --app "$APP" --archive "$ZIP" --signature "$SIGNATURE" --url "$URL" \
   --changelog CHANGELOG.md --output "$FEED"
 # The feed carries its own signature too (SURequireSignedFeed in Info.plist).
 sign "$FEED" >/dev/null

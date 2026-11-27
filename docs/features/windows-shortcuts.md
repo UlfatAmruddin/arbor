@@ -1,7 +1,7 @@
 # Windows shortcut files (FE-215)
 
-Code: `Sources/ArborCore/WindowsShortcuts/` (parsers and policy, unit-tested in
-`Tests/ArborCoreTests/WindowsShortcutsTests.swift`) and `Sources/Arbor/Features/WindowsShortcuts/` (opening, the
+Code: `Sources/BetterExplorerCore/WindowsShortcuts/` (parsers and policy, unit-tested in
+`Tests/BetterExplorerCoreTests/WindowsShortcutsTests.swift`) and `Sources/BetterExplorer/Features/WindowsShortcuts/` (opening, the
 arrow, the Properties tab). Registered by `WindowsShortcutsFeature`.
 
 ## Status
@@ -12,7 +12,7 @@ arrow, the Properties tab). Registered by `WindowsShortcutsFeature`.
 
 ## Parsing, not converting
 
-Arbor reads these files and writes nothing: no alias, `.webloc` or other file is created and the shortcut itself is
+Better Explorer reads these files and writes nothing: no alias, `.webloc` or other file is created and the shortcut itself is
 never changed. Mac aliases are still made only by `Shortcuts.createAlias` (FE-092). The word "Shortcut" in the Type
 column keeps meaning a Mac alias, so the Windows types sort and group apart.
 
@@ -24,7 +24,7 @@ column keeps meaning a Mac alias, so the Windows types sort and group apart.
 | `.url`, anything else | An explanation naming the scheme or the reason. `file:`, `smb:`, `javascript:`, `data:`, `mailto:`, `search-ms:` and app schemes are all refused |
 | `.lnk` to a folder | Opens through `window.open`, so Folder Options still apply. Several selected shortcuts open as tabs |
 | `.lnk` to a document | "Open this file?" with the real Mac path. Checked again after Open; opens only if nothing changed |
-| `.lnk` to an app, script, installer or an unnamed type | Explains, and offers Show in Folder inside Arbor. Never opened |
+| `.lnk` to an app, script, installer or an unnamed type | Explains, and offers Show in Folder inside Better Explorer. Never opened |
 | `.lnk` with arguments or to a Windows program | Explains. Never followed |
 | `.lnk` to a drive letter, network path, `%VAR%` target or nothing | Explains. Nothing is probed or connected to |
 | A shortcut inside an archive | Explains that it must be extracted first |
@@ -69,7 +69,7 @@ Provisional unless the project owner confirms them.
 | ID | Decision | Why |
 |---|---|---|
 | DEC-winlink-1 | Read-only: no conversion to a Mac alias or `.webloc`, no editing of Target or Start in | Distinct from FE-092; a conversion would be its own named command built on `Shortcuts.createAlias` |
-| DEC-winlink-2 | Type names are "Windows shortcut" and "Internet shortcut" | "Shortcut" already means a Mac alias in Arbor |
+| DEC-winlink-2 | Type names are "Windows shortcut" and "Internet shortcut" | "Shortcut" already means a Mac alias in Better Explorer |
 | DEC-winlink-3 | `.url` opens only http and https, always after a confirmation. There is no "don't ask again" | Remembered trust would let a later edit of the file skip the check |
 | DEC-winlink-4 | The address cap applies after escaping and is no higher than what the prompt shows, so the address opened is the address read | A prompt that cuts text off can hide the part that matters |
 | DEC-winlink-5 | Only the first `URL=` of the first `[InternetShortcut]` section is used, for display and opening alike | A duplicate key can't disguise the target |
@@ -90,12 +90,12 @@ The Windows program list in `WindowsShortcutPolicy` only ever refuses, and a rea
 
 - `Features.swift`: one line.
 - `Properties/MoreTabs.swift`: new point `PropertiesTabs.extraTabs`; `Support/ExtensionCatalog.swift` lists it.
-- `ArborCore/ExplorerFormat.swift`: `ExplorerTypeName.name` takes `windowsShortcut:`; `FileItem.windowsShortcutKind` feeds it from `GeneralTab` and `DetailsTab`.
-- `ArborCore/Search/SearchEvaluator.swift`: `SearchCandidate` uses the same two type names for `.lnk` and `.url`.
+- `BetterExplorerCore/ExplorerFormat.swift`: `ExplorerTypeName.name` takes `windowsShortcut:`; `FileItem.windowsShortcutKind` feeds it from `GeneralTab` and `DetailsTab`.
+- `BetterExplorerCore/Search/SearchEvaluator.swift`: `SearchCandidate` uses the same two type names for `.lnk` and `.url`.
 - `ItemActions/Shortcuts.swift`: new point `Shortcuts.openTarget`, called with the alias's already-resolved target.
 - `ItemActions/Shortcuts.swift`: badge compositing extracted as `Shortcuts.withArrowBadge`, no behaviour change.
-- `ArborCore/Archives/ArchiveEntry.swift`: `ArchivePath.resolvedLink` extracted; `linkStaysInside` calls it.
-- `ArborCore/Search/ContentReaders.swift`: the SF_DATALESS value named as `stat.isDataless`.
+- `BetterExplorerCore/Archives/ArchiveEntry.swift`: `ArchivePath.resolvedLink` extracted; `linkStaysInside` calls it.
+- `BetterExplorerCore/Search/ContentReaders.swift`: the SF_DATALESS value named as `stat.isDataless`.
 
 ## Known gaps
 

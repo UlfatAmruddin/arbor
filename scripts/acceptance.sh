@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# Headless run of the task scenarios T01–T30 (docs/SPEC.md §17.5) against build/Arbor.app.
-# Every scenario builds its own fixture in a fresh folder (arbor_mktemp_dir) with a private Trash, journal and history.
+# Headless run of the task scenarios T01–T30 (docs/SPEC.md §17.5) against the built app.
+# Every scenario builds its own fixture in a fresh folder (better_explorer_mktemp_dir) with a private Trash, journal and history.
 # Results and how to read them: docs/ACCEPTANCE.md.
 #
 # Usage: scripts/build-app.sh debug && scripts/acceptance.sh [T01 T07 …]   (no names = all scenarios)
 #   ACCEPT_KEEP=1             keep each scenario's folder (logs, snapshots) and print its path
-#   ARBOR_KEEP_FAILED=<dir>   move the folder of each failing scenario into <dir>/<id>
-#   Stale-bundle guard, one-suite-at-a-time lock, ARBOR_REBUILD: scripts/lib/app-bundle.sh
+#   BETTER_EXPLORER_KEEP_FAILED=<dir>   move the folder of each failing scenario into <dir>/<id>
+#   Stale-bundle guard, one-suite-at-a-time lock, BETTER_EXPLORER_REBUILD: scripts/lib/app-bundle.sh
 set -uo pipefail
 cd "$(dirname "$0")/.."
 REPO="$PWD"
 . scripts/lib/app-bundle.sh
-arbor_prepare_app acceptance.sh debug
-APP="$ARBOR_APP_BIN"
+better_explorer_prepare_app acceptance.sh debug
+APP="$BETTER_EXPLORER_APP_BIN"
 WANTED=" ${*:-all} "
 SUMMARY=()
 FAILED_ANY=0
@@ -22,7 +22,7 @@ want() { [[ "$WANTED" == *" all "* || "$WANTED" == *" $1 "* ]]; }
 # begin <id> <title>: start a scenario with a fresh fixture root in $R.
 begin() {
   SCEN="$1"; SCEN_TITLE="$2"; SCEN_FAILS=0; SCEN_NOTE=""
-  R=$(arbor_mktemp_dir); R=$(cd "$R" && pwd -P); mkdir -p "$R/trash" "$R/journal" "$R/state"
+  R=$(better_explorer_mktemp_dir); R=$(cd "$R" && pwd -P); mkdir -p "$R/trash" "$R/journal" "$R/state"
   K="${R#/private}"   # the same folder as location keys spell it
   echo "== $SCEN $SCEN_TITLE"
 }
@@ -35,9 +35,9 @@ finish() {
   SUMMARY+=("$(printf '%-4s %-8s %s%s' "$SCEN" "$result" "$SCEN_TITLE" "${1:+  ($1)}")")
   if [ "${ACCEPT_KEEP:-0}" = 1 ]; then echo "   kept: $R"; return; fi
   chmod -R u+rwx "$R" 2>/dev/null
-  if [ "$result" = "FAIL" ] && [ -n "${ARBOR_KEEP_FAILED:-}" ]; then
-    mkdir -p "$ARBOR_KEEP_FAILED"; rm -rf "${ARBOR_KEEP_FAILED:?}/$SCEN"; mv "$R" "$ARBOR_KEEP_FAILED/$SCEN"
-    echo "   kept: $ARBOR_KEEP_FAILED/$SCEN"
+  if [ "$result" = "FAIL" ] && [ -n "${BETTER_EXPLORER_KEEP_FAILED:-}" ]; then
+    mkdir -p "$BETTER_EXPLORER_KEEP_FAILED"; rm -rf "${BETTER_EXPLORER_KEEP_FAILED:?}/$SCEN"; mv "$R" "$BETTER_EXPLORER_KEEP_FAILED/$SCEN"
+    echo "   kept: $BETTER_EXPLORER_KEEP_FAILED/$SCEN"
   else
     rm -rf "$R"
   fi
@@ -51,8 +51,8 @@ skip_as_root() { echo "   skip  (running as root: permissions aren't enforced, s
 run() {
   local start="$1" script="$2"; shift 2
   [ "$start" = "-" ] && start=""
-  env ARBOR_HEADLESS=1 ARBOR_TEST_TRASH="$R/trash" ARBOR_JOURNAL_DIR="$R/journal" ARBOR_HISTORY_FILE="$R/history.json" \
-    ARBOR_SCRIPT="$script" "$@" perl -e 'alarm shift; exec @ARGV' "${RUN_LIMIT:-120}" "$APP" ${start:+"$start"} >/dev/null 2>&1
+  env BETTER_EXPLORER_HEADLESS=1 BETTER_EXPLORER_TEST_TRASH="$R/trash" BETTER_EXPLORER_JOURNAL_DIR="$R/journal" BETTER_EXPLORER_HISTORY_FILE="$R/history.json" \
+    BETTER_EXPLORER_SCRIPT="$script" "$@" perl -e 'alarm shift; exec @ARGV' "${RUN_LIMIT:-120}" "$APP" ${start:+"$start"} >/dev/null 2>&1
 }
 
 ok()   { echo "   pass  $1"; }
@@ -112,7 +112,7 @@ fi
 if want T03; then
   begin T03 "Enter invalid/quoted/network path"
   mkdir -p "$R/fx/My Folder" "$R/fx/B"
-  run "$R/fx/B" "wait:1;address:\"$R/fx/My Folder\";wait:1;log:$R/a.txt;address:$R/fx/nope/missing;wait:1;log:$R/b.txt;address:C:\\Windows;wait:1;log:$R/c.txt;address:open -a Calculator;wait:1;log:$R/d.txt;address:\\\\NAS-01\\Public;wait:3;log:$R/e.txt;address:smb://;wait:1;log:$R/f.txt;quit" ARBOR_FAKE_NETWORK=1 ARBOR_STATE_DIR="$R/state"
+  run "$R/fx/B" "wait:1;address:\"$R/fx/My Folder\";wait:1;log:$R/a.txt;address:$R/fx/nope/missing;wait:1;log:$R/b.txt;address:C:\\Windows;wait:1;log:$R/c.txt;address:open -a Calculator;wait:1;log:$R/d.txt;address:\\\\NAS-01\\Public;wait:3;log:$R/e.txt;address:smb://;wait:1;log:$R/f.txt;quit" BETTER_EXPLORER_FAKE_NETWORK=1 BETTER_EXPLORER_STATE_DIR="$R/state"
   check "quoted path with a space opens" "$R/a.txt" "location: folder:$K/fx/My Folder  view: details"
   contains "missing path: specific error" "$R/b.txt" "Can't find “$R/fx/nope/missing”. Check the spelling and try again."
   check "missing path: location unchanged" "$R/b.txt" "location: folder:$K/fx/My Folder  view: details"
@@ -143,7 +143,7 @@ if want T05; then
   begin T05 "Read similar long filenames"
   mkdir -p "$R/fx"
   for v in "A.xlsx" "B.xlsx" "A.docx"; do echo x > "$R/fx/Quarterly financial report for the northern region 2024 final version $v"; done
-  run "$R/fx" "wait:1;windowsize:900,560;wait:0.8;log:$R/a.txt;axdump:$R/ax.txt;snapshot:$R/long-light.png;quit" ARBOR_APPEARANCE=light
+  run "$R/fx" "wait:1;windowsize:900,560;wait:0.8;log:$R/a.txt;axdump:$R/ax.txt;snapshot:$R/long-light.png;quit" BETTER_EXPLORER_APPEARANCE=light
   check "all three names listed in full" "$R/a.txt" "rows: Quarterly financial report for the northern region 2024 final version A.docx | Quarterly financial report for the northern region 2024 final version A.xlsx | Quarterly financial report for the northern region 2024 final version B.xlsx"
   contains "each row has a full-name tooltip" "$R/ax.txt" "help=\"Quarterly financial report for the northern region"
   fact "snapshot taken (middle truncation keeps “A.xlsx” / “B.xlsx” visible; read the PNG)" test -s "$R/long-light.png"
@@ -170,8 +170,8 @@ fi
 if want T07; then
   begin T07 "Revisit folder with override"
   mkdir -p "$R/fx/A" "$R/fx/B"; echo 1 > "$R/fx/A/a.txt"
-  run "$R/fx/A" "wait:1;view:largeIcons;wait:1;location:$R/fx/B;wait:1;log:$R/a.txt;back;wait:1;log:$R/b.txt;menu:view:$R/m.txt;quit" ARBOR_STATE_DIR="$R/state"
-  run "$R/fx/A" "wait:1.5;log:$R/c.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R/fx/A" "wait:1;view:largeIcons;wait:1;location:$R/fx/B;wait:1;log:$R/a.txt;back;wait:1;log:$R/b.txt;menu:view:$R/m.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
+  run "$R/fx/A" "wait:1.5;log:$R/c.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   check "another folder keeps the default view" "$R/a.txt" "location: folder:$K/fx/B  view: details"
   check "returning shows the folder's own view" "$R/b.txt" "location: folder:$K/fx/A  view: largeIcons"
   contains "the source of the rule is stated" "$R/b.txt" "folder view: source=Saved for this folder"
@@ -255,10 +255,10 @@ fi
 if want T13; then
   begin T13 "Cross-volume move and cancellation"
   mkdir -p "$R/A" "$R/mnt"
-  if hdiutil create -size 40m -fs HFS+ -volname ArborT13 -quiet "$R/v.dmg" && \
+  if hdiutil create -size 40m -fs HFS+ -volname BetterExplorerT13 -quiet "$R/v.dmg" && \
      hdiutil attach -nobrowse -noautoopen -quiet -mountpoint "$R/mnt" "$R/v.dmg"; then
     for n in 1 2 3 4; do head -c 3000000 /dev/urandom > "$R/A/f$n.bin"; done
-    run "$R/A" "wait:1;opstart:move:$R/A/f1.bin|$R/A/f2.bin|$R/A/f3.bin|$R/A/f4.bin:$R/mnt;wait:4;log:$R/a.txt;opcancel;wait:2;log:$R/b.txt;quit" ARBOR_TRANSFER_THROTTLE=1500000
+    run "$R/A" "wait:1;opstart:move:$R/A/f1.bin|$R/A/f2.bin|$R/A/f3.bin|$R/A/f4.bin:$R/mnt;wait:4;log:$R/a.txt;opcancel;wait:2;log:$R/b.txt;quit" BETTER_EXPLORER_TRANSFER_THROTTLE=1500000
     contains "the move was running when cancelled" "$R/a.txt" "operations: move phase="
     check "no job left after cancelling" "$R/b.txt" "operations: none"
     left=0; both=0; none=0
@@ -314,7 +314,7 @@ if want T16; then
   begin T16 "Recover interrupted operation"
   mkdir -p "$R/A" "$R/B"; for n in 1 2 3; do head -c 2000000 /dev/urandom > "$R/A/f$n.bin"; done
   # The first launch is killed (SIGALRM) in the middle of the copy: a crash, not a quit.
-  RUN_LIMIT=6 run "$R/A" "wait:1;opstart:copy:$R/A/f1.bin|$R/A/f2.bin|$R/A/f3.bin:$R/B;wait:60;quit" ARBOR_TRANSFER_THROTTLE=800000
+  RUN_LIMIT=6 run "$R/A" "wait:1;opstart:copy:$R/A/f1.bin|$R/A/f2.bin|$R/A/f3.bin:$R/B;wait:60;quit" BETTER_EXPLORER_TRANSFER_THROTTLE=800000
   fact "the crash left a journal" test "$(ls "$R/journal" | wc -l | tr -d ' ')" -ge 1
   before=$(ls "$R/B" | wc -l | tr -d ' ')
   run "$R/A" "wait:3;sheetlog:$R/a.txt;log:$R/a.txt;quit"
@@ -365,7 +365,7 @@ if want T20; then
   begin T20 "Preview a cloud-only large file"
   CL="$R/OneDrive-Personal"; mkdir -p "$CL"; head -c 20000000 /dev/zero > "$CL/video.mov"; echo x > "$CL/b.txt"
   run "$CL" "wait:1;select:video.mov;click:view.previewPane;wait:1.5;log:$R/a.txt;axdump:$R/ax.txt;snapshot:$R/cloud-preview.png;click:view.previewPane;wait:1;log:$R/b.txt;quit" \
-    ARBOR_TEST_CLOUD_ROOT="$CL" ARBOR_TEST_CLOUD_ACCOUNT=Personal ARBOR_TEST_CLOUD_STATUS="video.mov=online,b.txt=available"
+    BETTER_EXPLORER_TEST_CLOUD_ROOT="$CL" BETTER_EXPLORER_TEST_CLOUD_ACCOUNT=Personal BETTER_EXPLORER_TEST_CLOUD_STATUS="video.mov=online,b.txt=available"
   contains "status column reports online-only" "$R/a.txt" "video.mov=Online-only"
   contains "preview offers a download instead of fetching" "$R/ax.txt" "is available when online"
   contains "the download is a separate, explicit button" "$R/ax.txt" "Download to preview"
@@ -389,7 +389,7 @@ fi
 if want T22; then
   begin T22 "Remove a collection source/recent entry"
   mkdir -p "$R/fx" "$R/L1" "$R/L2"; echo r > "$R/fx/report.txt"; echo k > "$R/L2/keep.txt"
-  run "$R/fx" "wait:1;homerecord:$R/fx/report.txt;location:home;wait:1.5;log:$R/a.txt;homeselect:recent:report.txt;homeperform:home.removeFromRecent;wait:1;log:$R/b.txt;librarydef:Documents=$R/L1|$R/L2;managelibrary:Documents;wait:1;dialog:remove:$R/L2;dialog:ok;wait:1;location:library?name=Documents;wait:1.5;log:$R/c.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R/fx" "wait:1;homerecord:$R/fx/report.txt;location:home;wait:1.5;log:$R/a.txt;homeselect:recent:report.txt;homeperform:home.removeFromRecent;wait:1;log:$R/b.txt;librarydef:Documents=$R/L1|$R/L2;managelibrary:Documents;wait:1;dialog:remove:$R/L2;dialog:ok;wait:1;location:library?name=Documents;wait:1.5;log:$R/c.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "Recent lists the opened file" "$R/a.txt" "report.txt"
   lacks "Remove from Recent removes the entry" "$R/b.txt" "recent=[report.txt"
   fact "the file itself stays" test -f "$R/fx/report.txt"
@@ -413,12 +413,12 @@ fi
 if want T24; then
   begin T24 "Same-name network shares"
   mkdir -p "$R/fx"
-  run "$R/fx" "wait:1;address:\\\\NAS-01\\Public;wait:3;log:$R/a.txt;address:smb://OFFICE-PC/Public/;wait:3;log:$R/b.txt;back;wait:2;log:$R/c.txt;quit" ARBOR_FAKE_NETWORK=1 ARBOR_STATE_DIR="$R/state"
+  run "$R/fx" "wait:1;address:\\\\NAS-01\\Public;wait:3;log:$R/a.txt;address:smb://OFFICE-PC/Public/;wait:3;log:$R/b.txt;back;wait:2;log:$R/c.txt;quit" BETTER_EXPLORER_FAKE_NETWORK=1 BETTER_EXPLORER_STATE_DIR="$R/state"
   check "first share: its server in the breadcrumb" "$R/a.txt" "address: segments: Network > NAS-01 > Public; collapsed: 0"
   check "second share with the same name: its own server" "$R/b.txt" "address: segments: Network > OFFICE-PC > Public; collapsed: 0"
   fact "the two shares are different folders" sh -c "[ \"\$(grep '^location:' '$R/a.txt')\" != \"\$(grep '^location:' '$R/b.txt')\" ]"
   check "Back returns to the first server's share" "$R/c.txt" "address: segments: Network > NAS-01 > Public; collapsed: 0"
-  finish "simulated servers (ARBOR_FAKE_NETWORK); no real SMB server was available"
+  finish "simulated servers (BETTER_EXPLORER_FAKE_NETWORK); no real SMB server was available"
 fi
 
 if want T25; then
@@ -471,12 +471,12 @@ fi
 if want T26; then
   begin T26 "Offline device/cloud disconnect"
   mkdir -p "$R/fx/local" "$R/mnt"; echo l > "$R/fx/local/l.txt"
-  run "$R/fx" "wait:1;address:\\\\OFFLINE-PC\\Data;wait:1;log:$R/a.txt;newtab;wait:0.5;location:$R/fx/local;wait:1;log:$R/b.txt;tab:1;wait:4;log:$R/c.txt;quit" ARBOR_FAKE_NETWORK=1 ARBOR_STATE_DIR="$R/state" ARBOR_NETWORK_TIMEOUT=3 ARBOR_NETWORK_MOUNT_TIMEOUT=3
+  run "$R/fx" "wait:1;address:\\\\OFFLINE-PC\\Data;wait:1;log:$R/a.txt;newtab;wait:0.5;location:$R/fx/local;wait:1;log:$R/b.txt;tab:1;wait:4;log:$R/c.txt;quit" BETTER_EXPLORER_FAKE_NETWORK=1 BETTER_EXPLORER_STATE_DIR="$R/state" BETTER_EXPLORER_NETWORK_TIMEOUT=3 BETTER_EXPLORER_NETWORK_MOUNT_TIMEOUT=3
   contains "the slow server shows a loading state" "$R/a.txt" "Loading “Data”…"
   check "another tab browses local folders meanwhile" "$R/b.txt" "rows: l.txt"
   contains "after the deadline: an explicit error" "$R/c.txt" "didn't respond in time"
   contains "…with Retry" "$R/c.txt" "[Retry]"
-  if hdiutil create -size 8m -fs HFS+ -volname ArborT26 -quiet "$R/v.dmg" && \
+  if hdiutil create -size 8m -fs HFS+ -volname BetterExplorerT26 -quiet "$R/v.dmg" && \
      hdiutil attach -nobrowse -noautoopen -quiet -mountpoint "$R/mnt" "$R/v.dmg"; then
     echo x > "$R/mnt/x.txt"
     ( until [ -f "$R/d.txt" ]; do sleep 0.2; done; hdiutil detach -force -quiet "$R/mnt" ) &
@@ -539,7 +539,7 @@ fi
 if want T30; then
   begin T30 "Quit/close during active work"
   mkdir -p "$R/A" "$R/B"; for n in 1 2 3; do head -c 2000000 /dev/urandom > "$R/A/f$n.bin"; done
-  run "$R/A" "wait:1;newtab;wait:0.5;opstart:copy:$R/A/f1.bin|$R/A/f2.bin|$R/A/f3.bin:$R/B;wait:1;closetab;wait:1;log:$R/a.txt;terminate" ARBOR_TRANSFER_THROTTLE=800000
+  run "$R/A" "wait:1;newtab;wait:0.5;opstart:copy:$R/A/f1.bin|$R/A/f2.bin|$R/A/f3.bin:$R/B;wait:1;closetab;wait:1;log:$R/a.txt;terminate" BETTER_EXPLORER_TRANSFER_THROTTLE=800000
   contains "closing the tab doesn't stop the job" "$R/a.txt" "operations: copy phase="
   fact "quitting kept the job's journal" test "$(ls "$R/journal" | wc -l | tr -d ' ')" -ge 1
   fact "the file being copied at quit isn't left half-written" sh -c "for f in '$R'/B/*.bin; do [ -e \"\$f\" ] || continue; [ \$(stat -f %z \"\$f\") = 2000000 ] || exit 1; done"

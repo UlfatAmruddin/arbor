@@ -1,15 +1,15 @@
-# Signs Arbor.app and the code nested in it, inside out: each framework's XPC services, helper apps and
+# Signs the app bundle and the code nested in it, inside out: each framework's XPC services, helper apps and
 # helper tools, then the framework, then the app. Never `codesign --deep`, which would give nested code
 # the app's options and entitlements. Shared by build-app.sh and sign-and-notarize.sh.
 #
 #   . scripts/lib/codesign-app.sh
-#   arbor_codesign_app <app> <identity> [codesign options for every item…]
-#   arbor_signed_code <app>        prints every signed item, inside out, the app last
+#   better_explorer_codesign_app <app> <identity> [codesign options for every item…]
+#   better_explorer_signed_code <app>        prints every signed item, inside out, the app last
 #
 # <identity> is "-" for ad-hoc. Nested code keeps its own identifier and entitlements; the app gets
-# ARBOR_ENTITLEMENTS when that is set. Stops at the first failure (codesign's message says why).
+# BETTER_EXPLORER_ENTITLEMENTS when that is set. Stops at the first failure (codesign's message says why).
 
-arbor_signed_code() {
+better_explorer_signed_code() {
   local app="$1" framework version item
   for framework in "$app"/Contents/Frameworks/*.framework; do
     [ -d "$framework" ] || continue
@@ -26,13 +26,13 @@ arbor_signed_code() {
   echo "$app"
 }
 
-arbor_codesign_app() {
+better_explorer_codesign_app() {
   local app="$1" identity="$2"; shift 2
   local options=("$@") item extra output
   while IFS= read -r item; do
     if [ "$item" = "$app" ]; then
       extra=()
-      if [ -n "${ARBOR_ENTITLEMENTS:-}" ]; then extra=(--entitlements "$ARBOR_ENTITLEMENTS"); fi
+      if [ -n "${BETTER_EXPLORER_ENTITLEMENTS:-}" ]; then extra=(--entitlements "$BETTER_EXPLORER_ENTITLEMENTS"); fi
     elif [[ "$item" == *.framework ]]; then
       extra=()
     else
@@ -42,6 +42,6 @@ arbor_codesign_app() {
       echo "$output" >&2
       return 1
     fi
-  done < <(arbor_signed_code "$app")
+  done < <(better_explorer_signed_code "$app")
   codesign --verify --deep --strict "$app"
 }

@@ -1,14 +1,14 @@
-# Testing Arbor
+# Testing Better Explorer
 
 ## 1. Unit tests (logic)
 ```bash
 scripts/test.sh
 ```
-Put logic in `Sources/ArborCore` and test it with Swift Testing in `Tests/ArborCoreTests`.
+Put logic in `Sources/BetterExplorerCore` and test it with Swift Testing in `Tests/BetterExplorerCoreTests`.
 Tests must use disposable fixture folders (`Fixture` in `FileSystemTests.swift`), never real user files or the real Trash.
 `scripts/build-app.sh debug` must build with zero warnings.
 
-Deep and unusual paths and injected failures have their own helpers in `Tests/ArborCoreTests/HostileFixtures.swift`:
+Deep and unusual paths and injected failures have their own helpers in `Tests/BetterExplorerCoreTests/HostileFixtures.swift`:
 `OddNames` (a table of names every operation must carry unchanged), `DeepTree` (trees past `PATH_MAX`, built through
 descriptors), `TreeManifest` (proves what changed on disk), `finishing` (cancels a hung job) and
 `FormattedVolume.required`, `detach` and `attach`. On CI (`CI` set) a disk image that can't be made is a failure rather
@@ -16,22 +16,22 @@ than a skip. A test never reaches the real Trash: `SystemTrash.trash(_:into:)` t
 that calls the real API first checks that the system's Trash for that item is on its disposable disk image.
 
 ## 2. Scripted UI checks (the real app)
-`Sources/Arbor/DebugScript.swift` drives the live UI through the same command registry and responder chain as the menus.
+`Sources/BetterExplorer/DebugScript.swift` drives the live UI through the same command registry and responder chain as the menus.
 Always run headless so nothing appears on screen:
 
 ```bash
 scripts/build-app.sh debug
 ROOT=$(mktemp -d); FX="$ROOT/fixture"; mkdir -p "$FX"; echo hi > "$FX/a.txt"
-ARBOR_HEADLESS=1 ARBOR_APPEARANCE=dark \
-ARBOR_SCRIPT="wait:1;select:a.txt;click:edit.copy;event;click:edit.paste;event;wait:1.5;log:$ROOT/state.txt;snapshot:$ROOT/shot.png;quit" \
-  build/Arbor.app/Contents/MacOS/Arbor "$FX"
+BETTER_EXPLORER_HEADLESS=1 BETTER_EXPLORER_APPEARANCE=dark \
+BETTER_EXPLORER_SCRIPT="wait:1;select:a.txt;click:edit.copy;event;click:edit.paste;event;wait:1.5;log:$ROOT/state.txt;snapshot:$ROOT/shot.png;quit" \
+  "build/Better Explorer.app/Contents/MacOS/BetterExplorer" "$FX"
 cat "$ROOT/state.txt"
 ```
 
 Environment:
-- Every `ARBOR_*` variable is read through `ArborCore/Automation.swift` and ignored by distribution builds (signed with a Team ID, or marked `ArborDistribution` by `scripts/sign-and-notarize.sh`; a plain `scripts/build-app.sh release` build still reads them), so run these against `scripts/build-app.sh` output, not a packaged app.
-- `ARBOR_HEADLESS=1`: invisible, click-through window, no Dock icon. Preferences (pins, view mode, sort, panes) go to a throwaway domain that `quit` deletes, and window/split/column geometry is neither read nor saved, so runs never change the user's settings. Nothing outside Arbor's windows opens either: files, apps, Finder, Terminal, Mail, the share picker, Quick Look, settings pages, the desktop picture and disk images are only logged (`log:` → `system open: …`; everything goes through `Support/SystemOpen.swift`, enforced by `SystemOpenAuditTests`).
-- `ARBOR_APPEARANCE=light|dark`: forces the appearance (check both).
+- Every `BETTER_EXPLORER_*` variable is read through `BetterExplorerCore/Automation.swift` and ignored by distribution builds (signed with a Team ID, or marked `BetterExplorerDistribution` by `scripts/sign-and-notarize.sh`; a plain `scripts/build-app.sh release` build still reads them), so run these against `scripts/build-app.sh` output, not a packaged app.
+- `BETTER_EXPLORER_HEADLESS=1`: invisible, click-through window, no Dock icon. Preferences (pins, view mode, sort, panes) go to a throwaway domain that `quit` deletes, and window/split/column geometry is neither read nor saved, so runs never change the user's settings. Nothing outside Better Explorer's windows opens either: files, apps, Finder, Terminal, Mail, the share picker, Quick Look, settings pages, the desktop picture and disk images are only logged (`log:` → `system open: …`; everything goes through `Support/SystemOpen.swift`, enforced by `SystemOpenAuditTests`).
+- `BETTER_EXPLORER_APPEARANCE=light|dark`: forces the appearance (check both).
 - The path argument opens that folder; without it the window opens Home.
 
 Steps (separated by `;`; the first `:` separates a step from its argument):
@@ -87,17 +87,17 @@ Rules of thumb:
 Steps: `axdump:/path` (accessibility tree as VoiceOver sees it), `key:shift+F10` (keys through the real keyboard path), `keyrepeat:return` (the same, as the auto-repeat of a held key), `focus:/path`, `mouse:3|4`, `swipe:back|forward`, `compose:<text>` (input-method marked text), `announcements:/path`, `contextkey:/path`, `textsize:130`,
 `l10naudit:/path` (text in every window that isn't from the string table, and clipped labels; run under a pseudo-language), `plurals:/path` (an item count in each plural category, to see which form a language picks),
 `axaudit:/path` (controls VoiceOver would read without a name, empty rows), `composecommit:<text>`, `windowactive:0|1`.
-Address entry: `addresstype:<text>` (replaces the field's text the way typing does; use `key:` for arrows, Return and Escape), `addresscompletionready` (holds the script until no listing is pending), `addresscompletions:/path` (the list's rows, highlight and footer: `no`, `moreMatches` or `partialListing`), `addresslistsnap:/base` (the open list to `/base.png`, what VoiceOver sees to `/base.txt`), `addressclickaway` (a mouse press on the status bar, which neither takes focus nor handles it). `log:` adds an `address handoff:` line (each question a typed address asked, and its answer). `ARBOR_COMPLETION_DELAY=<seconds>`, at most 10, holds each listing back to stand in for a slow volume.
-Environment: `ARBOR_RTL=1` (right-to-left layout with English text), `ARBOR_CONTRAST=1`, `ARBOR_REDUCE_MOTION=1`, `ARBOR_TEXT_SIZE=150`. Keep the string table current with `scripts/extract-strings.sh` (`--check` verifies it and every translation). Details: docs/features/accessibility.md.
+Address entry: `addresstype:<text>` (replaces the field's text the way typing does; use `key:` for arrows, Return and Escape), `addresscompletionready` (holds the script until no listing is pending), `addresscompletions:/path` (the list's rows, highlight and footer: `no`, `moreMatches` or `partialListing`), `addresslistsnap:/base` (the open list to `/base.png`, what VoiceOver sees to `/base.txt`), `addressclickaway` (a mouse press on the status bar, which neither takes focus nor handles it). `log:` adds an `address handoff:` line (each question a typed address asked, and its answer). `BETTER_EXPLORER_COMPLETION_DELAY=<seconds>`, at most 10, holds each listing back to stand in for a slow volume.
+Environment: `BETTER_EXPLORER_RTL=1` (right-to-left layout with English text), `BETTER_EXPLORER_CONTRAST=1`, `BETTER_EXPLORER_REDUCE_MOTION=1`, `BETTER_EXPLORER_TEXT_SIZE=150`. Keep the string table current with `scripts/extract-strings.sh` (`--check` verifies it and every translation). Details: docs/features/accessibility.md.
 
 Pseudo-languages run the real path a translation takes, on a scratch copy of the app. `en-XA` lengthens text by about 40 percent with accents and non-Latin letters; `ar-XB` is right to left. Pass `-AppleLanguages` after the folder argument:
 
 ```bash
-ROOT=$(mktemp -d); ditto build/Arbor.app "$ROOT/Arbor.app"
-scripts/extract-strings.sh --pseudo "$ROOT/Arbor.app/Contents/Resources"
-codesign --force --sign - "$ROOT/Arbor.app"
-ARBOR_HEADLESS=1 ARBOR_SCRIPT="wait:1;l10naudit:$ROOT/audit.txt;snapshot:$ROOT/shot.png;quit" \
-  "$ROOT/Arbor.app/Contents/MacOS/Arbor" "$HOME/Documents" -AppleLanguages '(ar-XB)'
+ROOT=$(mktemp -d); ditto "build/Better Explorer.app" "$ROOT/Better Explorer.app"
+scripts/extract-strings.sh --pseudo "$ROOT/Better Explorer.app/Contents/Resources"
+codesign --force --sign - "$ROOT/Better Explorer.app"
+BETTER_EXPLORER_HEADLESS=1 BETTER_EXPLORER_SCRIPT="wait:1;l10naudit:$ROOT/audit.txt;snapshot:$ROOT/shot.png;quit" \
+  "$ROOT/Better Explorer.app/Contents/MacOS/BetterExplorer" "$HOME/Documents" -AppleLanguages '(ar-XB)'
 ```
 `-AppleLocale de_DE` or `ar_SA` changes separators and digits. `scripts/behavior-checks.sh localization` does this for the main surfaces.
 
@@ -111,27 +111,27 @@ menu item delivers it) and a `clipboard:` line in `log:` (pasteboard names, copy
 `scripts/behavior-checks.sh`, `scripts/core-checks.sh`, `scripts/windows-shortcut-checks.sh`, `scripts/acceptance.sh` and `scripts/bench.sh` share
 `scripts/lib/app-bundle.sh`, which adds five guards before the first check:
 
-- **Stale bundle.** The suites test `build/Arbor.app`, not the sources. When any file under `Sources/` or `Resources/`, or
-  `Package.swift` / `Package.resolved`, is newer than `build/Arbor.app/Contents/MacOS/Arbor`, a suite stops with exit 2
-  and names the newer files. `ARBOR_REBUILD=1` rebuilds instead (debug; release for `bench.sh --skip-build`);
-  `ARBOR_ALLOW_STALE=1` runs the old bundle anyway, with a warning. `bench.sh` without `--skip-build` builds release itself.
+- **Stale bundle.** The suites test `build/Better Explorer.app`, not the sources. When any file under `Sources/` or `Resources/`, or
+  `Package.swift` / `Package.resolved`, is newer than `build/Better Explorer.app/Contents/MacOS/BetterExplorer`, a suite stops with exit 2
+  and names the newer files. `BETTER_EXPLORER_REBUILD=1` rebuilds instead (debug; release for `bench.sh --skip-build`);
+  `BETTER_EXPLORER_ALLOW_STALE=1` runs the old bundle anyway, with a warning. `bench.sh` without `--skip-build` builds release itself.
 - **One suite at a time.** Two suites at once compete for the CPU, so their timed waits and the benchmarks go wrong, and
-  `bench.sh` or `ARBOR_REBUILD` would replace `build/Arbor.app` under the other suite. Each suite holds the lock directory
-  `$TMPDIR/arbor-app-suites.lock` (it names the suite, process and start time) for its whole run; a second suite says
-  what it is waiting for and starts when the first one ends. `ARBOR_LOCK_WAIT=<seconds>` limits the wait (default 3600;
-  `0` exits at once with code 2), `ARBOR_LOCK_DIR` moves the lock. A lock whose process no longer runs is taken over. The
+  `bench.sh` or `BETTER_EXPLORER_REBUILD` would replace `build/Better Explorer.app` under the other suite. Each suite holds the lock directory
+  `$TMPDIR/better-explorer-app-suites.lock` (it names the suite, process and start time) for its whole run; a second suite says
+  what it is waiting for and starts when the first one ends. `BETTER_EXPLORER_LOCK_WAIT=<seconds>` limits the wait (default 3600;
+  `0` exits at once with code 2), `BETTER_EXPLORER_LOCK_DIR` moves the lock. A lock whose process no longer runs is taken over. The
   app itself keeps each headless run apart (preferences domain, pasteboards, Trash, journal and history are per process).
-- **Own temporary folder.** While a suite holds the lock, `TMPDIR` points into `$TMPDIR/arbor-suite.<pid>.XXXXXX`;
-  every fixture (`arbor_mktemp_dir`), the app's temporary files and the build tools' scratch go there, and the folder is
+- **Own temporary folder.** While a suite holds the lock, `TMPDIR` points into `$TMPDIR/better-explorer-suite.<pid>.XXXXXX`;
+  every fixture (`better_explorer_mktemp_dir`), the app's temporary files and the build tools' scratch go there, and the folder is
   removed when the suite exits, also after Ctrl-C or a failure. Folders of suites that were killed are removed when the
-  next suite starts. `ARBOR_KEEP_TMP=1` (or `ACCEPT_KEEP=1`) keeps it and prints its path.
+  next suite starts. `BETTER_EXPLORER_KEEP_TMP=1` (or `ACCEPT_KEEP=1`) keeps it and prints its path.
 - **Smoke launch.** The app is started headless once; if it can't start here at all (no window server session, broken
   bundle), the suite stops with exit 2 and the app's output instead of reporting every check as failed.
 - **Private copy.** The suites run a copy of the bundle from their temporary folder, with its own identifier and no Dock
-  icon. macOS treats copies started from one bundle as the same app, so a Dock icon or double-click on `build/Arbor.app`
+  icon. macOS treats copies started from one bundle as the same app, so a Dock icon or double-click on `build/Better Explorer.app`
   would otherwise land on a test window. `bench.sh --app` measures the bundle it is given, as it is.
 
-`ARBOR_KEEP_FAILED=<dir>` makes the check suites move the folder of each failing group or scenario (its `log:`
+`BETTER_EXPLORER_KEEP_FAILED=<dir>` makes the check suites move the folder of each failing group or scenario (its `log:`
 files, snapshots and fixture) into `<dir>`, and remove the rest as usual.
 
 Checks that can't run in an environment say so in a `skip` line with the reason, and acceptance marks the scenario
@@ -142,12 +142,12 @@ volume (QA-CORE-2), running as root, where permissions aren't enforced (T18, T21
 Nothing a run creates should outlive it:
 
 - The app in headless mode keeps the journal, history and Trash it would keep in `~/Library` in
-  `$TMPDIR/arbor-headless-<pid>`, removed when the app exits. Folders of headless runs that crashed or were killed are
-  removed at the next launch, headless or not (`TemporaryFiles.sweepLeftovers`, unit-tested). `ARBOR_JOURNAL_DIR`,
-  `ARBOR_HISTORY_FILE` and `ARBOR_TEST_TRASH` still put them where a script wants.
-- For everyone, read-only copies of Time Machine versions opened from Properties (`$TMPDIR/Arbor Versions`) are removed
-  a day after they were made; "Arbor Archives" is cleaned per launch.
-- `scripts/test.sh` first removes unit-test fixtures (`arbor-tests-*`, `arbor-vol-*`, `arbor-qa-*`) and detaches test
+  `$TMPDIR/better-explorer-headless-<pid>`, removed when the app exits. Folders of headless runs that crashed or were killed are
+  removed at the next launch, headless or not (`TemporaryFiles.sweepLeftovers`, unit-tested). `BETTER_EXPLORER_JOURNAL_DIR`,
+  `BETTER_EXPLORER_HISTORY_FILE` and `BETTER_EXPLORER_TEST_TRASH` still put them where a script wants.
+- For everyone, read-only copies of Time Machine versions opened from Properties (`$TMPDIR/BetterExplorer Versions`) are removed
+  a day after they were made; "Better Explorer Archives" is cleaned per launch.
+- `scripts/test.sh` first removes unit-test fixtures (`better-explorer-tests-*`, `better-explorer-vol-*`, `better-explorer-qa-*`) and detaches test
   disk images left by runs that were interrupted, once they are two hours old; newer ones may belong to a run in progress.
 
 ### What CI runs
@@ -170,14 +170,14 @@ Run the same commands from a clean checkout of the commit (no other suite runnin
 ```bash
 # app-checks
 scripts/build-app.sh debug && mkdir -p build/logs
-export ARBOR_KEEP_FAILED="$PWD/build/failed" ARBOR_LOCK_WAIT=0
+export BETTER_EXPLORER_KEEP_FAILED="$PWD/build/failed" BETTER_EXPLORER_LOCK_WAIT=0
 scripts/list-extension-points.sh > build/logs/extension-points.txt
 scripts/behavior-checks.sh 2>&1 | tee build/logs/behavior-checks.txt
 scripts/core-checks.sh     2>&1 | tee build/logs/core-checks.txt
 scripts/windows-shortcut-checks.sh 2>&1 | tee build/logs/windows-shortcut-checks.txt
 scripts/acceptance.sh      2>&1 | tee build/logs/acceptance.txt
 
-# performance (builds build/Arbor.app as release: rebuild debug before the checks again)
+# performance (builds build/Better Explorer.app as release: rebuild debug before the checks again)
 BENCH_TOLERANCE=3 BENCH_MEMORY_TOLERANCE=1.5 BENCH_SAMPLE_IDLE=1 \
   BENCH_TOLERANCE_FOR="idle.idle.cpu_ms_per_s=12 idle.idle.main_wakeups_per_s=25" \
   scripts/bench.sh --check --quick --out build/bench/ci

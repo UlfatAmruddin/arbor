@@ -1,6 +1,6 @@
 # Third-party notices
 
-Arbor's own code is under the MIT License ([LICENSE](LICENSE)). Arbor.app also contains the software below;
+Better Explorer's own code is under the MIT License ([LICENSE](LICENSE)). Better Explorer.app also contains the software below;
 `scripts/build-app.sh` copies this file into the app as `Contents/Resources/THIRD-PARTY-NOTICES.md`.
 
 ## Sparkle 2.10.1

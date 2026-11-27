@@ -1,0 +1,256 @@
+import AppKit
+import UniformTypeIdentifiers
+import BetterExplorerCore
+
+/// Search command-bar items (FE-136, FE-137, FE-138): Search options ▾, Close search, Open file location, Save search.
+enum SearchCommands {
+    static func isSearch(_ location: Location?) -> Bool {
+        if case .search? = location { return true }
+        return false
+    }
+
+    static func register() {
+        let r = CommandRegistry.shared
+        r.register([
+            ExplorerCommand(
+                id: "search.options", title: "Search options", symbol: "slider.horizontal.3",
+                tooltip: "Refine this search",
+                placements: [.commandBarContextual(10)],
+                showsTitle: true,
+                isAvailable: { isSearch($0.location) },
+                submenu: { optionsMenu($0) }),
+            ExplorerCommand(
+                id: "search.close", title: "Close search", symbol: "xmark", tooltip: "Close search and go back",
+                placements: [.commandBarContextual(20), .mainMenu("Edit", .tools, 20)],
+                showsTitle: true,
+                isAvailable: { $0.surface == .menuBar || isSearch($0.location) },
+                isEnabled: { isSearch($0.location) },
+                perform: { ExplorerSearchController.controller(for: $0.window)?.closeSearch() }),
+            ExplorerCommand(
+                id: "search.openFileLocation", title: "Open file location", symbol: "folder",
+                placements: [.itemContextMenu(.open, 25), .mainMenu("File", .open, 25)],
+                isAvailable: { ctx in ctx.surface == .menuBar || (isSearch(ctx.location) && ctx.single != nil) },
+                isEnabled: { ctx in isSearch(ctx.location) && ctx.single != nil },
+                perform: { ctx in
+                    guard let item = ctx.single else { return }
+                    ctx.window?.navigate(to: .folder(item.url.deletingLastPathComponent()), select: [item.name])
+                }),
+            ExplorerCommand(
+                id: "search.save", title: "Save Search…", symbol: "square.and.arrow.down",
+                placements: [.mainMenu("File", .share, 30)],
+                isEnabled: { isSearch($0.location) },
+                perform: { save($0) }),
+            ExplorerCommand(
+                id: "search.coverage", title: "Why Might Results Be Missing?",
+                placements: [.mainMenu("Edit", .tools, 30)],
+                isEnabled: { isSearch($0.location) },
+                perform: { showCoverage($0) }),
+        ])
+    }
+
+    // MARK: Search options ▾ (Explorer §12.1)
+
+    static func optionsMenu(_ ctx: CommandContext) -> [NSMenuItem] {
+        guard case .search(let request)? = ctx.location,
+              let controller = ExplorerSearchController.controller(for: ctx.window) else { return [] }
+
+        func apply(_ new: SearchRequest) { controller.open(new) }
+        func setQuery(_ query: String) {
+            var new = request
+            new.query = query
+            ctx.window?.searchBox.text = query
+            SearchHistoryStore.update { $0.record(query, refining: true) }
+            apply(new)
+        }
+        func activeValue(_ property: SearchProperty) -> String? {
+            guard let text = AQSQueryEditor.restrictions(property, in: request.query).last,
+                  let colon = text.firstIndex(of: ":") else { return nil }
+            return text[text.index(after: colon)...].trimmingCharacters(in: CharacterSet(charactersIn: "\"“” ")).lowercased()
+        }
+        func toggle(_ property: SearchProperty, _ value: String) -> () -> Void {
+            {
+                let on = activeValue(property) == value.lowercased()
+                    || (property == .kind && activeValue(property).flatMap(SearchKind.lookup) == SearchKind.lookup(value))
+                setQuery(AQSQueryEditor.setting(property, to: on ? nil : value, in: request.query))
+            }
+        }
+
+        var items: [NSMenuItem] = []
+        if request.scope == nil {
+            items += [disabled(L10n.tr("Current folder"), L10n.tr("Searching This Mac uses the Spotlight index; choose a folder to limit the scope.")),
+                      disabled(L10n.tr("All subfolders"), L10n.tr("Searching This Mac uses the Spotlight index; choose a folder to limit the scope.")),
+                      .separator()]
+        } else {
+            let current = ClosureMenuItem(L10n.tr("Current folder")) { var n = request; n.recursive = false; apply(n) }
+            current.state = request.recursive ? .off : .on
+            current.toolTip = L10n.format("Search only the items directly in “%@”", "\(scopeName(request))")
+            let all = ClosureMenuItem(L10n.tr("All subfolders")) { var n = request; n.recursive = true; apply(n) }
+            all.state = request.recursive ? .on : .off
+            all.toolTip = L10n.format("Search “%@” and every folder inside it", "\(scopeName(request))")
+            items += [current, all, .separator()]
+        }
+
+        // Date modified ▸
+        let dateActive = activeValue(.dateModified)
+        items.append(submenu(L10n.tr("Date modified"), AQSParser.dateKeywords.map { entry in
+            let item = ClosureMenuItem(entry.title, handler: toggle(.dateModified, entry.keyword))
+            item.state = dateActive == entry.keyword ? .on : .off
+            return item
+        }))
+
+        // Kind ▸ — Windows-only kinds are disabled with the reason (DEC-019).
+        let kindActive = activeValue(.kind).flatMap(SearchKind.lookup)
+        let kinds: [(String, String?)] = [
+            (L10n.tr("Calendar"), "calendar"), (L10n.tr("Communication"), "communication"), (L10n.tr("Contact"), "contact"),
+            (L10n.tr("Document"), "document"), (L10n.tr("E-mail"), "email"), (L10n.tr("Feed"), nil), (L10n.tr("Folder"), "folder"),
+            (L10n.tr("Game"), nil), (L10n.tr("Instant Message"), nil), (L10n.tr("Journal"), nil), (L10n.tr("Link"), "link"),
+            (L10n.tr("Movie"), "movie"), (L10n.tr("Music"), "music"), (L10n.tr("Note"), nil), (L10n.tr("Picture"), "picture"),
+            (L10n.tr("Playlist"), "playlist"), (L10n.tr("Program"), "program"), (L10n.tr("Recorded TV"), nil),
+            (L10n.tr("Saved search"), "savedsearch"), (L10n.tr("Task"), nil), (L10n.tr("Video"), "video"), (L10n.tr("Web history"), nil),
+            (L10n.tr("Unknown"), "unknown"),
+        ]
+        items.append(submenu(L10n.tr("Kind"), kinds.map { title, keyword in
+            guard let keyword else { return disabled(title, L10n.format("“%@” is a Windows kind with no macOS equivalent.", title)) }
+            let item = ClosureMenuItem(title, handler: toggle(.kind, keyword))
+            item.state = kindActive != nil && kindActive == SearchKind.lookup(keyword) ? .on : .off
+            return item
+        }))
+
+        // Size ▸
+        let sizeActive = activeValue(.size)
+        items.append(submenu(L10n.tr("Size"), AQSParser.sizeNames.map { entry in
+            let item = ClosureMenuItem(entry.title, handler: toggle(.size, entry.name))
+            item.state = sizeActive == entry.name ? .on : .off
+            return item
+        }))
+
+        // Other properties ▸ — inserts the property into the box.
+        items.append(submenu(L10n.tr("Other properties"), [(L10n.tr("Type"), "type:"), (L10n.tr("Name"), "name:"), (L10n.tr("Folder path"), "folderpath:"), (L10n.tr("Tags"), "tags:")].map { title, text in
+            ClosureMenuItem(title) { controller.insertIntoBox(text) }
+        }))
+
+        // Advanced options ▸
+        func optionItem(_ title: String, _ option: SearchOptions, _ tip: String) -> NSMenuItem {
+            if request.scope == nil, option != .contents {
+                return disabled(title, L10n.tr("Only for folder searches: searching This Mac uses the Spotlight index."))
+            }
+            let item = ClosureMenuItem(title) {
+                var n = request
+                if n.options.contains(option) { n.options.remove(option) } else { n.options.insert(option) }
+                apply(n)
+            }
+            item.state = request.options.contains(option) ? .on : .off
+            item.toolTip = tip
+            return item
+        }
+        let indexed = ClosureMenuItem(L10n.tr("Change indexed locations…")) {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.Spotlight-Settings.extension") { SystemOpen.open(url) }
+        }
+        indexed.toolTip = L10n.tr("Opens System Settings ▸ Spotlight, where macOS decides what's indexed.")
+        items.append(submenu(L10n.tr("Advanced options"), [
+            indexed, .separator(),
+            optionItem(L10n.tr("File contents"), .contents, L10n.tr("Also match words inside files: text files directly, other documents through the Spotlight index.")),
+            optionItem(L10n.tr("System files"), .systemFiles, L10n.tr("Include hidden items and the contents of apps and other packages.")),
+            optionItem(L10n.tr("Zipped (compressed) folders"), .zipped, L10n.tr("Look inside .zip archives; a match shows the archive.")),
+        ]))
+
+        items.append(.separator())
+        items.append(ClosureMenuItem(L10n.tr("Why might results be missing?")) { showCoverage(ctx) })
+        items.append(ClosureMenuItem(L10n.tr("Save search")) { save(ctx) })
+        return items
+    }
+
+    /// Disabled entry with the reason as tooltip (no action, so menus never enable it).
+    private static func disabled(_ title: String, _ reason: String) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        item.toolTip = reason
+        return item
+    }
+
+    private static func submenu(_ title: String, _ items: [NSMenuItem]) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        let menu = NSMenu(title: title)
+        items.forEach(menu.addItem)
+        item.submenu = menu
+        return item
+    }
+
+    static func scopeName(_ request: SearchRequest) -> String {
+        request.scope.map { Location.folder($0).displayName } ?? L10n.tr("This Mac")
+    }
+
+    // MARK: Coverage (FE-144)
+
+    static func showCoverage(_ ctx: CommandContext) {
+        guard let location = ctx.location, let session = SearchProvider.session(for: location) else { return }
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        if session.request.scope == nil {
+            alert.messageText = L10n.tr("What this search covered")
+        } else {
+            alert.messageText = session.coverage.isComplete ? L10n.tr("This search covered everything in its location.")
+                                                            : L10n.tr("Why might some results be missing?")
+        }
+        alert.informativeText = coverageText(session)
+        alert.addButton(withTitle: L10n.tr("OK"))
+        AlertSheets.present(alert, in: ctx.window?.window)
+    }
+
+    static func coverageText(_ session: SearchSession) -> String {
+        let searched = session.request.scope == nil ? L10n.tr("Searched: This Mac.")
+            : session.request.recursive ? L10n.format("Searched: “%@” and its subfolders.", scopeName(session.request))
+            : L10n.format("Searched: “%@” only (not subfolders).", scopeName(session.request))
+        var lines = [searched]
+        lines.append(L10n.format("Status: %@.", session.coverage.statusLine))
+        lines.append("")
+        lines += session.coverage.details
+        return lines.joined(separator: "\n")
+    }
+
+    // MARK: Saved searches (FE-138)
+
+    static let savedSearchType = UTType(filenameExtension: SavedSearch.fileExtension) ?? .json
+
+    static func save(_ ctx: CommandContext) {
+        guard case .search(let request)? = ctx.location, let host = ctx.window?.window else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = SavedSearch.suggestedFileName(for: request)
+        panel.allowedContentTypes = [savedSearchType]
+        panel.directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        panel.message = L10n.tr("Save this search. Opening the file in Better Explorer runs it again.")
+        panel.beginSheetModal(for: host) { response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                try write(request, to: url)
+                ctx.window?.statusBar.setMessage(L10n.format("Search saved as “%@”.", "\(url.lastPathComponent)"))
+            } catch {
+                NSAlert.show(L10n.tr("Couldn't save the search."), error.localizedDescription, in: host)
+            }
+        }
+    }
+
+    static func write(_ request: SearchRequest, to url: URL) throws {
+        let uuid = request.scope.flatMap { try? $0.resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString }
+        let bookmark = request.scope.flatMap { try? $0.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) }
+        try SavedSearch(request: request, volumeUUID: uuid, bookmark: bookmark).encoded().write(to: url, options: .atomic)
+    }
+
+    /// The search a saved file describes. Scope by bookmark first (follows moves), then path;
+    /// a path on a different disk than the saved one is not used.
+    static func location(forSavedSearch url: URL) throws -> Location {
+        let saved = try SavedSearch.read(from: url)
+        var scope: URL?
+        if let bookmark = saved.scopeBookmark {
+            var stale = false
+            scope = try? URL(resolvingBookmarkData: bookmark, options: [.withoutUI, .withoutMounting], relativeTo: nil, bookmarkDataIsStale: &stale)
+        }
+        if scope == nil, let path = saved.scopePath {
+            let candidate = URL(fileURLWithPath: path)
+            let uuid = try? candidate.resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString
+            if saved.scopeVolumeUUID == nil || uuid == nil || uuid == saved.scopeVolumeUUID { scope = candidate }
+            else { scope = candidate.appendingPathComponent(".better-explorer-missing-volume") }   // shows as unavailable, never another disk
+        }
+        return .search(saved.request(resolvedScope: scope))
+    }
+}

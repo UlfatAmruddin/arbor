@@ -3,26 +3,26 @@
 # recovery of queued jobs, headless safety, breadcrumb drops and middle-clicks, explained refusals and the
 # Update button (docs/features/qa-core.md, qa-places.md, file-operations.md, item-actions.md, cloud.md, updates.md).
 # Usage: scripts/build-app.sh debug && scripts/behavior-checks.sh [name…]   (no names = all groups)
-#   ARBOR_KEEP_FAILED=<dir>   move the folder (logs, fixture) of each group with a failure into <dir>
-#   Stale-bundle guard, one-suite-at-a-time lock, ARBOR_REBUILD: scripts/lib/app-bundle.sh
+#   BETTER_EXPLORER_KEEP_FAILED=<dir>   move the folder (logs, fixture) of each group with a failure into <dir>
+#   Stale-bundle guard, one-suite-at-a-time lock, BETTER_EXPLORER_REBUILD: scripts/lib/app-bundle.sh
 set -uo pipefail
 cd "$(dirname "$0")/.."
 . scripts/lib/app-bundle.sh
-arbor_prepare_app behavior-checks.sh debug
-APP="$ARBOR_APP_BIN"
+better_explorer_prepare_app behavior-checks.sh debug
+APP="$BETTER_EXPLORER_APP_BIN"
 FAILED=0
 GROUP_FAILED=0
 GROUPS_WANTED=" ${*:-all} "
 
 want() { [[ "$GROUPS_WANTED" == *" all "* || "$GROUPS_WANTED" == *" $1 "* ]]; }
 
-# discard <group> <folder…>: remove a group's folders, or keep them in $ARBOR_KEEP_FAILED after a failure.
+# discard <group> <folder…>: remove a group's folders, or keep them in $BETTER_EXPLORER_KEEP_FAILED after a failure.
 discard() {
   local group="$1" d; shift
-  if [ "$GROUP_FAILED" = 1 ] && [ -n "${ARBOR_KEEP_FAILED:-}" ]; then
-    mkdir -p "$ARBOR_KEEP_FAILED"
-    for d in "$@"; do chmod -R u+rwx "$d" 2>/dev/null; mv "$d" "$ARBOR_KEEP_FAILED/$group-$(basename "$d")"; done
-    echo "kept  $group → $ARBOR_KEEP_FAILED"
+  if [ "$GROUP_FAILED" = 1 ] && [ -n "${BETTER_EXPLORER_KEEP_FAILED:-}" ]; then
+    mkdir -p "$BETTER_EXPLORER_KEEP_FAILED"
+    for d in "$@"; do chmod -R u+rwx "$d" 2>/dev/null; mv "$d" "$BETTER_EXPLORER_KEEP_FAILED/$group-$(basename "$d")"; done
+    echo "kept  $group → $BETTER_EXPLORER_KEEP_FAILED"
   else
     rm -rf "$@"
   fi
@@ -31,8 +31,8 @@ discard() {
 
 run() {   # run <root> <start folder> <script> [VAR=value…]
   local root="$1" start="$2" script="$3"; shift 3
-  env ARBOR_HEADLESS=1 ARBOR_TEST_TRASH="$root/trash" ARBOR_JOURNAL_DIR="$root/journal" ARBOR_HISTORY_FILE="$root/history.json" \
-    ARBOR_SCRIPT="$script" "$@" perl -e 'alarm shift; exec @ARGV' 120 "$APP" "$start" >/dev/null 2>&1
+  env BETTER_EXPLORER_HEADLESS=1 BETTER_EXPLORER_TEST_TRASH="$root/trash" BETTER_EXPLORER_JOURNAL_DIR="$root/journal" BETTER_EXPLORER_HISTORY_FILE="$root/history.json" \
+    BETTER_EXPLORER_SCRIPT="$script" "$@" perl -e 'alarm shift; exec @ARGV' 120 "$APP" "$start" >/dev/null 2>&1
 }
 
 check() {   # check <name> <file> <expected line>
@@ -59,7 +59,7 @@ fact() {   # fact <name> <shell test…>
 
 # QA-CORE-6: Undo and Redo keep each action's own name, however often they alternate.
 if want undo; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F/sub"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F/sub"
   for n in a b c d e; do echo "$n" > "$R/F/$n.txt"; done
   # A 1×1 PNG, for Rotate.
   echo "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAEElEQVR4nGP4z8DAwMDAAAAJ/gH/4cXYyAAAAABJRU5ErkJggg==" | base64 -D > "$R/F/p.png"
@@ -92,13 +92,13 @@ fi
 
 # QA-CORE-5: Undo of a move from another volume runs as a background job (progress, cancel), not on the main thread.
 if want undomove; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/A" "$R/mnt"
-  if hdiutil create -size 24m -fs HFS+ -volname ArborUndo -quiet "$R/v.dmg" && \
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/A" "$R/mnt"
+  if hdiutil create -size 24m -fs HFS+ -volname BetterExplorerUndo -quiet "$R/v.dmg" && \
      hdiutil attach -nobrowse -noautoopen -quiet -mountpoint "$R/mnt" "$R/v.dmg"; then
     dd if=/dev/zero of="$R/A/big.bin" bs=1048576 count=4 2>/dev/null
     echo keep > "$R/A/small.txt"
     run "$R" "$R/A" "wait:1;opstart:move:$R/A/big.bin|$R/A/small.txt:$R/mnt;wait:8;log:$R/m1.txt;action:undo:;event;wait:0.6;log:$R/m2.txt;wait:9;log:$R/m3.txt;quit" \
-      ARBOR_TRANSFER_THROTTLE=1500000
+      BETTER_EXPLORER_TRANSFER_THROTTLE=1500000
     check "move to the other volume finished" "$R/m1.txt" "operations: none"
     contains "undo of the move runs as a job" "$R/m2.txt" "operations: move phase="
     check "undo finished" "$R/m3.txt" "operations: none"
@@ -114,19 +114,19 @@ fi
 
 # Selection identity: duplicated tabs and the selection after a delete keep exactly the chosen items.
 if want selection; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/P/one" "$R/P/two" "$R/P/three"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/P/one" "$R/P/two" "$R/P/three"
   for d in one two three; do echo "$d" > "$R/P/$d/a.txt"; done
   echo b > "$R/P/three/b.txt"
   run "$R" "$R/P" "wait:1;search:txt;event;wait:3;select:b.txt;wait:0.5;log:$R/s0.txt;click:file.trash;event;wait:3;log:$R/s1.txt;quit"
   check "search results listed" "$R/s0.txt" "selected: b.txt"
   check "after a delete only one neighbour is selected" "$R/s1.txt" "selected: a.txt"
-  R2=$(arbor_mktemp_dir); mkdir -p "$R2/trash" "$R2/P/one" "$R2/P/two"
+  R2=$(better_explorer_mktemp_dir); mkdir -p "$R2/trash" "$R2/P/one" "$R2/P/two"
   for d in one two; do echo "$d" > "$R2/P/$d/readme.txt"; done
   run "$R2" "$R2/P" "wait:1;search:readme;event;enter;wait:3;log:$R2/d0.txt;duptab;wait:3;log:$R2/d1.txt;quit"
   check "one same-named result selected" "$R2/d0.txt" "selected: readme.txt"
   check "a duplicated tab keeps one same-named item" "$R2/d1.txt" "selected: readme.txt"
   # A display option change (Increase contrast) redraws the list without dropping the selection or a rename.
-  R3=$(arbor_mktemp_dir); mkdir -p "$R3/trash" "$R3/F"; for n in a b c; do echo "$n" > "$R3/F/$n.txt"; done
+  R3=$(better_explorer_mktemp_dir); mkdir -p "$R3/trash" "$R3/F"; for n in a b c; do echo "$n" > "$R3/F/$n.txt"; done
   S="wait:1;view:details;wait:0.5;select:b.txt;displayoptions;log:$R3/o1.txt;click:file.trash;event;wait:1;log:$R3/o2.txt"
   S+=";select:a.txt;click:file.rename;event;wait:0.3;type:half.txt;displayoptions;log:$R3/o3.txt;escape;wait:0.5;quit"
   run "$R3" "$R3/F" "$S"
@@ -139,7 +139,7 @@ fi
 
 # Rename prompts are window-modal sheets that scripts can answer.
 if want sheets; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F"; echo 1 > "$R/F/a.txt"; echo 2 > "$R/F/b.txt"; echo 3 > "$R/F/c.txt"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F"; echo 1 > "$R/F/a.txt"; echo 2 > "$R/F/b.txt"; echo 3 > "$R/F/c.txt"
   run "$R" "$R/F" "wait:1;select:a.txt;click:file.rename;event;type:a.md;enter;wait:1;log:$R/x1.txt;sheetlog:$R/x1.txt;button:Use .md;wait:1.5;log:$R/x2.txt;select:b.txt;click:file.rename;event;type:b.rtf;enter;wait:1;button:Cancel;wait:1;escape;wait:1;log:$R/x3.txt;select:c.txt;click:file.rename;event;type:b.txt;enter;wait:1;log:$R/x4.txt;sheetlog:$R/x4.txt;button:OK;wait:1;escape;wait:1;log:$R/x5.txt;quit"
   check "extension change asks in a sheet" "$R/x1.txt" "sheet: true"
   contains "extension prompt wording" "$R/x1.txt" "Change the file name extension?"
@@ -154,9 +154,9 @@ fi
 
 # qa-places #12: a second network error waits for the first sheet instead of stacking or going app-modal.
 if want network; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/state"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/state"
   run "$R" "$R/F" "wait:1;address:\\\\nope-one\\a;wait:2;address:\\\\nope-two\\b;wait:2;address:\\\\nope-one\\a;wait:2;sheetlog:$R/n1.txt;button:Cancel;wait:1;sheetlog:$R/n2.txt;button:Cancel;wait:1;sheetlog:$R/n3.txt;log:$R/n4.txt;quit" \
-    ARBOR_FAKE_NETWORK=1 ARBOR_STATE_DIR="$R/state"
+    BETTER_EXPLORER_FAKE_NETWORK=1 BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "first error shows" "$R/n1.txt" "nope-one"
   contains "second error waits its turn" "$R/n2.txt" "nope-two"
   contains "an identical error isn't shown twice" "$R/n3.txt" "sheet: (none)"
@@ -164,9 +164,9 @@ if want network; then
   discard network "$R"
 fi
 
-# Headless runs never open anything outside Arbor's windows: requests are logged instead.
+# Headless runs never open anything outside Better Explorer's windows: requests are logged instead.
 if want headless; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F"; echo 1 > "$R/F/a.txt"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F"; echo 1 > "$R/F/a.txt"
   run "$R" "$R/F" "wait:1;select:a.txt;click:file.open;wait:0.5;click:file.showInFinder;wait:0.5;click:file.openInTerminal;wait:0.5;log:$R/h.txt;quit"
   P=$(cd "$R/F" && pwd -P)   # items are listed under the physical path (/private/var/…)
   contains "opening a file is only logged" "$R/h.txt" "system open: open $P/a.txt"
@@ -177,9 +177,9 @@ fi
 
 # consistency.md: opening a file shortcut records its target in Recent.
 if want recent; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/state"; echo 1 > "$R/F/report.txt"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/state"; echo 1 > "$R/F/report.txt"
   run "$R" "$R/F" "wait:1;select:report.txt;click:file.createShortcut;event;wait:1.5;escape;wait:0.5;log:$R/r0.txt;select:report.txt - Shortcut;click:file.open;wait:1;log:$R/r1.txt;quit" \
-    ARBOR_STATE_DIR="$R/state"
+    BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "shortcut created" "$R/r0.txt" "report.txt - Shortcut"
   contains "target opened (logged)" "$R/r1.txt" "open $(cd "$R/F" && pwd -P)/report.txt"
   contains "target recorded in Recent" "$R/r1.txt" "consistency: recent=[report.txt]"
@@ -188,10 +188,10 @@ fi
 
 # file-operations.md: a job still waiting in the queue at quit is offered again at the next launch.
 if want queue; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/A" "$R/B"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/A" "$R/B"
   dd if=/dev/zero of="$R/A/one.bin" bs=1048576 count=6 2>/dev/null; echo two > "$R/A/two.txt"
   run "$R" "$R/A" "wait:1;opqueue:limit=1;opstart:copy:$R/A/one.bin:$R/B;wait:0.5;opstart:copy:$R/A/two.txt:$R/B;wait:1;log:$R/q0.txt;terminate" \
-    ARBOR_TRANSFER_THROTTLE=500000
+    BETTER_EXPLORER_TRANSFER_THROTTLE=500000
   contains "second job waits" "$R/q0.txt" "queue:"
   fact "quit left the waiting job's journal" test "$(ls "$R/journal" 2>/dev/null | wc -l | tr -d ' ')" -ge 1
   fact "waiting job wasn't copied" test ! -e "$R/B/two.txt"
@@ -204,7 +204,7 @@ fi
 
 # item-actions.md (FE-023, FE-107): breadcrumb segments take drops and middle-clicks, by the tree's rules.
 if want breadcrumb; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/P/Mid/Leaf" "$R/P/Other"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/P/Mid/Leaf" "$R/P/Other"
   P=$(cd "$R" && pwd -P); M="$P/P/Mid"; L="$M/Leaf"; O="$P/P/Other"
   KM="${M#/private}"; KL="${L#/private}"   # location keys and crumbs drop /private
   for n in x y z t v; do echo "$n" > "$O/$n.txt"; done
@@ -302,7 +302,7 @@ if want breadcrumb; then
 
   # Right-to-left: hit testing reads the mirrored frames, so the order is asserted as well.
   S="wait:1;dragfiles:plain:$O/z.txt;crumbhover:Mid;crumbstate:$R/r1.txt;crumbleave;crumbmiddle:2:Mid;log:$R/r2.txt;quit"
-  run "$R" "$L" "$S" ARBOR_RTL=1
+  run "$R" "$L" "$S" BETTER_EXPLORER_RTL=1
   contains "right-to-left segments run from the deepest" "$R/r1.txt" "left to right: Leaf, Mid"
   contains "a mirrored segment is highlighted" "$R/r1.txt" "drop target: Mid"
   contains "a mirrored segment opens a new tab" "$R/r2.txt" "tabs: Leaf | Mid  active: 2"
@@ -318,7 +318,7 @@ if want breadcrumb; then
 
   # Another volume copies, and the source stays.
   mkdir -p "$R/mnt"
-  if hdiutil create -size 24m -fs HFS+ -volname ArborCrumb -quiet "$R/v.dmg" && \
+  if hdiutil create -size 24m -fs HFS+ -volname BetterExplorerCrumb -quiet "$R/v.dmg" && \
      hdiutil attach -nobrowse -noautoopen -quiet -mountpoint "$R/mnt" "$R/v.dmg"; then
     mkdir -p "$R/mnt/Inner"
     run "$R" "$R/mnt/Inner" "wait:1;dragfiles:plain:$O/t.txt;crumbhover:Inner;log:$R/v1.txt;crumbdrop;event;wait:1.5;log:$R/v2.txt;quit"
@@ -333,16 +333,16 @@ fi
 
 # settings-transfer.md (FE-208): an import shows what changes first, and a crafted file can't reach anything off the allowlist.
 if want settings; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F"
   header='"format":"arbor.settings","version":1'
-  printf '{%s,"settings":{"ARBOR_SCRIPT":"quit","AppleLanguages":["fr"],"hideProtectedSystemFiles":false,"hideExtensions":true,"clickItems":"single","compactView":true,"textSize":"/Users/me"}}' "$header" > "$R/crafted.json"
+  printf '{%s,"settings":{"BETTER_EXPLORER_SCRIPT":"quit","AppleLanguages":["fr"],"hideProtectedSystemFiles":false,"hideExtensions":true,"clickItems":"single","compactView":true,"textSize":"/Users/me"}}' "$header" > "$R/crafted.json"
   printf '{%s,"settings":{"compactView":1,"textSize":116}}' "$header" > "$R/invalid.json"
   printf '{"format":"arbor.settings","version":2,"settings":["x"]}' > "$R/newer.json"
   printf '{%s,"settings":{"openTo":"home","browseFolders":"own","showSyncProviderNotifications":false,"fullPathInTitleBar":true,"hiddenFiles":"show","hideEmptyDrives":false,"showStatusBar":false,"itemCheckBoxes":true,"typingMode":"search","navShowAllFolders":true,"navExpandToOpenFolder":true,"showLibraries":true,"navShowAvailabilityStatus":true,"showPopupDescriptions":false,"navigationPaneVisible":false,"swipeNavigation":false,"fileOpsQueueSameDrive":true,"fileOpsConcurrencyLimit":2}}' "$header" > "$R/long.json"
   echo 'not json' > "$R/garbage.json"
   dd if=/dev/zero of="$R/big.json" bs=1024 count=65 2>/dev/null
   S="wait:1;setpref:typingMode=search;click:view.textSize.115;settingsexport:$R/out.json"
-  S+=";setpref:typingMode=select;click:view.textSize.100;settingsimport:$R/out.json;wait:0.3;log:$R/preview.txt;menu:main:Arbor:$R/menu.txt;button:Cancel;wait:0.8;log:$R/cancelled.txt"
+  S+=";setpref:typingMode=select;click:view.textSize.100;settingsimport:$R/out.json;wait:0.3;log:$R/preview.txt;menu:main:App:$R/menu.txt;button:Cancel;wait:0.8;log:$R/cancelled.txt"
   S+=";settingsimport:$R/out.json;wait:0.3;button:Import;wait:0.8;log:$R/imported.txt"
   S+=";settingsimport:$R/out.json;wait:0.3;log:$R/same.txt;button:OK;wait:0.8"
   S+=";settingsimport:$R/crafted.json;wait:0.3;log:$R/crafted-preview.txt;button:Import;wait:0.8;log:$R/crafted-after.txt"
@@ -375,8 +375,8 @@ if want settings; then
   check "Escape closes the preview" "$R/long-escaped.txt" "sheet: false"
   contains "Escape changes nothing" "$R/long-escaped.txt" "browseFolders=same"
   contains "nothing usable isn't called a match" "$R/invalid.txt" "Nothing to import from this file."
-  contains "a newer file is named" "$R/newer.txt" "made by a newer version of Arbor"
-  contains "garbage is refused" "$R/garbage.txt" "This isn't an Arbor settings file."
+  contains "a newer file is named" "$R/newer.txt" "made by a newer version of Better Explorer"
+  contains "garbage is refused" "$R/garbage.txt" "This isn't a Better Explorer settings file."
   contains "an oversized file is refused" "$R/big.txt" "too large"
   check "nothing left open" "$R/end.txt" "sheet: false"
   discard settings "$R"
@@ -384,31 +384,31 @@ fi
 
 # workspaces.md (FE-027): named tab sets survive a relaunch and cope with missing folders, damaged and newer files.
 if want workspaces; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/state" "$R/A" "$R/B" "$R/C" "$R/D"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/state" "$R/A" "$R/B" "$R/C" "$R/D"
   K="${R#/private}"   # location keys are standardized paths
   W="$R/state/Workspaces.json"
   READY="workspacesready;waitload"
   S="$READY;location:$R/A;waitload;newtab;waitload;location:$R/B;waitload;newtab;waitload;location:$R/C;waitload;tab:2"
   S+=";workspace:save:Trio;menu:main:Window:$R/window-menu.txt;menu:seemore:$R/see-more.txt;quit"
-  run "$R" "$R/D" "$S" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$R/D" "$S" BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "the saved file lists the tabs" "$W" "\"location\":\"folder:$K/B\""
   contains "the active tab is saved" "$W" "\"activeTab\":1"
   lacks "Back is not saved" "$W" "folder:$K/D"
   contains "the Window menu has the submenu" "$R/window-menu.txt" "Workspaces"
-  contains "the menu says it is beyond Explorer" "$R/see-more.txt" "Arbor addition, not part of File Explorer"
+  contains "the menu says it is beyond Explorer" "$R/see-more.txt" "Better Explorer addition, not part of File Explorer"
   contains "the menu lists the workspace" "$R/see-more.txt" "Trio"
 
-  run "$R" "$R/D" "$READY;log:$R/l0.txt;workspace:open:Trio;workspacesready;waitload;log:$R/l1.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$R/D" "$READY;log:$R/l0.txt;workspace:open:Trio;workspacesready;waitload;log:$R/l1.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "a relaunch finds it" "$R/l0.txt" "list=Trio[1/folder:$K/A|folder:$K/B|folder:$K/C]"
   check "opens in a new window" "$R/l1.txt" "windows: 2"
   check "new window has the tabs" "$R/l1.txt" "tabs: A | B | C  active: 2"
 
-  run "$R" "$R/D" "$READY;workspace:replace:Trio;workspacesready;waitload;log:$R/r1.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$R/D" "$READY;workspace:replace:Trio;workspacesready;waitload;log:$R/r1.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   check "replace keeps one window" "$R/r1.txt" "windows: 1"
   check "replace swaps the tabs" "$R/r1.txt" "tabs: A | B | C  active: 2"
 
   # The real sheets: Cancel changes nothing, Save stores the tabs under the name offered (the active tab's title).
-  run "$R" "$R/D" "$READY;click:workspaces.save;event;wait:0.5;log:$R/p1.txt;sheetlog:$R/p1s.txt;button:Cancel;event;wait:0.8;log:$R/p2.txt;click:workspaces.save;event;wait:0.5;button:Save;event;wait:0.8;log:$R/p3.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$R/D" "$READY;click:workspaces.save;event;wait:0.5;log:$R/p1.txt;sheetlog:$R/p1s.txt;button:Cancel;event;wait:0.8;log:$R/p2.txt;click:workspaces.save;event;wait:0.5;button:Save;event;wait:0.8;log:$R/p3.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   check "Save asks for a name" "$R/p1.txt" "sheet: true"
   contains "the name field is offered" "$R/p1s.txt" "Save current tabs as workspace"
   check "Cancel closes the sheet" "$R/p2.txt" "sheet: false"
@@ -418,17 +418,17 @@ if want workspaces; then
   # Saving over a name asks first: Cancel leaves the file alone, Replace stores this window's tabs and keeps the entry.
   ASK="$READY;newtab;waitload;location:$R/A;waitload;tab:1;click:workspaces.save;event;wait:0.5;button:Save;event;wait:0.8"
   BEFORE=$(cat "$W")
-  run "$R" "$R/D" "$ASK;sheetlog:$R/o1.txt;button:Cancel;event;wait:0.8;log:$R/o2.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$R/D" "$ASK;sheetlog:$R/o1.txt;button:Cancel;event;wait:0.8;log:$R/o2.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "saving over a name asks" "$R/o1.txt" "Replace the workspace “D”?"
   check "Cancel closes the question" "$R/o2.txt" "sheet: false"
   fact "Cancel keeps the saved tabs" test "$BEFORE" = "$(cat "$W")"
-  run "$R" "$R/D" "$ASK;button:Replace;event;wait:0.8;log:$R/o3.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$R/D" "$ASK;button:Replace;event;wait:0.8;log:$R/o3.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "Replace stores this window's tabs" "$R/o3.txt" "list=D[0/folder:$K/D|folder:$K/A] , Trio["
 
   # The real rename sheet: a taken name is refused and named, a free one goes through.
   S="$READY;workspace:renamesheet:Trio;wait:0.5;workspace:typename:d;button:Rename;event;wait:0.8;sheetlog:$R/e0s.txt;log:$R/e0.txt;button:OK;event;wait:0.8"
   S+=";workspace:renamesheet:Trio;wait:0.5;workspace:typename:Quartet;button:Rename;event;wait:0.8;workspace:delete:D;log:$R/e1.txt;quit"
-  run "$R" "$R/D" "$S" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$R/D" "$S" BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "a taken name is refused" "$R/e0s.txt" "A workspace named “d” already exists."
   contains "a refused rename changes nothing" "$R/e0.txt" ", Trio["
   contains "renamed and deleted" "$R/e1.txt" "list=Quartet["
@@ -436,14 +436,14 @@ if want workspaces; then
   contains "rename reached the file" "$W" "\"name\":\"Quartet\""
 
   # Folder tabs follow the per-folder view (FE-052); a place without one keeps the saved view.
-  run "$R" "$R/D" "$READY;location:trash;waitload;view:list;workspace:save:Bin;workspace:open:Bin;workspacesready;waitload;log:$R/v1.txt;workspace:deletesheet:Bin;wait:0.5;sheetlog:$R/v2.txt;button:Delete;event;wait:0.8;log:$R/v3.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$R/D" "$READY;location:trash;waitload;view:list;workspace:save:Bin;workspace:open:Bin;workspacesready;waitload;log:$R/v1.txt;workspace:deletesheet:Bin;wait:0.5;sheetlog:$R/v2.txt;button:Delete;event;wait:0.8;log:$R/v3.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "a non-folder tab keeps its saved view" "$R/v1.txt" "location: trash  view: list"
   contains "Delete says files aren't affected" "$R/v2.txt" "No files or folders are affected."
   lacks "Delete removes the entry" "$R/v3.txt" "Bin["
 
   # A folder that has gone is skipped and named, stays in the workspace, and its active tab moves right.
   BEFORE=$(cat "$W"); rmdir "$R/B"
-  run "$R" "$R/D" "$READY;workspace:replace:Quartet;workspacesready;waitload;wait:0.5;log:$R/m1.txt;sheetlog:$R/m1s.txt;button:OK;event;wait:0.8;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$R/D" "$READY;workspace:replace:Quartet;workspacesready;waitload;wait:0.5;log:$R/m1.txt;sheetlog:$R/m1s.txt;button:OK;event;wait:0.8;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   check "the others open" "$R/m1.txt" "tabs: A | C  active: 2"
   contains "the skipped tab is named" "$R/m1s.txt" "couldn't be opened"
   contains "the skipped tab's folder is shown" "$R/m1s.txt" "couldn't be opened / B"
@@ -451,36 +451,36 @@ if want workspaces; then
 
   # Nothing available: an alert, and the window stays as it was.
   rmdir "$R/A" "$R/C"
-  run "$R" "$R/D" "$READY;workspace:replace:Quartet;workspacesready;wait:0.5;log:$R/g1.txt;sheetlog:$R/g1s.txt;button:OK;event;wait:0.8;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$R/D" "$READY;workspace:replace:Quartet;workspacesready;wait:0.5;log:$R/g1.txt;sheetlog:$R/g1s.txt;button:OK;event;wait:0.8;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   check "the window keeps its tab" "$R/g1.txt" "tabs: D  active: 1"
   contains "the alert says so" "$R/g1s.txt" "None of the places in"
 
   # A location this version can't parse is reported as that, not as something missing from the disk.
   echo '{"version":1,"workspaces":[{"name":"Odd","tabs":[{"location":"timeline:x"}]}]}' > "$W"
-  run "$R" "$R/D" "$READY;workspace:replace:Odd;workspacesready;wait:0.5;sheetlog:$R/u1.txt;button:OK;event;wait:0.8;quit" ARBOR_STATE_DIR="$R/state"
-  contains "an unreadable location says so" "$R/u1.txt" "1 tab has a location this version of Arbor can't open."
+  run "$R" "$R/D" "$READY;workspace:replace:Odd;workspacesready;wait:0.5;sheetlog:$R/u1.txt;button:OK;event;wait:0.8;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
+  contains "an unreadable location says so" "$R/u1.txt" "1 tab has a location this version of Better Explorer can't open."
   lacks "and doesn't blame the disk" "$R/u1.txt" "moved, deleted"
 
   # Damaged: moved aside and reported. Newer: shown read-only, and its bytes never change.
   echo 'not json' > "$W"
-  run "$R" "$R/D" "$READY;log:$R/d1.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$R/D" "$READY;log:$R/d1.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "damage is reported" "$R/d1.txt" "The saved workspaces were damaged"
   fact "the damaged file was moved aside" grep -q 'not json' "$R/state/Workspaces.damaged.json"
   fact "the damaged file is gone" test ! -e "$W"
 
   : > "$W"
-  run "$R" "$R/D" "$READY;log:$R/z1.txt;workspace:save:After;log:$R/z2.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$R/D" "$READY;log:$R/z1.txt;workspace:save:After;log:$R/z2.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "an empty file is reported as damage" "$R/z1.txt" "The saved workspaces were damaged"
   contains "and saving works again" "$R/z2.txt" "list=After["
 
   echo '{"version":99,"workspaces":[{"name":"Future","tabs":[{"location":"home"}]}]}' > "$W"
   BEFORE=$(cat "$W")
-  run "$R" "$R/D" "$READY;workspace:rename:Future=Past;log:$R/n1.txt;workspace:delete:Future;log:$R/n2.txt;workspace:save:New;log:$R/n3.txt;menu:seemore:$R/n-menu.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$R/D" "$READY;workspace:rename:Future=Past;log:$R/n1.txt;workspace:delete:Future;log:$R/n2.txt;workspace:save:New;log:$R/n3.txt;menu:seemore:$R/n-menu.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "a newer file is read-only" "$R/n1.txt" "readonly=true error=readOnly"
   contains "delete is refused" "$R/n2.txt" "list=Future["
   contains "save is refused" "$R/n3.txt" "error=readOnly"
   fact "a newer file is never rewritten" test "$BEFORE" = "$(cat "$W")"
-  contains "the reason is shown" "$R/n-menu.txt" "Saved by a newer version of Arbor"
+  contains "the reason is shown" "$R/n-menu.txt" "Saved by a newer version of Better Explorer"
   contains "Save is disabled while read-only" "$R/n-menu.txt" "Save current tabs as workspace… (disabled)"
   contains "Rename is disabled while read-only" "$R/n-menu.txt" "Rename… (disabled)"
   contains "Delete is disabled while read-only" "$R/n-menu.txt" "Delete… (disabled)"
@@ -488,9 +488,9 @@ if want workspaces; then
   # A newer format need not look like this one at all.
   echo '{"sets":[{"name":"Future"}],"version":2}' > "$W"
   BEFORE=$(cat "$W")
-  run "$R" "$R/D" "$READY;log:$R/s1.txt;workspace:save:New;log:$R/s2.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$R/D" "$READY;log:$R/s1.txt;workspace:save:New;log:$R/s2.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "a newer shape is read-only" "$R/s1.txt" "readonly=true"
-  contains "a newer shape says why" "$R/s1.txt" "Saved by a newer version of Arbor"
+  contains "a newer shape says why" "$R/s1.txt" "Saved by a newer version of Better Explorer"
   contains "a newer shape refuses saves" "$R/s2.txt" "error=readOnly"
   fact "a newer shape is neither moved nor rewritten" test "$BEFORE" = "$(cat "$W")"
   discard workspaces "$R"
@@ -498,7 +498,7 @@ fi
 
 # finder-tags.md (FE-081): the Tags section lists tags and opens each as an ordinary search, without moving anything.
 if want finder-tags; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F"
   for n in tagged workshop plain; do echo "$n" > "$R/F/$n.txt"; done
   tag_file() { xattr -w com.apple.metadata:_kMDItemUserTags "<?xml version=\"1.0\"?><plist version=\"1.0\"><array><string>$2</string></array></plist>" "$1"; }
   tag_file "$R/F/tagged.txt" Work; tag_file "$R/F/workshop.txt" Workshop
@@ -560,7 +560,7 @@ fi
 
 # address-entry.md: path suggestions never change what was typed, and shell: names never start anything.
 if want address; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F/Alpha" "$R/F/Alpine" "$R/F/cmd" "$R/F/Many" "$R/F/Huge" "$R/home/Downloads"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F/Alpha" "$R/F/Alpine" "$R/F/cmd" "$R/F/Many" "$R/F/Huge" "$R/home/Downloads"
   echo 1 > "$R/F/apple.txt"; echo 1 > "$R/F/Alpha/inner.txt"; for i in $(seq 1 13); do echo 1 > "$R/F/Many/f$i"; done
   P=$(cd "$R/F" && pwd -P)
   S="shown rows=[Alpha/|Alpine/]"
@@ -612,13 +612,13 @@ if want address; then
   run "$R" "$P" "wait:1;addresstype:$P/Al;addresscompletionready;addressclickaway;addresscompletions:$R/o.txt;quit"
   check "a press outside the list closes it and keeps the text" "$R/o.txt" "$HIDDEN listings=1 text=$P/Al"
 
-  run "$R" "$P" "wait:1;addresstype:$P/Alpha/;wait:0.3;addresstype:$P/A;addresscompletionready;addresscompletions:$R/i.txt;quit" ARBOR_COMPLETION_DELAY=0.8
+  run "$R" "$P" "wait:1;addresstype:$P/Alpha/;wait:0.3;addresstype:$P/A;addresscompletionready;addresscompletions:$R/i.txt;quit" BETTER_EXPLORER_COMPLETION_DELAY=0.8
   contains "newer text wins over a listing still running" "$R/i.txt" "shown rows=[Alpha/|Alpine/|apple.txt]"
   lacks "the abandoned listing shows nothing" "$R/i.txt" "inner.txt"
-  run "$R" "$P" "wait:1;addresstype:$P/Alpha;key:return;log:$R/j.txt;wait:2.5;addresscompletions:$R/j2.txt;quit" ARBOR_COMPLETION_DELAY=2
+  run "$R" "$P" "wait:1;addresstype:$P/Alpha;key:return;log:$R/j.txt;wait:2.5;addresscompletions:$R/j2.txt;quit" BETTER_EXPLORER_COMPLETION_DELAY=2
   contains "Return doesn't wait for a listing" "$R/j.txt" "/F/Alpha  view: details"
   contains "a listing finishing after Return opens nothing" "$R/j2.txt" "completions: hidden"
-  run "$R" "$P" "wait:1;addresstype:$P/Al;wait:2;addresscompletions:$R/k.txt;wait:2;addresscompletions:$R/k.txt;addresstype:$P/Alp;wait:0.1;addresscompletions:$R/k2.txt;quit" ARBOR_COMPLETION_DELAY=3
+  run "$R" "$P" "wait:1;addresstype:$P/Al;wait:2;addresscompletions:$R/k.txt;wait:2;addresscompletions:$R/k.txt;addresstype:$P/Alp;wait:0.1;addresscompletions:$R/k2.txt;quit" BETTER_EXPLORER_COMPLETION_DELAY=3
   check "a slow listing shows nothing" "$R/k.txt" "$HIDDEN listings=1 text=$P/Al"
   lacks "a late result opens no list" "$R/k.txt" "completions: shown"
   contains "the next keystroke uses the late result" "$R/k2.txt" "$S highlight=- footer=no listings=1 text=$P/Alp"
@@ -639,7 +639,7 @@ fi
 
 # address-entry.md: a typed word opens another app only after a visible yes, and nothing typed is passed on.
 if want addresshandoff; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/W/taskmgr"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/W/taskmgr"
   echo 1 > "$R/F/a.txt"; (cd "$R/F" && /usr/bin/zip -q kit.zip a.txt)
   P=$(cd "$R/F" && pwd -P); K=${P#/private}
   SETTINGS="Open System Settings"
@@ -647,11 +647,11 @@ if want addresshandoff; then
   run "$R" "$P" "wait:1;address:shell:fonts;wait:0.5;log:$R/a1.txt;button:Open Font Book;wait:0.5;log:$R/a2.txt;address:cmd;wait:0.5;log:$R/a3.txt;button:Open Terminal;wait:0.5;log:$R/a4.txt;address:control;wait:0.5;button:$SETTINGS;wait:0.5;address:TaskMgr.EXE;wait:0.5;button:Open Activity Monitor;wait:0.5;address:shell:printersfolder;wait:0.5;button:$SETTINGS;wait:0.5;log:$R/a5.txt;quit"
   check "the question is up" "$R/a1.txt" "sheet: true"
   check "nothing starts before the answer" "$R/a1.txt" "system open: none"
-  contains "the question names the app" "$R/a1.txt" "asked Open Font Book? Arbor will open Font Book."
+  contains "the question names the app" "$R/a1.txt" "asked Open Font Book? Better Explorer will open Font Book."
   check "the answer closes the question" "$R/a2.txt" "sheet: false"
   contains "the choice is recorded" "$R/a2.txt" "| accepted"
   contains "accepting opens the app" "$R/a2.txt" "system open: launch Font Book"
-  contains "Terminal's question names the folder" "$R/a3.txt" "Arbor will open Terminal in “${K}”"
+  contains "Terminal's question names the folder" "$R/a3.txt" "Better Explorer will open Terminal in “${K}”"
   contains "Terminal opens at the current folder" "$R/a4.txt" "Terminal at $K"
   contains "control opens System Settings" "$R/a5.txt" "launch System Settings"
   contains "taskmgr opens Activity Monitor, whatever its case" "$R/a5.txt" "launch Activity Monitor"
@@ -674,7 +674,7 @@ if want addresshandoff; then
     check "refused: nothing starts ($f)" "$R/$f.txt" "system open: none"
     check "refused: nothing is asked ($f)" "$R/$f.txt" "address handoff: none"
   done
-  contains "extra text is refused and says why" "$R/c1.txt" "Arbor doesn't pass typed text to other apps. Type “cmd” on its own to open Terminal."
+  contains "extra text is refused and says why" "$R/c1.txt" "Better Explorer doesn't pass typed text to other apps. Type “cmd” on its own to open Terminal."
   contains "the same for control" "$R/c2.txt" "Type “control” on its own to open System Settings."
   contains "extra text after a shell name is not that name" "$R/c4.txt" "doesn't know the shell name “fonts extra”"
   contains "a word with no Mac tool keeps its message" "$R/c5.txt" "doesn't run commands from the address bar"
@@ -696,39 +696,39 @@ fi
 
 # address-entry.md: addresses survive a relaunch, a bad file is harmless, Clear history erases them, and no run sees the real file.
 if want addresshistory; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/state" "$R/F/Alpha/Deep" "$R/F/Beta" "$R/home/Library/Application Support/Arbor"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/state" "$R/F/Alpha/Deep" "$R/F/Beta" "$R/home/Library/Application Support/Arbor"
   P=$(cd "$R/F" && pwd -P); K=${P#/private}
   FILE="$R/state/AddressHistory.json"
 
-  run "$R" "$P" "wait:1;address:$P/Alpha/Deep;wait:1;location:$P/Beta;wait:1;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$P" "wait:1;address:$P/Alpha/Deep;wait:1;location:$P/Beta;wait:1;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   fact "the history is saved at quit" test -f "$FILE"
   contains "a typed address is remembered" "$FILE" "folder:$K/Alpha/Deep"
   contains "a visited place is remembered" "$FILE" "folder:$K/Beta"
   contains "the file has a version" "$FILE" '"version":1'
 
-  run "$R" "$P" "wait:1.5;log:$R/a.txt;addresstype:$K/Al;addresscompletionready;addresscompletions:$R/a2.txt;key:down;key:return;wait:1;log:$R/a3.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$P" "wait:1.5;log:$R/a.txt;addresstype:$K/Al;addresscompletionready;addresscompletions:$R/a2.txt;key:down;key:return;wait:1;log:$R/a3.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   check "the ▾ list comes back after a relaunch, newest first" "$R/a.txt" "recent: $K | $K/Beta | $K/Alpha/Deep"
   contains "completion offers the remembered folder first" "$R/a2.txt" "shown rows=[Alpha/Deep/|Alpha/]"
   contains "a remembered row opens its folder" "$R/a3.txt" "/F/Alpha/Deep  view: details"
 
-  printf '{"version":1,"entries":["folder:%s/Gone","folder:%s/Beta","folder:/Volumes/Arbor No Such Volume/x",3,"folder:/a/../b"]}' "$K" "$K" > "$FILE"
-  run "$R" "$P" "wait:2.5;location:$P/Beta;wait:0.5;log:$R/b.txt;quit" ARBOR_STATE_DIR="$R/state"
+  printf '{"version":1,"entries":["folder:%s/Gone","folder:%s/Beta","folder:/Volumes/Better Explorer No Such Volume/x",3,"folder:/a/../b"]}' "$K" "$K" > "$FILE"
+  run "$R" "$P" "wait:2.5;location:$P/Beta;wait:0.5;log:$R/b.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "a remembered place that exists is listed" "$R/b.txt" "$K/Beta"
   lacks "a folder that went away is not offered" "$R/b.txt" "$K/Gone"
-  lacks "a folder on an unplugged drive is not offered" "$R/b.txt" "Arbor No Such Volume"
-  contains "hidden entries stay remembered" "$FILE" "Arbor No Such Volume"
+  lacks "a folder on an unplugged drive is not offered" "$R/b.txt" "Better Explorer No Such Volume"
+  contains "hidden entries stay remembered" "$FILE" "Better Explorer No Such Volume"
 
   echo "not json" > "$FILE"
-  run "$R" "$P" "wait:1;log:$R/c.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$P" "wait:1;log:$R/c.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   check "a damaged file starts an empty list" "$R/c.txt" "recent: $K"
   contains "the next save replaces a damaged file" "$FILE" "folder:$K"
 
   printf '{"version":99,"entries":["trash"],"later":true}' > "$FILE"
-  run "$R" "$P" "wait:1;log:$R/d.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$P" "wait:1;log:$R/d.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "a newer file is read" "$R/d.txt" "Trash"
   contains "a newer file is not rewritten" "$FILE" '"later":true'
 
-  run "$R" "$P" "wait:1;location:$P/Beta;wait:1;homeclear;wait:0.5;log:$R/e.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$P" "wait:1;location:$P/Beta;wait:1;homeclear;wait:0.5;log:$R/e.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   fact "Clear history erases the file" test ! -e "$FILE"
   check "Clear history empties the ▾ list" "$R/e.txt" "recent: "
 
@@ -741,9 +741,9 @@ if want addresshistory; then
   discard addresshistory "$R"
 fi
 
-# FE-218: the Open in Arbor service, and what the selection offers to other apps' services. Real Services need a GUI session.
+# FE-218: the Open in Better Explorer service, and what the selection offers to other apps' services. Real Services need a GUI session.
 if want services; then
-  R=$(arbor_mktemp_dir); F="$R/F"; mkdir -p "$R/trash" "$F/sub" "$F/App.app/Contents"
+  R=$(better_explorer_mktemp_dir); F="$R/F"; mkdir -p "$R/trash" "$F/sub" "$F/App.app/Contents"
   echo a > "$F/a.txt"; echo b > "$F/b.txt"
   printf '{"format":"arbor.search","version":1,"query":"saved","scopePath":"%s","recursive":true,"fileContents":false,"systemFiles":false,"zippedFiles":false,"saved":"2026-01-01T00:00:00Z"}' "$F" > "$R/s.arborsearch"
   S="wait:1"
@@ -771,12 +771,12 @@ if want services; then
   check "files in one folder share one tab" "$R/files.txt" "selected: a.txt | b.txt"
   check "a package is revealed" "$R/package.txt" "selected: App.app"
   contains "partial failure opens the rest" "$R/partial.txt" "location: folder:$F/sub"
-  contains "partial failure reports a count" "$R/partial.txt" "Arbor couldn't open 1 item."
+  contains "partial failure reports a count" "$R/partial.txt" "Better Explorer couldn't open 1 item."
   lacks "the alert names no file" "$R/partial.txt" "missing"
-  contains "all failed reports a count" "$R/failed.txt" "Arbor couldn't open 1 item."
+  contains "all failed reports a count" "$R/failed.txt" "Better Explorer couldn't open 1 item."
   contains "one skipped item reads as one" "$R/failed.txt" "It may have been moved or deleted"
   contains "several skipped items read as several" "$R/failed-two.txt" "They may have been moved or deleted"
-  check "nothing usable sets the service error" "$R/empty.txt" "service error: Open in Arbor needs a file or folder."
+  check "nothing usable sets the service error" "$R/empty.txt" "service error: Open in Better Explorer needs a file or folder."
   contains "a late result only notes it" "$R/stale.txt" "took too long and was dropped"
   check "a late result shows no sheet" "$R/stale.txt" "sheet: false"
   lacks "a late result opens no tab" "$R/stale.txt" "sub | sub  active"
@@ -792,7 +792,7 @@ if want services; then
   check "tree menu doesn't" "$R/one.txt" "plugins tree: false"
   check "tab menu doesn't" "$R/one.txt" "plugins tab: false"
   check "column header menu doesn't" "$R/one.txt" "plugins header: false"
-  check "Arbor ▸ Services is handed to AppKit" "$R/one.txt" "services menu: true"
+  check "Better Explorer ▸ Services is handed to AppKit" "$R/one.txt" "services menu: true"
   check "renaming: no file service" "$R/renaming.txt" "requestor file: false"
   check "typing in search: no file service" "$R/typing.txt" "requestor file: false"
   check "right-click takes focus from the search box" "$R/clicked.txt" "requestor file: true"
@@ -803,7 +803,7 @@ if want services; then
   fact "right-click doesn't commit a rename" test -f "$F/a.txt"
   discard services "$R"
 
-  R=$(arbor_mktemp_dir); F="$R/F"; mkdir -p "$R/trash" "$F"
+  R=$(better_explorer_mktemp_dir); F="$R/F"; mkdir -p "$R/trash" "$F"
   echo a > "$F/a.txt"; echo b > "$F/b.txt"
   (cd "$F" && /usr/bin/zip -q member.zip b.txt)
   S="wait:1;select:a.txt;click:file.trash;event;wait:1;location:trash;wait:0.7;select:a.txt;log:$R/trash-state.txt;serviceprobe:$R/trash.txt"
@@ -820,7 +820,7 @@ fi
 if want keypreset; then
   MAC="setpref:keyboardPreset=mac"
   at() { printf 'location: folder:%s  view:' "${1#/private}"; }   # as location keys spell the folder
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F/sub" "$R/F/sub2"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F/sub" "$R/F/sub2"
   for n in a b c d; do echo "$n" > "$R/F/$n.txt"; done
   P=$(cd "$R/F" && pwd -P)   # items are listed under the physical path (/private/var/…)
 
@@ -921,15 +921,15 @@ if want keypreset; then
   check "mac: Return in the Trash opens nothing" "$R/f4.txt" "system open: none"
   contains "mac: Return in the Trash keeps the selection" "$R/f4.txt" "selected: one.txt"
 
-  run "$R" "$Q" "wait:1;$MAC;homefav:$Q/G;location:home;wait:1.5;homeselect:favorites:G;key:return;wait:1.5;log:$R/f5.txt;quit" ARBOR_STATE_DIR="$R/state"
+  run "$R" "$Q" "wait:1;$MAC;homefav:$Q/G;location:home;wait:1.5;homeselect:favorites:G;key:return;wait:1.5;log:$R/f5.txt;quit" BETTER_EXPLORER_STATE_DIR="$R/state"
   contains "mac: Return activates a Home item" "$R/f5.txt" "$(at "$Q/G")"
 
   S="wait:1;$MAC;gallerysources:$Q/G;location:gallery;wait:2.5;galleryselect:photo.png;key:return;wait:0.8;log:$R/f6.txt;sheettext:renamed.png;button:Rename;wait:1;quit"
-  run "$R" "$Q" "$S" ARBOR_GALLERY_NO_SPOTLIGHT=1
+  run "$R" "$Q" "$S" BETTER_EXPLORER_GALLERY_NO_SPOTLIGHT=1
   contains "mac: Return in Gallery asks in a sheet" "$R/f6.txt" "sheet: true"
   fact "mac: the Gallery sheet renames the file" test -f "$Q/G/renamed.png"
 
-  run "$R" "$Q" "wait:1;location:network;wait:1.5;key:delete;wait:1;log:$R/f7.txt;quit" ARBOR_FAKE_NETWORK=1 ARBOR_STATE_DIR="$R/state-net"
+  run "$R" "$Q" "wait:1;location:network;wait:1.5;key:delete;wait:1;log:$R/f7.txt;quit" BETTER_EXPLORER_FAKE_NETWORK=1 BETTER_EXPLORER_STATE_DIR="$R/state-net"
   contains "windows: ⌫ on the Network page goes back" "$R/f7.txt" "$(at "$Q")"
 
   # Input methods own the keyboard while composing (FE-068).
@@ -952,7 +952,7 @@ fi
 # FE-058: the band in Details, with real mouse events (NSTableView ignores clicks in the never-key headless window, so
 # selecting by a plain click is a manual check). Rows are 28 points; the Name column is 340 wide and Date follows it.
 if want detailsmarquee; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/S" "$R/G" "$R/F2" "$R/src"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/S" "$R/G" "$R/F2" "$R/src"
   for n in $(seq -w 1 50); do echo "$n" > "$R/F/f$n.txt"; echo "$n" > "$R/F2/f$n.txt"; done
   for n in a b c; do echo "$n" > "$R/S/$n.txt"; done
   for n in a b c; do echo "$n" > "$R/G/$n.txt"; echo "$n" > "$R/G/$n.md"; done
@@ -985,7 +985,7 @@ if want detailsmarquee; then
   check "shape matches the laid-out cell" "$R/press.txt" "layout icon=true field=true"
 
   # Mirrored layout: the shape still matches the cell.
-  run "$R" "$R/S" "wait:1;view:details;wait:0.5;detailspress:b.txt:$R/rtl.txt;quit" ARBOR_RTL=1
+  run "$R" "$R/S" "wait:1;view:details;wait:0.5;detailspress:b.txt:$R/rtl.txt;quit" BETTER_EXPLORER_RTL=1
   check "mirrored shape matches the laid-out cell" "$R/rtl.txt" "layout icon=true field=true"
   check "mirrored: the whole field is the name" "$R/rtl.txt" "press icon=item nameEnd=item justPast=rowSpace"
 
@@ -1013,7 +1013,7 @@ if want detailsmarquee; then
   S="wait:1;view:details;wait:0.5;detailsmarquee:200,10,50,70::3:queued;wait:0.5;opstart:copy:$R/src/zz.txt:$R/S;wait:0.5;log:$R/h1.txt"
   S+=";snapshot:$R/band-light.png;wait:6;log:$R/h2.txt"
   S+=";detailsmarquee:200,10,50,70::4:queued;wait:0.3;refresh;wait:0.3;log:$R/h3.txt;wait:8;log:$R/h4.txt;quit"
-  run "$R" "$R/S" "$S" ARBOR_APPEARANCE=light
+  run "$R" "$R/S" "$S" BETTER_EXPLORER_APPEARANCE=light
   contains "still tracking during the hold" "$R/h1.txt" "tracking=true"
   contains "the new row waits for mouse-up" "$R/h1.txt" "tableRows=3 "
   contains "the new row appears after mouse-up" "$R/h2.txt" "tableRows=4 "
@@ -1043,14 +1043,14 @@ fi
 
 # FE-132: a This Mac search says what it covered, volume by volume, from injected volumes only.
 if want wholemac; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/hd" "$R/usb/open" "$R/usb/locked" "$R/nas" "$R/off"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/hd" "$R/usb/open" "$R/usb/locked" "$R/nas" "$R/off"
   echo 1 > "$R/hd/report-hd.txt"; echo 2 > "$R/usb/open/report-usb.txt"; echo 3 > "$R/usb/locked/report-locked.txt"; echo 4 > "$R/nas/report-nas.txt"; echo 5 > "$R/off/report-off.txt"
   chmod 000 "$R/usb/locked"
   VOLS="Macintosh HD|startup|enabled|$R/hd;USB Stick|external|disabled|$R/usb;Old Disk|external|disabled|;Work Share|network|unknown|$R/nas"
   S="wait:1;windowsize:1100,700;location:thismac;wait:1;search:report;event;wait:3;log:$R/a.txt;searchdetails:$R/d.txt;announcements:$R/spoken.txt"
   S+=";menu:main:Edit:$R/menu.txt;click:search.coverage;wait:0.6;log:$R/sheet.txt;searchcoverageax:$R/ax.txt;button:OK;wait:0.4;log:$R/closed.txt"
   S+=";searchmenu:$R/options.txt;searchopt:Why might results be missing?;wait:0.6;log:$R/sheet2.txt;button:OK;wait:0.4;quit"
-  run "$R" "$R/F" "$S" ARBOR_TEST_SEARCH_VOLUMES="$VOLS"
+  run "$R" "$R/F" "$S" BETTER_EXPLORER_TEST_SEARCH_VOLUMES="$VOLS"
   chmod 755 "$R/usb/locked"
   contains "an indexed startup disk gives results" "$R/a.txt" "report-hd.txt"
   contains "a scanned volume gives results" "$R/a.txt" "report-usb.txt"
@@ -1075,7 +1075,7 @@ if want wholemac; then
 
   # With indexing off, the startup disk is left out: its stand-in folder must not be read.
   S="wait:1;location:thismac;wait:1;search:report;event;wait:3;log:$R/off.txt;searchdetails:$R/off-d.txt;quit"
-  run "$R" "$R/F" "$S" ARBOR_TEST_SEARCH_VOLUMES="Macintosh HD|startup|disabled|$R/off"
+  run "$R" "$R/F" "$S" BETTER_EXPLORER_TEST_SEARCH_VOLUMES="Macintosh HD|startup|disabled|$R/off"
   lacks "indexing off: nothing is read" "$R/off.txt" "report-off.txt"
   contains "indexing off: the startup disk is left out" "$R/off-d.txt" "    Macintosh HD: Spotlight indexing is off on this volume."
 
@@ -1090,7 +1090,7 @@ fi
 
 # FE-055: long names wrap in Details when the Folder Options choice is on. The window width sets the Name column.
 if want namewrap; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/L"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/L"
   TWO="Quarterly planning notes for the whole team with far too many words to fit on one line of the name column.pdf"
   CAPPED="$(printf 'x%.0s' $(seq 1 120))_$(printf 'y%.0s' $(seq 1 100)).tar.gz"
   touch "$R/F/$TWO" "$R/F/$CAPPED" "$R/F/b.txt" "$R/F/c.md" "$R/F/$(printf 'evil\nname.pdf')"
@@ -1144,11 +1144,11 @@ if want namewrap; then
   contains "off again: back to one line" "$R/off2.txt" "$TWO height=28 "
 
   S="wait:1;view:details;windowsize:1100,700;wait:0.5;$OPT;namewrap:$R/tall.txt;quit"
-  run "$R" "$R/F" "$S" ARBOR_TEXT_SIZE=150
+  run "$R" "$R/F" "$S" BETTER_EXPLORER_TEXT_SIZE=150
   fact "bigger text gives taller rows" test "$(sed -n "s/^namewrap row: $TWO height=\([0-9]*\) .*/\1/p" "$R/tall.txt")" -gt 44
 
   S="wait:1;view:details;windowsize:1100,700;wait:0.5;$OPT;namewrap:$R/rtl.txt;detailspress:$TWO:$R/rtl-press.txt;quit"
-  run "$R" "$R/F" "$S" ARBOR_RTL=1
+  run "$R" "$R/F" "$S" BETTER_EXPLORER_RTL=1
   contains "right to left: a long name wraps" "$R/rtl.txt" "$TWO height=44 "
   contains "right to left: the shape still matches the cell" "$R/rtl-press.txt" "layout icon=true field=true"
 
@@ -1164,7 +1164,7 @@ fi
 
 # gallery-libraries.md: custom libraries (FE-076), their write destination (FE-238) and removal vs deletion (FE-239).
 if want libraries; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/A" "$R/B"; echo a > "$R/A/in-a.txt"; echo b > "$R/B/in-b.txt"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/A" "$R/B"; echo a > "$R/A/in-a.txt"; echo b > "$R/B/in-b.txt"
 
   # Create: bad names show why and create nothing; a good one opens the library and its dialog.
   S="wait:1;location:library?name=Libraries;wait:1;click:library.new;wait:1;log:$R/c0.txt"
@@ -1285,7 +1285,7 @@ fi
 
 # cloud.md (FE-192, FE-195, FE-198): account labels, a provider's failure text, the hand-off and the capability probe, on simulated providers only.
 if want cloudproviders; then
-  R=$(arbor_mktemp_dir); S="$R/storage"; mkdir -p "$R/trash"
+  R=$(better_explorer_mktemp_dir); S="$R/storage"; mkdir -p "$R/trash"
   ODD=$(printf 'GoogleDrive-odd\xe2\x80\xaename')
   for name in "OneDrive-Personal" "OneDrive-Contoso Ltd" "GoogleDrive-jane@example.com" "$ODD" "Dropbox" "Dropbox (Business)" "Box-Box" "AcmeSync-x"; do
     mkdir -p "$S/$name"; for f in a.txt b.txt c.txt d.txt; do echo 1 > "$S/$name/$f"; done
@@ -1294,10 +1294,10 @@ if want cloudproviders; then
   P=$(cd "$S" && pwd -P); C="$P/OneDrive-Contoso Ltd"; O="$P/OneDrive-Personal"; ONEDRIVE=com.microsoft.OneDrive
   BIDI=$(printf '\xe2\x80\xae'); HOSTILE="Quota${BIDI}full$(printf '\n')again"
   # Every run names its installed apps and storage folder, so nothing depends on this Mac.
-  cloudrun() { local script="$1"; shift; run "$R" "$P" "$script" ARBOR_TEST_CLOUD_STORAGE="$P" ARBOR_TEST_INSTALLED_APPS=$ONEDRIVE "$@"; }
+  cloudrun() { local script="$1"; shift; run "$R" "$P" "$script" BETTER_EXPLORER_TEST_CLOUD_STORAGE="$P" BETTER_EXPLORER_TEST_INSTALLED_APPS=$ONEDRIVE "$@"; }
 
   cloudrun "wait:1;location:$C;wait:1;select:a.txt;wait:0.4;log:$R/a1.txt;menu:item:$R/a2.txt;click:cloud.openProvider;wait:0.2;log:$R/a3.txt;select:b.txt;wait:0.3;menu:item:$R/a4.txt;select:c.txt;wait:0.4;menu:item:$R/a5.txt;location:$P/Dropbox;wait:1;select:a.txt;wait:0.3;menu:item:$R/a6.txt;location:$P/AcmeSync-x;wait:1;select:a.txt;wait:0.3;menu:item:$R/a7.txt;quit" \
-    "ARBOR_TEST_CLOUD_STATUS=a.txt=error:$HOSTILE,b.txt=conflict"
+    "BETTER_EXPLORER_TEST_CLOUD_STATUS=a.txt=error:$HOSTILE,b.txt=conflict"
   contains "a personal account says so once" "$R/a1.txt" "cloud node: OneDrive – Personal | tooltip: OneDrive – Personal / Personal account"
   contains "an organization's folder is Work/School" "$R/a1.txt" "cloud node: OneDrive – Contoso Ltd (Work/School) | tooltip: OneDrive – Contoso Ltd / Work/School account"
   contains "a Google account the name can't settle is unknown" "$R/a1.txt" "cloud node: Google Drive – jane@example.com (Account unknown) | tooltip: Google Drive – jane@example.com / Account unknown"
@@ -1320,7 +1320,7 @@ if want cloudproviders; then
 
   ROW=$(grep '^tree: ' "$R/a1.txt" | sed 's/^tree: //' | awk -F' [|] ' '{ for (i = 1; i <= NF; i++) if (index($i, "OneDrive – Personal")) { print i - 1; exit } }')
   fact "the provider's node is in the tree" test -n "$ROW"
-  cloudrun "wait:1;location:$O;wait:1.2;select:a.txt;wait:0.4;log:$R/b1.txt;menu:item:$R/b2.txt;menu:tree:$ROW:$R/b3.txt;click:cloud.openProvider;wait:0.2;log:$R/b4.txt;quit" ARBOR_TEST_CLOUD_KEYS=signin
+  cloudrun "wait:1;location:$O;wait:1.2;select:a.txt;wait:0.4;log:$R/b1.txt;menu:item:$R/b2.txt;menu:tree:$ROW:$R/b3.txt;click:cloud.openProvider;wait:0.2;log:$R/b4.txt;quit" BETTER_EXPLORER_TEST_CLOUD_KEYS=signin
   contains "a not-signed-in code is shown as sign-in" "$R/b1.txt" "a.txt=Sign in required: The operation couldn't be completed. Not signed in."
   contains "the probe records it" "$R/b1.txt" "cloud capability: OneDrive – Personal | listing=ok sampled=4 ubiquitous=4 reports=ubiquitous,downloadError signin=yes"
   contains "the node's tooltip says to sign in" "$R/b1.txt" "Personal account / Sign in to OneDrive"
@@ -1329,36 +1329,36 @@ if want cloudproviders; then
   contains "the tree node offers it too" "$R/b3.txt" "Sign in to OneDrive"
   contains "signing in hands off to the app" "$R/b4.txt" "system open: launch $ONEDRIVE"
 
-  cloudrun "wait:1;location:$O;wait:1;log:$R/c1.txt;button:OK;wait:0.3;menu:tree:$ROW:$R/c2.txt;quit" ARBOR_TEST_CLOUD_ROOT_ERROR=signin
+  cloudrun "wait:1;location:$O;wait:1;log:$R/c1.txt;button:OK;wait:0.3;menu:tree:$ROW:$R/c2.txt;quit" BETTER_EXPLORER_TEST_CLOUD_ROOT_ERROR=signin
   contains "a root that needs sign-in says so" "$R/c1.txt" "Sign in to OneDrive to see this folder. It reported: The operation couldn't be completed. Not signed in."
   contains "a wrapped not-signed-in code still counts" "$R/c1.txt" "cloud capability: OneDrive – Personal | listing=signin"
   contains "the tree node offers the sign-in" "$R/c2.txt" "Sign in to OneDrive"
 
-  cloudrun "wait:1;location:$O;wait:1;log:$R/d1.txt;button:OK;wait:0.3;quit" ARBOR_TEST_CLOUD_ROOT_ERROR=failed
+  cloudrun "wait:1;location:$O;wait:1;log:$R/d1.txt;button:OK;wait:0.3;quit" BETTER_EXPLORER_TEST_CLOUD_ROOT_ERROR=failed
   contains "any other listing failure keeps its text" "$R/d1.txt" "Listing failed: The server is unreachable."
   contains "and isn't called a sign-in" "$R/d1.txt" "cloud capability: OneDrive – Personal | listing=failed sampled=0 ubiquitous=0 reports=- signin=no"
 
   PROBE="wait:1;location:$O;wait:1.2;select:a.txt;wait:0.4;log:$R/%s.txt;quit"
-  cloudrun "$(printf "$PROBE" e1)" ARBOR_TEST_CLOUD_KEYS=none
+  cloudrun "$(printf "$PROBE" e1)" BETTER_EXPLORER_TEST_CLOUD_KEYS=none
   contains "nothing reported: the probe says so" "$R/e1.txt" "cloud capability: OneDrive – Personal | listing=ok sampled=4 ubiquitous=0 reports=- signin=no"
   contains "and the tooltip too" "$R/e1.txt" "Listing works. Reports no status."
   contains "commands explain why they can't run" "$R/e1.txt" "cloud.download=OneDrive doesn't report these items to macOS as cloud items"
   contains "for both commands" "$R/e1.txt" "cloud.freeUpSpace=OneDrive doesn't report these items to macOS as cloud items"
 
-  cloudrun "$(printf "$PROBE" e2)" ARBOR_TEST_CLOUD_KEYS=ubiquitous,uploaded
+  cloudrun "$(printf "$PROBE" e2)" BETTER_EXPLORER_TEST_CLOUD_KEYS=ubiquitous,uploaded
   contains "a missing download state is reported" "$R/e2.txt" "Reports cloud item, uploaded. Doesn't report download state, downloading, uploading, conflicts."
   contains "and blocks what it can't confirm" "$R/e2.txt" "cloud.download=OneDrive doesn't report whether items are on this Mac"
 
-  cloudrun "$(printf "$PROBE" e3)" ARBOR_TEST_CLOUD_KEYS=ubiquitous,download,downloading,uploading,uploaded,conflicts
+  cloudrun "$(printf "$PROBE" e3)" BETTER_EXPLORER_TEST_CLOUD_KEYS=ubiquitous,download,downloading,uploading,uploaded,conflicts
   contains "a full report blocks nothing" "$R/e3.txt" "cloud.freeUpSpace=runs"
   lacks "and lists nothing as missing" "$R/e3.txt" "Doesn't report"
 
-  cloudrun "wait:1;location:$P/Box-Box;wait:1.2;select:a.txt;wait:0.4;log:$R/f.txt;quit" ARBOR_TEST_CLOUD_KEYS=none
+  cloudrun "wait:1;location:$P/Box-Box;wait:1.2;select:a.txt;wait:0.4;log:$R/f.txt;quit" BETTER_EXPLORER_TEST_CLOUD_KEYS=none
   contains "two rows are too few to decide" "$R/f.txt" "cloud.download=disabled"
 
   # Browsing a provider changes its probe, which must redraw its node and leave the tree around it alone.
   mkdir "$O/inner"
-  cloudrun "wait:1;treeexpand:OneDrive – Personal;log:$R/g1.txt;location:$O;wait:1.5;log:$R/g2.txt;quit" ARBOR_TEST_CLOUD_KEYS=signin
+  cloudrun "wait:1;treeexpand:OneDrive – Personal;log:$R/g1.txt;location:$O;wait:1.5;log:$R/g2.txt;quit" BETTER_EXPLORER_TEST_CLOUD_KEYS=signin
   contains "the node shows its folder before browsing" "$R/g1.txt" "|   inner"
   contains "browsing the provider keeps it expanded" "$R/g2.txt" "|   inner"
   contains "and keeps the current folder marked" "$R/g2.txt" "cloud marked: OneDrive – Personal"
@@ -1370,7 +1370,7 @@ fi
 # cloud.md (FE-231): a blocked command says why, by key binding or menu shortcut and on its button; its own tooltip returns elsewhere.
 # qa-core.md (FE-225): opening a file past the path limit is explained, not silently dropped.
 if want capabilities; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/src" "$R/F"; echo 1 > "$R/src/a.txt"; echo 1 > "$R/F/b.txt"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/src" "$R/F"; echo 1 > "$R/src/a.txt"; echo 1 > "$R/F/b.txt"
   (cd "$R/src" && /usr/bin/zip -q "$R/F/pack.zip" a.txt)
   K=$(cd "$R" && pwd -P)
   DEEP="$K/F"; NAME=$(printf 'd%.0s' {1..200}); LONG=$(printf 'f%.0s' {1..230})
@@ -1388,7 +1388,7 @@ fi
 
 # promised-files.md (FE-102, FE-240, FE-256): file promises through the real drop path, with stand-in providers.
 if want promises; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F"; K=$(cd "$R" && pwd -P)
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F"; K=$(cd "$R" && pwd -P)
   printf 'already here' > "$R/F/report.txt"; echo 1 > "$R/F/a.txt"
 
   S="wait:1;promisedrop:unnamed:new.txt:$K/F;promisewait;wait:0.5;log:$R/ok.txt;quit"
@@ -1426,7 +1426,7 @@ if want promises; then
   done
 
   S="wait:1;promisedrop:stall:waiting.bin:$K/F;wait:0.4;log:$R/stall1.txt;promisewait;wait:0.3;log:$R/stall2.txt;button:OK;wait:0.3;quit"
-  run "$R" "$R/F" "$S" ARBOR_PROMISE_STALL=2
+  run "$R" "$R/F" "$S" BETTER_EXPLORER_PROMISE_STALL=2
   contains "a silent provider shows progress meanwhile" "$R/stall1.txt" "Receiving “waiting.bin”"
   contains "a partial file doesn't count as received" "$R/stall1.txt" "promised: staging=present"
   contains "the unavailable provider is explained" "$R/stall2.txt" "stopped responding or has quit"
@@ -1442,7 +1442,7 @@ fi
 
 # promised-files.md (FE-240): a real promise from a separate process, on the system's drag pasteboard, in both directions.
 if want promisesinterop; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/src" "$R/out"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/src" "$R/out"
   K=$(cd "$R" && pwd -P)
   PEER="$R/promise-peer"
   # peer_offer <log> <mode> <name…>: starts the other process and waits until its promise is on the pasteboard.
@@ -1484,7 +1484,7 @@ if want promisesinterop; then
     contains "its partial file is removed" "$R/fail.txt" "promised: staging=gone"
 
     peer_offer "$R/peer-die.txt" die gone.bin
-    run "$R" "$R/F" "wait:1;promisesystemdrop;promisewait;wait:0.3;log:$R/die.txt;button:OK;wait:0.3;quit" ARBOR_PROMISE_STALL=3
+    run "$R" "$R/F" "wait:1;promisesystemdrop;promisewait;wait:0.3;log:$R/die.txt;button:OK;wait:0.3;quit" BETTER_EXPLORER_PROMISE_STALL=3
     peer_stop
     contains "the other process died while writing" "$R/peer-die.txt" "dying"
     contains "its disappearance is reported" "$R/die.txt" "promised: staging=gone report="
@@ -1505,7 +1505,7 @@ if want promisesinterop; then
     "$PEER" take "$R/out" > "$R/take.txt" 2>&1; TAKE_STATUS=$?
     touch "$R/taken"
     wait "$APP_RUN"
-    check "Arbor offered its archive member" "$R/offered.txt" "promise interop: offered=true"
+    check "Better Explorer offered its archive member" "$R/offered.txt" "promise interop: offered=true"
     fact "the other process received it" test "$TAKE_STATUS" = 0
     contains "and was told it arrived" "$R/take.txt" "delivered member.bin"
     fact "the member arrived byte for byte" cmp -s "$R/src/member.bin" "$R/out/member.bin"
@@ -1518,7 +1518,7 @@ fi
 
 # FE-152: embedded properties in the Details tab: written, refused when the file changed, undone. docs/features/properties.md.
 if want embedded-metadata; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F"
   # A tiny generated picture; sips makes the JPEG from it.
   echo "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAEElEQVR4nGP4z8DAwMDAAAAJ/gH/4cXYyAAAAABJRU5ErkJggg==" | base64 -D > "$R/F/p.png"
   sips -z 64 64 -s format jpeg "$R/F/p.png" --out "$R/F/photo.jpg" >/dev/null 2>&1
@@ -1544,7 +1544,7 @@ fi
 
 # FE-152: properties inside MP3, FLAC and M4A files: written, kept byte for byte around the edit, refused when unsafe, undone. docs/features/properties.md.
 if want audio-metadata; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/work"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/work"
   mp3() {   # mp3 <tag flags> <path>: a small ID3v2.3 tag with one private frame, then MPEG frames and an ID3v1 trailer.
     perl -e 'binmode STDOUT; my ($flags) = @ARGV;
       my $f = sub { my ($id, $b) = @_; $id . pack("N", length $b) . "\0\0" . $b };
@@ -1598,7 +1598,7 @@ fi
 
 # FE-152: properties inside PDF and Office documents: written, the original kept as a prefix or entry for entry, refused when signed, undone. docs/features/properties.md.
 if want document-metadata; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/work" "$R/pkg/_rels" "$R/pkg/docProps" "$R/pkg/word"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F" "$R/work" "$R/pkg/_rels" "$R/pkg/docProps" "$R/pkg/word"
   pdf() {   # pdf <catalog extra> <path>: a one-page PDF with a classic table and an information dictionary.
     perl -e 'binmode STDOUT; my ($extra) = @ARGV;
       my @o = ("<</Type/Catalog/Pages 2 0 R$extra>>", "<</Type/Pages/Kids[3 0 R]/Count 1>>", "<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>",
@@ -1656,7 +1656,7 @@ fi
 
 # FE-158: a downloaded file is described, and Properties never clears its quarantine flag.
 if want quarantine; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F"
   echo a > "$R/F/download.txt"; echo b > "$R/F/local.txt"
   xattr -w com.apple.quarantine "0081;00000000;Test;" "$R/F/download.txt"
   S="wait:1;propertiesof:$R/F/download.txt;wait:0.8;proplog:$R/download.txt;propsnapshot:$R/download.png"
@@ -1671,7 +1671,7 @@ fi
 
 # FE-101: the clipboard shared with other apps. Finder can't be driven headless, so a stand-in writes the same file URLs.
 if want clipboard; then
-  R=$(arbor_mktemp_dir); F="$R/F"; O="$R/other"; mkdir -p "$R/trash" "$F" "$O"
+  R=$(better_explorer_mktemp_dir); F="$R/F"; O="$R/other"; mkdir -p "$R/trash" "$F" "$O"
   echo copied > "$O/copied.txt"; echo moved > "$O/moved.txt"; echo more > "$O/more.txt"; echo theirs > "$O/clash.txt"
   echo mine > "$F/clash.txt"; echo safe > "$O/safe.txt"; echo own > "$F/own.txt"
   S="wait:1;foreignclipboard:$O/copied.txt;log:$R/foreign.txt;click:edit.paste;event;wait:1.5;log:$R/copied.txt"
@@ -1681,10 +1681,10 @@ if want clipboard; then
   S+=";foreignclipboardraw:file://server/share/x.txt;click:edit.paste;event;wait:0.8;log:$R/remote.txt"
   S+=";foreignclipboardraw:file://$O/safe.txt|https://example.com/x;click:edit.pasteMove;event;wait:0.8;log:$R/mixed.txt"
   S+=";foreignclipboardraw:file:///;click:edit.pasteMove;event;wait:0.8;log:$R/disk.txt"
-  S+=";select:own.txt;click:edit.copy;event;log:$R/arbor-copy.txt"
-  S+=";select:own.txt;click:edit.cut;event;log:$R/arbor-cut.txt"
+  S+=";select:own.txt;click:edit.copy;event;log:$R/better-explorer-copy.txt"
+  S+=";select:own.txt;click:edit.cut;event;log:$R/better-explorer-cut.txt"
   S+=";foreignclipboard:$O/safe.txt;log:$R/replaced.txt"
-  # Coming back to Arbor redraws rows for the clipboard; an open rename waits for it.
+  # Coming back to Better Explorer redraws rows for the clipboard; an open rename waits for it.
   S+=";select:own.txt;click:file.rename;wait:0.3;type:half.txt;foreignclipboard:$O/safe.txt;wait:0.3;log:$R/renaming.txt;escape;wait:0.5;quit"
   run "$R" "$F" "$S"
   contains "another app's copy is offered" "$R/foreign.txt" "clipboard: names=[copied.txt] paste=copy"
@@ -1702,58 +1702,58 @@ if want clipboard; then
   contains "a mix is refused whole" "$R/mixed.txt" "something other than files on this Mac"
   fact "and its file stays put" test -f "$O/safe.txt" -a ! -e "$F/safe.txt"
   contains "a whole disk is refused" "$R/disk.txt" "whole disk"
-  contains "copy offers file URLs and text" "$R/arbor-copy.txt" "pasteboard: items=1 types=[public.file-url,public.utf8-plain-text] text=[$(cd "$F" && pwd -P)/own.txt]"
-  contains "cut offers exactly the same" "$R/arbor-cut.txt" "pasteboard: items=1 types=[public.file-url,public.utf8-plain-text] text=[$(cd "$F" && pwd -P)/own.txt]"
-  contains "cut is a move only in Arbor" "$R/arbor-cut.txt" "clipboard: names=[own.txt] paste=move cut marks=[own.txt]"
-  contains "and says so" "$R/arbor-cut.txt" "Other apps get a copy."
+  contains "copy offers file URLs and text" "$R/better-explorer-copy.txt" "pasteboard: items=1 types=[public.file-url,public.utf8-plain-text] text=[$(cd "$F" && pwd -P)/own.txt]"
+  contains "cut offers exactly the same" "$R/better-explorer-cut.txt" "pasteboard: items=1 types=[public.file-url,public.utf8-plain-text] text=[$(cd "$F" && pwd -P)/own.txt]"
+  contains "cut is a move only in Better Explorer" "$R/better-explorer-cut.txt" "clipboard: names=[own.txt] paste=move cut marks=[own.txt]"
+  contains "and says so" "$R/better-explorer-cut.txt" "Other apps get a copy."
   contains "another app's copy ends the cut" "$R/replaced.txt" "clipboard: names=[safe.txt] paste=copy cut marks=[]"
   fact "nothing moved by itself" test -f "$F/own.txt"
   contains "a clipboard change leaves a rename open" "$R/renaming.txt" "rename field: editing “half.txt”"
   fact "and doesn't rename half-typed" test -f "$F/own.txt" -a ! -e "$F/half.txt"
-  for f in foreign copied moved undone remote mixed disk arbor-copy arbor-cut; do check "nothing opened: $f" "$R/$f.txt" "system open: none"; done
+  for f in foreign copied moved undone remote mixed disk better-explorer-copy better-explorer-cut; do check "nothing opened: $f" "$R/$f.txt" "system open: none"; done
   discard clipboard "$R"
 fi
 
 # FE-259: the quiet Update button, driven without a feed; no updater without one, nor in any headless run.
 if want updates; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/F/a"
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/F/a"
   # 720 pt wide with seven tabs: the row overflows, and the button must still sit clear of the tabs and New tab.
-  S="wait:1;windowsize:720,520;wait:0.5;log:$R/start.txt;menu:main:Arbor:$R/menu.txt;folderoptions:general;wait:0.6;log:$R/settings.txt"
+  S="wait:1;windowsize:720,520;wait:0.5;log:$R/start.txt;menu:main:App:$R/menu.txt;folderoptions:general;wait:0.6;log:$R/settings.txt"
   S+=";updatestate:available:0.4.0;wait:0.5;log:$R/shown.txt;newtab;newtab;newtab;newtab;newtab;newtab;wait:1;log:$R/narrow.txt"
   S+=";key:F6;wait:0.3;key:end;wait:0.4;focus:$R/focus.txt"
   S+=";updatestate:available:0.4.0$(printf '\342\200\256')x;wait:0.5;log:$R/odd.txt;updatestate:none;wait:0.5;log:$R/gone.txt;quit"
   run "$R" "$R/F" "$S"
   check "no feed: no updater, no menu item" "$R/start.txt" "updates: updater=off (headless) menu=absent settings=not open windows=0"
   check "no button before an update is found" "$R/start.txt" "update button: none"
-  lacks "Arbor menu has no Check for Updates" "$R/menu.txt" "Check for Updates"
+  lacks "Better Explorer menu has no Check for Updates" "$R/menu.txt" "Check for Updates"
   check "no switch in Settings without a feed" "$R/settings.txt" "updates: updater=off (headless) menu=absent settings=absent windows=0"
-  check "a found update shows the button" "$R/shown.txt" "update button: shown title=Update tooltip=Arbor 0.4.0 is available. Click to see what's new and install it. label=Update to Arbor 0.4.0 overlap=false keyboard=true"
+  check "a found update shows the button" "$R/shown.txt" "update button: shown title=Update tooltip=Better Explorer 0.4.0 is available. Click to see what's new and install it. label=Update to Better Explorer 0.4.0 overlap=false keyboard=true"
   contains "the row overflows at this width" "$R/narrow.txt" "tab strip: overflow=true"
-  contains "the button stays clear of tabs and New tab" "$R/narrow.txt" "label=Update to Arbor 0.4.0 overlap=false keyboard=true"
-  contains "End in the tab row reaches the button" "$R/focus.txt" "region=tabs view=ChromeButton \"Update to Arbor 0.4.0\""
-  check "an odd version text isn't shown" "$R/odd.txt" "update button: shown title=Update tooltip=A new version of Arbor is available. Click to see what's new and install it. label=Update Arbor overlap=false keyboard=true"
+  contains "the button stays clear of tabs and New tab" "$R/narrow.txt" "label=Update to Better Explorer 0.4.0 overlap=false keyboard=true"
+  contains "End in the tab row reaches the button" "$R/focus.txt" "region=tabs view=ChromeButton \"Update to Better Explorer 0.4.0\""
+  check "an odd version text isn't shown" "$R/odd.txt" "update button: shown title=Update tooltip=A new version of Better Explorer is available. Click to see what's new and install it. label=Update Better Explorer overlap=false keyboard=true"
   check "the button goes when the update is dealt with" "$R/gone.txt" "update button: none"
   # A complete configuration (feed and key in Info.plist, and a debug test feed) still starts nothing headless.
-  K="$R/Keyed.app"; ditto "${APP%/Contents/MacOS/Arbor}" "$K"
+  K="$R/Keyed.app"; ditto "${APP%/Contents/MacOS/BetterExplorer}" "$K"
   plutil -replace SUFeedURL -string "https://example.invalid/appcast.xml" "$K/Contents/Info.plist"
   plutil -replace SUPublicEDKey -string "$(head -c 32 /dev/urandom | base64)" "$K/Contents/Info.plist"
   codesign --force --sign - --preserve-metadata=entitlements,requirements,flags,runtime "$K" 2>/dev/null
-  env ARBOR_HEADLESS=1 ARBOR_TEST_TRASH="$R/trash" ARBOR_JOURNAL_DIR="$R/journal" ARBOR_HISTORY_FILE="$R/history.json" \
-    ARBOR_UPDATE_FEED="http://127.0.0.1:9/appcast.xml" ARBOR_SCRIPT="wait:3;folderoptions:general;wait:0.6;log:$R/keyed.txt;quit" \
-    perl -e 'alarm shift; exec @ARGV' 120 "$K/Contents/MacOS/Arbor" "$R/F" >/dev/null 2>&1
+  env BETTER_EXPLORER_HEADLESS=1 BETTER_EXPLORER_TEST_TRASH="$R/trash" BETTER_EXPLORER_JOURNAL_DIR="$R/journal" BETTER_EXPLORER_HISTORY_FILE="$R/history.json" \
+    BETTER_EXPLORER_UPDATE_FEED="http://127.0.0.1:9/appcast.xml" BETTER_EXPLORER_SCRIPT="wait:3;folderoptions:general;wait:0.6;log:$R/keyed.txt;quit" \
+    perl -e 'alarm shift; exec @ARGV' 120 "$K/Contents/MacOS/BetterExplorer" "$R/F" >/dev/null 2>&1
   check "headless: no updater even with a feed and key" "$R/keyed.txt" "updates: updater=off (headless) menu=absent settings=absent windows=0"
   discard updates "$R"
 fi
 
 # FE-204: the real app in both generated pseudo-languages, on a scratch copy that holds them; nothing is shipped.
 if want localization; then
-  R=$(arbor_mktemp_dir); F="$R/F"; L="$R/app/Arbor.app"
+  R=$(better_explorer_mktemp_dir); F="$R/F"; L="$R/app/Better Explorer.app"
   mkdir -p "$F/Sub folder" "$F/שלום עולם" "$F/dst" "$F/dst2" "$R/app" "$R/names" "$R/bad/en.lproj" "$R/bad/xx.lproj" "$R/trash"
   mkdir -p "$R/badplural/en.lproj" "$R/badplural/xx.lproj"; echo old > "$R/trash/old notes.txt"
   echo hi > "$F/report (1).txt"; echo incoming > "$F/notes.md"; echo existing > "$F/dst/notes.md"
   head -c 5000 /dev/zero > "$F/size.txt"; dd if=/dev/urandom of="$F/big.bin" bs=1048576 count=20 2>/dev/null
   mkdir -p "$R/clash/dst/Quarterly budget review"; echo hi > "$R/clash/Quarterly budget review"
-  ditto "${APP%/Contents/MacOS/Arbor}" "$L"
+  ditto "${APP%/Contents/MacOS/BetterExplorer}" "$L"
   RES="$L/Contents/Resources"; EN="$RES/en.lproj/Localizable.strings"
   plural_table() {   # plural_table <file> <key> <category=form>…: a Localizable.stringsdict with one counted sentence
     local file="$1" key="$2"; shift 2
@@ -1786,8 +1786,8 @@ if want localization; then
 
   l10nrun() {   # l10nrun <start folder> <journal> <language> <script> [app arguments…]
     local start="$1" journal="$2" language="$3" script="$4"; shift 4
-    env ARBOR_HEADLESS=1 ARBOR_TEST_TRASH="$R/trash" ARBOR_JOURNAL_DIR="$journal" ARBOR_HISTORY_FILE="$R/history.json" ARBOR_TRANSFER_THROTTLE=2000000 \
-      ARBOR_SCRIPT="$script" perl -e 'alarm shift; exec @ARGV' 120 "$L/Contents/MacOS/Arbor" "$start" -AppleLanguages "($language)" "$@" >/dev/null 2>&1
+    env BETTER_EXPLORER_HEADLESS=1 BETTER_EXPLORER_TEST_TRASH="$R/trash" BETTER_EXPLORER_JOURNAL_DIR="$journal" BETTER_EXPLORER_HISTORY_FILE="$R/history.json" BETTER_EXPLORER_TRANSFER_THROTTLE=2000000 \
+      BETTER_EXPLORER_SCRIPT="$script" perl -e 'alarm shift; exec @ARGV' 120 "$L/Contents/MacOS/BetterExplorer" "$start" -AppleLanguages "($language)" "$@" >/dev/null 2>&1
   }
   # The shortcuts a menu shows; a pseudo-translated title ends in "·]" and is not one.
   shortcuts() { perl -ne 'print "$1\n" if /\[([^\[\]]*[^·\]])\](?: \(disabled\))?$/' "$1"; }
@@ -1816,9 +1816,9 @@ if want localization; then
   done
 
   mkdir -p "$R/en"
-  env ARBOR_HEADLESS=1 ARBOR_TEST_TRASH="$R/trash" ARBOR_JOURNAL_DIR="$R/en/j" ARBOR_HISTORY_FILE="$R/history.json" \
-    ARBOR_SCRIPT="wait:1;menu:main:File:$R/en/menus.txt;menu:main:Edit:$R/en/menus.txt;menu:main:View:$R/en/menus.txt;menu:main:Go:$R/en/menus.txt;quit" \
-    perl -e 'alarm shift; exec @ARGV' 120 "$L/Contents/MacOS/Arbor" "$F" -AppleLanguages "(en)" >/dev/null 2>&1
+  env BETTER_EXPLORER_HEADLESS=1 BETTER_EXPLORER_TEST_TRASH="$R/trash" BETTER_EXPLORER_JOURNAL_DIR="$R/en/j" BETTER_EXPLORER_HISTORY_FILE="$R/history.json" \
+    BETTER_EXPLORER_SCRIPT="wait:1;menu:main:File:$R/en/menus.txt;menu:main:Edit:$R/en/menus.txt;menu:main:View:$R/en/menus.txt;menu:main:Go:$R/en/menus.txt;quit" \
+    perl -e 'alarm shift; exec @ARGV' 120 "$L/Contents/MacOS/BetterExplorer" "$F" -AppleLanguages "(en)" >/dev/null 2>&1
   shortcuts "$R/en/menus.txt" > "$R/en/shortcuts.txt"
   fact "shortcuts are read" test -s "$R/en/shortcuts.txt"
   fact "the accented language keeps every shortcut" cmp -s "$R/en/shortcuts.txt" "$R/en-XA/shortcuts.txt"
@@ -1848,10 +1848,10 @@ fi
 # needs a password or a license agreement goes to macOS's own prompt, and its volume opens here once macOS mounts it.
 # Every image is made here; volumes are hidden from Finder and detached afterwards.
 if want diskimages; then
-  R=$(arbor_mktemp_dir); mkdir -p "$R/trash" "$R/D/src"
-  # Item paths come out resolved (/private/var/…); the folder line keeps $R/D as Arbor shows it.
+  R=$(better_explorer_mktemp_dir); mkdir -p "$R/trash" "$R/D/src"
+  # Item paths come out resolved (/private/var/…); the folder line keeps $R/D as Better Explorer shows it.
   D=$(cd "$R/D" && pwd -P)
-  V="ArborCheck$$"
+  V="BXCheck$$"   # short: an ISO volume name is cut off past 16 characters
   echo hi > "$D/src/readme.txt"
   detach_check_volumes() {
     local v; for v in /Volumes/"$V"*; do [ -d "$v" ] && hdiutil detach -force -quiet "$v" >/dev/null 2>&1; done; true
@@ -1896,10 +1896,10 @@ if want diskimages; then
     # After a hand-off, the volume opens here once macOS has mounted it (the check mounts it in macOS's place). A
     # mount before the hand-off is registered (a slow launch) is found too, as the hand-off looks once when it starts.
     run "$R" "$D" "wait:1;mounthandoff:$D/plain.dmg;wait:8;log:$R/h1.txt;quit" &
-    ARBOR_RUN=$!
+    BETTER_EXPLORER_RUN=$!
     sleep 4
     hdiutil attach -quiet -nobrowse -noautoopen "$D/plain.dmg" </dev/null >/dev/null 2>&1
-    wait "$ARBOR_RUN"
+    wait "$BETTER_EXPLORER_RUN"
     check "the handed-off volume opens here once mounted" "$R/h1.txt" "folder: /Volumes/${V}P"
     detach_check_volumes
 

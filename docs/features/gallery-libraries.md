@@ -1,7 +1,7 @@
 # Gallery and Libraries
 
-Code: `Sources/Arbor/Features/GalleryLibraries/`, logic in `Sources/ArborCore/GalleryTimeline.swift`,
-`GallerySources.swift`, `Libraries.swift`, `LibraryCatalog.swift` (tests: `Tests/ArborCoreTests/GalleryLibraryTests.swift`,
+Code: `Sources/BetterExplorer/Features/GalleryLibraries/`, logic in `Sources/BetterExplorerCore/GalleryTimeline.swift`,
+`GallerySources.swift`, `Libraries.swift`, `LibraryCatalog.swift` (tests: `Tests/BetterExplorerCoreTests/GalleryLibraryTests.swift`,
 `LibraryCatalogTests.swift`; headless: the `libraries` group of `scripts/behavior-checks.sh`).
 Shared hooks used: see below.
 
@@ -18,7 +18,7 @@ Shared hooks used: see below.
 
 - **DEC-GL-1** Gallery's date is EXIF/Spotlight "date taken", else the *earlier* of file creation and modification (a copied photo keeps its old modification date). Dates before 1900 or > 1 day in the future are ignored.
 - **DEC-GL-2** Default collection: `~/Pictures`. Photo-library and media-library packages (`.photoslibrary`, `.migratedphotolibrary`, `.aplibrary`, `.fcpbundle`, …) are never scanned or addable; all packages and hidden files are skipped.
-- **DEC-GL-3** Scanning: Spotlight (`kMDItemContentTypeTree` = public.image / public.movie; dates from `kMDItemContentCreationDate` / `kMDItemFSCreationDate`) first, then always a direct enumeration that fills what Spotlight missed (reads only the image header with ImageIO). Off the main thread, batched, cancelled when no Gallery page is in a window. Index bounded to 100,000 items (newest kept), shared app-wide; FSEvents watch on the collection rescans after changes. `ARBOR_GALLERY_NO_SPOTLIGHT=1` forces the direct scan.
+- **DEC-GL-3** Scanning: Spotlight (`kMDItemContentTypeTree` = public.image / public.movie; dates from `kMDItemContentCreationDate` / `kMDItemFSCreationDate`) first, then always a direct enumeration that fills what Spotlight missed (reads only the image header with ImageIO). Off the main thread, batched, cancelled when no Gallery page is in a window. Index bounded to 100,000 items (newest kept), shared app-wide; FSEvents watch on the collection rescans after changes. `BETTER_EXPLORER_GALLERY_NO_SPOTLIGHT=1` forces the direct scan.
 - **DEC-GL-4** Nested sources (Pictures and Pictures/Trips) are scanned once; unchecking a nested folder hides its photos even if the parent is checked.
 - **DEC-GL-5** Gallery is a custom page; its selection reaches commands through the new `ItemSelectionPage` hook (one additive change in `BrowserWindowController.selectedItems`).
 - **DEC-GL-6** View ▾ in Gallery shows only the four icon sizes (stored separately from the folder view mode); Sort ▾ shows "Date taken" + Ascending/Descending. Implemented with command overrides that apply only while the location is Gallery (`CommandRegistry.override` / `hide(prefix:)`, order `.early`; DEC-024).
@@ -67,7 +67,7 @@ Custom libraries add small edits outside this folder: `FolderViews` (the new poi
 - A Gallery rescan after a change is a full rescan (EXIF is only read for new files).
 - Gallery scroll position isn't kept when switching tabs; Quick Look arrow keys don't move the Gallery selection.
 - Libraries: no per-library "Show in navigation pane", custom icon or undo for Delete library (it asks first; files are never affected); the nav pane doesn't auto-expand to reveal the current library. No `.library-ms` import (DEC-GL-16).
-- macOS can't do: other apps' Open and Save panels showing Arbor libraries; Windows Search behavior tied to libraries (basic-library mode, indexed Arrange By views). There is no non-owner save location or owner-SID sharing on the Mac, so neither is offered.
+- macOS can't do: other apps' Open and Save panels showing Better Explorer libraries; Windows Search behavior tied to libraries (basic-library mode, indexed Arrange By views). There is no non-owner save location or owner-SID sharing on the Mac, so neither is offered.
 - New › text, image and shortcut entries and Paste shortcut use the save location resolved when the library loaded, and grey out when there is none; only New folder and Paste explain why. Remove location from library is in Manage library, not on the tree's child nodes.
 - Dropping onto a library tile or tree node is refused rather than guessed; a drop inside an open library uses the save location. On the Libraries page "Single-click to open" opens a tile, but point-to-select and the hover underline are not applied.
 - A stale Back, recent or session entry for a deleted library shows the "doesn't exist" message, or Home at launch.

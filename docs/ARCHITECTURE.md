@@ -1,17 +1,20 @@
-# Arbor architecture and extension points
+# Better Explorer architecture and extension points
+
+The app's name is written in `CFBundleName` (Resources/Info.plist) and `Product.name`; the scripts read it through
+`scripts/lib/product.sh`. Identifiers that users' data depends on keep the first name, Arbor (`Product`, DEC-029).
 
 Read this before adding a feature. Goal: each feature lives in **its own files** and touches shared files only through
-**one line in `Sources/Arbor/Features.swift`**. Keep it that way so parallel branches merge cleanly.
+**one line in `Sources/BetterExplorer/Features.swift`**. Keep it that way so parallel branches merge cleanly.
 
 ## Map
 
 | Folder | Holds |
 |---|---|
-| `Sources/ArborCore` | UI-free, unit-tested logic: `Location`, `NavigationHistory`, `ViewMode`, listing, sorting, paths, names, transfers, journals, history, queue, verification. Subfolders per area: `Search/` (AQS parser, evaluator, Spotlight translation, direct scan), `Archives/` (ZIP reader, bsdtar listing, safety planner), `Properties/`, `FolderOptions/`, `Consistency/`, `Accessibility/` (string table, key names), `Performance/` (budgets, background sort, stall recorder), `PortableSettings/` (settings file allowlist, format and import plan) |
-| `Sources/ArborCore` | UI-free, unit-tested logic: `Location`, `NavigationHistory`, `ViewMode`, listing, sorting, paths, names, transfers, journals, history, queue, verification. Subfolders per area: `Search/` (AQS parser, evaluator, Spotlight translation, direct scan), `Archives/` (ZIP reader, bsdtar listing, safety planner), `Properties/`, `FolderOptions/`, `Consistency/`, `Accessibility/` (string table, key names), `Performance/` (budgets, background sort, stall recorder), `Workspaces/` (saved tab sets) |
-| `Sources/ArborCore/Updates/` | In-app updates without UI (FE-259): whether this run gets an updater, the Update button's state, release notes from CHANGELOG.md, the update feed and its signature check |
+| `Sources/BetterExplorerCore` | UI-free, unit-tested logic: `Location`, `NavigationHistory`, `ViewMode`, listing, sorting, paths, names, transfers, journals, history, queue, verification. Subfolders per area: `Search/` (AQS parser, evaluator, Spotlight translation, direct scan), `Archives/` (ZIP reader, bsdtar listing, safety planner), `Properties/`, `FolderOptions/`, `Consistency/`, `Accessibility/` (string table, key names), `Performance/` (budgets, background sort, stall recorder), `PortableSettings/` (settings file allowlist, format and import plan) |
+| `Sources/BetterExplorerCore` | UI-free, unit-tested logic: `Location`, `NavigationHistory`, `ViewMode`, listing, sorting, paths, names, transfers, journals, history, queue, verification. Subfolders per area: `Search/` (AQS parser, evaluator, Spotlight translation, direct scan), `Archives/` (ZIP reader, bsdtar listing, safety planner), `Properties/`, `FolderOptions/`, `Consistency/`, `Accessibility/` (string table, key names), `Performance/` (budgets, background sort, stall recorder), `Workspaces/` (saved tab sets) |
+| `Sources/BetterExplorerCore/Updates/` | In-app updates without UI (FE-259): whether this run gets an updater, the Update button's state, release notes from CHANGELOG.md, the update feed and its signature check |
 | `Features/Updates/` | In-app updates: the only code that uses Sparkle (`AppUpdater`), the Update button in the tab row, Check for Updates…, the Settings switch (docs/features/updates.md) |
-| `Sources/ArborAppcast` | Release tool, not part of the app: writes a release's update feed for `scripts/make-update.sh` from ArborCore's logic |
+| `Sources/BetterExplorerAppcast` | Release tool, not part of the app: writes a release's update feed for `scripts/make-update.sh` from BetterExplorerCore's logic |
 | `Window/` | `BrowserWindowController` (one per window, split by area into `BrowserWindowController+*.swift`), `TabState` (one per tab), tab strip and tear-off, address bar and breadcrumbs, navigation row, search box, command bar, status bar, `WindowHooks` |
 | `Views/` | `ItemViewController` protocol + `ViewModeRegistry`, `DetailsViewController`, `DetailsColumns` (per-location column layouts), `IconProvider`, `ItemBadges`, row and tile styling |
 | `Commands/` | `ExplorerCommand`, `CommandRegistry`, menu building, core commands, menu bar |
@@ -39,7 +42,7 @@ contribute to an extension point (or add one) instead and list it in your area d
 
 ## Writing a feature
 
-**The contract** (`Sources/Arbor/Features.swift`):
+**The contract** (`Sources/BetterExplorer/Features.swift`):
 
 ```swift
 enum TrashFeature: ExplorerFeature {
@@ -50,13 +53,13 @@ enum TrashFeature: ExplorerFeature {
 ```
 
 `requires` lists the features whose registrations this one builds on: it overrides their commands, wraps or adds to
-what they register, or needs their contributions in place. `FeatureGraph` (ArborCore) sorts `Features.all` so every
+what they register, or needs their contributions in place. `FeatureGraph` (BetterExplorerCore) sorts `Features.all` so every
 feature comes after what it requires and otherwise keeps the listed order; a missing dependency, a duplicate id or a
 cycle stops launch with a message naming the features. After registration, any extension error (below) stops launch
-too, and `Tests/ArborTests/FeatureRegistrationTests.swift` registers every feature in `scripts/test.sh` and fails on the
+too, and `Tests/BetterExplorerTests/FeatureRegistrationTests.swift` registers every feature in `scripts/test.sh` and fails on the
 same problems.
 
-**Extension points** (`Sources/ArborCore/ExtensionPoint.swift`). Shared code calls a named point; features contribute
+**Extension points** (`Sources/BetterExplorerCore/ExtensionPoint.swift`). Shared code calls a named point; features contribute
 with an id and an optional `order`. Pick the kind by what the call site needs:
 
 | Kind | Call site | Contribute with | Use it for |
@@ -139,7 +142,7 @@ internal only because Swift has no cross-file `private`; features use the API ab
 
 Tab tear-off and merge live in `TabTearOff.swift`.
 
-`Location` (`ArborCore/Location.swift`): `.folder(URL)`, `.home`, `.thisMac`, `.gallery`, `.network`, `.trash`,
+`Location` (`BetterExplorerCore/Location.swift`): `.folder(URL)`, `.home`, `.thisMac`, `.gallery`, `.network`, `.trash`,
 `.search(SearchRequest)`, `.archive(URL, innerPath:)`, `.library(String)`. It has `displayName`, `key` / `init?(key:)`
 (persistence; equality uses the key), and `parent()` (Up). Add cases only with tests in `LocationTests.swift`.
 
@@ -265,18 +268,18 @@ editing another feature's files. The full list with every contribution in run or
 | `ItemHooks` | `Support/ItemHooks.swift` | drag writers (file promises for archive members) and drop handlers for drops without file URLs |
 | `WindowHooks`, `ItemViewHooks`, `NavigationPaneHooks`, `PreviewPolicy` | `Window/WindowHooks.swift` | Folder Options effects (title bar path, name decoration, tree options, preview handlers), selection changes |
 | `PreviewHooks`, `SidePaneRegistry.wrappers` | `Locations/LocationPageExtras.swift`, `Panes/SidePane.swift` | Quick Look / Preview pane for items without a file on disk; wrapping a pane when it is created |
-| `ViewOptions`, `FileSorter.columnValues` | `Features/DetailsDepth/ViewOptions.swift`, ArborCore | per-tab columns, Group by, filters; `folderKindResolver`, `columnsEdited`; sort values of extra columns |
-| `DetailsColumns.register`, `ColumnCatalog.register` | `Views/DetailsColumns.swift`, ArborCore | per-location column layouts (Trash, search, ZIP, cloud) and extra columns |
+| `ViewOptions`, `FileSorter.columnValues` | `Features/DetailsDepth/ViewOptions.swift`, BetterExplorerCore | per-tab columns, Group by, filters; `folderKindResolver`, `columnsEdited`; sort values of extra columns |
+| `DetailsColumns.register`, `ColumnCatalog.register` | `Views/DetailsColumns.swift`, BetterExplorerCore | per-location column layouts (Trash, search, ZIP, cloud) and extra columns |
 | `Breadcrumbs.register`, `LocationRegistry.registerOpenHandler` | `Window/`, `Locations/` | breadcrumbs for new location kinds; opening a file as a location (archives, saved searches); open handlers may run off the main thread, thread-safe state only |
 | `CommandRegistry.override` & co. | `Commands/ExplorerCommand.swift` | another feature's command behaving differently in your place |
 | `FolderOptionsWindowController.generalGroups` | `Features/FolderOptions/FolderOptionsWindow.swift` | a group of settings at the end of Folder Options' General page (Updates) |
-| `OperationCenter`, `TransferPreflight`, `SystemTrash.observers` | `Support/`, ArborCore | job preparation, admission (queue), verification, history; questions before a copy; the Trash journal |
+| `OperationCenter`, `TransferPreflight`, `SystemTrash.observers` | `Support/`, BetterExplorerCore | job preparation, admission (queue), verification, history; questions before a copy; the Trash journal |
 
 ## Scripts
 
 | Script | Does |
 |---|---|
-| `scripts/build-app.sh [debug\|release] [--universal]` | builds `build/Arbor.app` (zero warnings expected) |
+| `scripts/build-app.sh [debug\|release] [--universal]` | builds `build/Better Explorer.app` (zero warnings expected) |
 | `scripts/test.sh` | unit tests (also checks the string table with `extract-strings.sh --check`) |
 | `scripts/core-checks.sh`, `scripts/behavior-checks.sh [group…]` | headless regression checks for fixed bugs |
 | `scripts/acceptance.sh [Txx…]` | the task scenarios T01–T30 of SPEC.md §17.5, headless; results in docs/ACCEPTANCE.md |
@@ -288,7 +291,7 @@ editing another feature's files. The full list with every contribution in run or
 
 ## Testing your feature
 
-Unit-test logic in `ArborCore`. Drive the app headless (TESTING.md). Add script steps and log lines from your own files:
+Unit-test logic in `BetterExplorerCore`. Drive the app headless (TESTING.md). Add script steps and log lines from your own files:
 `DebugScript.registerStep("emptytrash") { arg, window in …; return 0.8 }` and `DebugScript.registerLogger("trash.log") { w in "trash: …" }`.
 Step names are registered once (a second registration is an extension error). `extensions:/path` lists every extension
 point with its contributions (`scripts/list-extension-points.sh`).

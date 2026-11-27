@@ -1,7 +1,7 @@
 # Memory and responsiveness
 
-Code: `Sources/Arbor/Features/Performance/` (registered by `PerformanceFeature.register()` in `Features.swift`), logic in
-`Sources/ArborCore/Performance/`, tests in `Tests/ArborCoreTests/PerformanceTests.swift`, benchmarks in `scripts/bench.sh`
+Code: `Sources/BetterExplorer/Features/Performance/` (registered by `PerformanceFeature.register()` in `Features.swift`), logic in
+`Sources/BetterExplorerCore/Performance/`, tests in `Tests/BetterExplorerCoreTests/PerformanceTests.swift`, benchmarks in `scripts/bench.sh`
 and `scripts/bench-fixtures.swift`. Measurements, budgets and method: [docs/PERFORMANCE.md](../PERFORMANCE.md).
 
 ## Status
@@ -44,7 +44,7 @@ layer path), `DetailsViewController.swift` (view-recycling reload, lazy check bo
 `BrowserWindowController.swift` (coalesced volume rebuild, quiet reloads), `TabState.swift` (byte-budgeted listings),
 `IconProvider.swift` (byte budget, per-type icons), `FileSystemSupport.swift` (throttled watcher, cached volume check
 while dragging), `NavigationPaneExtras.swift` (coalesced refresh), `FolderProvider.swift` (background pre-sort),
-`ArchiveProvider.swift` (trim/count), `ThumbnailService.swift` (budget from `CacheBudgets`), ArborCore `FileItem`,
+`ArchiveProvider.swift` (trim/count), `ThumbnailService.swift` (budget from `CacheBudgets`), BetterExplorerCore `FileItem`,
 `DirectoryLister`, `Sorting`, `Location.isVolumeRoot`, `SystemItems`, `FolderViewSettings`.
 
 ## Known gaps

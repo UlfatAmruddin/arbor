@@ -1,0 +1,50 @@
+import AppKit
+import BetterExplorerCore
+
+/// Drag-and-drop hooks for non-file items (archive members) and file-promise drops.
+///
+///     ItemHooks.registerDragWriter("archives.member-promise") { item in isMine(item) ? MyPromise(item) : nil }
+///     ItemHooks.registerDropHandler(types: [...], operation: { info, dest in .copy }, accept: { info, dest, window in true })
+enum ItemHooks {
+    // MARK: Dragging out
+
+    static let dragWriters = Handlers<FileItem, NSPasteboardWriting>(
+        "ItemHooks.dragWriters", "A custom pasteboard writer for dragging an item out (archive member promises).",
+        signature: "(item) -> writer?")
+
+    static func registerDragWriter(_ id: String, order: ExtensionOrder = .normal,
+                                   _ writer: @escaping (FileItem) -> NSPasteboardWriting?) {
+        dragWriters.register(id, order: order, writer)
+    }
+
+    /// Custom pasteboard writer (e.g. a file promise), or nil to drag the file URL.
+    static func dragWriter(for item: FileItem) -> NSPasteboardWriting? { dragWriters.first(item) }
+
+    // MARK: Dropping in (drops that carry no file URLs, such as file promises)
+
+    struct DropHandler {
+        let types: [NSPasteboard.PasteboardType]
+        let operation: (NSDraggingInfo, URL) -> NSDragOperation?
+        let accept: (NSDraggingInfo, URL, NSWindow?) -> Bool
+    }
+
+    private static var dropHandlers: [DropHandler] = []
+
+    static func registerDropHandler(_ handler: DropHandler) { dropHandlers.append(handler) }
+
+    /// Extra pasteboard types item views should register for.
+    static var dropTypes: [NSPasteboard.PasteboardType] { dropHandlers.flatMap(\.types) }
+
+    /// Operation for a drop with no file URLs; nil uses the normal rules.
+    static func dropOperation(_ info: NSDraggingInfo, destination: URL?) -> NSDragOperation? {
+        guard let destination, DropPolicy.fileURLs(from: info).isEmpty else { return nil }
+        for handler in dropHandlers.reversed() { if let op = handler.operation(info, destination) { return op } }
+        return nil
+    }
+
+    /// True if a handler took the drop.
+    static func acceptDrop(_ info: NSDraggingInfo, destination: URL?, window: NSWindow?) -> Bool {
+        guard let destination, DropPolicy.fileURLs(from: info).isEmpty else { return false }
+        return dropHandlers.reversed().contains { $0.operation(info, destination) != nil && $0.accept(info, destination, window) }
+    }
+}

@@ -1,9 +1,9 @@
 # Search (Explorer-style)
 
 Spec: spec §10, §15.3–15.4, §16.1; FE-131–FE-146, FE-236, FE-237. Reference: windows11-reference.md §12, §12.1, §12.2.
-Code: `Sources/Arbor/Features/Search/` (controller, provider, session, Spotlight adapter, commands), `Sources/ArborCore/Search/`
+Code: `Sources/BetterExplorer/Features/Search/` (controller, provider, session, Spotlight adapter, commands), `Sources/BetterExplorerCore/Search/`
 (AQS parser, evaluator, Spotlight translation, direct scan, readers, history, saved-search format, coverage).
-Tests: `Tests/ArborCoreTests/SearchQueryTests.swift`, `SearchEngineTests.swift`.
+Tests: `Tests/BetterExplorerCoreTests/SearchQueryTests.swift`, `SearchEngineTests.swift`.
 
 ## How it works
 
@@ -46,7 +46,7 @@ it; reopening a stopped search reruns it. Refresh (F5 or the address bar) reruns
 
 ### AQS compatibility table (`AQSParser`)
 
-| Construct | Arbor |
+| Construct | Better Explorer |
 |---|---|
 | `word` | Name contains (case-, accent- and width-insensitive); with File contents, also text contents |
 | `"exact phrase"` | Name contains the phrase |
@@ -84,7 +84,7 @@ it; reopening a stopped search reruns it. Refresh (F5 or the address bar) reruns
   scope resolves by bookmark first, then by path only on the same volume UUID, otherwise it shows as unavailable (never another disk).
 - **DEC-search-9** Results are capped at 10,000 per search, labeled. The session cache holds 4. FSEvents batches over 2,000 paths mark
   results "may be stale" instead of re-evaluating.
-- **DEC-search-10** Details for results: Name · Date modified · Type · Size · Folder · Match (Match is an Arbor addition for FE-137).
+- **DEC-search-10** Details for results: Name · Date modified · Type · Size · Folder · Match (Match is a Better Explorer addition for FE-137).
   The Folder path uses the scope's spelling (`/tmp/…`, not `/private/tmp/…`).
 - **DEC-search-11** The address bar shows a green progress fill while searching (Explorer behavior). There's no total, so it eases
   toward 92% and completes when the search finishes.
@@ -107,8 +107,8 @@ it; reopening a stopped search reruns it. Refresh (F5 or the address bar) reruns
 - The `nav.refresh` command and the address bar's Refresh button are wrapped so searches rerun.
 - `MountPoints.browsableVolumes()` is the mount-table volume list; `SpotlightSearch.readIndexState(volumePath:)` is the uncached `mdutil -s`.
 
-`ARBOR_TEST_SEARCH_VOLUMES` replaces the volumes and index status of a This Mac search: `name|kind|enabled, disabled or unknown|fixture folder`, entries separated by `;`, no
-folder meaning nothing is read for that volume. A folder stands in for the volume's contents and an indexed startup disk's folder for its Spotlight answers. With `ARBOR_HEADLESS` and no injected
+`BETTER_EXPLORER_TEST_SEARCH_VOLUMES` replaces the volumes and index status of a This Mac search: `name|kind|enabled, disabled or unknown|fixture folder`, entries separated by `;`, no
+folder meaning nothing is read for that volume. A folder stands in for the volume's contents and an indexed startup disk's folder for its Spotlight answers. With `BETTER_EXPLORER_HEADLESS` and no injected
 volumes, a This Mac search runs no Spotlight query and scans nothing.
 
 Scripted steps (`DebugScript`): `searchopt:Date modified/Today`, `searchmenu:/out`, `searchrows:/out`, `searchdetails:/out`, `searchcoverageax:/out`,
@@ -123,6 +123,6 @@ prints the box text, session status, dropdown, progress, history, back stack and
 - Live Spotlight results weren't observed headless (temp fixtures aren't indexed; real folders were never touched). This Mac's explanation was checked on injected volumes.
 - A saved This Mac search keeps no drive list, so when reopened, drives with indexing off show as left out instead of being scanned.
 - Double-clicking a `.arborsearch` in Finder isn't handled: no document type is registered in Info.plist, and `AppDelegate` opens files
-  as their folder. Opening it from inside Arbor works.
+  as their folder. Opening it from inside Better Explorer works.
 - Index exclusions (System Settings ▸ Spotlight privacy) can't be read, so contents from the index are labeled "via the Spotlight
   index" rather than proven complete.

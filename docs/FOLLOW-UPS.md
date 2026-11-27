@@ -6,74 +6,74 @@ else lands here and is worked through when convenient. Delete a line when it is 
 ## Worth doing first
 
 - Tags: on a non-English Mac the seven system tag names may not match what Finder writes
-  (`Sources/Arbor/Features/FinderTags/FinderTagStore.swift`).
+  (`Sources/BetterExplorer/Features/FinderTags/FinderTagStore.swift`).
 - Services: a path handed over by another app has no length limit before each component is looked up, so a very long
-  one is slow (`Sources/ArborCore/ExternalOpen.swift`).
+  one is slow (`Sources/BetterExplorerCore/ExternalOpen.swift`).
 - Services: an outside open that passes the check but fails to load shows Home with no explanation
-  (`Sources/Arbor/Window/BrowserWindowController+Navigation.swift`).
+  (`Sources/BetterExplorer/Window/BrowserWindowController+Navigation.swift`).
 - Services: the rule that keeps Services off non-item menus is four separate, uncommented lines; it should be one helper.
 - Column filters: the "Filtered" address bar item and the rewritten Tab order have no regression check.
-- Workspaces: `WorkspacePrompts.inform` repeats `NSAlert.show` (`Sources/Arbor/Features/Workspaces/WorkspacePrompts.swift`).
+- Workspaces: `WorkspacePrompts.inform` repeats `NSAlert.show` (`Sources/BetterExplorer/Features/Workspaces/WorkspacePrompts.swift`).
 - Tests that can't fail: two checks in `scripts/windows-shortcut-checks.sh` (the opened PDF and `.url` rows) and the
   "Return during composition doesn't rename" check in `scripts/behavior-checks.sh`.
-- address-history: `Sources/Arbor/Views/IconProvider.swift`: Opening the address bar's recent list can still touch the disk or a share on the main thread, now for entries restored from a previous launch.
-- long-names: `Sources/Arbor/Features/VisualParity/DetailsViewController+NameWrap.swift`: A Name column or window resize while scrolled down a long folder moves the list to different rows.
-- file-promises: `Sources/ArborCore/PromiseReception.swift`: Arbor's own archive-member promises are wrongly ended as 'provider unavailable' after 120 seconds.
-- whole-mac-search: `Sources/ArborCore/Performance/MountPoints.swift`: browsableVolumes() is documented as mount-table only and safe on the main thread, but it calls URL(fileURLWithPath:
-- whole-mac-search: `Sources/Arbor/Features/Search/SearchSession.swift`: startExtras still does disk work on the main thread for every This Mac scan root:
-- whole-mac-search: `Sources/Arbor/Features/Search/SearchSession.swift`: When merge reaches the 10,000-result limit it calls stopEngines, which calls spotlight.cancel().
-- metadata-editing: `Sources/ArborCore/Properties/EmbeddedMetadata.swift`: Opening Properties now reads every regular file through ImageIO, including online-only cloud placeholders.
-- metadata-editing: `Sources/ArborCore/Properties/EmbeddedMetadataEditor.swift`: Editing the date writes a non-ISO value into XMP.
-- clipboard-interop: `Sources/ArborCore/ClipboardFiles.swift`: plainText joins raw paths with newlines, and an ordinary Copy or Cut now puts that text on the first pasteboard item.
-- clipboard-interop: `Sources/ArborCore/ClipboardFiles.swift`: The whole-disk refusal can be bypassed by hostile pasteboard content.
+- address-history: `Sources/BetterExplorer/Views/IconProvider.swift`: Opening the address bar's recent list can still touch the disk or a share on the main thread, now for entries restored from a previous launch.
+- long-names: `Sources/BetterExplorer/Features/VisualParity/DetailsViewController+NameWrap.swift`: A Name column or window resize while scrolled down a long folder moves the list to different rows.
+- file-promises: `Sources/BetterExplorerCore/PromiseReception.swift`: Better Explorer's own archive-member promises are wrongly ended as 'provider unavailable' after 120 seconds.
+- whole-mac-search: `Sources/BetterExplorerCore/Performance/MountPoints.swift`: browsableVolumes() is documented as mount-table only and safe on the main thread, but it calls URL(fileURLWithPath:
+- whole-mac-search: `Sources/BetterExplorer/Features/Search/SearchSession.swift`: startExtras still does disk work on the main thread for every This Mac scan root:
+- whole-mac-search: `Sources/BetterExplorer/Features/Search/SearchSession.swift`: When merge reaches the 10,000-result limit it calls stopEngines, which calls spotlight.cancel().
+- metadata-editing: `Sources/BetterExplorerCore/Properties/EmbeddedMetadata.swift`: Opening Properties now reads every regular file through ImageIO, including online-only cloud placeholders.
+- metadata-editing: `Sources/BetterExplorerCore/Properties/EmbeddedMetadataEditor.swift`: Editing the date writes a non-ISO value into XMP.
+- clipboard-interop: `Sources/BetterExplorerCore/ClipboardFiles.swift`: plainText joins raw paths with newlines, and an ordinary Copy or Cut now puts that text on the first pasteboard item.
+- clipboard-interop: `Sources/BetterExplorerCore/ClipboardFiles.swift`: The whole-disk refusal can be bypassed by hostile pasteboard content.
 
 ## Small tidy-ups
 
-- workspaces: `Sources/ArborCore/Workspaces/Workspace.swift`: WorkspaceName.clean accepts a name made only of invisible format scalars.
+- workspaces: `Sources/BetterExplorerCore/Workspaces/Workspace.swift`: WorkspaceName.clean accepts a name made only of invisible format scalars.
 - workspaces: `docs/DECISIONS.md`: The new area-table row says DEC-workspaces runs 1–9, but docs/features/workspaces.md defines DEC-workspaces-1 through DEC-workspaces-10.
-- workspaces: `Sources/ArborCore/Workspaces/WorkspaceOpenPlan.swift`: The job key includes `workspace.tabs.hashValue`, and this is the only reason `SessionTab` gained `Hashable`.
-- workspaces: `Sources/Arbor/Features/Workspaces/WorkspaceOpener.swift`: `replacing:
-- workspaces: `Sources/ArborCore/Workspaces/Workspace.swift`: WorkspaceName.clean accepts a name made only of invisible format characters.
-- windows-shortcuts: `Sources/Arbor/Features/WindowsShortcuts/WindowsShortcutOpener.swift`: Opening any symbolic link now calls Shortcuts.resolve(end) on the main thread, and resolve runs an uncapped Data(contentsOf:) when the link's end has a .webloc extension.
-- windows-shortcuts: `Sources/Arbor/Features/Properties/VersionCopies.swift`: Previous Versions is a route for opening a .url that skips the FE-215 checks.
-- windows-shortcuts: `Sources/ArborCore/WindowsShortcuts/WindowsShortcutPolicy.swift`: DEC-winlink-10 says macro-enabled Office files are refused, but only the OOXML macro types (docm, xlsm, xlsb, pptm) are.
+- workspaces: `Sources/BetterExplorerCore/Workspaces/WorkspaceOpenPlan.swift`: The job key includes `workspace.tabs.hashValue`, and this is the only reason `SessionTab` gained `Hashable`.
+- workspaces: `Sources/BetterExplorer/Features/Workspaces/WorkspaceOpener.swift`: `replacing:
+- workspaces: `Sources/BetterExplorerCore/Workspaces/Workspace.swift`: WorkspaceName.clean accepts a name made only of invisible format characters.
+- windows-shortcuts: `Sources/BetterExplorer/Features/WindowsShortcuts/WindowsShortcutOpener.swift`: Opening any symbolic link now calls Shortcuts.resolve(end) on the main thread, and resolve runs an uncapped Data(contentsOf:) when the link's end has a .webloc extension.
+- windows-shortcuts: `Sources/BetterExplorer/Features/Properties/VersionCopies.swift`: Previous Versions is a route for opening a .url that skips the FE-215 checks.
+- windows-shortcuts: `Sources/BetterExplorerCore/WindowsShortcuts/WindowsShortcutPolicy.swift`: DEC-winlink-10 says macro-enabled Office files are refused, but only the OOXML macro types (docm, xlsm, xlsb, pptm) are.
 - windows-shortcuts: `scripts/windows-shortcut-checks.sh`: This is a new top-level suite for one feature.
-- windows-shortcuts: `Sources/Arbor/Features/WindowsShortcuts/WindowsShortcutOpener.swift`: `refuseIfLinkToShortcut` wants only an alias's target but calls `Shortcuts.resolve`, which also handles .webloc by reading the whole file with `Data(contentsOf:)` before any alias check.
-- windows-shortcuts: `Sources/ArborCore/Search/SearchEvaluator.swift`: This re-implements the precedence that `ExplorerTypeName.name` owns and leaves out the alias case.
+- windows-shortcuts: `Sources/BetterExplorer/Features/WindowsShortcuts/WindowsShortcutOpener.swift`: `refuseIfLinkToShortcut` wants only an alias's target but calls `Shortcuts.resolve`, which also handles .webloc by reading the whole file with `Data(contentsOf:)` before any alias check.
+- windows-shortcuts: `Sources/BetterExplorerCore/Search/SearchEvaluator.swift`: This re-implements the precedence that `ExplorerTypeName.name` owns and leaves out the alias case.
 - windows-shortcuts: `docs/features/windows-shortcuts.md`: DEC-winlink-10 says `WindowsShortcutPolicy.documentFamilies` holds the refused formats.
-- windows-shortcuts: `Sources/ArborCore/WindowsShortcuts/ShellLink.swift`: LinkInfoFlags are bare `0x1` and `0x2` (lines 178 and 184), and the header and LinkInfo field offsets are bare numbers (20, 44, 52, then 4, 8, 16, 20, 24, 28, 32).
-- tags-pane: `Sources/Arbor/Features/Search/SpotlightSearch.swift`: Every Spotlight hit of every search now fetches kMDItemUserTags and caps it, but only FinderTagDiscovery reads Hit.tags.
-- tags-pane: `Sources/Arbor/Features/FinderTags/FinderTagStore.swift`: The rule behind DEC-tags-7, that a failed or partial run must not shrink the list, is decided in app code with no test:
-- tags-pane: `Sources/ArborCore/Search/TagCollectionQuery.swift`: Two conditions in tagName(in:) cannot change the result.
-- tags-pane: `Sources/Arbor/Features/FinderTags/FinderTagsDebug.swift`: The documented example `taglabels:Red=FF0000|Blue=` does not do what it says, here and under Script steps in docs/features/finder-tags.md.
-- tags-pane: `docs/features/finder-tags.md`: The file map at the top of the area document leaves out Sources/ArborCore/Properties/TagRefreshPolicy.swift and Tests/ArborTests/FinderTagsFeatureTests.swift, so it does not list everything that be...
-- services: `Sources/Arbor/Features/Services/ServicesSelection.swift`: Two of the rules documented for what may be sent have no check.
+- windows-shortcuts: `Sources/BetterExplorerCore/WindowsShortcuts/ShellLink.swift`: LinkInfoFlags are bare `0x1` and `0x2` (lines 178 and 184), and the header and LinkInfo field offsets are bare numbers (20, 44, 52, then 4, 8, 16, 20, 24, 28, 32).
+- tags-pane: `Sources/BetterExplorer/Features/Search/SpotlightSearch.swift`: Every Spotlight hit of every search now fetches kMDItemUserTags and caps it, but only FinderTagDiscovery reads Hit.tags.
+- tags-pane: `Sources/BetterExplorer/Features/FinderTags/FinderTagStore.swift`: The rule behind DEC-tags-7, that a failed or partial run must not shrink the list, is decided in app code with no test:
+- tags-pane: `Sources/BetterExplorerCore/Search/TagCollectionQuery.swift`: Two conditions in tagName(in:) cannot change the result.
+- tags-pane: `Sources/BetterExplorer/Features/FinderTags/FinderTagsDebug.swift`: The documented example `taglabels:Red=FF0000|Blue=` does not do what it says, here and under Script steps in docs/features/finder-tags.md.
+- tags-pane: `docs/features/finder-tags.md`: The file map at the top of the area document leaves out Sources/BetterExplorerCore/Properties/TagRefreshPolicy.swift and Tests/BetterExplorerTests/FinderTagsFeatureTests.swift, so it does not list everything that be...
+- services: `Sources/BetterExplorer/Features/Services/ServicesSelection.swift`: Two of the rules documented for what may be sent have no check.
 - services: `docs/features/qa-core.md`: The rerun note says behavior-checks has 79 checks, but scripts/behavior-checks.sh now has 87.
-- services: `Tests/ArborCoreTests/ItemActionsTests.swift`: The new private scratchFolder() helper duplicates Fixture, which is in the same test target and already used by this file (for example line 48).
-- services: `Sources/Arbor/Views/DetailsViewController.swift`: While an inline rename is open, right-clicking a different item or empty space now shows no menu at all, because menu(for:) returns nil here and at ItemGridView.swift:499.
+- services: `Tests/BetterExplorerCoreTests/ItemActionsTests.swift`: The new private scratchFolder() helper duplicates Fixture, which is in the same test target and already used by this file (for example line 48).
+- services: `Sources/BetterExplorer/Views/DetailsViewController.swift`: While an inline rename is open, right-clicking a different item or empty space now shows no menu at all, because menu(for:) returns nil here and at ItemGridView.swift:499.
 - services: `docs/features/qa-core.md`: The rerun note says behavior-checks has 79 checks, but a full run of scripts/behavior-checks.sh on this branch printed 87 pass lines.
 - column-filters: `docs/features/grouping.md`: The area document's Code and Tests lines were not updated.
-- column-filters: `Sources/Arbor/Features/DetailsDepth/DateRangeFilterView.swift`: The message "Choose a range of up to 100 years." hard-codes the limit defined by `DayRange.maxDayCount`, so changing the constant makes the UI text wrong without any compile error or test failure.
-- column-filters: `Sources/Arbor/Features/DetailsDepth/DetailsHeaderViews.swift`: `dateRangeProvider` is a settable closure with a `{ nil }` default for a value its own comment says is read once.
-- details-marquee: `Sources/Arbor/Features/DetailsDepth/DetailsMarquee.swift`: In Details, the path that treats every candidate as a hit above MarqueeDrag.preciseHitLimit has no automated check.
-- details-marquee: `Sources/Arbor/Views/DetailsViewController.swift`: This change widens shownName so hit-testing can use it, but the same extension-hiding logic also exists as ItemGridView.displayName (ItemGridView.swift:270) and a private shownName in HomeFileList....
-- details-marquee: `Sources/Arbor/Features/IconViews/ItemGridDrawing.swift`: Replacing drawMarquee() introduced Optional.map purely for a side effect, discarding a Void? result, on lines 117 and 126.
-- keyboard-preset: `Sources/Arbor/Features/Accessibility/FileListKeys.swift`: ItemSurface(c)?.prepareToOpen() is an indirect and misnamed way to cancel the grid's slow-click rename.
-- keyboard-preset: `Sources/Arbor/Features/FolderOptions/FolderOptionsPrefs.swift`: The new choices check looks the item up again with FolderOptionsCatalog.item(key), which rebuilds and scans the whole catalog.
-- keyboard-preset: `Sources/Arbor/Features/Accessibility/AccessibilityDebug.swift`: keyEvent's new isRepeat:
-- address-history: `Sources/ArborCore/PathCompletionHistory.swift`: History rows filter hidden items by a leading dot only, while the listing treats `isHidden` as true for flagged items too (`.isHiddenKey`, for example `~/Library`).
+- column-filters: `Sources/BetterExplorer/Features/DetailsDepth/DateRangeFilterView.swift`: The message "Choose a range of up to 100 years." hard-codes the limit defined by `DayRange.maxDayCount`, so changing the constant makes the UI text wrong without any compile error or test failure.
+- column-filters: `Sources/BetterExplorer/Features/DetailsDepth/DetailsHeaderViews.swift`: `dateRangeProvider` is a settable closure with a `{ nil }` default for a value its own comment says is read once.
+- details-marquee: `Sources/BetterExplorer/Features/DetailsDepth/DetailsMarquee.swift`: In Details, the path that treats every candidate as a hit above MarqueeDrag.preciseHitLimit has no automated check.
+- details-marquee: `Sources/BetterExplorer/Views/DetailsViewController.swift`: This change widens shownName so hit-testing can use it, but the same extension-hiding logic also exists as ItemGridView.displayName (ItemGridView.swift:270) and a private shownName in HomeFileList....
+- details-marquee: `Sources/BetterExplorer/Features/IconViews/ItemGridDrawing.swift`: Replacing drawMarquee() introduced Optional.map purely for a side effect, discarding a Void? result, on lines 117 and 126.
+- keyboard-preset: `Sources/BetterExplorer/Features/Accessibility/FileListKeys.swift`: ItemSurface(c)?.prepareToOpen() is an indirect and misnamed way to cancel the grid's slow-click rename.
+- keyboard-preset: `Sources/BetterExplorer/Features/FolderOptions/FolderOptionsPrefs.swift`: The new choices check looks the item up again with FolderOptionsCatalog.item(key), which rebuilds and scans the whole catalog.
+- keyboard-preset: `Sources/BetterExplorer/Features/Accessibility/AccessibilityDebug.swift`: keyEvent's new isRepeat:
+- address-history: `Sources/BetterExplorerCore/PathCompletionHistory.swift`: History rows filter hidden items by a leading dot only, while the listing treats `isHidden` as true for flagged items too (`.isHiddenKey`, for example `~/Library`).
 - long-names: `scripts/behavior-checks.sh`: The check "every row keeps the full-name tooltip" can never fail.
-- long-names: `Sources/Arbor/Views/DetailsViewController.swift`: topVisibleName probes `rowsViewport.minY + table.rowHeight / 2`, which assumes one-line rows.
-- file-promises: `Sources/ArborCore/PromiseReception.swift`: Cancel can't take effect while the private queue is stuck on a hung destination.
-- file-promises: `Sources/ArborCore/PromiseReception.swift`: Main-thread disk work is larger than documented.
-- file-promises: `Sources/Arbor/Features/PromisedFiles/PromisedFilesFeature.swift`: Staging is not removed after every outcome, as promised-files.md ('Quitting cancels and removes it') and the builder's summary claim.
-- whole-mac-search: `Sources/Arbor/Features/Search/SearchSession.swift`: The per-volume wording overclaims Spotlight coverage in two cases.
-- whole-mac-search: `Sources/ArborCore/Search/WholeMacCoverage.swift`: oneLine exists to stop outside text forging lines of the explanation, but it misses U+2028 and U+2029, whose categories are lineSeparator and paragraphSeparator rather than control (verified).
-- whole-mac-search: `Sources/ArborCore/Search/SpotlightPredicate.swift`: parse searches the whole mdutil output, which begins with the volume path.
-- metadata-editing: `Sources/ArborCore/Properties/EmbeddedMetadata.swift`: The length limit is measured two ways.
-- metadata-editing: `Sources/ArborCore/Properties/EmbeddedMetadataEditor.swift`: Undo's 'changed since' check misses changes to tags, comments, permissions and ACLs.
-- clipboard-interop: `Sources/Arbor/Features/ItemActions/ItemActionsFeature.swift`: Paste Shortcut goes through readURLs(), which turns every refusal into an empty list, so the user gets only a beep.
+- long-names: `Sources/BetterExplorer/Views/DetailsViewController.swift`: topVisibleName probes `rowsViewport.minY + table.rowHeight / 2`, which assumes one-line rows.
+- file-promises: `Sources/BetterExplorerCore/PromiseReception.swift`: Cancel can't take effect while the private queue is stuck on a hung destination.
+- file-promises: `Sources/BetterExplorerCore/PromiseReception.swift`: Main-thread disk work is larger than documented.
+- file-promises: `Sources/BetterExplorer/Features/PromisedFiles/PromisedFilesFeature.swift`: Staging is not removed after every outcome, as promised-files.md ('Quitting cancels and removes it') and the builder's summary claim.
+- whole-mac-search: `Sources/BetterExplorer/Features/Search/SearchSession.swift`: The per-volume wording overclaims Spotlight coverage in two cases.
+- whole-mac-search: `Sources/BetterExplorerCore/Search/WholeMacCoverage.swift`: oneLine exists to stop outside text forging lines of the explanation, but it misses U+2028 and U+2029, whose categories are lineSeparator and paragraphSeparator rather than control (verified).
+- whole-mac-search: `Sources/BetterExplorerCore/Search/SpotlightPredicate.swift`: parse searches the whole mdutil output, which begins with the volume path.
+- metadata-editing: `Sources/BetterExplorerCore/Properties/EmbeddedMetadata.swift`: The length limit is measured two ways.
+- metadata-editing: `Sources/BetterExplorerCore/Properties/EmbeddedMetadataEditor.swift`: Undo's 'changed since' check misses changes to tags, comments, permissions and ACLs.
+- clipboard-interop: `Sources/BetterExplorer/Features/ItemActions/ItemActionsFeature.swift`: Paste Shortcut goes through readURLs(), which turns every refusal into an empty list, so the user gets only a beep.
 - address-handoffs: `docs/FEATURE-STATUS.md`: The FE-079 row still says Control Panel and printers have no Mac counterpart.
-- cloud-status: `Sources/ArborCore/CloudProviders.swift`: The Google account rule doesn't require an @.
+- cloud-status: `Sources/BetterExplorerCore/CloudProviders.swift`: The Google account rule doesn't require an @.
 - promise-and-release: `docs/features/promised-files.md`: The doc says that if macOS renames either private name the check fails with end=false.
 - promise-and-release: `TESTING.md`: The 'What CI runs' table row for build-and-test still lists only the debug build, unit tests and make-dmg.

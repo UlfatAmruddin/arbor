@@ -9,15 +9,15 @@
 #   --repeats N   launches per workload (default 3; the first one is reported separately as "first")
 #   --quick       smaller fixtures (10,000-entry large folder, fewer photos); budgets still apply but
 #                 are looser than necessary
-#   --app PATH    benchmark an existing Arbor.app instead of building build/Arbor.app (release)
-#   --skip-build  benchmark build/Arbor.app as it is (refused when older than the sources)
+#   --app PATH    benchmark an existing app bundle instead of building build/<name>.app (release)
+#   --skip-build  benchmark the built app as it is (refused when older than the sources)
 #
 #   BENCH_TOLERANCE=F         multiply the time budgets (ms, stalls, CPU) by F (default 1)
 #   BENCH_MEMORY_TOLERANCE=F  multiply the memory budgets (MB) by F (default 1); counts are never scaled
 #   BENCH_TOLERANCE_FOR="m=F …" use factor F for metric m instead (for one-off environment effects, with a reason)
 #   BENCH_SAMPLE_IDLE=1       the idle run logs CPU per thread and stacks of busy threads (<out>/idle-N.log)
 #
-# Every run is headless (ARBOR_HEADLESS=1), uses fixtures generated into a fresh mktemp -d folder,
+# Every run is headless (BETTER_EXPLORER_HEADLESS=1), uses fixtures generated into a fresh mktemp -d folder,
 # and never touches user files. Results: <out>/results.txt (metric median first min max) and
 # <out>/environment.txt; raw per-run logs next to them. Lock and stale guard: scripts/lib/app-bundle.sh.
 set -euo pipefail
@@ -48,31 +48,31 @@ for f in "$TOLERANCE" "$MEMORY_TOLERANCE"; do
   [[ "$f" =~ ^[0-9]+(\.[0-9]+)?$ ]] && awk -v f="$f" 'BEGIN { exit !(f >= 1) }' || { echo "bench.sh: tolerances must be numbers ≥ 1 (got $f)" >&2; exit 2; }
 done
 
-# The lock is held for the whole run, the build included: building replaces build/Arbor.app, which
+# The lock is held for the whole run, the build included: building replaces the built app, which
 # another suite may be testing.
 CONFIGURATION="given app bundle"
 if [ -z "$APP" ]; then
-  APP="$REPO/build/Arbor.app"
-  CONFIGURATION="build/Arbor.app as found"
+  APP="$REPO/$PRODUCT_APP"
+  CONFIGURATION="$PRODUCT_APP as found"
   if [ "$SKIP_BUILD" = 0 ]; then
-    arbor_take_suite_lock
+    better_explorer_take_suite_lock
     scripts/build-app.sh release >/dev/null; CONFIGURATION="release (scripts/build-app.sh release)"
   else
-    arbor_prepare_app bench.sh release
+    better_explorer_prepare_app bench.sh release
   fi
-  arbor_use_private_app
-  APP="${ARBOR_APP_BIN%/Contents/MacOS/Arbor}"
+  better_explorer_use_private_app
+  APP="${BETTER_EXPLORER_APP_BIN%/Contents/MacOS/BetterExplorer}"
 else
-  arbor_take_suite_lock
+  better_explorer_take_suite_lock
 fi
-BIN="$APP/Contents/MacOS/Arbor"
+BIN="$APP/Contents/MacOS/BetterExplorer"
 [ -x "$BIN" ] || { echo "no app at $APP" >&2; exit 2; }
 
-ROOT="$(mktemp -d "${TMPDIR:-/tmp}/arbor-bench.XXXXXX")"
+ROOT="$(mktemp -d "${TMPDIR:-/tmp}/better-explorer-bench.XXXXXX")"
 FX="$ROOT/fx"
 [ -n "$OUT" ] || OUT="$REPO/build/bench/$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$OUT"
-trap 'rm -rf "$ROOT"; arbor_release_suite_lock' EXIT
+trap 'rm -rf "$ROOT"; better_explorer_release_suite_lock' EXIT
 
 echo "Fixtures in $ROOT"
 swift scripts/bench-fixtures.swift "$FX" $QUICK
@@ -181,9 +181,9 @@ for w in $WORKLOADS; do
     # BENCH_SAMPLE_IDLE=1: the idle run also records, from inside the app, CPU per thread and the call
     # stacks of threads that ran (lines idlethread / idleprofile / idlestack in its log).
     profile=0; [ "${BENCH_SAMPLE_IDLE:-0}" = 1 ] && [ "$w" = idle ] && profile=1
-    ARBOR_IDLE_PROFILE=$profile \
-    ARBOR_HEADLESS=1 ARBOR_APPEARANCE=light ARBOR_TEST_TRASH="$ROOT/trash" ARBOR_STALL_LOG="$OUT/$w-$r.stalls" \
-      ARBOR_SCRIPT="$script" "$BIN" "$(start_folder "$w")" >"$OUT/$w-$r.stdout" 2>&1 &
+    BETTER_EXPLORER_IDLE_PROFILE=$profile \
+    BETTER_EXPLORER_HEADLESS=1 BETTER_EXPLORER_APPEARANCE=light BETTER_EXPLORER_TEST_TRASH="$ROOT/trash" BETTER_EXPLORER_STALL_LOG="$OUT/$w-$r.stalls" \
+      BETTER_EXPLORER_SCRIPT="$script" "$BIN" "$(start_folder "$w")" >"$OUT/$w-$r.stdout" 2>&1 &
     pid=$!
     # Watchdog: stop a run that hangs (polls once a second; holds no pipe open).
     ( for _ in $(seq 900); do sleep 1; kill -0 "$pid" 2>/dev/null || exit 0; done; kill "$pid" 2>/dev/null ) >/dev/null 2>&1 &

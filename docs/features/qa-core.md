@@ -7,7 +7,7 @@ read-only and denied folders, races, folder-watcher bursts.
 How to rerun:
 - Unit under load: the whole suite passed 5 runs in a row while `scripts/bench.sh --quick` ran, and 5 more with
   every core also busy (about 6× slower). Tests wait on conditions and ordering, never on wall-clock gaps.
-- Unit: `scripts/test.sh` (new: `Tests/ArborCoreTests/CoreRegressionTests.swift`, 12 tests; the
+- Unit: `scripts/test.sh` (new: `Tests/BetterExplorerCoreTests/CoreRegressionTests.swift`, 12 tests; the
   cross-file-system tests create and mount 20 MB ExFAT, HFS+ and case-sensitive APFS disk images with
   `hdiutil` and skip themselves when that is impossible).
 - Headless: `scripts/build-app.sh debug && scripts/core-checks.sh` (asserts the fixed UI bugs stay fixed) and
@@ -30,7 +30,7 @@ Severity order: data safety, crash, wrong behavior, visual.
 | QA-CORE-7 | wrong behavior (minor) | Back/Forward history entries stored selected names only. | fixed (qa-places #2: entries keep URLs); duplicated, torn-off and merged tabs and any visit that names URLs now also restore by URL | `HistorySelectionTests`; `behavior-checks.sh selection` |
 | QA-CORE-8 | data safety | After Delete (or Delete Permanently, or deleting in the Trash) the next item to select was chosen and restored **by name**: in search results, deleting `b.txt` next to three `a.txt` selected all three, so a second Delete would trash files the user never picked. Rotate, Properties renames, Select All, a batch-rename edit and a single rename restored by name too. | fixed (`neighborURL(after:)`, `refreshSelecting(urls:)`, `select(urls:)` at every call site that knows the items) | `behavior-checks.sh selection` (failed before: `selected: a.txt \| a.txt \| a.txt`) |
 | QA-CORE-9 | wrong behavior | The extension-change prompt and the rename error were app-modal (`runModal`): they blocked every window and scripts couldn't answer them. Eleven other alerts fell back to `runModal` whenever their window already showed a sheet. | fixed (`AlertSheets`: window-modal sheets, one at a time per window; Cancel on the extension prompt keeps the typed name in the field, a rename error reopens the field with the typed text; the zip-bomb confirmation is a sheet the extraction waits for) | `behavior-checks.sh sheets` (8 checks; the run timed out before the fix) |
-| QA-CORE-10 | safety (test runs) | Headless runs (`ARBOR_HEADLESS`) could open files in other apps, Finder windows, Terminal, the share picker, Quick Look, network sign-in windows, change the desktop picture or default apps, and eject disks. | fixed (`SystemOpen`: every such request goes through one helper that only logs it in headless runs; `log:` prints `system open: …`) | `SystemOpenAuditTests` (fails on any direct call outside the helper; 31 direct calls before); `behavior-checks.sh headless` |
+| QA-CORE-10 | safety (test runs) | Headless runs (`BETTER_EXPLORER_HEADLESS`) could open files in other apps, Finder windows, Terminal, the share picker, Quick Look, network sign-in windows, change the desktop picture or default apps, and eject disks. | fixed (`SystemOpen`: every such request goes through one helper that only logs it in headless runs; `log:` prints `system open: …`) | `SystemOpenAuditTests` (fails on any direct call outside the helper; 31 direct calls before); `behavior-checks.sh headless` |
 
 Checked and found correct (no change needed): conflict prompts with exFAT names it rejects (`what?.txt`,
 `a:b.txt`) keep the originals on a move; case twins from case-sensitive APFS never overwrite each other on
@@ -58,7 +58,7 @@ and ExFAT images, each proving an item either arrives byte-identical or is refus
   whole path only: APFS accepts names of more than 255 bytes when decomposed, so a per-name byte check would refuse valid names.
 - **DEC-qa-core-9** Items past the limit are shown and explained, never hidden or shortened; a duplicate or Keep Both name that
   would not fit fails with the path message rather than being truncated (windows11-reference §8.3 “Path too long”, adapted).
-  Arbor can't operate on them: the kernel refuses such paths, `copyfile` has no descriptor form, and FileManager, Launch
+  Better Explorer can't operate on them: the kernel refuses such paths, `copyfile` has no descriptor form, and FileManager, Launch
   Services and Quick Look are path-based. A permanent delete still works, through descriptors. Opening such a file says so
   instead of asking macOS, which would silently refuse.
 
@@ -104,31 +104,31 @@ parent; an external change while a rename field is open keeps the typed text.
 
 ## macOS Services and outside opens (FE-218)
 
-Status: implemented; the headless checks pass, and the manual list below still has to be run in a GUI session. Arbor stays an
+Status: implemented; the headless checks pass, and the manual list below still has to be run in a GUI session. Better Explorer stays an
 ordinary app beside Finder: the folder handler rank stays None, Show in Finder is unchanged, and nothing claims to replace
 Finder (other apps' Reveal actions and Open/Save dialogs stay Finder's). Services don't exist on Windows, so this is
 a macOS adaptation, not Explorer parity.
 
-- **Provider.** One service, Open in Arbor, for files and folders (`NSServices` in `Resources/Info.plist`,
+- **Provider.** One service, Open in Better Explorer, for files and folders (`NSServices` in `Resources/Info.plist`,
   `Features/Services/ServicesProvider.swift`). It reads file URLs only and passes them to `application(_:open:)`.
 - **One route for outside items.** The service, the Dock, `open -a` and Finder documents all go through
-  `AppDelegate.openExternal` and `ExternalOpen` (ArborCore): only local absolute file URLs, at most 5,000 examined and
-  16 tabs opened, checks off the main thread. A folder opens; a file Arbor browses (archive, saved search) opens as its
+  `AppDelegate.openExternal` and `ExternalOpen` (BetterExplorerCore): only local absolute file URLs, at most 5,000 examined and
+  16 tabs opened, checks off the main thread. A folder opens; a file Better Explorer browses (archive, saved search) opens as its
   own location; anything else, packages included, is revealed in its parent, and items sharing a parent share a tab.
-  `Arbor <path>` from Terminal (FE-219) stays separate.
+  `Better Explorer <path>` from Terminal (FE-219) stays separate.
 - **Consumer.** The window answers as a file-URL requestor, so AppKit adds its own Services submenu to the item
-  context menu and fills Arbor ▸ Services. Other menus switch it off (`CommandDispatcher.menuBuilt` for those the dispatcher
+  context menu and fills Better Explorer ▸ Services. Other menus switch it off (`CommandDispatcher.menuBuilt` for those the dispatcher
   builds, one line each for the column header, group header, search history and network tile menus).
   The selection is never offered in the Trash, in an archive, for a disconnected mapped drive or while a text field has focus.
 
 Manual checks, after building and running `/System/Library/CoreServices/pbs -update`:
 
-- Finder right-click ▸ Services ▸ Open in Arbor on a folder, a file, several files, an app bundle, and with Arbor not running.
-- With two Arbor windows open and another app in front, the tab opens in the frontmost of the two.
-- Arbor's item menu shows Services and running one receives the files, including a service declared the older way
+- Finder right-click ▸ Services ▸ Open in Better Explorer on a folder, a file, several files, an app bundle, and with Better Explorer not running.
+- With two Better Explorer windows open and another app in front, the tab opens in the frontmost of the two.
+- Better Explorer's item menu shows Services and running one receives the files, including a service declared the older way
   (Finder's Open or Show in Finder).
 - Type in the search box, right-click a result without clicking first: Services is there.
-- Tree, tab, column header, Trash and archive menus show no Services; Arbor ▸ Services works from the keyboard.
+- Tree, tab, column header, Trash and archive menus show no Services; Better Explorer ▸ Services works from the keyboard.
 - Whether the service is on by default.
 
 ## Decisions
@@ -148,13 +148,13 @@ Manual checks, after building and running `/System/Library/CoreServices/pbs -upd
 - **DEC-qa-core-6** Alerts about a window wait for that window's current sheet instead of stacking or going
   app-modal; an alert identical to one already showing or waiting is merged into it and its caller hears
   Cancel (the safe answer). Only the quit confirmation (no window involved) stays app-modal.
-- **DEC-qa-core-7** In headless runs nothing outside Arbor's own windows is opened or changed: `SystemOpen`
-  logs the request instead. Arbor's own sheets shown through `AlertSheets` are invisible there too.
-- **DEC-qa-core-8** Arbor never lists or performs a service. macOS has no public way to enumerate services, so AppKit
+- **DEC-qa-core-7** In headless runs nothing outside Better Explorer's own windows is opened or changed: `SystemOpen`
+  logs the request instead. Better Explorer's own sheets shown through `AlertSheets` are invisible there too.
+- **DEC-qa-core-8** Better Explorer never lists or performs a service. macOS has no public way to enumerate services, so AppKit
   builds the Services menu and runs what the user picks; `NSPerformService` is forbidden by `SystemOpenAuditTests`.
 - **DEC-qa-core-9** Items from outside that couldn't be opened are reported with a sheet, counts only, never names or paths.
   A status-bar message is cleared when the new tab finishes loading. A check that finishes more than 15 seconds after the request
-  (a dead mount) neither activates Arbor nor shows anything modal: the user has moved on, so it is only noted in the
+  (a dead mount) neither activates Better Explorer nor shows anything modal: the user has moved on, so it is only noted in the
   status bar of a window already open.
 - **DEC-qa-core-10** Aliases from outside behave as a double-click does: a folder alias opens its target (`.withoutUI`,
   `.withoutMounting`), a file alias is revealed and not resolved. Open handlers run off the main thread here, so they read only
@@ -170,7 +170,7 @@ Manual checks, after building and running `/System/Library/CoreServices/pbs -upd
   dumps don't include it. The user turns services on or off in System Settings ▸ Keyboard ▸ Keyboard Shortcuts ▸ Services.
 - FE-218: while an inline rename is open, right-clicking a different item or empty space does nothing; Explorer would commit the rename
   and show the menu. Committing can re-sort the list or raise the extension-change sheet, which would leave a menu on the wrong item.
-- FE-218: keyboard-opened context menus (Shift+F10) have no Services; Arbor ▸ Services is the keyboard path.
+- FE-218: keyboard-opened context menus (Shift+F10) have no Services; Better Explorer ▸ Services is the keyboard path.
 - FE-218: revealing a hidden file while hidden items are off opens its parent with nothing selected. This applies to Dock opens as well.
 - FE-218: the service title in Info.plist isn't localized; a `ServicesMenu.strings` waits for a second language.
 - FE-218: at the 16-tab cap, an archive in a folder that is already open is revealed there instead of opened, because open

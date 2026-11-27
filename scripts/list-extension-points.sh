@@ -8,18 +8,19 @@
 #   (no option)       print the listing
 #   --markdown FILE   write the tables of docs/EXTENSION-POINTS.md's generated section to FILE
 #
-# Uses build/Arbor.app; build it first with scripts/build-app.sh debug.
+# Uses the built app; build it first with scripts/build-app.sh debug.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+. scripts/lib/product.sh
 
-APP=build/Arbor.app/Contents/MacOS/Arbor
+APP="$PRODUCT_APP/Contents/MacOS/BetterExplorer"
 if [ ! -x "$APP" ]; then
   echo "list-extension-points.sh: $APP not found; run scripts/build-app.sh debug first" >&2
   exit 1
 fi
 # A bundle older than the sources would list stale registrations (scripts/lib/app-bundle.sh).
 . scripts/lib/app-bundle.sh
-arbor_require_fresh_app
+better_explorer_require_fresh_app
 
 MODE=text
 OUT=""
@@ -36,7 +37,7 @@ mkdir "$WORK/fixture"
 STEP="extensions:$WORK/listing.txt"
 [ "$MODE" = markdown ] && STEP="extensions:md:$WORK/listing.md;extensions:$WORK/listing.txt"
 
-ARBOR_HEADLESS=1 ARBOR_TEST_TRASH="$WORK/trash" ARBOR_SCRIPT="wait:1;$STEP;quit" "$APP" "$WORK/fixture" >"$WORK/app.log" 2>&1 || {
+BETTER_EXPLORER_HEADLESS=1 BETTER_EXPLORER_TEST_TRASH="$WORK/trash" BETTER_EXPLORER_SCRIPT="wait:1;$STEP;quit" "$APP" "$WORK/fixture" >"$WORK/app.log" 2>&1 || {
   echo "list-extension-points.sh: the app failed to start:" >&2
   tail -20 "$WORK/app.log" >&2
   exit 1

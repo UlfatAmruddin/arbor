@@ -14,8 +14,8 @@ sweep_stale_fixtures() {
     chmod -R -N "$d" 2>/dev/null || true
     chmod -R u+rwx "$d" 2>/dev/null || true
     rm -rf "$d" 2>/dev/null || true   # never stop the test run over a leftover
-  done < <(find "$tmp" -maxdepth 1 -type d \( -name 'arbor-tests-*' -o -name 'arbor-vol-*' -o -name 'arbor-qa-*' \) -mmin +120 2>/dev/null)
-  find "$tmp" -maxdepth 1 -type f \( -name 'arbor-vol-*.dmg' -o -name 'arbor-qa-*.dmg' \) -mmin +120 -delete 2>/dev/null || true
+  done < <(find "$tmp" -maxdepth 1 -type d \( -name 'better-explorer-tests-*' -o -name 'better-explorer-vol-*' -o -name 'better-explorer-qa-*' \) -mmin +120 2>/dev/null)
+  find "$tmp" -maxdepth 1 -type f \( -name 'better-explorer-vol-*.dmg' -o -name 'better-explorer-qa-*.dmg' \) -mmin +120 -delete 2>/dev/null || true
 }
 sweep_stale_fixtures
 

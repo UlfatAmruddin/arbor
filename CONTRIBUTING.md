@@ -1,9 +1,9 @@
-# Contributing to Arbor
+# Contributing to Better Explorer
 
 Thanks for helping. A few ground rules keep the project trustworthy.
 
 ## Reporting bugs and ideas
-- Use the issue templates: **Bug report** or **Feature request** ([new issue](../../issues/new/choose)). Include the Arbor version from Arbor ▸ About Arbor and your macOS version.
+- Use the issue templates: **Bug report** or **Feature request** ([new issue](../../issues/new/choose)). Include the Better Explorer version from Better Explorer ▸ About Better Explorer and your macOS version.
 - Anything that could lose data or expose files is a security problem: report it privately as described in [SECURITY.md](SECURITY.md), not in a public issue.
 
 ## Before you start
@@ -26,7 +26,7 @@ You need macOS 14 or later and the Command Line Tools (`xcode-select --install`)
 scripts/test.sh               # must pass
 scripts/build-app.sh debug    # must build without warnings
 ```
-Logic belongs in `Sources/ArborCore` with unit tests. UI goes in `Sources/Arbor`. For UI behavior, add a scripted check with `ARBOR_SCRIPT` (see `TESTING.md` and `Sources/Arbor/DebugScript.swift`) and describe what you verified in the pull request.
+Logic belongs in `Sources/BetterExplorerCore` with unit tests. UI goes in `Sources/BetterExplorer`. For UI behavior, add a scripted check with `BETTER_EXPLORER_SCRIPT` (see `TESTING.md` and `Sources/BetterExplorer/DebugScript.swift`) and describe what you verified in the pull request.
 
 ## Code standards
 Security is part of writing the code, not a pass at the end. Treat every file name, file content, archive field, metadata value and network reply as hostile.
@@ -40,8 +40,8 @@ Security is part of writing the code, not a pass at the end. Treat every file na
 
 To keep the code easy to change:
 
-- A feature is one folder in `Sources/Arbor/Features` with an `ExplorerFeature` and one registration line. Use extension points; change shared files only to add a point.
-- Logic without UI goes in `Sources/ArborCore`, as small pure types with tests. UI code stays thin.
+- A feature is one folder in `Sources/BetterExplorer/Features` with an `ExplorerFeature` and one registration line. Use extension points; change shared files only to add a point.
+- Logic without UI goes in `Sources/BetterExplorerCore`, as small pure types with tests. UI code stays thin.
 - Search before adding a helper, and give each type one job.
 - No disk or network work on the main thread; cancel work that has gone stale.
 - User-visible strings go through `L10n` as whole sentences: `L10n.tr`, `L10n.format` with `%@` for the parts that vary, `L10n.plural(one:other:…)` for a sentence with a count, `L10n.plainFormat` for a generated file name. Never assemble a sentence from translated pieces or pick a word with `count == 1`; `StringCoverageTests` fails on a literal shown without `L10n`. Comments are one line and say why, not what.
@@ -54,7 +54,7 @@ Sentences with a count ("3 items were copied") are in `Resources/en.lproj/Locali
 - Keep the `%` parts: the same specifiers, of the same kind, as the English. `%1$@ … %2$@` numbers let you change the order. Write a percent sign as `%%`.
 - `scripts/extract-strings.sh --check` (also run by `scripts/test.sh`) rejects unknown keys, empty values, wrong specifiers (in every plural form too) and malformed files, and reports how many strings aren't translated yet.
 - Right-to-left languages mirror the app on their own. To check your layout, use the pseudo-languages in `TESTING.md`.
-- Text that doesn't fit is a bug in Arbor rather than in the translation: report it.
+- Text that doesn't fit is a bug in Better Explorer rather than in the translation: report it.
 
 ## Pull requests
 - Keep each pull request to one topic, with plain, descriptive commit messages.
@@ -66,7 +66,7 @@ Sentences with a count ("3 items were copied") are in `Resources/en.lproj/Locali
 Maintainers follow [docs/RELEASING.md](docs/RELEASING.md). The version lives in `VERSION`; don't change it in a feature pull request.
 
 ## Privacy
-No telemetry, analytics or network calls of Arbor's own, apart from the update check of release builds (FE-259), which sends nothing but the request for the feed. Never log file names or paths outside the user's own machine.
+No telemetry, analytics or network calls of Better Explorer's own, apart from the update check of release builds (FE-259), which sends nothing but the request for the feed. Never log file names or paths outside the user's own machine.
 
 ## License
 By contributing, you agree that your contribution is licensed under the MIT License ([LICENSE](LICENSE)).

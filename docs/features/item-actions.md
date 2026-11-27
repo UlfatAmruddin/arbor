@@ -1,8 +1,8 @@
 # Item actions: New menu, shortcuts, Send to, rename, image actions, drag polish
 
-Code: `Sources/Arbor/Features/ItemActions/` (registered by `ItemActionsFeature.register()` in `Features.swift`),
-logic in `Sources/ArborCore/NewItemTemplates.swift`, `BatchRename.swift`, `ImageRotation.swift`, tests in
-`Tests/ArborCoreTests/ItemActionsTests.swift`. Core hooks: `Sources/Arbor/Support/InteractionHooks.swift`.
+Code: `Sources/BetterExplorer/Features/ItemActions/` (registered by `ItemActionsFeature.register()` in `Features.swift`),
+logic in `Sources/BetterExplorerCore/NewItemTemplates.swift`, `BatchRename.swift`, `ImageRotation.swift`, tests in
+`Tests/BetterExplorerCoreTests/ItemActionsTests.swift`. Core hooks: `Sources/BetterExplorer/Support/InteractionHooks.swift`.
 
 ## Status
 
@@ -14,7 +14,7 @@ logic in `Sources/ArborCore/NewItemTemplates.swift`, `BatchRename.swift`, `Image
 | FE-088 | New ▸ templates | Implemented: Folder, Shortcut, separator, Bitmap image, [Compressed (zipped) Folder: archives feature], Rich Text Document, Text Document. Windows names with "(2)" numbering, then inline rename with the base name selected. Every file is valid; no iWork/Office items | Unit tests decode the BMP with ImageIO and the RTF with AppKit; headless creation + rename snapshot |
 | FE-089 | Multi-item rename | Implemented: F2 with several items selected edits the first (whole batch stays selected); the typed name becomes "Name (1).ext", "Name (2).ext"… in view order, each item keeping its extension, numbers taken by other items skipped. One undo step | Unit tests; headless rename + ⌘Z |
 | FE-092 | Create shortcut / Paste shortcut / New ▸ Shortcut | Implemented with macOS aliases (`.suitableForBookmarkFile`), named "<name> - Shortcut". Create Shortcut wizard (location + Browse…, then name; Next/Back/Finish/Cancel); web or server addresses become `.webloc`. Opening a folder shortcut navigates to the target; a file shortcut opens its target; a broken one shows "Problem with Shortcut" with Yes (move to Trash, undoable) / No. Shortcut arrow overlay (own artwork) on aliases and symbolic links. "Create Symbolic Link" is a separate File-menu item | Headless: create, open, broken alias, wizard (bad path error, folder, web address), paste shortcut; snapshots light/dark |
-| FE-096 | Send to ▸ | Implemented: Compressed (zipped) folder (only when `archive.compress.zip` is registered), Desktop (create shortcut), Documents (copy), Mail recipient (files only; system compose-mail service), removable/external drives (copy). Bluetooth and Fax omitted | Headless with `ARBOR_TEST_SENDTO_ROOT` / `ARBOR_TEST_SENDTO_DRIVE` (never the real folders) |
+| FE-096 | Send to ▸ | Implemented: Compressed (zipped) folder (only when `archive.compress.zip` is registered), Desktop (create shortcut), Documents (copy), Mail recipient (files only; system compose-mail service), removable/external drives (copy). Bluetooth and Fax omitted | Headless with `BETTER_EXPLORER_TEST_SENDTO_ROOT` / `BETTER_EXPLORER_TEST_SENDTO_DRIVE` (never the real folders) |
 | FE-097 | Rotate / Set as desktop background | Rotate right/left implemented (contextual command bar + context menu); Set as background implemented (all screens) | Unit tests (pixel layout, orientation tag, refusal); headless rotation, checked with ImageIO; wallpaper is never changed in headless runs |
 | FE-103 | Advanced batch rename | Implemented: "Batch rename…" (item menu for 2+ items, "…" menu, Edit menu). Find/replace (plain or regex, match case, include extension), insert before/after, case change, numbering (start, step, digits, before/after, separator), extension keep/lower/upper/remove/change, live preview with OK / Unchanged / Name already exists / Duplicate name / invalid, Rename disabled while any problem exists; swaps handled; all-or-nothing; one undo step | Unit tests; headless dialog + rename + undo; snapshot |
 | FE-106 | Right-button drag menu | Implemented: a right-button drag from the Details view shows Copy here / Move here / Create shortcuts here / Cancel on drop, the plain-drag action in bold ("Move here" hidden for same-folder). ⌥⌘-drop creates shortcuts | Drop path headless (`simdrop:right…`, `dropmenu:`). **Starting a right-button drag was not tested with a physical mouse** (headless runs can't post real mouse events) |
@@ -38,7 +38,7 @@ logic in `Sources/ArborCore/NewItemTemplates.swift`, `BatchRename.swift`, `Image
 - **DEC-items-11** Batch rename compares names case-insensitively (default Mac volumes), flags a name that would make an item hidden (leading "."), and renames all-or-nothing through temporary names when names swap.
 - **DEC-items-12** Context menus and the command bar use Explorer wording ("Create shortcut", "Paste shortcut", "Select all", "Batch rename…"); the menu bar uses Mac title case.
 - **DEC-items-13** Core interactions are extended through `InteractionHooks` (open file, commit rename, drop, drag hover, right mouse down, icon decoration) instead of rewriting core code.
-- **DEC-items-14** Middle-click on a breadcrumb segment opens a new tab (research reference §2.3, ROLLOUT [W24]). The reference doesn't say whether the tab comes to the front; Arbor activates it, as tree nodes and rows do. Provisional.
+- **DEC-items-14** Middle-click on a breadcrumb segment opens a new tab (research reference §2.3, ROLLOUT [W24]). The reference doesn't say whether the tab comes to the front; Better Explorer activates it, as tree nodes and rows do. Provisional.
 - **DEC-items-15** Breadcrumb drop highlight (PROP, no reference evidence of how Explorer draws it): selection fill plus a 1.5 pt accent border, drawn ahead of hover and press so nothing competes with it. Only segments whose location is a folder qualify; Home, This Mac, Network, servers, archives, search results and libraries have no folder to receive files, as in the tree. Needs an AUDIT observation.
 - **DEC-items-16** Breadcrumb spring-loading (PROP, follows the tree per FE-108; no reference evidence). A segment has nothing to expand, so it opens like a folder row, through normal navigation (Back works). The folder already shown never springs. Springing allows **one spring per visit to the bar**: navigating to an ancestor can uncollapse the path, which slides another segment under a pointer that hasn't moved, and that segment would spring next and climb the path by itself. After a spring segments still highlight and take drops, and leaving the bar and coming back allows another.
 - **DEC-items-17** The bar reuses its last hover answer while the folder, modifier state and source mask stay the same, and forgets it when the drag leaves or drops. AppKit asks on every periodic update, and the rules read the whole drag pasteboard; `DropPolicy.accept` still checks again at drop time.
@@ -50,8 +50,8 @@ includeExtension, prefix, suffix, case, numbering, start, step, digits, separato
 `simdrop:plain|right:<row or ->:<a|b>`, `dropmenu:<title>`, `springrow:<name or ->`, `springtree:<row or title>`,
 `springtab:<n>`, `sendto:<title>`, `openitem:<name>`, `dragfiles:plain|right:</abs/a|/abs/b>`, `crumbhover:[copyonly:]<title, chevron:<title>, - or =>`,
 `crumbstate:/path`, `crumbleave`, `crumbdrop`, `crumbmiddle:<n>:<target>`, `treedrop:<title>`. `log` adds: drop menu, last spring, last drag, batch rename preview, shortcuts
-and their targets, sheet title, rename field state. Environment for Send to: `ARBOR_TEST_SENDTO_ROOT` (folder holding
-`Desktop/` and `Documents/`) and `ARBOR_TEST_SENDTO_DRIVE` (a folder posing as a removable drive); without them, headless
+and their targets, sheet title, rename field state. Environment for Send to: `BETTER_EXPLORER_TEST_SENDTO_ROOT` (folder holding
+`Desktop/` and `Documents/`) and `BETTER_EXPLORER_TEST_SENDTO_DRIVE` (a folder posing as a removable drive); without them, headless
 runs hide Desktop/Documents and never touch the real ones.
 
 ## Known gaps

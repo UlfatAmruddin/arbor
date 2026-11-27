@@ -434,7 +434,7 @@
 			<string>%lld items couldn't be received.</string>
 		</dict>
 	</dict>
-	<key>%lld items cut. Paste in Arbor to move them. Other apps get a copy.</key>
+	<key>%lld items cut. Paste in Better Explorer to move them. Other apps get a copy.</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>
 		<string>%#@count@</string>
@@ -445,9 +445,9 @@
 			<key>NSStringFormatValueTypeKey</key>
 			<string>lld</string>
 			<key>one</key>
-			<string>%lld item cut. Paste in Arbor to move it. Other apps get a copy.</string>
+			<string>%lld item cut. Paste in Better Explorer to move it. Other apps get a copy.</string>
 			<key>other</key>
-			<string>%lld items cut. Paste in Arbor to move them. Other apps get a copy.</string>
+			<string>%lld items cut. Paste in Better Explorer to move them. Other apps get a copy.</string>
 		</dict>
 	</dict>
 	<key>%lld items in this archive couldn't be read. They aren't shown and won't be extracted.</key>
@@ -850,7 +850,7 @@
 			<string>%lld tabs</string>
 		</dict>
 	</dict>
-	<key>%lld tabs have a location this version of Arbor can't open.</key>
+	<key>%lld tabs have a location this version of Better Explorer can't open.</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>
 		<string>%#@count@</string>
@@ -861,9 +861,9 @@
 			<key>NSStringFormatValueTypeKey</key>
 			<string>lld</string>
 			<key>one</key>
-			<string>%lld tab has a location this version of Arbor can't open.</string>
+			<string>%lld tab has a location this version of Better Explorer can't open.</string>
 			<key>other</key>
-			<string>%lld tabs have a location this version of Arbor can't open.</string>
+			<string>%lld tabs have a location this version of Better Explorer can't open.</string>
 		</dict>
 	</dict>
 	<key>%lld volumes weren't searched (%@)</key>
@@ -1028,7 +1028,7 @@
 	</dict>
 	<key>Do you want to reset all folders to their default view settings?
 
-Arbor forgets the saved views of %lld folders and any view applied to a folder type. Your files aren't changed.</key>
+Better Explorer forgets the saved views of %lld folders and any view applied to a folder type. Your files aren't changed.</key>
 	<dict>
 		<key>NSStringLocalizedFormatKey</key>
 		<string>%#@count@</string>
@@ -1041,11 +1041,11 @@ Arbor forgets the saved views of %lld folders and any view applied to a folder t
 			<key>one</key>
 			<string>Do you want to reset all folders to their default view settings?
 
-Arbor forgets the saved view of %lld folder and any view applied to a folder type. Your files aren't changed.</string>
+Better Explorer forgets the saved view of %lld folder and any view applied to a folder type. Your files aren't changed.</string>
 			<key>other</key>
 			<string>Do you want to reset all folders to their default view settings?
 
-Arbor forgets the saved views of %lld folders and any view applied to a folder type. Your files aren't changed.</string>
+Better Explorer forgets the saved views of %lld folders and any view applied to a folder type. Your files aren't changed.</string>
 		</dict>
 	</dict>
 	<key>Downloading %1$lld items from %2$@…</key>

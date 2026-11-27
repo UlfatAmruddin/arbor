@@ -1,8 +1,8 @@
 # Icon views: Extra large / Large / Medium / Small icons, List, Tiles, Content
 
-Code: `Sources/Arbor/Features/IconViews/` (registered by `IconViewsFeature.register()` in `Features.swift`),
-logic in `Sources/ArborCore/{ItemFlowLayout,ItemSelection,ByteBudgetCache,ThumbnailPolicy}.swift`,
-tests in `Tests/ArborCoreTests/IconViewLogicTests.swift`.
+Code: `Sources/BetterExplorer/Features/IconViews/` (registered by `IconViewsFeature.register()` in `Features.swift`),
+logic in `Sources/BetterExplorerCore/{ItemFlowLayout,ItemSelection,ByteBudgetCache,ThumbnailPolicy}.swift`,
+tests in `Tests/BetterExplorerCoreTests/IconViewLogicTests.swift`.
 
 ## Status
 
@@ -19,7 +19,7 @@ tests in `Tests/ArborCoreTests/IconViewLogicTests.swift`.
 | FE-060 | Arrow / Home / End / PageUp / PageDown | implemented | unit tests; scripted; ⇧ extends from the anchor; ⌃arrow moves focus only, ⌃Space toggles (see gaps) |
 | FE-149 | Thumbnail providers, lazy, cancellable, cached | implemented | QLThumbnailGenerator for images, PDFs, movies; visible items + one line only; cancelled on scroll-away/folder change; logged counters |
 | FE-242 | Stale completion / lifecycle | implemented | results checked against request generation and in-flight identity; key includes path + mtime + size; loader reset on folder change and deinit |
-| FE-243 | Decoded-image memory budget | implemented | one app-wide LRU by decoded bytes (64 MB default, `ARBOR_THUMBNAIL_BUDGET_MB` for tests), memory-pressure trim; scripted with a 3 MB budget: stays under budget, no regeneration loop |
+| FE-243 | Decoded-image memory budget | implemented | one app-wide LRU by decoded bytes (64 MB default, `BETTER_EXPLORER_THUMBNAIL_BUDGET_MB` for tests), memory-pressure trim; scripted with a 3 MB budget: stays under budget, no regeneration loop |
 
 Also: hover highlight and rounded selection from `Theme` (accent tint while the grid has focus in the active window,
 grey otherwise, the same rule as Details and the tiles: `SelectionEmphasis`, DEC-parity-8); keyboard focus
@@ -46,7 +46,7 @@ vs 182 MB for Details on the same folder.
 - **DEC-iconviews-3** Metrics (our approximation at 100 %): icons 256/96/48/16; cells 276/124/92 wide (compact 268/112/84);
   label 12 pt, 3 lines (XL) / 2 lines (Large, Medium); Small icons 236×26; List rows 26 (22 compact) with columns sized
   to the longest name (150–420); Tiles 268×72; Content rows 72 (60 compact). Not measured against a reference install.
-- **DEC-iconviews-4** Labels under icons are shortened in the middle (extension visible) like the rest of Arbor (DEC-013),
+- **DEC-iconviews-4** Labels under icons are shortened in the middle (extension visible) like the rest of Better Explorer (DEC-013),
   not with Explorer's trailing ellipsis.
 - **DEC-iconviews-5** Thumbnails for images, PDFs and movies only (by extension; no disk access to decide), at Medium and
   larger, Tiles and Content. Other types and folders keep their icons (no folder "content peek", no type badge).

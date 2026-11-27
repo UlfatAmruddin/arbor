@@ -1,8 +1,8 @@
 # Finder tags in the navigation pane
 
-Code: `Sources/Arbor/Features/FinderTags/`; logic in `Sources/ArborCore/Search/TagCollectionQuery.swift`,
-`Sources/ArborCore/Properties/TagCatalog.swift`, `TagHarvest.swift` and `FinderMetadata.swift` (`FinderTag`, the tag
-attribute). Tests: `Tests/ArborCoreTests/FinderTagsTests.swift`, group `finder-tags` in `scripts/behavior-checks.sh`.
+Code: `Sources/BetterExplorer/Features/FinderTags/`; logic in `Sources/BetterExplorerCore/Search/TagCollectionQuery.swift`,
+`Sources/BetterExplorerCore/Properties/TagCatalog.swift`, `TagHarvest.swift` and `FinderMetadata.swift` (`FinderTag`, the tag
+attribute). Tests: `Tests/BetterExplorerCoreTests/FinderTagsTests.swift`, group `finder-tags` in `scripts/behavior-checks.sh`.
 
 ## Status
 
@@ -35,7 +35,7 @@ offer Open in new tab and new window (§2.2), and a tag is a search property (§
 - **DEC-tags-2** A tag whose name can't be searched for exactly is not listed, rather than listed and broken: names containing quotation marks (the tokenizer has no escape), exactly `[]`, edge spaces, control characters, direction overrides (they would display as different text), or over 255 UTF-8 bytes.
 - **DEC-tags-3** Custom colours are read from each file's attribute because there is no public catalog. Finder's `FavoriteTagNames` preference is undocumented and not used.
 - **DEC-tags-4** `.search` is reused instead of a new `Location` case, so there is no parallel provider. `TagCollectionQuery` is the only code that knows the query shape.
-- **DEC-tags-5** A collection covers what Spotlight indexes, like whole-Mac search today. There is no scope, so "Show hidden files" has no effect on it: tagged items inside hidden folders and packages appear. Arbor adds no filter for the Trash or Time Machine volumes; macOS isn't expected to index either, which the manual test confirms.
+- **DEC-tags-5** A collection covers what Spotlight indexes, like whole-Mac search today. There is no scope, so "Show hidden files" has no effect on it: tagged items inside hidden folders and packages appear. Better Explorer adds no filter for the Trash or Time Machine volumes; macOS isn't expected to index either, which the manual test confirms.
 - **DEC-tags-6** The catalog depends only on the tags inserted, not their order, because Spotlight's order isn't stable and an equal catalog must not reload the tree. Spelling: lowest by localized standard order. Colour: highest number. Cap: the 200 lowest folded names.
 - **DEC-tags-7** A run keeps the custom rows already listed unless Spotlight finished gathering and returned hits. An empty answer can also mean Spotlight is off or refused the query, and a run stopped at the 20,000-hit limit saw only part of the index, so tags removed everywhere leave their rows until the next launch.
 
@@ -83,7 +83,7 @@ Temporary folders aren't indexed, so this needs a real Mac with Spotlight on:
    If the index returns names without colours, the row should still get its colour from the file.
 3. Open each row and press Refresh after removing a tag in Finder.
 4. Exclude the folder in System Settings ▸ Spotlight and read the coverage text.
-5. Tag a file in Documents on an account where Arbor has no access yet: check any prompt and that denying it costs only the colour.
+5. Tag a file in Documents on an account where Better Explorer has no access yet: check any prompt and that denying it costs only the colour.
 6. Note whether a tagged item in the Trash or on a Time Machine volume appears, and update DEC-tags-5.
 
 ## Known gaps

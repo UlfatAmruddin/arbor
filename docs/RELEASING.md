@@ -1,7 +1,7 @@
-# Releasing Arbor
+# Releasing Better Explorer
 
-Releases are disk images (`Arbor-<version>.dmg`) attached to the repository's
-[GitHub Releases](../../../releases) page. Each holds one universal `Arbor.app` (Apple silicon
+Releases are disk images (`Better-Explorer-<version>.dmg`) attached to the repository's
+[GitHub Releases](../../../releases) page. Each holds one universal `Better Explorer.app` (Apple silicon
 and Intel, macOS 14+) and a link to `/Applications`. See DEC-003, DEC-004 and DEC-005 in
 [DECISIONS.md](DECISIONS.md).
 
@@ -11,20 +11,20 @@ and Intel, macOS 14+) and a link to `/Applications`. See DEC-003, DEC-004 and DE
   `CFBundleShortVersionString`, the disk image name and the release tag (`v0.3.0`).
 - The build number (`CFBundleVersion`) is the number of commits, `git rev-list --count HEAD`, so
   every build from a later commit has a higher number. Builds from a shallow clone print a warning;
-  set `ARBOR_BUILD_NUMBER` to override.
+  set `BETTER_EXPLORER_BUILD_NUMBER` to override.
 - The minimum macOS comes from `platforms` in `Package.swift` and is written to
   `LSMinimumSystemVersion`; the build checks that every architecture slice targets the same version.
-- Arbor ▸ About Arbor shows "Version 0.3.0 (123)": version and build number.
+- Better Explorer ▸ About Better Explorer shows "Version 0.3.0 (123)": version and build number.
 
 ## Scripts
 
 | Script | Does |
 |---|---|
-| `scripts/build-app.sh release --universal` | `build/Arbor.app` for arm64 + x86_64 (each built separately, joined with `lipo`; no Xcode needed) |
-| `scripts/make-dmg.sh [--universal] [--skip-build]` | `build/Arbor-<version>.dmg` (LZFSE-compressed, `--format UDZO` for zlib), with a drawn background and a fixed window layout. Mounts the result privately and checks its contents |
-| `scripts/sign-and-notarize.sh` | Marks the app for distribution (`ArborDistribution` in Info.plist, which turns off the `ARBOR_*` test hooks), signs Sparkle's nested code first and then the app, inside out through `scripts/lib/codesign-app.sh`, with the hardened runtime (Developer ID with `Resources/Arbor.entitlements`, or ad-hoc with a warning and `Resources/Arbor-adhoc.entitlements` when no identity is set, DEC-028), makes the disk image, signs it, notarizes it with `xcrun notarytool` and staples the ticket. `--rehearsal` stops short of Apple's services (CI only needs it) |
+| `scripts/build-app.sh release --universal` | `build/Better Explorer.app` for arm64 + x86_64 (each built separately, joined with `lipo`; no Xcode needed) |
+| `scripts/make-dmg.sh [--universal] [--skip-build]` | `build/Better-Explorer-<version>.dmg` (LZFSE-compressed, `--format UDZO` for zlib), with a drawn background and a fixed window layout. Mounts the result privately and checks its contents |
+| `scripts/sign-and-notarize.sh` | Marks the app for distribution (`BetterExplorerDistribution` in Info.plist, which turns off the `BETTER_EXPLORER_*` test hooks), signs Sparkle's nested code first and then the app, inside out through `scripts/lib/codesign-app.sh`, with the hardened runtime (Developer ID with `Resources/BetterExplorer.entitlements`, or ad-hoc with a warning and `Resources/BetterExplorer-adhoc.entitlements` when no identity is set, DEC-028), makes the disk image, signs it, notarizes it with `xcrun notarytool` and staples the ticket. `--rehearsal` stops short of Apple's services (CI only needs it) |
 | `scripts/ci-import-certificate.sh` | Workflows only: puts a `.p12` in a new keychain. Refuses to run outside a GitHub-hosted runner |
-| `scripts/make-update.sh <zip URL> < key` | The in-app update (FE-259): `build/Arbor-<version>.zip` of the signed app and `build/appcast.xml`, both signed with the EdDSA private key read from standard input. Checks the zip's signature against the app's public key first |
+| `scripts/make-update.sh <zip URL> < key` | The in-app update (FE-259): `build/Better-Explorer-<version>.zip` of the signed app and `build/appcast.xml`, both signed with the EdDSA private key read from standard input. Checks the zip's signature against the app's public key first |
 | `scripts/update-e2e.sh` | At the Mac, not CI: an older copy installs a newer one from a feed on 127.0.0.1 and relaunches, and badly signed updates are refused (docs/features/updates.md) |
 
 ## One-time setup
@@ -35,7 +35,7 @@ open an ad-hoc signed app the first time.
 
 ### In-app updates (once)
 
-Testers get later releases through Arbor's Update button (FE-259, docs/features/updates.md). Updates are
+Testers get later releases through Better Explorer's Update button (FE-259, docs/features/updates.md). Updates are
 accepted only when they are signed with your EdDSA key, so the key pair is made once and kept for good: if the
 private key is lost or changed, apps already installed can't update any more and need one manual install.
 
@@ -66,7 +66,7 @@ The feed address is never written in the repository: the workflow builds it from
 
 ### If a Developer ID is ever added (signed and notarized releases)
 
-Arbor ships without one (DEC-027). These steps are kept for a future maintainer.
+Better Explorer ships without one (DEC-027). These steps are kept for a future maintainer.
 Do these once, in order. No file in the repository has to change: the Release workflow reads the six
 secrets in step 7.
 
@@ -85,7 +85,7 @@ secrets in step 7.
    Passwords.
 6. Optional, to release from your own Mac: store notarization credentials once.
    ```bash
-   xcrun notarytool store-credentials arbor-notary \
+   xcrun notarytool store-credentials better-explorer-notary \
      --apple-id you@example.com --team-id TEAMID1234 --password <app-specific password>
    ```
 7. Add all six repository secrets under Settings ▸ Secrets and variables ▸ Actions. Names must match
@@ -126,29 +126,29 @@ process in [SECURITY.md](../SECURITY.md) works.
    ```bash
    scripts/test.sh
    scripts/build-app.sh release --universal
-   lipo -info build/Arbor.app/Contents/MacOS/Arbor     # x86_64 arm64
+   lipo -info "build/Better Explorer.app/Contents/MacOS/BetterExplorer"     # x86_64 arm64
    scripts/make-dmg.sh --skip-build
    ```
-   Open the disk image and check the window (background, icon positions), drag Arbor to a test
-   folder, launch it, check About Arbor shows the new version. On an Apple silicon Mac with Rosetta,
-   `arch -x86_64 build/Arbor.app/Contents/MacOS/Arbor` checks the Intel half.
+   Open the disk image and check the window (background, icon positions), drag Better Explorer to a test
+   folder, launch it, check About Better Explorer shows the new version. On an Apple silicon Mac with Rosetta,
+   `arch -x86_64 "build/Better Explorer.app/Contents/MacOS/BetterExplorer"` checks the Intel half.
 4. [ ] Tag and push: `git tag v0.3.0 && git push origin v0.3.0`. The **Release** workflow checks the
    tag matches `VERSION`, runs the tests, builds, signs and notarizes (when the secrets are set) and
    creates a **draft** release with the disk image and its `.sha256`. With the update key set up, the draft
-   also has `Arbor-<version>.zip` (the update) and `appcast.xml` (the feed, whose notes are this version's
+   also has `Better-Explorer-<version>.zip` (the update) and `appcast.xml` (the feed, whose notes are this version's
    CHANGELOG.md section). Don't rename, replace or edit them: both are signed, and testers' copies check the
    feed as soon as the draft is published.
    (To release from your own Mac instead: `scripts/build-app.sh release --universal`, then
-   `DEVELOPER_ID_APPLICATION=… NOTARY_KEYCHAIN_PROFILE=arbor-notary scripts/sign-and-notarize.sh`,
-   and upload `build/Arbor-<version>.dmg` to a new release.)
-5. [ ] Download the image from the draft, then on a Mac that has never run Arbor:
-   - signed builds: `spctl --assess --type open --context context:primary-signature -v Arbor-<version>.dmg`
+   `DEVELOPER_ID_APPLICATION=… NOTARY_KEYCHAIN_PROFILE=better-explorer-notary scripts/sign-and-notarize.sh`,
+   and upload `build/Better-Explorer-<version>.dmg` to a new release.)
+5. [ ] Download the image from the draft, then on a Mac that has never run Better Explorer:
+   - signed builds: `spctl --assess --type open --context context:primary-signature -v Better-Explorer-<version>.dmg`
      says "accepted, source=Notarized Developer ID", and the app opens without warnings;
    - ad-hoc signed builds: the README's first-launch steps work.
 6. [ ] Edit the release notes (what's new, known issues, signed or not) and publish the draft. Publishing
-   makes it the latest release, so testers' Update button offers it within about a day (Arbor ▸ Check for
+   makes it the latest release, so testers' Update button offers it within about a day (Better Explorer ▸ Check for
    Updates… at once). The page's notes don't reach the update window; its notes come from CHANGELOG.md.
-7. [ ] Homebrew: update `version` and `sha256` in `packaging/homebrew/arbor.rb` (the `.sha256`
+7. [ ] Homebrew: update `version` and `sha256` in `packaging/homebrew/better-explorer.rb` (the `.sha256`
    file attached to the release has the checksum) and copy it to the tap (see the comments in
    that file).
 8. [ ] Bump `VERSION` on `main` to the next planned version if you like to keep it ahead.
@@ -157,10 +157,10 @@ process in [SECURITY.md](../SECURITY.md) works.
 
 - Notarization covers the disk image and the app inside it; the ticket is stapled to the disk image.
   An app copied out of it is checked online by Gatekeeper the first time it opens.
-- Every release, ad-hoc ones included, has the hardened runtime, so `DYLD_*` variables cannot load code into Arbor; the script fails if the signature lacks it.
-- After `sign-and-notarize.sh`, `build/Arbor.app` ignores `ARBOR_*`; rebuild it before running the scripted suites.
-- `Resources/Arbor.entitlements` is intentionally empty: Arbor is not sandboxed. Ad-hoc releases use
-  `Resources/Arbor-adhoc.entitlements`, which adds one hardened-runtime exception, library validation, so the
+- Every release, ad-hoc ones included, has the hardened runtime, so `DYLD_*` variables cannot load code into Better Explorer; the script fails if the signature lacks it.
+- After `sign-and-notarize.sh`, `build/Better Explorer.app` ignores `BETTER_EXPLORER_*`; rebuild it before running the scripted suites.
+- `Resources/BetterExplorer.entitlements` is intentionally empty: Better Explorer is not sandboxed. Ad-hoc releases use
+  `Resources/BetterExplorer-adhoc.entitlements`, which adds one hardened-runtime exception, library validation, so the
   embedded Sparkle.framework loads without a Team ID (DEC-028). Add a key only with a comment naming the feature
   that needs it.
 - `scripts/build-app.sh` and `scripts/sign-and-notarize.sh` sign the code inside Sparkle.framework, then the framework,

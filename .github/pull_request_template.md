@@ -8,8 +8,8 @@ Requirement IDs: <!-- FE-###, or "none" -->
 
 - [ ] `scripts/test.sh` passes
 - [ ] `scripts/build-app.sh debug` builds with no warnings
-- [ ] Scripted UI check (`ARBOR_HEADLESS=1 ARBOR_SCRIPT=…`) for UI behavior, in light and dark; describe it below
-- [ ] New logic in `Sources/ArborCore` has unit tests
+- [ ] Scripted UI check (`BETTER_EXPLORER_HEADLESS=1 BETTER_EXPLORER_SCRIPT=…`) for UI behavior, in light and dark; describe it below
+- [ ] New logic in `Sources/BetterExplorerCore` has unit tests
 
 <!-- What you ran and what you saw. Screenshots for visual changes (light and dark). -->
 

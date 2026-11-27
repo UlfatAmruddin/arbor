@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds build/Arbor.app.
+# Builds the app: build/<name>.app, named by CFBundleName in Resources/Info.plist (scripts/lib/product.sh).
 #
 # Usage: scripts/build-app.sh [release|debug] [--universal]
 #
@@ -9,12 +9,12 @@
 #
 # Without --universal the app is built for this Mac's architecture only.
 #
-# In-app updates (FE-259, DEC-028): set both ARBOR_UPDATE_FEED_URL (https) and ARBOR_UPDATE_PUBLIC_KEY
+# In-app updates (FE-259, DEC-028): set both BETTER_EXPLORER_UPDATE_FEED_URL (https) and BETTER_EXPLORER_UPDATE_PUBLIC_KEY
 # (Sparkle's base64 EdDSA public key) to write SUFeedURL and SUPublicEDKey into Info.plist. Without
 # them the app has no updater at all. The Release workflow sets them; nothing in the tree names the feed.
 #
 # Version: CFBundleShortVersionString comes from the VERSION file and CFBundleVersion from the
-# number of commits (git rev-list --count HEAD). Set ARBOR_BUILD_NUMBER to override the latter.
+# number of commits (git rev-list --count HEAD). Set BETTER_EXPLORER_BUILD_NUMBER to override the latter.
 # Minimum macOS: taken from `platforms` in Package.swift and written to LSMinimumSystemVersion;
 # the binary's own minimum (LC_BUILD_VERSION) is checked against it.
 #
@@ -24,6 +24,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 . scripts/lib/codesign-app.sh
+. scripts/lib/product.sh
 
 CONFIG=release
 UNIVERSAL=0
@@ -42,32 +43,32 @@ if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "build-app.sh: VERSION must look like 1.2.3 (got '$VERSION')" >&2
   exit 1
 fi
-if [ -n "${ARBOR_BUILD_NUMBER:-}" ]; then
-  BUILD_NUMBER="$ARBOR_BUILD_NUMBER"
+if [ -n "${BETTER_EXPLORER_BUILD_NUMBER:-}" ]; then
+  BUILD_NUMBER="$BETTER_EXPLORER_BUILD_NUMBER"
 elif BUILD_NUMBER="$(git rev-list --count HEAD 2>/dev/null)"; then
   :
 else
   BUILD_NUMBER=1
 fi
-if [ "$(git rev-parse --is-shallow-repository 2>/dev/null || echo false)" = "true" ] && [ -z "${ARBOR_BUILD_NUMBER:-}" ]; then
-  echo "build-app.sh: warning: shallow clone, so the build number ($BUILD_NUMBER) is too low; fetch full history or set ARBOR_BUILD_NUMBER" >&2
+if [ "$(git rev-parse --is-shallow-repository 2>/dev/null || echo false)" = "true" ] && [ -z "${BETTER_EXPLORER_BUILD_NUMBER:-}" ]; then
+  echo "build-app.sh: warning: shallow clone, so the build number ($BUILD_NUMBER) is too low; fetch full history or set BETTER_EXPLORER_BUILD_NUMBER" >&2
 fi
 
 # --- Update feed (optional) --------------------------------------------------------------------
-FEED_URL="${ARBOR_UPDATE_FEED_URL:-}"
-PUBLIC_KEY="${ARBOR_UPDATE_PUBLIC_KEY:-}"
+FEED_URL="${BETTER_EXPLORER_UPDATE_FEED_URL:-}"
+PUBLIC_KEY="${BETTER_EXPLORER_UPDATE_PUBLIC_KEY:-}"
 if [ -n "$FEED_URL" ] || [ -n "$PUBLIC_KEY" ]; then
   if [ -z "$FEED_URL" ] || [ -z "$PUBLIC_KEY" ]; then
-    echo "build-app.sh: set both ARBOR_UPDATE_FEED_URL and ARBOR_UPDATE_PUBLIC_KEY, or neither" >&2
+    echo "build-app.sh: set both BETTER_EXPLORER_UPDATE_FEED_URL and BETTER_EXPLORER_UPDATE_PUBLIC_KEY, or neither" >&2
     exit 1
   fi
   if ! [[ "$FEED_URL" =~ ^https://[A-Za-z0-9.-]+(/[A-Za-z0-9._~%/-]*)?$ ]]; then
-    echo "build-app.sh: ARBOR_UPDATE_FEED_URL must be a plain https URL" >&2
+    echo "build-app.sh: BETTER_EXPLORER_UPDATE_FEED_URL must be a plain https URL" >&2
     exit 1
   fi
   # 32 bytes in base64, the form Sparkle's generate_keys prints.
   if ! [[ "$PUBLIC_KEY" =~ ^[A-Za-z0-9+/]{43}=$ ]]; then
-    echo "build-app.sh: ARBOR_UPDATE_PUBLIC_KEY is not an EdDSA public key from generate_keys" >&2
+    echo "build-app.sh: BETTER_EXPLORER_UPDATE_PUBLIC_KEY is not an EdDSA public key from generate_keys" >&2
     exit 1
   fi
 fi
@@ -88,16 +89,16 @@ if [ "$UNIVERSAL" = 1 ]; then
   SLICES=()
   for ARCH in arm64 x86_64; do
     TRIPLE="$ARCH-apple-macosx$MIN_MACOS"
-    swift build --disable-keychain -c "$CONFIG" --product Arbor --triple "$TRIPLE"
-    SLICES+=("$(swift build --disable-keychain -c "$CONFIG" --triple "$TRIPLE" --show-bin-path)/Arbor")
+    swift build --disable-keychain -c "$CONFIG" --product BetterExplorer --triple "$TRIPLE"
+    SLICES+=("$(swift build --disable-keychain -c "$CONFIG" --triple "$TRIPLE" --show-bin-path)/BetterExplorer")
   done
   mkdir -p build
-  BIN="build/Arbor-universal"
+  BIN="build/BetterExplorer-universal"
   lipo -create "${SLICES[@]}" -output "$BIN"
   FRAMEWORK="$(dirname "${SLICES[0]}")/Sparkle.framework"
 else
-  swift build --disable-keychain -c "$CONFIG" --product Arbor
-  BIN="$(swift build --disable-keychain -c "$CONFIG" --show-bin-path)/Arbor"
+  swift build --disable-keychain -c "$CONFIG" --product BetterExplorer
+  BIN="$(swift build --disable-keychain -c "$CONFIG" --show-bin-path)/BetterExplorer"
   FRAMEWORK="$(dirname "$BIN")/Sparkle.framework"
 fi
 
@@ -111,24 +112,24 @@ for ARCH in $(lipo -archs "$BIN"); do
 done
 
 # --- Bundle ------------------------------------------------------------------------------------
-APP="build/Arbor.app"
+APP="$PRODUCT_APP"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/Arbor"
+cp "$BIN" "$APP/Contents/MacOS/BetterExplorer"
 if [ "$UNIVERSAL" = 1 ]; then rm -f "$BIN"; fi
 # Sparkle (in-app updates): ditto keeps the framework's Versions symlinks, which its signature covers.
 mkdir -p "$APP/Contents/Frameworks"
 ditto "$FRAMEWORK" "$APP/Contents/Frameworks/Sparkle.framework"
-for ARCH in $(lipo -archs "$APP/Contents/MacOS/Arbor"); do
+for ARCH in $(lipo -archs "$APP/Contents/MacOS/BetterExplorer"); do
   if ! lipo -archs "$APP/Contents/Frameworks/Sparkle.framework/Sparkle" | tr ' ' '\n' | grep -qx "$ARCH"; then
     echo "build-app.sh: Sparkle.framework has no $ARCH slice" >&2
     exit 1
   fi
 done
-if ! otool -l "$APP/Contents/MacOS/Arbor" | grep -q "path @executable_path/../Frameworks "; then
+if ! otool -l "$APP/Contents/MacOS/BetterExplorer" | grep -q "path @executable_path/../Frameworks "; then
   # The linker's signature goes first, or install_name_tool warns that it breaks it; the bundle is signed below.
-  codesign --remove-signature "$APP/Contents/MacOS/Arbor"
-  install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/Arbor"
+  codesign --remove-signature "$APP/Contents/MacOS/BetterExplorer"
+  install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/BetterExplorer"
 fi
 PLIST="$APP/Contents/Info.plist"
 cp Resources/Info.plist "$PLIST"
@@ -153,7 +154,7 @@ for lproj in Resources/*.lproj; do
   LANGUAGES+=("\"$(basename "$lproj" .lproj)\"")
 done
 plutil -replace CFBundleLocalizations -json "[$(IFS=,; echo "${LANGUAGES[*]}")]" "$PLIST"
-arbor_codesign_app "$APP" - >/dev/null
+better_explorer_codesign_app "$APP" - >/dev/null
 UPDATES="no update feed"
 if [ -n "$FEED_URL" ]; then UPDATES="update feed set"; fi
-echo "Built $APP (version $VERSION, build $BUILD_NUMBER, $(lipo -archs "$APP/Contents/MacOS/Arbor" | sed 's/ / + /g'), macOS $MIN_MACOS+, $UPDATES)"
+echo "Built $APP (version $VERSION, build $BUILD_NUMBER, $(lipo -archs "$APP/Contents/MacOS/BetterExplorer" | sed 's/ / + /g'), macOS $MIN_MACOS+, $UPDATES)"

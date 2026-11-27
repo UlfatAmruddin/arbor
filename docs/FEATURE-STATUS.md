@@ -5,10 +5,10 @@ IDs run to FE-259 with gaps; SPEC.md section 20 lists the retired ones. Statuses
 where a claim couldn't be confirmed it was lowered. Scenario results (T01–T30) are in [ACCEPTANCE.md](ACCEPTANCE.md).
 
 **Status:** *implemented* = works as the requirement asks on macOS · *partial* = part of it works (the note says
-what is missing) · *macOS boundary* = macOS has no counterpart, so Arbor offers the closest real equivalent or a
+what is missing) · *macOS boundary* = macOS has no counterpart, so Better Explorer offers the closest real equivalent or a
 documented handoff instead of a fake button (DEC-019) · *not done* = not built yet.
 
-**How verified:** *unit* = automated test in `Tests/ArborCoreTests` (`scripts/test.sh`) · *headless* = the real app
+**How verified:** *unit* = automated test in `Tests/BetterExplorerCoreTests` (`scripts/test.sh`) · *headless* = the real app
 driven by `DebugScript` on disposable folders (TESTING.md) · *acceptance Txx* = a scenario in `scripts/acceptance.sh`
 · *core-checks* / *behavior-checks* = `scripts/core-checks.sh` / `scripts/behavior-checks.sh` · *snapshots* = PNGs of the
 window read by eye, light and dark · *code review* = read in the source, not exercised by a test.
@@ -155,12 +155,12 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-074 | This PC → This Mac | implemented | headless with a mounted disk image | [home-and-this-mac](features/home-and-this-mac.md) |  |
 | FE-075 | Gallery | implemented | unit; headless with generated photos | [gallery-libraries](features/gallery-libraries.md) |  |
 | FE-076 | Libraries | implemented | unit; acceptance T21, T22 | [gallery-libraries](features/gallery-libraries.md) | No `.library-ms` import: its Windows paths don't resolve on a Mac (DEC-GL-16) |
-| FE-077 | Recycle Bin → Trash | implemented | unit; headless | [trash](features/trash.md) | Original location known only for items Arbor trashed |
+| FE-077 | Recycle Bin → Trash | implemented | unit; headless | [trash](features/trash.md) | Original location known only for items Better Explorer trashed |
 | FE-078 | Network root | implemented | headless (simulated servers) | [network](features/network.md) | Bonjour discovery not run against real servers |
 | FE-079 | Special shell locations | macOS boundary | unit (address keywords) | [qa-core](features/qa-core.md) | Home, This Mac/This PC, Gallery, Network, Trash/Recycle Bin accepted; Control Panel and printers hand off to System Settings after a question; device nodes have no Mac counterpart |
 | FE-080 | Mac known folders | implemented | snapshots | [home-and-this-mac](features/home-and-this-mac.md) |  |
 | FE-081 | Finder tags and smart collections | implemented | unit; headless | [finder-tags](features/finder-tags.md) |  |
-| FE-082 | Control Home clutter | implemented | headless toggles | [home-and-this-mac](features/home-and-this-mac.md) | Sections collapse; Recent/frequent can be turned off; "Open Arbor to" in Folder Options |
+| FE-082 | Control Home clutter | implemented | headless toggles | [home-and-this-mac](features/home-and-this-mac.md) | Sections collapse; Recent/frequent can be turned off; "Open Better Explorer to" in Folder Options |
 
 ## File actions, clipboard and menus
 
@@ -218,7 +218,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-124 | Symlinks, hard links, sparse files | implemented | unit | [file-operations](features/file-operations.md) |  |
 | FE-125 | Persistent job journal | implemented | unit; acceptance T16, T30 | [file-operations](features/file-operations.md) |  |
 | FE-126 | Operation history | implemented | unit; headless | [file-operations](features/file-operations.md) |  |
-| FE-127 | Queue controls | implemented | unit; behavior-checks `queue` | [file-operations](features/file-operations.md) | Off by default; labelled as an Arbor extra |
+| FE-127 | Queue controls | implemented | unit; behavior-checks `queue` | [file-operations](features/file-operations.md) | Off by default; labelled as a Better Explorer extra |
 | FE-128 | Safe retry | implemented | unit; headless | [file-operations](features/file-operations.md) |  |
 | FE-129 | Undo protection | implemented | unit; acceptance T17 | [file-operations](features/file-operations.md) |  |
 | FE-130 | Optional copy verification | implemented | unit; headless | [file-operations](features/file-operations.md) |  |
@@ -317,7 +317,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-201 | Contrast, motion, transparency | implemented | snapshot with forced contrast | [accessibility](features/accessibility.md) |  |
 | FE-202 | Text scaling and zoom | implemented | snapshots at 150 % | [accessibility](features/accessibility.md) |  |
 | FE-203 | Focus after refresh and navigation | implemented | headless `focus:` | [accessibility](features/accessibility.md) |  |
-| FE-204 | Localization and RTL | implemented | `l10naudit:`; `extract-strings.sh --check`; behavior-checks `localization` | [accessibility](features/accessibility.md) | Layouts, truncation, shortcuts, numbers, dates and paths checked under long and right-to-left test languages; Arbor ships in English only (DEC-026) |
+| FE-204 | Localization and RTL | implemented | `l10naudit:`; `extract-strings.sh --check`; behavior-checks `localization` | [accessibility](features/accessibility.md) | Layouts, truncation, shortcuts, numbers, dates and paths checked under long and right-to-left test languages; Better Explorer ships in English only (DEC-026) |
 | FE-205 | Preferences persistence | implemented | two-launch headless run | [folder-options](features/folder-options.md) |  |
 | FE-206 | Recent activity privacy | implemented | headless | [home-and-this-mac](features/home-and-this-mac.md) |  |
 | FE-207 | Permission guidance | implemented | headless (Trash, Time Machine, Local Network denied states) | [trash](features/trash.md) |  |
@@ -334,7 +334,7 @@ window read by eye, light and dark · *code review* = read in the source, not ex
 | FE-213 | Address commands and shell names | implemented | unit; behavior-checks `addresshandoff`, `address` | [address-entry](features/address-entry.md) | Fixed list of words opens System Settings, Font Book, Terminal or Activity Monitor after one question; words with anything after them are refused and typed text is never passed on |
 | FE-215 | Windows shortcut file compatibility | implemented | unit; `windows-shortcut-checks.sh` | [windows-shortcuts](features/windows-shortcuts.md) | Read-only; Windows programs are never launched |
 | FE-218 | Reveal in Finder and Services | implemented | unit; behavior-checks `services` | [qa-core](features/qa-core.md) |  |
-| FE-219 | Launch URLs and CLI entry | implemented | headless (path argument) | [qa-core](features/qa-core.md) | `Arbor <path>`; documents opened from Finder |
+| FE-219 | Launch URLs and CLI entry | implemented | headless (path argument) | [qa-core](features/qa-core.md) | `Better Explorer <path>`; documents opened from Finder |
 | FE-220 | Signed, notarized universal releases | implemented | build checks; CI | [distribution](features/distribution.md) | Universal app and disk image, ad-hoc signed with the hardened runtime, released from a tag; no Developer ID by decision (DEC-027), so macOS asks once on first launch |
 | FE-221 | Public open-source governance | implemented | — | [distribution](features/distribution.md) | MIT license, README, CONTRIBUTING, SECURITY, templates; this file is the roadmap |
 | FE-222 | Privacy by default | implemented | code review (no telemetry, no own network calls but the update check) | — | No crash reporter; release builds check the release feed on github.com about once a day and send nothing but that request; off in Folder Options ▸ General ▸ Updates; local, CI and fork builds make no request ([updates](features/updates.md)) |

@@ -5,9 +5,14 @@ their status is in [docs/FEATURE-STATUS.md](docs/FEATURE-STATUS.md).
 
 ## Unreleased
 
+### Changed
+- Arbor is now called **Better Explorer**: the app, its menus and messages, and the release downloads
+  (`Better-Explorer-<version>.dmg`). Your settings, history, saved searches and workspaces stay as they are, and the in-app
+  update installs it in place; an existing copy keeps the file name Arbor.app in Applications until you rename it.
+
 ### Fixed
 - Copy, move and other file jobs no longer stay in memory after they finish, so a long session of copying
-  doesn't make Arbor use more and more memory.
+  doesn't make Better Explorer use more and more memory.
 
 ## 0.5.0
 

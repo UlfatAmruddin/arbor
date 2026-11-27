@@ -1,10 +1,10 @@
-// Draws Arbor's original app icon and writes an .icns file.
+// Draws Better Explorer's original app icon and writes an .icns file.
 // Usage: swift scripts/make-icon.swift Resources/AppIcon.icns
 import AppKit
 
 let output = CommandLine.arguments.dropFirst().first ?? "AppIcon.icns"
 let fm = FileManager.default
-let iconset = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Arbor-\(UUID().uuidString).iconset")
+let iconset = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("BetterExplorer-\(UUID().uuidString).iconset")
 try fm.createDirectory(at: iconset, withIntermediateDirectories: true)
 
 func draw(size: CGFloat) -> NSBitmapImageRep {

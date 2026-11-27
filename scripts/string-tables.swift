@@ -1,5 +1,5 @@
 // Checks translated string tables and writes the pseudo-languages. Run through scripts/extract-strings.sh,
-// which compiles this file with the ArborCore sources it needs.
+// which compiles this file with the BetterExplorerCore sources it needs.
 import Foundation
 
 @main

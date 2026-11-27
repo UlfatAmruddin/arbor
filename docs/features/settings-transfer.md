@@ -1,10 +1,10 @@
 # Export and import of settings
 
-Code: `Sources/Arbor/Features/SettingsTransfer/` (registered by `SettingsTransferFeature`), logic in
-`Sources/ArborCore/PortableSettings/`, tests in `Tests/ArborCoreTests/PortableSettingsTests.swift` and
-`Tests/ArborTests/SettingsTransferTests.swift`, scripted checks in the `settings` group of `scripts/behavior-checks.sh`.
+Code: `Sources/BetterExplorer/Features/SettingsTransfer/` (registered by `SettingsTransferFeature`), logic in
+`Sources/BetterExplorerCore/PortableSettings/`, tests in `Tests/BetterExplorerCoreTests/PortableSettingsTests.swift` and
+`Tests/BetterExplorerTests/SettingsTransferTests.swift`, scripted checks in the `settings` group of `scripts/behavior-checks.sh`.
 
-Arbor ▸ Export Settings… writes one small JSON file. Arbor ▸ Import Settings… reads one, shows every change with its old
+Better Explorer ▸ Export Settings… writes one small JSON file. Better Explorer ▸ Import Settings… reads one, shows every change with its old
 and new value, and changes nothing until you press Import. Windows File Explorer has no such feature: FE-208 is a
 proposed improvement, and nothing here claims parity.
 
@@ -12,13 +12,13 @@ proposed improvement, and nothing here claims parity.
 
 | FE | What | Status | How verified |
 |---|---|---|---|
-| FE-208 | Export and import preferences as one portable file | Implemented | Unit tests for the allowlist, the file format, the reader and the plan; app tests that an import reaches the preferences their owners read with the same defaults, and that the preview list scrolls from the keyboard; scripted checks for export, preview, keyboard focus, Page Down, Return, Escape, Cancel, Import and refused or crafted files; preview snapshots at normal length and pseudo-localized, `l10naudit` under a pseudo-language and with `ARBOR_TEXT_SIZE=150`, `axaudit`. The open and save panels aren't drivable headless (see Known gaps) |
+| FE-208 | Export and import preferences as one portable file | Implemented | Unit tests for the allowlist, the file format, the reader and the plan; app tests that an import reaches the preferences their owners read with the same defaults, and that the preview list scrolls from the keyboard; scripted checks for export, preview, keyboard focus, Page Down, Return, Escape, Cancel, Import and refused or crafted files; preview snapshots at normal length and pseudo-localized, `l10naudit` under a pseudo-language and with `BETTER_EXPLORER_TEXT_SIZE=150`, `axaudit`. The open and save panels aren't drivable headless (see Known gaps) |
 
 ## What a file can hold
 
 Exactly the entries of `PortableSettingsCatalog.all`, each a key plus a closed list of allowed values:
 
-- **Folder Options (17):** Open Arbor to, Browse folders, compact view, full path in title bar, hidden files, Hide empty
+- **Folder Options (17):** Open Better Explorer to, Browse folders, compact view, full path in title bar, hidden files, Hide empty
   drives, pop-up descriptions, status bar, sync provider notifications, item check boxes, typing mode, the file list keys and the navigation
   pane options.
 - **Other preferences (5):** navigation pane, text size, swipe navigation and the two transfer queue options.
@@ -29,11 +29,11 @@ Everything else stays on the Mac, because it isn't listed:
   type, DEC-008), click behavior and the underline style that depends on it (changes how many clicks launch a file,
   DEC-settings-3), protected system files and folder merge conflicts (remove a warning or prompt), recent files, frequent
   folders and window restore (turn activity recording on), preview handlers, thumbnails and the two search options that
-  parse file contents (decide which file contents Arbor reads), and the two search options nothing reads yet
+  parse file contents (decide which file contents Better Explorer reads), and the two search options nothing reads yet
   (DEC-settings-4).
 - Delete confirmation, verify-after-copy, Quick access pins, Home state, Gallery folders, libraries, folder templates,
   mapped network drives, search history, column sets, per-folder views, session and window geometry, the side pane.
-- Every `ARBOR_*` name: those are environment variables read only through `Automation`, and an import writes only the
+- Every `BETTER_EXPLORER_*` name: those are environment variables read only through `Automation`, and an import writes only the
   preference keys in this catalog.
 
 ## Decisions
@@ -97,5 +97,5 @@ Settings, so they aren't offered. Passwords stay in the Keychain and this featur
 
 ## Shared files touched (small, additive)
 
-`Sources/Arbor/Features.swift` (one line) and `scripts/behavior-checks.sh` (the `settings` group). The feature reads
+`Sources/BetterExplorer/Features.swift` (one line) and `scripts/behavior-checks.sh` (the `settings` group). The feature reads
 `FolderOptionsPrefs` and `Prefs` at run time and adds no extension point.

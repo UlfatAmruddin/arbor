@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest something Arbor should do
+about: Suggest something Better Explorer should do
 title: ""
 labels: enhancement
 ---
